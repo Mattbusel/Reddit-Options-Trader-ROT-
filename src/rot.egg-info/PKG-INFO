@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: rot
+Version: 0.0.1
+Summary: Reddit -> Events -> Reasoning -> Options Trade Ideas
+Requires-Python: >=3.10
