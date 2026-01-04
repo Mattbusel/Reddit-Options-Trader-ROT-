@@ -4,6 +4,15 @@ A real-time Reddit signal ingestion and analysis pipeline that detects **emergin
 
 ROT is designed as a **research-grade pipeline**, not a trading bot. Every stage emits auditable artifacts to disk so signals can be inspected, replayed, and refined.
 
+## Screenshots
+
+### Live pipeline loop output
+![ROT loop output](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171813.png)
+
+### JSONL artifact outputs (storage/)
+![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
+
+
 ---
 
 ## What This Does (Today)
@@ -186,5 +195,6 @@ It does not provide financial advice and does not place trades.
 
 ---
 .
+
 
 
