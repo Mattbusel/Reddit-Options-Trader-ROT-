@@ -1,148 +1,199 @@
-
-```markdown
 # Reddit Options Trader (ROT)
 
-A modular research pipeline that turns trending Reddit discussions into
-structured market events and options trade ideas.
+A real-time Reddit signal ingestion and analysis pipeline that detects **emerging market sentiment**, extracts **trade-relevant entities**, and generates **structured options trade ideas**.
 
-This project is focused on infrastructure, not “print money” claims.
+ROT is designed as a **research-grade pipeline**, not a trading bot. Every stage emits auditable artifacts to disk so signals can be inspected, replayed, and refined.
 
----
+## Screenshots
 
-## What this is
+### Live pipeline loop output
+![ROT loop output](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171813.png)
 
-ROT ingests Reddit threads, detects early momentum, extracts market-relevant
-events, runs structured reasoning (LLM-assisted), and outputs **auditable,
-defined-risk options ideas**.
+### JSONL artifact outputs (storage/)
+![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
 
-Every stage produces receipts.
 
 ---
 
-## High-level flow
+## What This Does (Today)
+
+ROT continuously:
+
+1. **Ingests live Reddit data** via PRAW
+
+   * Supports `hot`, `rising`, `new`, `top`
+   * Configurable subreddits and post limits
+   * Optional top-comment ingestion
+2. **Deduplicates posts** across runs
+
+   * Tracks seen post IDs to prevent reprocessing noise
+3. **Detects trending threads**
+
+   * Uses rate-of-change on score and comment velocity
+   * Emits trend candidates when deltas cross thresholds
+4. **Extracts market-relevant events**
+
+   * Identifies ticker symbols (e.g. TSLA, NVDA)
+   * Builds evidence chains tied to source posts
+5. **Scores credibility**
+
+   * Lightweight confidence scoring per event
+6. **Reasons over events (LLM-ready)**
+
+   * Structured reasoning packets (DeepSeek-ready)
+7. **Generates trade ideas**
+
+   * Produces normalized “trade idea” artifacts
+8. **Persists everything**
+
+   * JSONL logs for full pipeline observability
+
+This runs **continuously** and safely. No execution, no brokerage APIs.
+
+---
+
+## Architecture Overview
 
 ```
-
-Reddit → Snapshots → Trend Detection → Events
-→ Credibility Scoring → Reasoning (LLM)
-→ Market Gates → Trade Ideas
-
+Reddit (PRAW)
+   ↓
+Ingestor (dedupe + snapshots)
+   ↓
+Trend Engine (delta-based)
+   ↓
+Event Builder (entities + evidence)
+   ↓
+Credibility Scorer
+   ↓
+LLM Reasoner (optional)
+   ↓
+Trade Builder
+   ↓
+JSONL Artifacts (storage/)
 ```
 
-Key design choice:  
-Reddit is treated as an event discovery surface, not a truth source.
+Each stage is modular and independently replaceable.
 
 ---
 
-## Core concepts
+## Live Output Artifacts
 
-- ThreadSnapshot
-  Point-in-time capture of a Reddit post (and optional comments).
+All pipeline outputs are written to `storage/` as append-only JSONL files:
 
-- TrendCandidate  
-  A post or entity showing *acceleration* (rate of change), not raw popularity.
+* `snapshots.jsonl`
+  Raw Reddit post snapshots
+* `trend_candidates.jsonl`
+  Posts exhibiting abnormal engagement velocity
+* `events.jsonl`
+  Extracted market-relevant events (tickers, stance, evidence)
+* `reasoning.jsonl`
+  LLM-ready reasoning packets
+* `trade_ideas.jsonl`
+  Structured trade idea outputs
+* `seen_posts.json`
+  Persistent deduplication state
 
-- Event 
-  Structured representation of a potential market catalyst:
-  - entities (tickers / companies)
-  - stance (bullish / bearish / unknown)
-  - time horizon
-  - evidence + confidence
-
-- ReasoningPacket 
-  Schema-locked LLM output:
-  - thesis
-  - catalyst window
-  - invalidations
-  - suggested option structures
-
-- TradeIdea
-  A paper-trade object with:
-  - defined risk
-  - no execution by default
-  - explicit “do not trade” reasons when gated out
+This makes ROT **fully replayable and debuggable**.
 
 ---
 
-## Project structure
+## Requirements
 
-```
+* Python 3.10+
+* Reddit API credentials
+* PRAW
 
-src/rot/
-core/          Shared types, config, logging
-ingest/        Reddit API ingestion
-trend/         Momentum detection (rate-based)
-extract/       Entity + event construction
-credibility/   Confidence & manipulation filters
-reasoner/      LLM integration (DeepSeek)
-market/        Market data gates + trade construction
-app/           Pipeline runner
-storage/
-snapshots.jsonl
-events.jsonl
-reasoning.jsonl
-trade_ideas.jsonl
-
-````
-
-All outputs are logged as JSONL for replay, debugging, and backtesting.
-
----
-
-## Current status
-
-- ✅ Full pipeline structure in place
-- ✅ Typed data contracts between modules
-- ✅ JSONL audit trail
-- ⏳ Reddit API ingestion (official)
-- ⏳ Market data integration
-- ⏳ Live / paper trading (optional)
-
-By default, the system does not place trades.
-
----
-
-## Design principles
-
-- Modular, swappable components
-- No hidden state
-- No look-ahead leakage
-- Defined-risk bias for options
-- Skepticism-first (manipulation-aware)
-
----
-
-## Non-goals
-
-- Guaranteed profitability
-- Directional prediction from sentiment alone
-- Black-box decision making
-- High-frequency execution
-
----
-
-## Getting started
+Install dependencies:
 
 ```bash
-# create virtual env
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# install deps (once defined)
 pip install -e .
-````
-
-Then wire the Reddit ingestor and run:
-
-```python
-PipelineRunner.run_once()
 ```
+
+---
+
+## Reddit API Setup
+
+Create a Reddit “script” app and set environment variables:
+
+```bash
+export ROT_REDDIT_CLIENT_ID="your_client_id"
+export ROT_REDDIT_CLIENT_SECRET="your_client_secret"
+export ROT_REDDIT_USER_AGENT="rot:v0.0.1 (by u_yourusername)"
+```
+
+
+---
+
+## Running the Pipeline
+
+### One-shot run
+
+```bash
+python -m rot.app.main
+```
+
+### Continuous loop (recommended)
+
+```bash
+python -m rot.app.loop
+```
+
+Example live output:
+
+```
+✅ run_1767564489 | snapshots=68 candidates=32 events=24 ideas=24
+```
+
+Stop safely with `Ctrl+C`.
+
+---
+
+## Deduplication Behavior
+
+ROT maintains a persistent `seen_posts.json` file that:
+
+* Prevents reprocessing identical Reddit posts
+* Allows trend detection only when **metrics change**
+* Keeps signal quality high during tight polling loops
+
+You can reset state by deleting:
+
+```bash
+rm storage/seen_posts.json
+```
+
+---
+
+## Design Philosophy
+
+* **Research-first**: every decision is inspectable
+* **No black boxes**: JSONL > dashboards
+* **Signal over scale**: velocity beats volume
+* **Composable**: each stage can be swapped or upgraded
+* **Safe by default**: no live trading, no execution risk
+
+ROT is meant to help you *see* market sentiment forming, not blindly act on it.
+
+---
+
+## Roadmap (Short-Term)
+
+* Improved ticker/entity filtering
+* Subreddit-specific trend thresholds
+* Time-windowed top-N candidate ranking
+* LLM prompt tuning for options-specific reasoning
+* Backtesting hooks (offline replay from JSONL)
 
 ---
 
 ## Disclaimer
 
-This project is for **research and experimentation**.
-Nothing here constitutes financial advice.
+This project is for **research and educational purposes only**.
+It does not provide financial advice and does not place trades.
+
+---
+.
+
+
 
 
