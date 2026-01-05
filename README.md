@@ -1,7 +1,3 @@
-
-### Live pipeline loop output
-![ROT loop output](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171813.png)
-
 ### JSONL artifact outputs (storage/)
 ![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
 
@@ -14,7 +10,13 @@ ROT is an experimental research system that monitors high-velocity Reddit discus
 This is **not** a backtester or an execution bot.
 It is a **signal discovery and intelligence pipeline**.
 
+Live Pipeline loop output
+
+![ROT storage outputs](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/master/Screenshot%202026-01-04%20194537.png)
 ---
+
+### JSONL artifact outputs (storage/)
+![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
 
 ## What It Does (Current State)
 
@@ -193,6 +195,7 @@ ROT treats Reddit as:
 
 This project is for **research and experimentation only**.
 Nothing here constitutes financial advice.
+
 
 
 
