@@ -1,6 +1,3 @@
-### JSONL artifact outputs (storage/)
-![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
-
 # Reddit Options Trader (ROT)
 
 **Real-time Reddit trend detection → ticker-aware signal extraction → market-enriched trade ideas.**
@@ -195,6 +192,7 @@ ROT treats Reddit as:
 
 This project is for **research and experimentation only**.
 Nothing here constitutes financial advice.
+
 
 
 
