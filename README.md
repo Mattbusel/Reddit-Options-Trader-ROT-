@@ -14,250 +14,198 @@ Live Pipeline loop output
 ### JSONL artifact outputs (storage/)
 ![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
 
-What ROT Is
 
-A real-time social signal engine for markets
+##  What ROT Is
 
-A research and discovery tool for options-driven traders
-
-A backend + dashboard product, not a notebook experiment
+- A **real-time social signal engine** for markets  
+- A **research and discovery tool** for options-driven traders  
+- A **backend + dashboard product**, not a notebook experiment  
 
 ROT runs continuously, stores signals in a database, broadcasts them live, and exposes them via:
 
-Web dashboard
+- Web dashboard  
+- REST API  
+- WebSockets  
+- Discord alerts  
 
-REST API
+---
 
-WebSockets
+##  Core Capabilities
 
-Discord alerts
+### 1. Real-Time Reddit Ingestion
 
-Core Capabilities (Current State)
-1. Real-Time Reddit Ingestion
+- Streams posts using **PRAW**
+- Supported subreddits:
+  - `r/wallstreetbets`
+  - `r/stocks`
+- Supports:
+  - `hot`
+  - `new`
+  - `rising`
+  - `top`
+- Deduplicates previously seen posts
+- Persists state across restarts
 
-Streams posts using PRAW from:
+---
 
-r/wallstreetbets
+### 2. Trend Detection Engine
 
-r/stocks
-
-Supports hot, new, rising, top
-
-Deduplicates posts with TTL-based persistence
-
-Handles restarts without losing context
-
-2. Trend Detection Engine
-
-Detects emerging momentum, not raw mentions.
+Detects **momentum**, not raw mentions.
 
 Signals are driven by:
+- Score velocity
+- Comment velocity
+- Engagement acceleration
 
-Score velocity
+Emits **TrendCandidates** once thresholds are exceeded.
 
-Comment velocity
+---
 
-Engagement acceleration
-
-Emits TrendCandidates when thresholds are exceeded.
-
-3. Ticker Extraction & Validation
+### 3. Ticker Extraction & Validation
 
 Robust entity extraction with aggressive filtering.
 
 Supports:
-
-$TSLA style mentions
-
-Bare tickers (TSLA)
-
-Multi-ticker posts
+- `$TSLA` style mentions
+- Bare tickers (`TSLA`)
+- Multi-ticker posts
 
 Filters:
+- Macro noise (`AI`, `IPO`, `USD`, `WSB`, etc.)
+- Non-equities and slang
+- Delisted / invalid symbols
 
-Macro noise (AI, IPO, USD, WSB, etc.)
+Alias normalization:
+- `SPXW → ^GSPC`
+- `TSMC → TSM`
 
-Non-equities and slang
+---
 
-Invalid or delisted symbols
+### 4. Market Enrichment
 
-Includes alias normalization:
+- Pulls live market data via **yfinance**
+- Local caching to avoid repeated fetches
+- Enriches events with:
+  - Price
+  - Market cap
+  - Volume
+  - Context metadata
 
-SPXW → ^GSPC
+---
 
-TSMC → TSM
+### 5. Event Classification & Credibility Scoring
 
-4. Market Enrichment
+Each signal is converted into a structured **Event** with:
 
-Pulls live market data via yfinance
+- **Event types**
+  - Earnings
+  - Squeeze
+  - Regulatory
+  - Product
+  - Macro
+- **Sentiment detection**
+  - Bullish / Bearish / Mixed
+- **Time horizon inference**
+  - Intraday (0DTE)
+  - Weekly
+  - Earnings window
+- **Confidence scoring** based on:
+  - DD flair bonus
+  - Engagement quality
+  - Crosspost penalties
+  - Ticker focus
+  - Text depth
 
-Caches results locally to minimize API calls
+Each score includes a transparent breakdown.
 
-Enriches events with:
+---
 
-Price
+### 6. LLM Reasoning Layer (Optional)
 
-Market cap
+- Provider-agnostic LLM interface
+- Supports:
+  - OpenAI
+  - Anthropic
+  - DeepSeek
+- Fully optional with safe fallback mode
 
-Volume
+Used for:
+- Thesis synthesis
+- Risk identification
+- Context expansion
 
-Metadata used downstream
+---
 
-5. Event Classification & Scoring
+### 7. Trade Idea Generation
 
-Each signal is converted into a structured Event with:
-
-Event type detection:
-
-Earnings
-
-Squeeze
-
-Regulatory
-
-Product
-
-Macro
-
-Sentiment detection:
-
-Bullish / Bearish / Mixed
-
-Time horizon inference:
-
-Intraday (0DTE)
-
-Weekly
-
-Earnings window
-
-Confidence scoring based on:
-
-Flair (DD bonus)
-
-Engagement quality
-
-Crosspost penalties
-
-Ticker focus
-
-Text depth
-
-Transparency included via scoring breakdown metadata.
-
-6. LLM Reasoning Layer (Optional)
-
-Provider-agnostic LLM interface
-
-Supports OpenAI, Anthropic, DeepSeek
-
-Converts events into ReasoningPackets
-
-Fully optional with safe fallback when disabled
-
-LLMs are used for:
-
-Thesis articulation
-
-Risk identification
-
-Context synthesis
-
-7. Trade Idea Generation
-
-ROT generates example options strategies, not executable orders.
+ROT produces **example options strategies** (not executable orders).
 
 Supported strategies:
-
-Bull call spreads
-
-Bear put spreads
-
-Straddles
+- Bull call spreads
+- Bear put spreads
+- Straddles
 
 Features:
+- Strike selection (ATM ± 5%)
+- Expiry heuristics (weekly vs monthly)
+- Max loss calculation
+- Quality scoring
+- Pre-trade gates:
+  - Market data availability
+  - Market cap minimums
 
-Strike selection (ATM ± 5%)
+---
 
-Expiry heuristics (weekly vs monthly)
+### 8. Persistent Storage Layer
 
-Max loss calculation
+- Async SQLite database via **aiosqlite**
+- Tables:
+  - `signals`
+  - `signal_performance`
+  - `users`
+- Supports:
+  - Filtering by ticker, stance, confidence, event type
+  - Trending ticker aggregation
+  - Performance summaries
 
-Quality scoring
+Legacy `.jsonl` artifacts are still emitted for inspection.
 
-Pre-trade gating:
+---
 
-Market data availability
+### 9. Web Dashboard (FastAPI + Jinja)
 
-Market cap thresholds
+Live production-style dashboard:
 
-8. Persistent Storage Layer
+- Real-time signal feed (WebSockets)
+- Confidence bars & stance badges
+- Trending tickers (24h)
+- Signal detail pages:
+  - Full reasoning
+  - Trade structure
+  - Market context
+- Dark theme with Tailwind CSS
+- Health & API visibility
 
-Async SQLite database (aiosqlite)
+---
 
-Tables:
+### 10. Alerts & Distribution
 
-signals
+- Discord webhook integration
+- High-confidence signals only
+- Rich embeds including:
+  - Ticker
+  - Stance
+  - Confidence
+  - Strategy
+  - Option legs
+  - Risks
+  - Catalyst window
 
-signal_performance
+---
 
-users
+## 📊 Example Live Output
 
-Supports:
-
-Filtering by ticker, stance, confidence, event type
-
-Trending ticker aggregation
-
-Performance summaries
-
-Legacy JSONL artifacts are still emitted for inspection.
-
-9. Web Dashboard (FastAPI + Jinja)
-
-A live, production-style dashboard:
-
-Real-time signal feed (WebSocket)
-
-Confidence bars & stance badges
-
-Trending tickers (24h)
-
-Signal detail pages:
-
-Full reasoning
-
-Trade structure
-
-Market context
-
-Dark theme with Tailwind CSS
-
-Health & API visibility
-
-10. Alerts & Distribution
-
-Discord webhook integration
-
-High-confidence, tradeable signals only
-
-Rich embeds with:
-
-Ticker
-
-Stance
-
-Confidence
-
-Strategy
-
-Legs
-
-Risks
-
-Catalyst window
-
-Example Live Output
+```text
 🔥 Top signals:
 1. wallstreetbets | What Are Your Moves Tomorrow, February 09, 2026
 2. stocks | Silver has crashed yet again [SLV]
@@ -268,10 +216,6 @@ Example Live Output
 2. AGI
 3. GDRX
 
-
-(Exact output varies by market conditions.)
-
-Project Structure
 src/rot/
 ├── app/                # unified server & pipeline runner
 ├── ingest/             # Reddit ingestion
@@ -288,7 +232,7 @@ storage/
 ├── *.jsonl             # emitted artifacts
 ├── market_cache.json
 
-Setup & Running
+ Setup & Running
 1. Environment
 cp .env.example .env
 
@@ -306,11 +250,11 @@ pip install -e ".[dev]"
 python -m rot.app.server
 
 
-This starts:
+Starts:
 
 Reddit ingestion pipeline
 
-Database persistence
+SQLite persistence
 
 Web dashboard
 
@@ -325,21 +269,21 @@ http://localhost:8000/dashboard
 pytest tests/ -v
 
 
-53 tests currently passing.
+(53 tests currently passing)
 
-What This Is Not
+ What This Is Not
 
-❌ Not a trading bot
+Not a trading bot
 
-❌ Not an execution engine
+Not an execution engine
 
-❌ Not financial advice
+Not financial advice
 
-❌ Not a backtester (yet)
+Not a backtesting framework (yet)
 
 ROT is signal intelligence, not order placement.
 
-Why This Exists
+ Why This Exists
 
 Most retail trading tools:
 
@@ -357,11 +301,11 @@ Where conviction forms before price fully adjusts
 
 Especially relevant for options-driven markets
 
-Roadmap
+🛣 Roadmap
 
-Signal performance tracking & win-rate attribution
+Signal performance attribution
 
-Time-decay persistence & signal aging
+Time-decay signal aging
 
 Options chain awareness (IV, OI clustering)
 
@@ -373,11 +317,10 @@ X (Twitter) bot integration
 
 Hosted SaaS deployment
 
-Disclaimer
+ Disclaimer
 
 This project is for research and experimentation only.
 Nothing in this repository constitutes financial advice.
-
 
 
 
