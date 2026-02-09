@@ -14,37 +14,42 @@ Live Pipeline loop output
 ### JSONL artifact outputs (storage/)
 ![ROT storage outputs](https://raw.githubusercontent.com/Mattbusel/Reddit-Options-Trader-ROT-/master/Screenshot%202026-01-04%20171857.png)
 
+## What ROT Is
 
-##  What ROT Is
+- A **real-time market signal engine**
+- A **research & discovery tool** for options-driven traders
+- A **backend + live dashboard product**, not a notebook experiment
 
-- A **real-time social signal engine** for markets  
-- A **research and discovery tool** for options-driven traders  
-- A **backend + dashboard product**, not a notebook experiment  
-
-ROT runs continuously, stores signals in a database, broadcasts them live, and exposes them via:
+ROT runs continuously, persists data, broadcasts live updates, and exposes signals via:
 
 - Web dashboard  
 - REST API  
 - WebSockets  
 - Discord alerts  
 
----
 
-##  Core Capabilities
+## Core Capabilities
 
-### 1. Real-Time Reddit Ingestion
+### 1. Real-Time Ingestion (Reddit + RSS)
 
-- Streams posts using **PRAW**
+**Reddit**
+- Streams posts using PRAW
 - Supported subreddits:
   - `r/wallstreetbets`
   - `r/stocks`
-- Supports:
-  - `hot`
-  - `new`
-  - `rising`
-  - `top`
+- Feeds supported:
+  - `hot`, `new`, `rising`, `top`
 - Deduplicates previously seen posts
 - Persists state across restarts
+
+**RSS / News**
+- Native RSS & Atom feed ingestion
+- Default feeds include:
+  - Reuters Business
+  - Reuters Company News
+  - SEC 8-K filings
+- Deterministic IDs, freshness gating, and deduplication
+- RSS events bypass engagement heuristics and are promoted directly as catalysts
 
 ---
 
@@ -57,7 +62,7 @@ Signals are driven by:
 - Comment velocity
 - Engagement acceleration
 
-Emits **TrendCandidates** once thresholds are exceeded.
+Emits `TrendCandidate` objects once thresholds are exceeded.
 
 ---
 
@@ -65,25 +70,25 @@ Emits **TrendCandidates** once thresholds are exceeded.
 
 Robust entity extraction with aggressive filtering.
 
-Supports:
+**Supports**
 - `$TSLA` style mentions
 - Bare tickers (`TSLA`)
 - Multi-ticker posts
 
-Filters:
+**Filters**
 - Macro noise (`AI`, `IPO`, `USD`, `WSB`, etc.)
 - Non-equities and slang
 - Delisted / invalid symbols
 
-Alias normalization:
-- `SPXW → ^GSPC`
-- `TSMC → TSM`
+**Alias normalization**
+- `SPXW` → `^GSPC`
+- `TSMC` → `TSM`
 
 ---
 
 ### 4. Market Enrichment
 
-- Pulls live market data via **yfinance**
+- Live market data via `yfinance`
 - Local caching to avoid repeated fetches
 - Enriches events with:
   - Price
@@ -95,34 +100,39 @@ Alias normalization:
 
 ### 5. Event Classification & Credibility Scoring
 
-Each signal is converted into a structured **Event** with:
+Each signal becomes a structured **Event** with:
 
-- **Event types**
-  - Earnings
-  - Squeeze
-  - Regulatory
-  - Product
-  - Macro
-- **Sentiment detection**
-  - Bullish / Bearish / Mixed
-- **Time horizon inference**
-  - Intraday (0DTE)
-  - Weekly
-  - Earnings window
-- **Confidence scoring** based on:
-  - DD flair bonus
-  - Engagement quality
-  - Crosspost penalties
-  - Ticker focus
-  - Text depth
+**Event Types**
+- Earnings
+- Squeeze
+- Regulatory
+- Product
+- Macro
 
-Each score includes a transparent breakdown.
+**Sentiment Detection**
+- Bullish
+- Bearish
+- Mixed
+
+**Time Horizon Inference**
+- Intraday (0DTE)
+- Weekly
+- Earnings window
+
+**Credibility Scoring**
+- DD flair bonus
+- Engagement quality
+- Cross-post penalties
+- Ticker focus
+- Text depth
+
+Each score includes a **transparent breakdown**.
 
 ---
 
 ### 6. LLM Reasoning Layer (Optional)
 
-- Provider-agnostic LLM interface
+- Provider-agnostic interface
 - Supports:
   - OpenAI
   - Anthropic
@@ -138,35 +148,38 @@ Used for:
 
 ### 7. Trade Idea Generation
 
-ROT produces **example options strategies** (not executable orders).
+ROT produces **example options strategies**  
+*(not executable orders)*.
 
-Supported strategies:
+**Supported strategies**
 - Bull call spreads
 - Bear put spreads
 - Straddles
 
-Features:
+**Features**
 - Strike selection (ATM ± 5%)
 - Expiry heuristics (weekly vs monthly)
 - Max loss calculation
 - Quality scoring
-- Pre-trade gates:
-  - Market data availability
-  - Market cap minimums
+
+**Pre-trade gates**
+- Market data availability
+- Market cap minimums
 
 ---
 
 ### 8. Persistent Storage Layer
 
-- Async SQLite database via **aiosqlite**
+- Async SQLite database via `aiosqlite`
 - Tables:
   - `signals`
   - `signal_performance`
   - `users`
-- Supports:
-  - Filtering by ticker, stance, confidence, event type
-  - Trending ticker aggregation
-  - Performance summaries
+
+Supports:
+- Filtering by ticker, stance, confidence, event type
+- Trending ticker aggregation
+- Performance summaries
 
 Legacy `.jsonl` artifacts are still emitted for inspection.
 
@@ -174,7 +187,7 @@ Legacy `.jsonl` artifacts are still emitted for inspection.
 
 ### 9. Web Dashboard (FastAPI + Jinja)
 
-Live production-style dashboard:
+Live production-style dashboard featuring:
 
 - Real-time signal feed (WebSockets)
 - Confidence bars & stance badges
@@ -203,56 +216,70 @@ Live production-style dashboard:
 
 ---
 
-## 📊 Example Live Output
+## Example Live Output
 
-```text
 🔥 Top signals:
-1. wallstreetbets | What Are Your Moves Tomorrow, February 09, 2026
-2. stocks | Silver has crashed yet again [SLV]
-3. wallstreetbets | Inside Elon Musk’s $1.25T AI & Space Megamerger
+
+wallstreetbets | What Are Your Moves Tomorrow, February 09, 2026
+
+stocks | Silver has crashed yet again [SLV]
+
+wallstreetbets | Inside Elon Musk’s $1.25T AI & Space Megamerger
 
 🎯 Top ticker signals:
-1. SLV
-2. AGI
-3. GDRX
+
+SLV
+
+AGI
+
+GDRX
+
+
+---
+
+## Project Structure
 
 src/rot/
-├── app/                # unified server & pipeline runner
-├── ingest/             # Reddit ingestion
-├── trend/              # trend detection
-├── extract/            # ticker extraction
-├── market/             # validation & enrichment
-├── credibility/        # scoring logic
-├── reasoner/           # LLM reasoning layer
-├── alerts/             # Discord dispatch
-├── storage/            # database + persistence
-├── web/                # FastAPI app, routes, templates
-├── core/               # config, types, utilities
+├── app/ # unified server & pipeline runner
+├── ingest/ # Reddit + RSS ingestion
+├── trend/ # trend detection
+├── extract/ # ticker extraction
+├── market/ # validation & enrichment
+├── credibility/ # scoring logic
+├── reasoner/ # LLM reasoning layer
+├── alerts/ # Discord dispatch
+├── storage/ # database + persistence
+├── web/ # FastAPI app, routes, templates
+├── core/ # config, types, utilities
+
 storage/
-├── *.jsonl             # emitted artifacts
+├── *.jsonl # emitted artifacts
 ├── market_cache.json
 
- Setup & Running
-1. Environment
+
+---
+
+## Setup & Running
+
+### 1. Environment
+
+```bash
 cp .env.example .env
-
-
 Fill in:
 
 Reddit API credentials
 
 Optional LLM API key
 
+Optional RSS configuration
+
 2. Install
 pip install -e ".[dev]"
-
 3. Run the Full Product
 python -m rot.app.server
-
-
 Starts:
 
-Reddit ingestion pipeline
+Reddit + RSS ingestion pipeline
 
 SQLite persistence
 
@@ -264,15 +291,11 @@ Discord alerts
 
 4. View Dashboard
 http://localhost:8000/dashboard
-
 5. Run Tests
 pytest tests/ -v
+83 tests currently passing
 
-
-(53 tests currently passing)
-
- What This Is Not
-
+What This Is Not
 Not a trading bot
 
 Not an execution engine
@@ -283,17 +306,16 @@ Not a backtesting framework (yet)
 
 ROT is signal intelligence, not order placement.
 
- Why This Exists
-
+Why This Exists
 Most retail trading tools:
 
 React after price moves
 
 Ignore social momentum structure
 
-Treat Reddit as noise
+Treat Reddit and news as noise
 
-ROT treats Reddit as:
+ROT treats them as:
 
 A high-energy signal surface
 
@@ -301,8 +323,7 @@ Where conviction forms before price fully adjusts
 
 Especially relevant for options-driven markets
 
-🛣 Roadmap
-
+Roadmap
 Signal performance attribution
 
 Time-decay signal aging
@@ -317,12 +338,6 @@ X (Twitter) bot integration
 
 Hosted SaaS deployment
 
- Disclaimer
-
+Disclaimer
 This project is for research and experimentation only.
 Nothing in this repository constitutes financial advice.
-
-
-
-
-
