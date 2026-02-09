@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
@@ -14,8 +15,9 @@ class SeenRecord:
 
 
 class SeenStore:
-    def __init__(self, path: str = "storage/seen_posts.json") -> None:
+    def __init__(self, path: str = "storage/seen_posts.json", max_age_s: int = 7 * 24 * 3600) -> None:
         self.path = Path(path)
+        self.max_age_s = max_age_s
         self._data: Dict[str, SeenRecord] = {}
         self._loaded = False
 
@@ -34,11 +36,17 @@ class SeenStore:
                     last_seen_ts=int(v.get("last_seen_ts", 0)),
                 )
         except Exception:
-            # If state is corrupted, start fresh
             self._data = {}
+
+    def _evict_old(self) -> None:
+        cutoff = int(time.time()) - self.max_age_s
+        to_remove = [k for k, r in self._data.items() if r.last_seen_ts < cutoff]
+        for k in to_remove:
+            del self._data[k]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._evict_old()
         raw = {
             k: {"score": r.score, "num_comments": r.num_comments, "last_seen_ts": r.last_seen_ts}
             for k, r in self._data.items()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Any, Callable, Dict, List, Optional
 
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
@@ -9,7 +10,7 @@ from rot.trend.ranker import top_n_candidates
 from rot.trend.ticker_ranker import top_ticker_candidates
 from rot.extract.event_builder import EventBuilder
 from rot.credibility.scorer import CredibilityScorer
-from rot.reasoner.deepseek_client import DeepSeekReasoner
+from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.market.enricher import MarketEnricher
 from rot.market.symbol_validator import SymbolValidator
@@ -22,11 +23,13 @@ class PipelineRunner:
         trend_engine: TrendEngine,
         event_builder: EventBuilder,
         cred: CredibilityScorer,
-        reasoner: DeepSeekReasoner,
+        reasoner: Reasoner,
         trade_builder: TradeBuilder,
         logger: JsonlLogger,
         enricher: MarketEnricher | None = None,
         symbol_validator: SymbolValidator | None = None,
+        top_n: int = 10,
+        on_signal: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self.ingestor = ingestor
         self.trend_engine = trend_engine
@@ -37,6 +40,15 @@ class PipelineRunner:
         self.log = logger
         self.enricher = enricher or MarketEnricher()
         self.symbol_validator = symbol_validator or SymbolValidator()
+        self.top_n = top_n
+        self.on_signal = on_signal
+
+    def _emit_signal(self, signal_data: Dict[str, Any]) -> None:
+        if self.on_signal:
+            try:
+                self.on_signal(signal_data)
+            except Exception:
+                pass
 
     def run_once(self) -> dict:
         run_id = f"run_{int(time.time())}"
@@ -46,13 +58,18 @@ class PipelineRunner:
         for s in snapshots:
             self.log.write("snapshots", {"run_id": run_id, "snapshot": s})
 
+        # Save trend store state after detection
         # 2) trend detect
         candidates = self.trend_engine.detect(snapshots)
         for c in candidates:
             self.log.write("trend_candidates", {"run_id": run_id, "candidate": c})
 
+        # Save trend store if it supports persistence
+        if hasattr(self.trend_engine.store, "save"):
+            self.trend_engine.store.save()
+
         # 2a) Top signals (ALL)
-        top_all = top_n_candidates(candidates, n=5)
+        top_all = top_n_candidates(candidates, n=self.top_n)
         for rank, c in enumerate(top_all, start=1):
             p = c.snapshot.post
             self.log.write(
@@ -84,12 +101,11 @@ class PipelineRunner:
                 print(f"  {i}. {p.subreddit} | {p.title[:80]} [{ents_s}] (score={c.trend_score:.3f})")
 
         # 2b) Build events once, reuse downstream
-        # Also track ticker-aware candidate count for summary
         events = []
         ticker_candidates = []
 
         for c in candidates:
-            evs = self.event_builder.from_candidate(c)  # returns [] if no tickers
+            evs = self.event_builder.from_candidate(c)
             if evs:
                 ticker_candidates.append(c)
                 events.extend(evs)
@@ -105,7 +121,7 @@ class PipelineRunner:
             candidates=candidates,
             extracted=extracted_by_key,
             validator=self.symbol_validator,
-            n=5,
+            n=self.top_n,
         )
 
         for rank, (c, syms) in enumerate(top_ticker_pairs, start=1):
@@ -124,10 +140,11 @@ class PipelineRunner:
                 },
             )
 
-        print("🎯 Top ticker signals:")
-        for i, (c, syms) in enumerate(top_ticker_pairs, 1):
-            p = c.snapshot.post
-            print(f"  {i}. {p.subreddit} | {p.title[:80]} [{','.join(syms)}] (score={c.trend_score:.3f})")
+        if top_ticker_pairs:
+            print("🎯 Top ticker signals:")
+            for i, (c, syms) in enumerate(top_ticker_pairs, 1):
+                p = c.snapshot.post
+                print(f"  {i}. {p.subreddit} | {p.title[:80]} [{','.join(syms)}] (score={c.trend_score:.3f})")
 
         # 3) enrich + score events
         events = [self.enricher.enrich_event(e) for e in events]
@@ -144,6 +161,14 @@ class PipelineRunner:
             for idea in ideas:
                 idea_count += 1
                 self.log.write("trade_ideas", {"run_id": run_id, "trade_idea": idea})
+
+                # Emit signal for downstream consumers (WebSocket, Discord, DB)
+                self._emit_signal({
+                    "run_id": run_id,
+                    "event": e,
+                    "reasoning": packet,
+                    "trade_idea": idea,
+                })
 
         return {
             "run_id": run_id,

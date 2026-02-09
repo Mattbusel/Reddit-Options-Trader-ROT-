@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
 import json
 import time
-from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yfinance as yf
+
+from rot.core.types import Event
 
 # Map common text aliases -> Yahoo symbols
 ALIAS_MAP: Dict[str, str] = {
@@ -23,30 +25,22 @@ NON_EQUITY_TOKENS = {
     "USD", "EUR", "GBP", "JPY", "CNY",
     "AI", "DD", "YOLO", "WSB", "IMO", "CEO", "CPI", "GDP", "FOMC",
     "US", "EU", "UK", "IRA", "SEC", "DOJ", "NATO", "BRICS", "PLA",
+    "IPO", "ETF", "OTC", "ATH", "ATL", "EPS", "PE", "IV", "OI",
+    "TECH", "AUTO", "PHARMA", "BIO", "FED", "NYSE", "SPAC",
+    "LOL", "WTF", "SMH", "TBH", "RN", "PM", "AM", "OP", "TLDR",
+    "ITM", "OTM", "DTE", "FD", "PDT", "HODL",
 }
 
-def _jsonable(obj: Any) -> Any:
-    if is_dataclass(obj):
-        return asdict(obj)
-    if isinstance(obj, dict):
-        return {k: _jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_jsonable(x) for x in obj]
-    return obj
 
 @contextlib.contextmanager
 def _quiet_yfinance():
-    # yfinance prints a lot to stdout/stderr; swallow it.
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         yield
 
 
 class MarketEnricher:
-    """
-    Lightweight yfinance market metadata enrichment.
+    """Lightweight yfinance market metadata enrichment with caching."""
 
-    Writes a cache to storage/market_cache.json to avoid repeated calls.
-    """
     def __init__(self, cache_path: str = "storage/market_cache.json", ttl_s: int = 3600) -> None:
         self.cache_path = Path(cache_path)
         self.ttl_s = ttl_s
@@ -65,9 +59,10 @@ class MarketEnricher:
 
     def _save_cache(self) -> None:
         try:
-            self.cache_path.write_text(json.dumps(self._cache, ensure_ascii=False, indent=2), encoding="utf-8")
+            self.cache_path.write_text(
+                json.dumps(self._cache, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         except Exception:
-            # cache failures should never break the pipeline
             pass
 
     def _fresh(self, sym: str) -> Optional[Dict[str, Any]]:
@@ -84,13 +79,11 @@ class MarketEnricher:
         return None
 
     def _fetch(self, sym: str) -> Dict[str, Any]:
-        # Try to get minimal price + 1d change.
         out: Dict[str, Any] = {"symbol": sym}
 
         with _quiet_yfinance():
             t = yf.Ticker(sym)
 
-            # Price series
             try:
                 hist = t.history(period="5d", interval="1d")
                 if hist is not None and len(hist) > 0:
@@ -102,11 +95,9 @@ class MarketEnricher:
             except Exception as e:
                 out["price_error"] = str(e)
 
-            # Light fundamentals (can be slow / flaky)
             try:
                 info = getattr(t, "fast_info", None)
                 if isinstance(info, dict):
-                    # fast_info keys vary; keep it optional
                     out["currency"] = info.get("currency")
                     out["last_price"] = info.get("lastPrice") or info.get("last_price")
                     out["market_cap"] = info.get("marketCap") or info.get("market_cap")
@@ -145,21 +136,12 @@ class MarketEnricher:
         self._save_cache()
         return market
 
-    def enrich_event(self, event: Any) -> Any:
-        """
-        Mutates event.meta in-place (keeps your pipeline simple).
-        Expected event has: event.entities (list[str]) and event.meta (dict).
-        """
-        entities = getattr(event, "entities", []) or []
-        meta = getattr(event, "meta", None)
-        if meta is None or not isinstance(meta, dict):
-            meta = {}
-            try:
-                setattr(event, "meta", meta)
-            except Exception:
-                # If it's frozen, we'll just return it untouched.
-                return event
+    def enrich_event(self, event: Event) -> Event:
+        """Return a new Event with market data added to meta."""
+        entities = list(event.entities) if event.entities else []
+        market_data = self.enrich_symbols(entities)
 
-        meta.setdefault("market", {})
-        meta["market"].update(self.enrich_symbols(list(entities)))
-        return event
+        new_meta = dict(event.meta)
+        new_meta["market"] = market_data
+
+        return dataclasses.replace(event, meta=new_meta)

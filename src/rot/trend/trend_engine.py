@@ -7,10 +7,17 @@ from rot.trend.trend_store import TrendStore
 
 
 class TrendEngine:
-    def __init__(self, store: TrendStore, window_s: int = 1800, threshold: float = 0.01) -> None:
+    def __init__(
+        self,
+        store: TrendStore,
+        window_s: int = 1800,
+        threshold: float = 0.01,
+        comment_weight: float = 2.0,
+    ) -> None:
         self.store = store
         self.window_s = window_s
         self.threshold = threshold
+        self.comment_weight = comment_weight
 
     def detect(self, snapshots: List[ThreadSnapshot]) -> List[TrendCandidate]:
         out: List[TrendCandidate] = []
@@ -29,7 +36,7 @@ class TrendEngine:
                 "score_rate": dscore / dt,
                 "comment_rate": dcom / dt,
             }
-            trend_score = features["score_rate"] + 2.0 * features["comment_rate"]
+            trend_score = features["score_rate"] + self.comment_weight * features["comment_rate"]
 
             if trend_score >= self.threshold:
                 out.append(

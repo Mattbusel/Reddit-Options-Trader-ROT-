@@ -1,522 +1,752 @@
 {
-  "1q402c9": {
-    "score": 897,
-    "num_comments": 126,
-    "last_seen_ts": 1767573614
-  },
-  "1q40khu": {
-    "score": 194,
-    "num_comments": 131,
-    "last_seen_ts": 1767564557
-  },
-  "1q3wu1b": {
-    "score": 149,
-    "num_comments": 26,
-    "last_seen_ts": 1767573614
-  },
-  "1q41fao": {
-    "score": 183,
-    "num_comments": 2605,
-    "last_seen_ts": 1767573614
-  },
-  "1q2xli2": {
-    "score": 13122,
-    "num_comments": 561,
-    "last_seen_ts": 1767573614
-  },
-  "1q3fzm1": {
-    "score": 457,
-    "num_comments": 83,
-    "last_seen_ts": 1767573614
-  },
-  "1q3s1kk": {
-    "score": 73,
-    "num_comments": 65,
-    "last_seen_ts": 1767573614
-  },
-  "1q3e4y2": {
-    "score": 314,
-    "num_comments": 45,
-    "last_seen_ts": 1767573614
-  },
-  "1q2w01j": {
-    "score": 2121,
-    "num_comments": 310,
-    "last_seen_ts": 1767573614
-  },
-  "1q2lunb": {
-    "score": 14779,
-    "num_comments": 3544,
-    "last_seen_ts": 1767573614
-  },
-  "1q33k1v": {
-    "score": 4063,
-    "num_comments": 1222,
-    "last_seen_ts": 1767573614
-  },
-  "1q3cmyi": {
-    "score": 1019,
-    "num_comments": 622,
-    "last_seen_ts": 1767573614
-  },
-  "1q3iyqq": {
-    "score": 196,
-    "num_comments": 199,
-    "last_seen_ts": 1767573614
-  },
-  "1q3d9kt": {
-    "score": 467,
-    "num_comments": 241,
-    "last_seen_ts": 1767573614
-  },
-  "1q3wooz": {
-    "score": 9,
-    "num_comments": 61,
-    "last_seen_ts": 1767573614
-  },
-  "1q2vxcc": {
-    "score": 497,
-    "num_comments": 589,
-    "last_seen_ts": 1767573614
-  },
-  "1q2rkf2": {
-    "score": 117,
-    "num_comments": 252,
-    "last_seen_ts": 1767573614
-  },
-  "1q3gkx1": {
-    "score": 5,
-    "num_comments": 24,
-    "last_seen_ts": 1767573614
-  },
-  "1q3s3kv": {
-    "score": 0,
-    "num_comments": 16,
-    "last_seen_ts": 1767564185
-  },
-  "1q1ziog": {
-    "score": 1724,
-    "num_comments": 319,
-    "last_seen_ts": 1767573614
-  },
-  "1q219xg": {
-    "score": 46,
-    "num_comments": 69,
-    "last_seen_ts": 1767573614
-  },
-  "1q2u87p": {
-    "score": 1337,
-    "num_comments": 66,
-    "last_seen_ts": 1767573614
-  },
-  "1q30yzr": {
-    "score": 506,
-    "num_comments": 127,
-    "last_seen_ts": 1767573614
-  },
-  "1q34hl1": {
-    "score": 124,
-    "num_comments": 87,
-    "last_seen_ts": 1767573614
-  },
-  "1q2uyeg": {
-    "score": 271,
-    "num_comments": 77,
-    "last_seen_ts": 1767573536
-  },
-  "1q2injg": {
-    "score": 832,
-    "num_comments": 129,
-    "last_seen_ts": 1767573614
-  },
-  "1q2x6cq": {
-    "score": 71,
-    "num_comments": 134,
-    "last_seen_ts": 1767573614
-  },
-  "1q302oa": {
-    "score": 42,
-    "num_comments": 98,
-    "last_seen_ts": 1767573614
-  },
-  "1q2vldp": {
-    "score": 60,
-    "num_comments": 10,
-    "last_seen_ts": 1767573614
-  },
-  "1q2yejl": {
-    "score": 40,
-    "num_comments": 48,
-    "last_seen_ts": 1767573614
-  },
-  "1q2qqpe": {
-    "score": 96,
-    "num_comments": 37,
-    "last_seen_ts": 1767573614
-  },
-  "1q2357s": {
-    "score": 2058,
-    "num_comments": 330,
-    "last_seen_ts": 1767573614
-  },
-  "1q1zzaa": {
-    "score": 1559,
-    "num_comments": 272,
-    "last_seen_ts": 1767573614
-  },
-  "1q213c5": {
-    "score": 1305,
-    "num_comments": 293,
-    "last_seen_ts": 1767573283
-  },
-  "1q2gocx": {
-    "score": 132,
-    "num_comments": 99,
-    "last_seen_ts": 1767573536
-  },
-  "1q2a326": {
-    "score": 284,
-    "num_comments": 110,
-    "last_seen_ts": 1767573614
-  },
-  "1q27i9v": {
-    "score": 297,
-    "num_comments": 24,
-    "last_seen_ts": 1767573536
-  },
-  "1q2ae92": {
-    "score": 187,
-    "num_comments": 15874,
-    "last_seen_ts": 1767573614
-  },
-  "1q1qudf": {
-    "score": 2911,
-    "num_comments": 1254,
-    "last_seen_ts": 1767573614
-  },
-  "1q21xv0": {
-    "score": 292,
-    "num_comments": 67,
-    "last_seen_ts": 1767573536
-  },
-  "1q2dvd7": {
-    "score": 70,
-    "num_comments": 30,
-    "last_seen_ts": 1767573614
-  },
-  "1q1e0yk": {
-    "score": 8959,
-    "num_comments": 671,
-    "last_seen_ts": 1767573614
-  },
-  "1q21bl6": {
-    "score": 215,
-    "num_comments": 41,
-    "last_seen_ts": 1767573614
-  },
-  "1q19tl3": {
-    "score": 17871,
-    "num_comments": 1107,
-    "last_seen_ts": 1767573614
-  },
-  "1q21qnf": {
-    "score": 168,
-    "num_comments": 16,
-    "last_seen_ts": 1767573614
-  },
-  "1q1wvlf": {
-    "score": 263,
-    "num_comments": 8207,
-    "last_seen_ts": 1767573614
-  },
-  "1q21bj4": {
-    "score": 174,
-    "num_comments": 182,
-    "last_seen_ts": 1767573614
-  },
-  "1q21zst": {
-    "score": 111,
-    "num_comments": 12,
-    "last_seen_ts": 1767573614
-  },
-  "1q1q5jv": {
-    "score": 746,
-    "num_comments": 70,
-    "last_seen_ts": 1767573614
-  },
-  "1q24a0f": {
-    "score": 85,
-    "num_comments": 29,
-    "last_seen_ts": 1767573614
-  },
-  "1q250fg": {
-    "score": 57,
-    "num_comments": 26,
-    "last_seen_ts": 1767573614
-  },
-  "1q2936h": {
-    "score": 37,
-    "num_comments": 18,
-    "last_seen_ts": 1767573614
-  },
-  "1q224yc": {
-    "score": 70,
-    "num_comments": 52,
-    "last_seen_ts": 1767573614
-  },
-  "1q1wcr4": {
-    "score": 153,
-    "num_comments": 47,
-    "last_seen_ts": 1767573614
-  },
-  "1q218p9": {
-    "score": 47,
-    "num_comments": 11,
-    "last_seen_ts": 1767573614
-  },
-  "1q22xy7": {
-    "score": 25,
-    "num_comments": 49,
-    "last_seen_ts": 1767573536
-  },
-  "1q16xyd": {
-    "score": 2051,
-    "num_comments": 348,
-    "last_seen_ts": 1767573614
-  },
-  "1q1s35g": {
-    "score": 103,
-    "num_comments": 56,
-    "last_seen_ts": 1767573614
-  },
-  "1q1kzp2": {
-    "score": 323,
-    "num_comments": 65,
-    "last_seen_ts": 1767573614
-  },
-  "1q1aqe9": {
-    "score": 1122,
-    "num_comments": 196,
-    "last_seen_ts": 1767573614
-  },
   "1pb8xrf": {
-    "score": 8,
-    "num_comments": 53,
-    "last_seen_ts": 1767573614
+    "score": 22,
+    "num_comments": 113,
+    "last_seen_ts": 1770607457
   },
-  "1q2reuv": {
-    "score": 2,
-    "num_comments": 116,
-    "last_seen_ts": 1767573283
+  "1qxmgeh": {
+    "score": 132,
+    "num_comments": 339,
+    "last_seen_ts": 1770607604
   },
-  "1q38spt": {
-    "score": 4,
-    "num_comments": 1,
-    "last_seen_ts": 1767573536
+  "1qzklw7": {
+    "score": 262,
+    "num_comments": 5432,
+    "last_seen_ts": 1770607604
   },
-  "1q2hm4s": {
-    "score": 133,
-    "num_comments": 40,
-    "last_seen_ts": 1767573614
+  "1qzqkfd": {
+    "score": 1276,
+    "num_comments": 112,
+    "last_seen_ts": 1770607604
   },
-  "1q3fk7z": {
-    "score": 0,
-    "num_comments": 4,
-    "last_seen_ts": 1767569050
+  "1qz92yi": {
+    "score": 3193,
+    "num_comments": 896,
+    "last_seen_ts": 1770607604
   },
-  "1q3twr4": {
-    "score": 0,
-    "num_comments": 60,
-    "last_seen_ts": 1767564408
+  "1qzjzun": {
+    "score": 743,
+    "num_comments": 220,
+    "last_seen_ts": 1770607604
   },
-  "1q3rduu": {
-    "score": 0,
-    "num_comments": 11,
-    "last_seen_ts": 1767564408
+  "1qzsdhc": {
+    "score": 210,
+    "num_comments": 43,
+    "last_seen_ts": 1770607604
   },
-  "1q2amz4": {
-    "score": 142,
-    "num_comments": 159,
-    "last_seen_ts": 1767573614
-  },
-  "1q39jku": {
-    "score": 2,
-    "num_comments": 59,
-    "last_seen_ts": 1767573614
-  },
-  "1q27ae7": {
-    "score": 166,
+  "1qzsju8": {
+    "score": 111,
     "num_comments": 56,
-    "last_seen_ts": 1767573614
+    "last_seen_ts": 1770607604
   },
-  "1q2z2cn": {
-    "score": 3,
-    "num_comments": 4,
-    "last_seen_ts": 1767573536
+  "1qz76la": {
+    "score": 217,
+    "num_comments": 29,
+    "last_seen_ts": 1770607604
   },
-  "1q2ktx2": {
-    "score": 16,
-    "num_comments": 18,
-    "last_seen_ts": 1767573614
+  "1qyo3ey": {
+    "score": 1532,
+    "num_comments": 172,
+    "last_seen_ts": 1770607604
   },
-  "1q3epox": {
-    "score": 0,
-    "num_comments": 7,
-    "last_seen_ts": 1767569670
+  "1qyfyqz": {
+    "score": 3127,
+    "num_comments": 770,
+    "last_seen_ts": 1770607604
   },
-  "1q2hw2q": {
+  "1qyr0v5": {
+    "score": 380,
+    "num_comments": 252,
+    "last_seen_ts": 1770607604
+  },
+  "1qytcsh": {
+    "score": 212,
+    "num_comments": 39,
+    "last_seen_ts": 1770607604
+  },
+  "1qynkvk": {
+    "score": 324,
+    "num_comments": 105,
+    "last_seen_ts": 1770607604
+  },
+  "1qy03z0": {
+    "score": 9905,
+    "num_comments": 112,
+    "last_seen_ts": 1770607604
+  },
+  "1qxvoag": {
+    "score": 11776,
+    "num_comments": 882,
+    "last_seen_ts": 1770607604
+  },
+  "1qymh98": {
+    "score": 106,
+    "num_comments": 35,
+    "last_seen_ts": 1770607604
+  },
+  "1qy0u2f": {
+    "score": 1286,
+    "num_comments": 219,
+    "last_seen_ts": 1770607604
+  },
+  "1qxvoc5": {
+    "score": 1373,
+    "num_comments": 243,
+    "last_seen_ts": 1770607604
+  },
+  "1qxwm51": {
+    "score": 1124,
+    "num_comments": 228,
+    "last_seen_ts": 1770607457
+  },
+  "1qxt56j": {
+    "score": 1412,
+    "num_comments": 280,
+    "last_seen_ts": 1770607604
+  },
+  "1qxvqfc": {
+    "score": 955,
+    "num_comments": 212,
+    "last_seen_ts": 1770607457
+  },
+  "1qy5kvm": {
+    "score": 184,
+    "num_comments": 105,
+    "last_seen_ts": 1770607604
+  },
+  "1qxaaov": {
+    "score": 14020,
+    "num_comments": 1330,
+    "last_seen_ts": 1770607604
+  },
+  "1qxyf5k": {
+    "score": 366,
+    "num_comments": 41,
+    "last_seen_ts": 1770607604
+  },
+  "1qxrxwk": {
+    "score": 659,
+    "num_comments": 124,
+    "last_seen_ts": 1770607604
+  },
+  "1qy86ul": {
+    "score": 55,
+    "num_comments": 42,
+    "last_seen_ts": 1770607457
+  },
+  "1qxsn2j": {
+    "score": 419,
+    "num_comments": 125,
+    "last_seen_ts": 1770607604
+  },
+  "1qxxq8z": {
+    "score": 141,
+    "num_comments": 21,
+    "last_seen_ts": 1770607604
+  },
+  "1qxgldf": {
+    "score": 870,
+    "num_comments": 104,
+    "last_seen_ts": 1770607604
+  },
+  "1qy29jx": {
+    "score": 62,
+    "num_comments": 65,
+    "last_seen_ts": 1770607457
+  },
+  "1qxtp2q": {
+    "score": 183,
+    "num_comments": 11825,
+    "last_seen_ts": 1770607604
+  },
+  "1qy00um": {
+    "score": 71,
+    "num_comments": 34,
+    "last_seen_ts": 1770607457
+  },
+  "1qx3m84": {
+    "score": 5395,
+    "num_comments": 2036,
+    "last_seen_ts": 1770607604
+  },
+  "1qxufb8": {
+    "score": 106,
+    "num_comments": 44,
+    "last_seen_ts": 1770607604
+  },
+  "1qxjxt4": {
+    "score": 334,
+    "num_comments": 22,
+    "last_seen_ts": 1770607604
+  },
+  "1qxcj5p": {
+    "score": 965,
+    "num_comments": 338,
+    "last_seen_ts": 1770607604
+  },
+  "1qwuo98": {
+    "score": 12426,
+    "num_comments": 499,
+    "last_seen_ts": 1770607457
+  },
+  "1qy0kr2": {
+    "score": 32,
+    "num_comments": 41,
+    "last_seen_ts": 1770607604
+  },
+  "1qwx2z0": {
+    "score": 6992,
+    "num_comments": 777,
+    "last_seen_ts": 1770607604
+  },
+  "1qx4m1d": {
+    "score": 2014,
+    "num_comments": 339,
+    "last_seen_ts": 1770607457
+  },
+  "1qy2tt0": {
     "score": 17,
-    "num_comments": 3,
-    "last_seen_ts": 1767573614
+    "num_comments": 5,
+    "last_seen_ts": 1770607604
   },
-  "1q2zr1x": {
+  "1qxfqus": {
+    "score": 243,
+    "num_comments": 13349,
+    "last_seen_ts": 1770607604
+  },
+  "1qxv1qc": {
+    "score": 36,
+    "num_comments": 56,
+    "last_seen_ts": 1770607604
+  },
+  "1qxjxqe": {
+    "score": 118,
+    "num_comments": 101,
+    "last_seen_ts": 1770607604
+  },
+  "1qx2mdl": {
+    "score": 1664,
+    "num_comments": 577,
+    "last_seen_ts": 1770607604
+  },
+  "1qx0utz": {
+    "score": 2105,
+    "num_comments": 659,
+    "last_seen_ts": 1770607604
+  },
+  "1qxnexq": {
+    "score": 72,
+    "num_comments": 31,
+    "last_seen_ts": 1770607604
+  },
+  "1qxjn3l": {
+    "score": 101,
+    "num_comments": 40,
+    "last_seen_ts": 1770607604
+  },
+  "1qxrrs2": {
+    "score": 37,
+    "num_comments": 69,
+    "last_seen_ts": 1770607604
+  },
+  "1qx1avo": {
+    "score": 1408,
+    "num_comments": 263,
+    "last_seen_ts": 1770607604
+  },
+  "1qyahwt": {
+    "score": 3,
+    "num_comments": 69,
+    "last_seen_ts": 1770607604
+  },
+  "1qzezvd": {
+    "score": 502,
+    "num_comments": 55,
+    "last_seen_ts": 1770607457
+  },
+  "1qzboh0": {
+    "score": 308,
+    "num_comments": 209,
+    "last_seen_ts": 1770607604
+  },
+  "1qzexor": {
+    "score": 110,
+    "num_comments": 108,
+    "last_seen_ts": 1770607604
+  },
+  "1qzd74p": {
+    "score": 61,
+    "num_comments": 45,
+    "last_seen_ts": 1770607604
+  },
+  "1qzlqt6": {
+    "score": 21,
+    "num_comments": 4,
+    "last_seen_ts": 1770607604
+  },
+  "1qzng5p": {
+    "score": 14,
+    "num_comments": 24,
+    "last_seen_ts": 1770607604
+  },
+  "1qyqjq4": {
+    "score": 795,
+    "num_comments": 194,
+    "last_seen_ts": 1770607604
+  },
+  "1qz9l16": {
+    "score": 39,
+    "num_comments": 164,
+    "last_seen_ts": 1770607457
+  },
+  "1qyiqdo": {
+    "score": 761,
+    "num_comments": 326,
+    "last_seen_ts": 1770607604
+  },
+  "1qz0pyx": {
+    "score": 49,
+    "num_comments": 40,
+    "last_seen_ts": 1770607604
+  },
+  "1qyii8t": {
+    "score": 486,
+    "num_comments": 82,
+    "last_seen_ts": 1770607604
+  },
+  "1qyi59r": {
+    "score": 364,
+    "num_comments": 157,
+    "last_seen_ts": 1770607604
+  },
+  "1qyofnb": {
+    "score": 131,
+    "num_comments": 42,
+    "last_seen_ts": 1770607604
+  },
+  "1qyotyi": {
+    "score": 105,
+    "num_comments": 77,
+    "last_seen_ts": 1770607604
+  },
+  "1qyghnq": {
+    "score": 252,
+    "num_comments": 41,
+    "last_seen_ts": 1770607604
+  },
+  "1qz3va5": {
+    "score": 4,
+    "num_comments": 13,
+    "last_seen_ts": 1770607604
+  },
+  "1qzs6s5": {
+    "score": 0,
+    "num_comments": 12,
+    "last_seen_ts": 1770607604
+  },
+  "1qypsiy": {
+    "score": 38,
+    "num_comments": 60,
+    "last_seen_ts": 1770607604
+  },
+  "1qz3z24": {
+    "score": 3,
+    "num_comments": 2,
+    "last_seen_ts": 1770607457
+  },
+  "1qyd6ov": {
+    "score": 107,
+    "num_comments": 46,
+    "last_seen_ts": 1770607604
+  },
+  "1qz9qff": {
+    "score": 0,
+    "num_comments": 12,
+    "last_seen_ts": 1770607457
+  },
+  "1qyasjx": {
+    "score": 137,
+    "num_comments": 166,
+    "last_seen_ts": 1770607604
+  },
+  "1qyx0wr": {
+    "score": 7,
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
+  },
+  "1qz7msh": {
     "score": 2,
-    "num_comments": 25,
-    "last_seen_ts": 1767573614
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
   },
-  "1q2zq3f": {
+  "1qyp7v4": {
+    "score": 12,
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
+  },
+  "1qy194w": {
+    "score": 420,
+    "num_comments": 240,
+    "last_seen_ts": 1770607604
+  },
+  "1qyhxmz": {
+    "score": 15,
+    "num_comments": 23,
+    "last_seen_ts": 1770607604
+  },
+  "1qxkpz5": {
+    "score": 1012,
+    "num_comments": 352,
+    "last_seen_ts": 1770607457
+  },
+  "1qy6hvf": {
+    "score": 61,
+    "num_comments": 142,
+    "last_seen_ts": 1770607604
+  },
+  "1qxrvun": {
+    "score": 429,
+    "num_comments": 189,
+    "last_seen_ts": 1770607604
+  },
+  "1qyluch": {
+    "score": 5,
+    "num_comments": 41,
+    "last_seen_ts": 1770607604
+  },
+  "1qxpnuj": {
+    "score": 263,
+    "num_comments": 392,
+    "last_seen_ts": 1770607457
+  },
+  "1qxrpri": {
+    "score": 163,
+    "num_comments": 20,
+    "last_seen_ts": 1770607604
+  },
+  "1qygve7": {
+    "score": 3,
+    "num_comments": 1,
+    "last_seen_ts": 1770607457
+  },
+  "1qy1703": {
+    "score": 35,
+    "num_comments": 18,
+    "last_seen_ts": 1770607457
+  },
+  "1qz3upd": {
+    "score": 0,
+    "num_comments": 8,
+    "last_seen_ts": 1770607457
+  },
+  "1qyj13v": {
+    "score": 2,
+    "num_comments": 0,
+    "last_seen_ts": 1770607457
+  },
+  "1qxjlps": {
+    "score": 139,
+    "num_comments": 78,
+    "last_seen_ts": 1770607604
+  },
+  "1qxqxhh": {
+    "score": 56,
+    "num_comments": 24,
+    "last_seen_ts": 1770607604
+  },
+  "1qwxret": {
+    "score": 2335,
+    "num_comments": 386,
+    "last_seen_ts": 1770607604
+  },
+  "1qxaawe": {
+    "score": 317,
+    "num_comments": 84,
+    "last_seen_ts": 1770607604
+  },
+  "1qx11gw": {
+    "score": 1126,
+    "num_comments": 370,
+    "last_seen_ts": 1770607604
+  },
+  "1qx4mr9": {
+    "score": 601,
+    "num_comments": 533,
+    "last_seen_ts": 1770607604
+  },
+  "1qxbhgs": {
+    "score": 174,
+    "num_comments": 183,
+    "last_seen_ts": 1770607457
+  },
+  "1qx1fug": {
+    "score": 768,
+    "num_comments": 150,
+    "last_seen_ts": 1770607604
+  },
+  "1qx093r": {
+    "score": 781,
+    "num_comments": 162,
+    "last_seen_ts": 1770607604
+  },
+  "1qx14cg": {
+    "score": 652,
+    "num_comments": 152,
+    "last_seen_ts": 1770607457
+  },
+  "1qxpwrk": {
+    "score": 16,
+    "num_comments": 48,
+    "last_seen_ts": 1770607457
+  },
+  "1qh8tvi": {
+    "score": 15,
+    "num_comments": 148,
+    "last_seen_ts": 1770607604
+  },
+  "1m1f76i": {
+    "score": 58,
+    "num_comments": 54,
+    "last_seen_ts": 1770607604
+  },
+  "1qzh123": {
+    "score": 12,
+    "num_comments": 22,
+    "last_seen_ts": 1770607604
+  },
+  "1qzs0ib": {
+    "score": 3,
+    "num_comments": 6,
+    "last_seen_ts": 1770607604
+  },
+  "1qzsk7f": {
+    "score": 0,
+    "num_comments": 2,
+    "last_seen_ts": 1770607457
+  },
+  "1qzl97s": {
+    "score": 0,
+    "num_comments": 30,
+    "last_seen_ts": 1770607457
+  },
+  "1qyp189": {
+    "score": 52,
+    "num_comments": 15,
+    "last_seen_ts": 1770607604
+  },
+  "1qywo5i": {
+    "score": 12,
+    "num_comments": 11,
+    "last_seen_ts": 1770607604
+  },
+  "1qzo8up": {
+    "score": 0,
+    "num_comments": 3,
+    "last_seen_ts": 1770607457
+  },
+  "1qyrc8s": {
+    "score": 6,
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
+  },
+  "1qyw2uv": {
+    "score": 2,
+    "num_comments": 5,
+    "last_seen_ts": 1770607604
+  },
+  "1qz2mna": {
+    "score": 1,
+    "num_comments": 22,
+    "last_seen_ts": 1770607604
+  },
+  "1qyb6gt": {
+    "score": 35,
+    "num_comments": 9,
+    "last_seen_ts": 1770607604
+  },
+  "1qyqrap": {
+    "score": 3,
+    "num_comments": 31,
+    "last_seen_ts": 1770607604
+  },
+  "1qynrou": {
+    "score": 3,
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
+  },
+  "1qy8ywb": {
+    "score": 19,
+    "num_comments": 35,
+    "last_seen_ts": 1770607604
+  },
+  "1qy3fw9": {
+    "score": 28,
+    "num_comments": 96,
+    "last_seen_ts": 1770607604
+  },
+  "1qy9hyy": {
+    "score": 5,
+    "num_comments": 6,
+    "last_seen_ts": 1770607604
+  },
+  "1qxou1i": {
+    "score": 44,
+    "num_comments": 53,
+    "last_seen_ts": 1770607604
+  },
+  "1qxbv2x": {
+    "score": 266,
+    "num_comments": 231,
+    "last_seen_ts": 1770607604
+  },
+  "1qyvtat": {
+    "score": 0,
+    "num_comments": 15,
+    "last_seen_ts": 1770607457
+  },
+  "1qxqf0i": {
+    "score": 15,
+    "num_comments": 8,
+    "last_seen_ts": 1770607604
+  },
+  "1qyjhy5": {
+    "score": 0,
+    "num_comments": 9,
+    "last_seen_ts": 1770607457
+  },
+  "1qy36ln": {
+    "score": 2,
+    "num_comments": 1,
+    "last_seen_ts": 1770607457
+  },
+  "1qyl5dd": {
     "score": 0,
     "num_comments": 0,
-    "last_seen_ts": 1767564408
+    "last_seen_ts": 1770607457
   },
-  "1q2azqr": {
-    "score": 42,
-    "num_comments": 31,
-    "last_seen_ts": 1767573614
-  },
-  "1q232lw": {
-    "score": 82,
-    "num_comments": 114,
-    "last_seen_ts": 1767573614
-  },
-  "1q26x1i": {
-    "score": 53,
-    "num_comments": 43,
-    "last_seen_ts": 1767573614
-  },
-  "1q2g09y": {
-    "score": 18,
-    "num_comments": 25,
-    "last_seen_ts": 1767573536
-  },
-  "1q3dm2z": {
+  "1qyinvu": {
     "score": 0,
-    "num_comments": 34,
-    "last_seen_ts": 1767564408
+    "num_comments": 22,
+    "last_seen_ts": 1770607457
   },
-  "1q3e6jr": {
-    "score": 0,
-    "num_comments": 27,
-    "last_seen_ts": 1767564408
-  },
-  "1q2k2jx": {
-    "score": 7,
-    "num_comments": 7,
-    "last_seen_ts": 1767573614
-  },
-  "1q35r73": {
-    "score": 0,
-    "num_comments": 88,
-    "last_seen_ts": 1767572225
-  },
-  "1q20ehc": {
-    "score": 54,
-    "num_comments": 73,
-    "last_seen_ts": 1767573614
-  },
-  "1q2ni5n": {
+  "1qxx297": {
     "score": 3,
     "num_comments": 10,
-    "last_seen_ts": 1767573614
+    "last_seen_ts": 1770607457
   },
-  "1q33j9q": {
-    "score": 0,
-    "num_comments": 12,
-    "last_seen_ts": 1767564408
+  "1qy033q": {
+    "score": 2,
+    "num_comments": 2,
+    "last_seen_ts": 1770607457
   },
-  "1q2b0s5": {
-    "score": 7,
-    "num_comments": 16,
-    "last_seen_ts": 1767573283
-  },
-  "1q1w1x1": {
-    "score": 43,
-    "num_comments": 182,
-    "last_seen_ts": 1767573536
-  },
-  "1q14hbk": {
-    "score": 1842,
-    "num_comments": 399,
-    "last_seen_ts": 1767573614
-  },
-  "1q20blh": {
-    "score": 17,
+  "1qxze3m": {
+    "score": 2,
     "num_comments": 4,
-    "last_seen_ts": 1767573614
+    "last_seen_ts": 1770607604
   },
-  "1q267d4": {
-    "score": 9,
-    "num_comments": 14,
-    "last_seen_ts": 1767573614
-  },
-  "1q1zkh5": {
-    "score": 16,
-    "num_comments": 20,
-    "last_seen_ts": 1767573614
-  },
-  "1q1u8yh": {
-    "score": 44,
-    "num_comments": 37,
-    "last_seen_ts": 1767573614
-  },
-  "1q29sch": {
-    "score": 4,
-    "num_comments": 5,
-    "last_seen_ts": 1767573536
-  },
-  "1q34c2u": {
+  "1qyd9op": {
     "score": 0,
-    "num_comments": 33,
-    "last_seen_ts": 1767564408
+    "num_comments": 6,
+    "last_seen_ts": 1770607457
   },
-  "1q20cpy": {
-    "score": 13,
+  "1qxlkng": {
+    "score": 8,
     "num_comments": 21,
-    "last_seen_ts": 1767573614
+    "last_seen_ts": 1770607457
   },
-  "1q2vpni": {
+  "1qxnbey": {
+    "score": 5,
+    "num_comments": 29,
+    "last_seen_ts": 1770607604
+  },
+  "1qy5wgt": {
     "score": 0,
-    "num_comments": 23,
-    "last_seen_ts": 1767564408
+    "num_comments": 10,
+    "last_seen_ts": 1770607457
   },
-  "1q270aq": {
-    "score": 5,
+  "1qx36sv": {
+    "score": 34,
+    "num_comments": 46,
+    "last_seen_ts": 1770607604
+  },
+  "1qxyrfe": {
+    "score": 0,
+    "num_comments": 154,
+    "last_seen_ts": 1770607457
+  },
+  "1qy0hdg": {
+    "score": 0,
+    "num_comments": 5,
+    "last_seen_ts": 1770607457
+  },
+  "1qx9xkh": {
+    "score": 6,
     "num_comments": 11,
-    "last_seen_ts": 1767572450
+    "last_seen_ts": 1770607457
   },
-  "1q26psd": {
-    "score": 5,
-    "num_comments": 11,
-    "last_seen_ts": 1767564557
+  "1qx0ao6": {
+    "score": 12,
+    "num_comments": 16,
+    "last_seen_ts": 1770607604
   },
-  "1q433af": {
-    "score": 2,
-    "num_comments": 1,
-    "last_seen_ts": 1767564557
+  "1qxgqgj": {
+    "score": 1,
+    "num_comments": 2,
+    "last_seen_ts": 1770607604
   },
-  "1q43a5o": {
-    "score": 48,
-    "num_comments": 55,
-    "last_seen_ts": 1767573614
+  "1qxg1w2": {
+    "score": 0,
+    "num_comments": 4,
+    "last_seen_ts": 1770607457
   },
-  "1q4393r": {
-    "score": 17,
-    "num_comments": 14,
-    "last_seen_ts": 1767573614
+  "1qxobxz": {
+    "score": 0,
+    "num_comments": 7,
+    "last_seen_ts": 1770607457
   },
-  "1q46l1k": {
-    "score": 2,
-    "num_comments": 1,
-    "last_seen_ts": 1767573614
+  "1qxsn2c": {
+    "score": 0,
+    "num_comments": 28,
+    "last_seen_ts": 1770607457
+  },
+  "1qxx0u9": {
+    "score": 0,
+    "num_comments": 40,
+    "last_seen_ts": 1770607457
+  },
+  "1qx04qf": {
+    "score": 6,
+    "num_comments": 3,
+    "last_seen_ts": 1770607604
+  },
+  "1qwkj0s": {
+    "score": 21,
+    "num_comments": 37,
+    "last_seen_ts": 1770607604
+  },
+  "1qx8ojq": {
+    "score": 0,
+    "num_comments": 0,
+    "last_seen_ts": 1770607457
+  },
+  "1qx68jl": {
+    "score": 0,
+    "num_comments": 7,
+    "last_seen_ts": 1770607457
+  },
+  "1qwx0sa": {
+    "score": 3,
+    "num_comments": 0,
+    "last_seen_ts": 1770607457
+  },
+  "1qwddow": {
+    "score": 31,
+    "num_comments": 33,
+    "last_seen_ts": 1770607604
+  },
+  "1qwzznb": {
+    "score": 0,
+    "num_comments": 0,
+    "last_seen_ts": 1770607457
   }
 }

@@ -20,7 +20,8 @@ class SymbolValidator:
         os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
         if os.path.exists(self.cache_path):
             try:
-                self._cache = json.load(open(self.cache_path, "r", encoding="utf-8"))
+                with open(self.cache_path, "r", encoding="utf-8") as f:
+                    self._cache = json.load(f)
             except Exception:
                 self._cache = {}
 

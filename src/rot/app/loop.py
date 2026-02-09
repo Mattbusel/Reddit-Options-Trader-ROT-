@@ -2,25 +2,47 @@ from __future__ import annotations
 
 import time
 
+from rot.core.config import Settings
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
 from rot.trend.trend_store import TrendStore
 from rot.trend.trend_engine import TrendEngine
 from rot.extract.event_builder import EventBuilder
 from rot.credibility.scorer import CredibilityScorer
-from rot.reasoner.deepseek_client import DeepSeekReasoner
+from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.app.runner import PipelineRunner
 
 
-def loop(interval_s: int = 20) -> None:
-    logger = JsonlLogger(root="storage")
+def loop() -> None:
+    cfg = Settings()
 
-    ingestor = RedditIngestor(subreddits=["wallstreetbets", "stocks"], listing="hot", limit_per_sub=50)
-    trend_engine = TrendEngine(store=TrendStore(), window_s=1800)
+    logger = JsonlLogger(root=cfg.storage_root)
+
+    ingestor = RedditIngestor(
+        subreddits=cfg.reddit.subreddits,
+        listing=cfg.reddit.listing,
+        limit_per_sub=cfg.reddit.limit_per_sub,
+        include_comments=cfg.reddit.include_comments,
+        top_comments=cfg.reddit.top_comments,
+        state_path=f"{cfg.storage_root}/seen_posts.json",
+    )
+    trend_engine = TrendEngine(
+        store=TrendStore(path=f"{cfg.storage_root}/trend_state.json"),
+        window_s=cfg.trend.window_s,
+        threshold=cfg.trend.threshold,
+        comment_weight=cfg.trend.comment_weight,
+    )
     event_builder = EventBuilder()
     cred = CredibilityScorer()
-    reasoner = DeepSeekReasoner(api_key=None)
+    reasoner = Reasoner(
+        provider=cfg.llm.provider,
+        api_key=cfg.llm.api_key,
+        model=cfg.llm.model,
+        base_url=cfg.llm.base_url,
+        max_tokens=cfg.llm.max_tokens,
+        temperature=cfg.llm.temperature,
+    )
     trade_builder = TradeBuilder()
 
     runner = PipelineRunner(
@@ -31,18 +53,23 @@ def loop(interval_s: int = 20) -> None:
         reasoner=reasoner,
         trade_builder=trade_builder,
         logger=logger,
+        top_n=cfg.trend.top_n,
     )
+
+    if reasoner.llm_available:
+        print("🧠 LLM reasoning: ACTIVE")
+    else:
+        print("⚠️  LLM reasoning: FALLBACK (set ROT_LLM_API_KEY to enable)")
 
     while True:
         summary = runner.run_once()
-        print(f"✅ {summary['run_id']} | snapshots={summary['snapshots']} candidates={summary['candidates']} ticker_candidates={summary['ticker_candidates']} events={summary['events']} ideas={summary['trade_ideas']} top_all={summary['top_signals']} top_ticker={summary['top_ticker_signals']}")
         print(
             f"✅ {summary['run_id']} | snapshots={summary['snapshots']} "
             f"candidates={summary['candidates']} ticker_candidates={summary['ticker_candidates']} "
             f"events={summary['events']} ideas={summary['trade_ideas']} "
             f"top_all={summary['top_signals']} top_ticker={summary['top_ticker_signals']}"
         )
-        time.sleep(interval_s)
+        time.sleep(cfg.reddit.poll_interval_s)
 
 
 if __name__ == "__main__":
