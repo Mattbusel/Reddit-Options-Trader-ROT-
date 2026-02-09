@@ -5,6 +5,7 @@ Summary: Reddit -> Events -> Reasoning -> Options Trade Ideas
 Requires-Python: >=3.10
 Requires-Dist: praw
 Requires-Dist: yfinance
+Requires-Dist: feedparser>=6.0
 Requires-Dist: pydantic>=2.0
 Requires-Dist: pydantic-settings>=2.0
 Requires-Dist: openai>=1.0

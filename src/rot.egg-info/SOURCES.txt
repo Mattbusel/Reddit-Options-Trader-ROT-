@@ -23,7 +23,9 @@ src/rot/credibility/scorer.py
 src/rot/extract/__init__.py
 src/rot/extract/event_builder.py
 src/rot/ingest/__init__.py
+src/rot/ingest/multi_ingestor.py
 src/rot/ingest/reddit_ingestor.py
+src/rot/ingest/rss_ingestor.py
 src/rot/ingest/seen_store.py
 src/rot/market/__init__.py
 src/rot/market/enricher.py
@@ -52,5 +54,8 @@ src/rot/web/routes/websocket.py
 tests/test_credibility.py
 tests/test_database.py
 tests/test_event_builder.py
+tests/test_multi_ingestor.py
 tests/test_parser.py
+tests/test_rss_ingestor.py
 tests/test_trade_builder.py
+tests/test_trend_engine_rss.py
