@@ -8,7 +8,7 @@ This is not a trading bot or execution system.
 ROT is an intelligence layer designed to surface what matters before price fully reacts.
 Live Pipeline loop output
 
-![ROT storage outputs](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/main/Screenshot%202026-02-09%20012734.png)
+![ROT storage outputs](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/main/Screenshot%202026-02-09%20061235.png)
 ---
 
 ### JSONL artifact outputs (storage/)
@@ -321,6 +321,7 @@ Hosted SaaS deployment
 
 This project is for research and experimentation only.
 Nothing in this repository constitutes financial advice.
+
 
 
 
