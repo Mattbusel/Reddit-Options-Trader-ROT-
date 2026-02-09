@@ -9,7 +9,7 @@ It is a **signal discovery and intelligence pipeline**.
 
 Live Pipeline loop output
 
-![ROT storage outputs](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/master/Screenshot%202026-01-04%20194537.png)
+![ROT storage outputs](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/main/Screenshot%202026-02-09%20012734.png)
 ---
 
 ### JSONL artifact outputs (storage/)
@@ -192,6 +192,7 @@ ROT treats Reddit as:
 
 This project is for **research and experimentation only**.
 Nothing here constitutes financial advice.
+
 
 
 
