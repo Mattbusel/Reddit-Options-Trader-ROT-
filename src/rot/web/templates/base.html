@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ROT - Reddit Options Trader{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+    <style>
+        body { background: #0f0f23; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .signal-card { transition: all 0.2s; }
+        .signal-card:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen">
+    <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/dashboard" class="flex items-center space-x-2">
+                <span class="text-2xl">🔥</span>
+                <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ROT</span>
+                <span class="text-sm text-gray-500">Reddit Options Trader</span>
+            </a>
+            <div class="flex items-center space-x-6 text-sm">
+                <a href="/dashboard" class="text-gray-400 hover:text-white transition">Signals</a>
+                <a href="/api/v1/tickers/trending" class="text-gray-400 hover:text-white transition">API</a>
+                <a href="/api/v1/health" class="text-gray-400 hover:text-white transition">Health</a>
+                <div id="ws-status" class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-gray-600" id="ws-dot"></span>
+                    <span class="text-gray-600 text-xs" id="ws-label">Disconnected</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-t border-gray-800 mt-12 py-6 text-center text-gray-600 text-xs">
+        ROT v0.1.0 &mdash; Signal intelligence, not financial advice.
+    </footer>
+
+    <script>
+        // WebSocket connection for live updates
+        let ws;
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}/api/v1/signals/live`);
+
+            ws.onopen = () => {
+                document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-green-500 pulse';
+                document.getElementById('ws-label').textContent = 'Live';
+                document.getElementById('ws-label').className = 'text-green-500 text-xs';
+            };
+
+            ws.onmessage = (event) => {
+                const signal = JSON.parse(event.data);
+                addLiveSignal(signal);
+            };
+
+            ws.onclose = () => {
+                document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-gray-600';
+                document.getElementById('ws-label').textContent = 'Disconnected';
+                document.getElementById('ws-label').className = 'text-gray-600 text-xs';
+                setTimeout(connectWS, 3000);
+            };
+
+            // Keepalive
+            setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+            }, 30000);
+        }
+
+        function addLiveSignal(signal) {
+            const container = document.getElementById('signal-feed');
+            if (!container) return;
+
+            const event = signal.event || {};
+            const idea = signal.trade_idea || {};
+            const entities = event.entities || [];
+            const ticker = entities[0] || 'N/A';
+            const stance = event.stance || 'unknown';
+            const confidence = (event.confidence || 0);
+
+            const stanceColors = {
+                bullish: 'text-green-400 bg-green-900/30 border-green-700',
+                bearish: 'text-red-400 bg-red-900/30 border-red-700',
+                mixed: 'text-yellow-400 bg-yellow-900/30 border-yellow-700',
+            };
+            const stanceClass = stanceColors[stance] || 'text-gray-400 bg-gray-900/30 border-gray-700';
+
+            const card = document.createElement('div');
+            card.className = 'signal-card bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-3 fade-in';
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-lg font-bold text-white">${ticker}</span>
+                        <span class="px-2 py-0.5 rounded text-xs border ${stanceClass}">${stance}</span>
+                        <span class="text-xs text-gray-500">Just now</span>
+                        <span class="w-2 h-2 rounded-full bg-green-500 pulse" title="Live"></span>
+                    </div>
+                    <span class="text-sm text-gray-400">${(confidence * 100).toFixed(0)}% conf</span>
+                </div>
+                <p class="text-sm text-gray-300">${idea.thesis || event.event_type || ''}</p>
+            `;
+
+            container.insertBefore(card, container.firstChild);
+
+            // Keep max 50 cards
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        connectWS();
+    </script>
+</body>
+</html>

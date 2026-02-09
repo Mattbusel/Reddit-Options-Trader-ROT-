@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -146,8 +147,23 @@ class PipelineRunner:
                 p = c.snapshot.post
                 print(f"  {i}. {p.subreddit} | {p.title[:80]} [{','.join(syms)}] (score={c.trend_score:.3f})")
 
-        # 3) enrich + score events
-        events = [self.enricher.enrich_event(e) for e in events]
+        # 3) validate entities, enrich, score
+        # Pre-filter: only keep entities that pass SymbolValidator (uses cached yfinance lookups)
+        validated_events = []
+        for e in events:
+            valid_entities = [
+                sym for sym in e.entities
+                if self.symbol_validator.is_valid(sym)
+            ]
+            if not valid_entities:
+                continue  # skip events with no valid tickers
+            validated_events.append(
+                dataclasses.replace(e, entities=tuple(valid_entities))
+                if isinstance(e.entities, tuple)
+                else dataclasses.replace(e, entities=valid_entities)
+            )
+
+        events = [self.enricher.enrich_event(e) for e in validated_events]
         scored = [self.cred.score(e) for e in events]
         for e in scored:
             self.log.write("events", {"run_id": run_id, "event": e})

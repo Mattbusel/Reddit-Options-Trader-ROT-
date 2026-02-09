@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ROT{% endblock %}
+
+{% block content %}
+<!-- Stats Bar -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider">Total Signals (30d)</div>
+        <div class="text-2xl font-bold text-white mt-1">{{ summary.get('total_signals', 0) }}</div>
+    </div>
+    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider">Tradeable</div>
+        <div class="text-2xl font-bold text-green-400 mt-1">{{ summary.get('tradeable_signals', 0) }}</div>
+    </div>
+    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider">Avg Confidence</div>
+        <div class="text-2xl font-bold text-yellow-400 mt-1">{{ "%.0f"|format((summary.get('avg_confidence', 0) or 0) * 100) }}%</div>
+    </div>
+    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider">Bull / Bear / Mix</div>
+        <div class="text-lg font-bold mt-1">
+            <span class="text-green-400">{{ summary.get('bullish_count', 0) }}</span> /
+            <span class="text-red-400">{{ summary.get('bearish_count', 0) }}</span> /
+            <span class="text-yellow-400">{{ summary.get('mixed_count', 0) }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- Main Signal Feed -->
+    <div class="lg:col-span-3">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
+                <span>Latest Signals</span>
+                <span class="w-2 h-2 rounded-full bg-green-500 pulse" id="live-indicator"></span>
+            </h2>
+            <div class="flex space-x-2 text-xs">
+                <a href="/dashboard" class="px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition">All</a>
+                <a href="/dashboard?stance=bullish" class="px-3 py-1 rounded bg-green-900/30 text-green-400 hover:bg-green-900/50 transition">Bullish</a>
+                <a href="/dashboard?stance=bearish" class="px-3 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 transition">Bearish</a>
+            </div>
+        </div>
+
+        <div id="signal-feed" class="space-y-3">
+            {% for s in signals %}
+            <a href="/dashboard/signal/{{ s.id }}" class="signal-card block bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-lg font-bold text-white">{{ s.ticker }}</span>
+                        <span class="px-2 py-0.5 rounded text-xs border {{ stance_bg(s.stance) }} {{ stance_color(s.stance) }}">{{ s.stance }}</span>
+                        <span class="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-300">{{ s.event_type }}</span>
+                        {% if s.strategy and s.strategy != 'none' %}
+                        <span class="px-2 py-0.5 rounded text-xs bg-blue-900/30 text-blue-400 border border-blue-700">{{ s.strategy }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center space-x-3 text-sm">
+                        <div class="w-24">
+                            {{ confidence_bar(s.confidence) }}
+                        </div>
+                        <span class="text-gray-400 text-xs">{{ "%.0f"|format(s.confidence * 100) }}%</span>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-400 truncate">{{ s.post_title }}</p>
+                <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                    <span>r/{{ s.subreddit }}</span>
+                    <span>{{ format_time(s.created_at) }}</span>
+                </div>
+            </a>
+            {% else %}
+            <div class="text-center py-12 text-gray-500">
+                <p class="text-4xl mb-4">📡</p>
+                <p>No signals yet. Start the pipeline to begin detecting trends.</p>
+                <p class="text-xs mt-2">Run: <code class="bg-gray-800 px-2 py-1 rounded">python -m rot.app.server</code></p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Sidebar: Trending Tickers -->
+    <div class="lg:col-span-1">
+        <h2 class="text-lg font-semibold text-white mb-4">🎯 Trending Tickers (24h)</h2>
+        <div class="space-y-2">
+            {% for t in trending %}
+            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-white">{{ t.ticker }}</span>
+                    <span class="text-xs text-gray-400">{{ t.signal_count }} signals</span>
+                </div>
+                <div class="flex items-center justify-between mt-1 text-xs">
+                    <span class="text-gray-500">avg conf: {{ "%.0f"|format((t.avg_confidence or 0) * 100) }}%</span>
+                    <span class="text-gray-500">{{ t.stances }}</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No trending tickers yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- API Info -->
+        <div class="mt-8 bg-gray-800/30 border border-gray-700 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-white mb-2">API Endpoints</h3>
+            <div class="space-y-1 text-xs text-gray-400 font-mono">
+                <p>GET /api/v1/signals</p>
+                <p>GET /api/v1/tickers/trending</p>
+                <p>WS /api/v1/signals/live</p>
+                <p>GET /api/v1/health</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

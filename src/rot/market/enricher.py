@@ -22,13 +22,50 @@ ALIAS_MAP: Dict[str, str] = {
 
 # Tokens that are almost always NOT equities (filter out early)
 NON_EQUITY_TOKENS = {
-    "USD", "EUR", "GBP", "JPY", "CNY",
-    "AI", "DD", "YOLO", "WSB", "IMO", "CEO", "CPI", "GDP", "FOMC",
-    "US", "EU", "UK", "IRA", "SEC", "DOJ", "NATO", "BRICS", "PLA",
-    "IPO", "ETF", "OTC", "ATH", "ATL", "EPS", "PE", "IV", "OI",
-    "TECH", "AUTO", "PHARMA", "BIO", "FED", "NYSE", "SPAC",
-    "LOL", "WTF", "SMH", "TBH", "RN", "PM", "AM", "OP", "TLDR",
-    "ITM", "OTM", "DTE", "FD", "PDT", "HODL",
+    # Currencies
+    "USD", "EUR", "GBP", "JPY", "CNY", "CAD", "AUD", "CHF",
+    # Trading jargon & Reddit slang
+    "AI", "DD", "YOLO", "WSB", "IMO", "TLDR", "OP", "HODL",
+    "LOL", "WTF", "SMH", "TBH", "RN", "NFA", "DYOR", "LFG",
+    "ITM", "OTM", "DTE", "FD", "PDT", "DCA", "RSI", "ROI",
+    "EOD", "AH", "PRE", "ATH", "ATL", "EPS", "PE", "IV", "OI",
+    "IPO", "ETF", "OTC", "SPAC", "NYSE", "AMEX",
+    # Action words that look like tickers
+    "BUY", "SELL", "HOLD", "DUMP", "LONG", "SHORT",
+    "CALLS", "PUTS", "CALL", "PUT",
+    "BULL", "BEAR", "MOON", "RIP",
+    # Regulatory / macro acronyms
+    "CPI", "GDP", "FOMC", "FED", "SEC", "DOJ", "FDA", "IRS",
+    "NATO", "BRICS", "PLA", "IRA",
+    # People / titles
+    "CEO", "CFO", "COO", "CTO", "CPO", "CSO",
+    # Sector words
+    "TECH", "AUTO", "PHARMA", "BIO",
+    # Geographic / political
+    "US", "EU", "UK", "USA",
+    # Common English words (2-5 uppercase chars that aren't tickers)
+    "ALL", "THE", "FOR", "ARE", "HAS", "WAS", "BUT", "NOT",
+    "CAN", "MAY", "HIS", "HER", "OUR", "ITS", "WHO", "HOW",
+    "NEW", "OLD", "BIG", "TOP", "LOW", "HIGH", "MAX", "MIN",
+    "LOT", "WAR", "TAX", "ANY", "GOT", "LET", "RUN", "SET",
+    "NOW", "SAY", "USE", "WAY", "DAY", "GET",
+    "JUST", "LIKE", "BEEN", "GOOD", "MOST", "SOME",
+    "WELL", "MUCH", "EVEN", "ALSO", "BACK", "MADE",
+    "OVER", "SUCH", "TAKE", "ONLY", "COME", "EACH",
+    "MAKE", "MANY", "THAN", "THEM", "VERY", "WHEN",
+    "WHAT", "WITH", "THIS", "THAT", "FROM", "HAVE",
+    "WILL", "YOUR", "MORE", "THEY", "BEEN", "SAID",
+    "YEAR", "YALL", "GOES", "LOOK", "SAME", "REAL",
+    "LONG", "OPEN", "KEEP", "MOVE", "LAST", "NEXT",
+    "TOTAL", "EVERY", "STILL", "THINK", "GOING",
+    # Month names / time words
+    "JAN", "FEB", "MAR", "APR", "APRIL", "JUN", "JUL",
+    "AUG", "SEP", "OCT", "NOV", "DEC",
+    # Business suffixes
+    "LLC", "INC", "LTD", "API",
+    # Common false positives from user's logs
+    "LLM", "VIX", "EBT", "SME", "IVN", "YOY", "QOQ",
+    "CO",
 }
 
 

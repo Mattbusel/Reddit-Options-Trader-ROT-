@@ -9,6 +9,59 @@ from rot.market.enricher import NON_EQUITY_TOKENS, ALIAS_MAP
 # Matches $TSLA or TSLA
 _TICKER_RE = re.compile(r"(?:\$([A-Z]{1,5})\b|\b([A-Z]{1,5})\b)")
 
+# Additional filter for bare (non-$) tickers: common short words that sneak
+# through NON_EQUITY_TOKENS because there are too many 2-3 letter combos.
+# These are words that appear constantly in Reddit posts but are never tickers.
+_BARE_TICKER_BLOCKLIST = {
+    # 2-letter words that aren't tickers
+    "IF", "IS", "IT", "IN", "ON", "OR", "SO", "NO", "UP", "MY",
+    "DO", "GO", "TO", "AT", "BY", "WE", "AN", "AS", "BE", "HE",
+    # 3-letter words frequently seen in Reddit finance posts
+    "THE", "AND", "FOR", "ARE", "BUT", "NOT", "YOU", "ALL", "CAN",
+    "HAS", "HER", "WAS", "ONE", "OUR", "OUT", "DAY", "HAD", "HOT",
+    "ITS", "SAY", "SHE", "TOO", "USE", "HIM", "HIS", "HOW", "MAN",
+    "OWN", "SAW", "GOT", "LET", "MAY", "RUN", "SET", "TRY", "WHY",
+    "BIG", "END", "FAR", "FEW", "GOT", "OLD", "RED", "SIT", "TOP",
+    "WIN", "WON", "YET", "ADD", "AGO", "BAD", "DID", "EAR", "FIT",
+    "HIT", "JOB", "LAW", "OIL", "PAY", "PUT", "RAN", "TAX", "WAR",
+    # Words that look like tickers but aren't
+    "LMAO", "LMFAO", "ROFL", "IMHO", "FWIW", "AFAIK",
+    "EDIT", "INFO", "LINK", "POST", "RISK", "SAFE",
+    "FREE", "HELP", "HOPE", "IDEA", "PLAN", "PLAY",
+    "SURE", "TRUE", "WANT", "WORK", "ZERO", "BEST",
+    "BEEN", "COST", "DEAL", "DONE", "DOWN", "DROP",
+    "EASY", "FACT", "FALL", "FEEL", "FIND", "FIRE",
+    "FULL", "GAIN", "GAVE", "GIVE", "GOES", "GONE",
+    "GREW", "GROW", "HALF", "HAND", "HARD", "HATE",
+    "HEAR", "HUGE", "JUMP", "KNEW", "KNOW", "LATE",
+    "LEAD", "LEFT", "LESS", "LIFE", "LINE", "LIST",
+    "LIVE", "LOAD", "LOOK", "LOSE", "LOSS", "LOST",
+    "LOVE", "LUCK", "MAIN", "MISS", "MUST", "NEED",
+    "NEWS", "NICE", "NONE", "NOTE", "ONCE", "PAID",
+    "PART", "PASS", "PAST", "PICK", "PULL", "PUSH",
+    "RATE", "READ", "REST", "RISE", "RODE", "RULE",
+    "RUNS", "RUSH", "SAVE", "SEEN", "SELL", "SENT",
+    "SHOW", "SIDE", "SIGN", "SIZE", "SOLD", "SOON",
+    "STOP", "TALK", "TELL", "TEST", "TIME", "TOLD",
+    "TOOK", "TURN", "TYPE", "UNIT", "USED", "VIEW",
+    "WAIT", "WAKE", "WALK", "WALL", "WEAK", "WEEK",
+    "WENT", "WIDE", "WILD", "WORD", "WORE", "WRAP",
+    # 5-letter words common on Reddit
+    "ABOUT", "AFTER", "AGAIN", "BEING", "BELOW",
+    "COULD", "EVERY", "FIRST", "FOUND", "GOING",
+    "GREAT", "GREEN", "GUESS", "HEARD", "NEVER",
+    "OTHER", "POINT", "PRICE", "RIGHT", "SHALL",
+    "SINCE", "START", "STILL", "STOCK", "THEIR",
+    "THERE", "THESE", "THING", "THINK", "THOSE",
+    "THREE", "TODAY", "TRADE", "UNDER", "UNTIL",
+    "VALUE", "WATCH", "WHERE", "WHICH", "WHILE",
+    "WHOLE", "WORLD", "WORSE", "WORST", "WORTH",
+    "WOULD", "WRONG", "MONEY", "SHARE", "CRASH",
+    "SHORT", "CALLS", "MIGHT", "EARLY",
+    # Junk patterns (repeated letters, all same char)
+    "GOOOO", "GOOO", "AAAA", "BBBB",
+}
+
 # Keyword-based event type classification
 _EVENT_KEYWORDS: list[Tuple[str, EventType]] = [
     (r"\b(?:earnings|er|revenue|eps|guidance|beat|miss|report(?:ing)?)\b", "earnings_rumor"),
@@ -40,6 +93,9 @@ class EventBuilder:
         # Prefer explicit $TICKER mentions
         dollar = [a for (a, b) in matches if a]
         bare = [b for (a, b) in matches if b]
+
+        # Use explicit $TICKER if available; otherwise fall back to bare
+        is_explicit = bool(dollar)
         raw = dollar if dollar else bare
 
         out: List[str] = []
@@ -48,6 +104,13 @@ class EventBuilder:
             if s in NON_EQUITY_TOKENS:
                 continue
             if len(s) == 1:
+                continue
+            # Bare tickers (no $) get extra filtering — too many common
+            # English words match [A-Z]{2,5}
+            if not is_explicit and s in _BARE_TICKER_BLOCKLIST:
+                continue
+            # Skip tokens with repeated chars (e.g. GOOOO, AAAA)
+            if not is_explicit and len(set(s)) == 1:
                 continue
             out.append(s)
 

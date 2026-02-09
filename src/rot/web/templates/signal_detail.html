@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}{{ signal.ticker }} Signal - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/dashboard" class="text-gray-500 hover:text-white text-sm transition">&larr; Back to signals</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Signal Info -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Header -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <div class="flex items-center space-x-4 mb-4">
+                <span class="text-3xl font-bold text-white">{{ signal.ticker }}</span>
+                <span class="px-3 py-1 rounded text-sm border {{ stance_bg(signal.stance) }} {{ stance_color(signal.stance) }}">{{ signal.stance }}</span>
+                <span class="px-3 py-1 rounded text-sm bg-gray-700 text-gray-300">{{ signal.event_type }}</span>
+                {% if signal.strategy and signal.strategy != 'none' %}
+                <span class="px-3 py-1 rounded text-sm bg-blue-900/30 text-blue-400 border border-blue-700">{{ signal.strategy }}</span>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Confidence</div>
+                    <div class="text-xl font-bold text-white">{{ "%.0f"|format(signal.confidence * 100) }}%</div>
+                    {{ confidence_bar(signal.confidence) }}
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Trend Score</div>
+                    <div class="text-xl font-bold text-white">{{ "%.4f"|format(signal.trend_score) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Quality</div>
+                    <div class="text-xl font-bold text-white">{{ "%.0f"|format(signal.quality_score * 100) }}%</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Time</div>
+                    <div class="text-sm text-white mt-1">{{ format_time(signal.created_at) }}</div>
+                </div>
+            </div>
+
+            <p class="text-gray-400">{{ signal.post_title }}</p>
+            {% if signal.post_url %}
+            <a href="{{ signal.post_url }}" target="_blank" class="text-blue-400 text-sm hover:underline mt-2 block">View on Reddit &rarr;</a>
+            {% endif %}
+        </div>
+
+        <!-- Reasoning -->
+        {% set reasoning = signal.get('reasoning', {}) %}
+        {% if reasoning %}
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">🧠 Analysis</h3>
+
+            {% if reasoning.get('thesis') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Thesis</div>
+                <p class="text-gray-300">{{ reasoning.thesis }}</p>
+            </div>
+            {% endif %}
+
+            {% if reasoning.get('catalyst_window') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Catalyst Window</div>
+                <p class="text-gray-300">{{ reasoning.catalyst_window }}</p>
+            </div>
+            {% endif %}
+
+            {% if reasoning.get('market_expectation') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Market Expectation</div>
+                <p class="text-gray-300">{{ reasoning.market_expectation }}</p>
+            </div>
+            {% endif %}
+
+            {% if reasoning.get('recommended_structures') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Recommended Structures</div>
+                <ul class="list-disc list-inside text-gray-300 text-sm space-y-1">
+                    {% for s in reasoning.recommended_structures %}
+                    <li>{{ s }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if reasoning.get('invalidations') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Invalidations</div>
+                <ul class="list-disc list-inside text-red-400 text-sm space-y-1">
+                    {% for inv in reasoning.invalidations %}
+                    <li>{{ inv }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if reasoning.get('risk_notes') %}
+            <div>
+                <div class="text-xs text-gray-500 uppercase mb-1">Risk Notes</div>
+                <ul class="list-disc list-inside text-yellow-400 text-sm space-y-1">
+                    {% for r in reasoning.risk_notes %}
+                    <li>{{ r }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Trade Idea -->
+        {% set idea = signal.get('trade_idea', {}) %}
+        {% if idea and idea.get('strategy') != 'none' %}
+        <div class="bg-gray-800/50 border border-blue-700/50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">📊 Trade Idea</h3>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Strategy</div>
+                    <div class="text-white font-bold">{{ idea.strategy }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Max Loss</div>
+                    <div class="text-red-400 font-bold">${{ "%.2f"|format(idea.get('max_loss', 0)) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase">Expiry</div>
+                    <div class="text-white">{{ idea.get('time_stop', 'N/A') }}</div>
+                </div>
+            </div>
+
+            {% if idea.get('legs') %}
+            <div class="text-xs text-gray-500 uppercase mb-2">Option Legs</div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs text-gray-500 uppercase border-b border-gray-700">
+                        <tr>
+                            <th class="text-left py-2">Side</th>
+                            <th class="text-left py-2">Type</th>
+                            <th class="text-right py-2">Strike</th>
+                            <th class="text-left py-2">Expiry</th>
+                            <th class="text-right py-2">Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leg in idea.legs %}
+                        <tr class="border-b border-gray-800">
+                            <td class="py-2 {{ 'text-green-400' if leg.side == 'buy' else 'text-red-400' }}">{{ leg.side|upper }}</td>
+                            <td class="py-2 text-gray-300">{{ leg.kind|upper }}</td>
+                            <td class="py-2 text-right text-white">${{ "%.2f"|format(leg.strike) }}</td>
+                            <td class="py-2 text-gray-400">{{ leg.expiry }}</td>
+                            <td class="py-2 text-right text-gray-300">{{ leg.qty }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% elif idea and idea.get('do_not_trade_reasons') %}
+        <div class="bg-gray-800/50 border border-red-700/50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-white mb-2">No Trade</h3>
+            <ul class="list-disc list-inside text-red-400 text-sm">
+                {% for reason in idea.do_not_trade_reasons %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar: Market Data -->
+    <div class="space-y-6">
+        {% set market = signal.get('market_data', {}) %}
+        {% if market %}
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-white mb-3">Market Data</h3>
+            {% for sym, data in market.items() %}
+            <div class="mb-3 last:mb-0">
+                <div class="font-bold text-white">{{ sym }}</div>
+                {% if data.get('last_close') %}
+                <div class="text-sm text-gray-400">Price: ${{ "%.2f"|format(data.last_close) }}</div>
+                {% endif %}
+                {% if data.get('pct_1d') is not none %}
+                <div class="text-sm {{ 'text-green-400' if data.pct_1d >= 0 else 'text-red-400' }}">
+                    1D: {{ "%+.2f"|format(data.pct_1d * 100) }}%
+                </div>
+                {% endif %}
+                {% if data.get('market_cap') %}
+                <div class="text-xs text-gray-500">Cap: ${{ "%.0f"|format(data.market_cap / 1e9) }}B</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Raw Data -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-white mb-3">Signal Metadata</h3>
+            <div class="space-y-2 text-xs">
+                <div><span class="text-gray-500">ID:</span> <span class="text-gray-300 font-mono">{{ signal.id }}</span></div>
+                <div><span class="text-gray-500">Run:</span> <span class="text-gray-300 font-mono">{{ signal.run_id }}</span></div>
+                <div><span class="text-gray-500">Subreddit:</span> <span class="text-gray-300">r/{{ signal.subreddit }}</span></div>
+                <div><span class="text-gray-500">Time Horizon:</span> <span class="text-gray-300">{{ signal.get('time_horizon', 'unknown') }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
