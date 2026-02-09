@@ -11,6 +11,8 @@ import uvicorn
 from rot.core.config import Settings
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
+from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
+from rot.ingest.multi_ingestor import MultiSourceIngestor
 from rot.trend.trend_store import TrendStore
 from rot.trend.trend_engine import TrendEngine
 from rot.extract.event_builder import EventBuilder
@@ -31,7 +33,8 @@ log = logging.getLogger(__name__)
 def _create_pipeline(cfg: Settings, on_signal=None) -> PipelineRunner:
     logger = JsonlLogger(root=cfg.storage_root)
 
-    ingestor = RedditIngestor(
+    # Reddit ingestor (always created)
+    reddit_ingestor = RedditIngestor(
         subreddits=cfg.reddit.subreddits,
         listing=cfg.reddit.listing,
         limit_per_sub=cfg.reddit.limit_per_sub,
@@ -39,11 +42,33 @@ def _create_pipeline(cfg: Settings, on_signal=None) -> PipelineRunner:
         top_comments=cfg.reddit.top_comments,
         state_path=f"{cfg.storage_root}/seen_posts.json",
     )
+
+    # Combined ingestor: Reddit + optional RSS
+    rss_active = cfg.rss.enabled and bool(cfg.rss.feeds)
+    if rss_active:
+        feed_configs = [
+            RSSFeedConfig(url=f.url, label=f.label, poll_interval_s=cfg.rss.poll_interval_s)
+            for f in cfg.rss.feeds
+            if f.url
+        ]
+        rss_ingestor = RSSIngestor(
+            feeds=feed_configs,
+            state_path=f"{cfg.storage_root}/seen_rss.json",
+        )
+        ingestor = MultiSourceIngestor([reddit_ingestor, rss_ingestor])
+        log.info("RSS feeds: ACTIVE (%d feeds)", len(feed_configs))
+    else:
+        ingestor = reddit_ingestor
+        log.info("RSS feeds: DISABLED (set ROT_RSS_ENABLED=true)")
+
     trend_engine = TrendEngine(
         store=TrendStore(path=f"{cfg.storage_root}/trend_state.json"),
         window_s=cfg.trend.window_s,
         threshold=cfg.trend.threshold,
         comment_weight=cfg.trend.comment_weight,
+        rss_bypass=rss_active,
+        rss_max_age_s=cfg.rss.max_age_s,
+        rss_synthetic_score=cfg.rss.synthetic_trend_score,
     )
     event_builder = EventBuilder()
     cred = CredibilityScorer()

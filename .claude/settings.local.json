@@ -5,7 +5,9 @@
       "Bash(done)",
       "Bash(test:*)",
       "Bash(pip install:*)",
-      "Bash(python -m pytest:*)"
+      "Bash(python -m pytest:*)",
+      "Bash(.venvScriptspip.exe install feedparser)",
+      "Bash(\"C:\\\\Users\\\\Matthew\\\\.claude-worktrees\\\\Reddit-Options-Trader-ROT-\\\\musing-herschel\\\\.venv\\\\Scripts\\\\pip.exe\" install:*)"
     ]
   }
 }

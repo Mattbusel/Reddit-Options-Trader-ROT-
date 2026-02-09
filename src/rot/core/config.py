@@ -63,6 +63,44 @@ class WebConfig(BaseSettings):
     secret_key: str = "change-me-in-production"
 
 
+class RSSFeedEntry(BaseSettings):
+    """Configuration for a single RSS feed."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_RSS_FEED_")
+
+    url: str = ""
+    label: str = ""
+
+
+class RSSConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_RSS_")
+
+    enabled: bool = False
+    poll_interval_s: int = 300  # 5 minutes
+    max_age_s: int = 3600  # freshness gate for trend bypass (1 hour)
+    synthetic_trend_score: float = 0.5  # trend_score assigned to fresh RSS items
+    feeds: List[RSSFeedEntry] = Field(
+        default_factory=lambda: [
+            RSSFeedEntry(
+                url="https://feeds.reuters.com/reuters/businessNews",
+                label="reuters-business",
+            ),
+            RSSFeedEntry(
+                url="https://feeds.reuters.com/reuters/companyNews",
+                label="reuters-company",
+            ),
+            RSSFeedEntry(
+                url=(
+                    "https://www.sec.gov/cgi-bin/browse-edgar"
+                    "?action=getcurrent&type=8-K&dateb=&owner=include"
+                    "&count=40&search_text=&output=atom"
+                ),
+                label="sec-8k-filings",
+            ),
+        ]
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -76,5 +114,6 @@ class Settings(BaseSettings):
     trend: TrendConfig = Field(default_factory=TrendConfig)
     alert: AlertConfig = Field(default_factory=AlertConfig)
     web: WebConfig = Field(default_factory=WebConfig)
+    rss: RSSConfig = Field(default_factory=RSSConfig)
     storage_root: str = "storage"
     db_path: str = "storage/rot.db"

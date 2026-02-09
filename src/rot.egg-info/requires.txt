@@ -1,5 +1,6 @@
 praw
 yfinance
+feedparser>=6.0
 pydantic>=2.0
 pydantic-settings>=2.0
 openai>=1.0
