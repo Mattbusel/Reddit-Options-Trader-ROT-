@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(python3:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(test:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest:*)"
     ]
   }
 }

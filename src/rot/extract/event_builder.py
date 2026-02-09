@@ -11,11 +11,11 @@ _TICKER_RE = re.compile(r"(?:\$([A-Z]{1,5})\b|\b([A-Z]{1,5})\b)")
 
 # Keyword-based event type classification
 _EVENT_KEYWORDS: list[Tuple[str, EventType]] = [
-    (r"\b(?:earnings|ER|revenue|EPS|guidance|beat|miss|report(?:ing)?)\b", "earnings_rumor"),
-    (r"\b(?:squeeze|short\s*interest|gamma|SI%|days\s*to\s*cover)\b", "squeeze_chatter"),
-    (r"\b(?:FDA|SEC|antitrust|regulator|lawsuit|ruling|ban|tariff)\b", "regulatory"),
+    (r"\b(?:earnings|er|revenue|eps|guidance|beat|miss|report(?:ing)?)\b", "earnings_rumor"),
+    (r"\b(?:squeeze|short\s*interest|gamma|si%|days\s*to\s*cover)\b", "squeeze_chatter"),
+    (r"\b(?:fda|sec|antitrust|regulator|lawsuit|ruling|ban|tariff)\b", "regulatory"),
     (r"\b(?:launch|release|product|patent|partner|merger|acquisition|deal)\b", "product_news"),
-    (r"\b(?:CPI|GDP|FOMC|rate\s*cut|rate\s*hike|inflation|recession|macro)\b", "macro"),
+    (r"\b(?:cpi|gdp|fomc|rate\s*cut|rate\s*hike|inflation|recession|macro)\b", "macro"),
 ]
 
 # Sentiment keywords for basic stance detection

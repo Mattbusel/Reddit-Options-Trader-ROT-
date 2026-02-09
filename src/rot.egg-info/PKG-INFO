@@ -1,5 +1,23 @@
 Metadata-Version: 2.4
 Name: rot
-Version: 0.0.1
+Version: 0.1.0
 Summary: Reddit -> Events -> Reasoning -> Options Trade Ideas
 Requires-Python: >=3.10
+Requires-Dist: praw
+Requires-Dist: yfinance
+Requires-Dist: pydantic>=2.0
+Requires-Dist: pydantic-settings>=2.0
+Requires-Dist: openai>=1.0
+Requires-Dist: anthropic>=0.20
+Requires-Dist: fastapi>=0.109
+Requires-Dist: uvicorn[standard]>=0.27
+Requires-Dist: aiosqlite>=0.19
+Requires-Dist: python-jose[cryptography]>=3.3
+Requires-Dist: passlib[bcrypt]>=1.7
+Requires-Dist: httpx>=0.26
+Requires-Dist: jinja2>=3.1
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: ruff>=0.2; extra == "dev"
