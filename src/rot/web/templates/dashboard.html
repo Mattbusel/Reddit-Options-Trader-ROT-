@@ -416,6 +416,149 @@
                 <p>GET /api/v1/health</p>
             </div>
         </div>
+
+        <!-- Auto-refresh status -->
+        <div class="mt-4 bg-gray-800/30 border border-gray-700 rounded-lg p-3 text-center">
+            <div class="flex items-center justify-center space-x-2 text-xs text-gray-500">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 pulse" id="refresh-dot"></span>
+                <span id="refresh-status">Auto-refresh active</span>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- AUTO-REFRESH: polls for new signals every 30s                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<style>
+@keyframes signal-flash {
+    0% { background-color: rgba(74,222,128,0.15); }
+    100% { background-color: transparent; }
+}
+.signal-new {
+    animation: signal-flash 2s ease-out;
+}
+</style>
+<script>
+(function() {
+    const POLL_INTERVAL = 30000; // 30 seconds
+    const feed = document.getElementById('signal-feed');
+    const indicator = document.getElementById('live-indicator');
+    const refreshStatus = document.getElementById('refresh-status');
+    const refreshDot = document.getElementById('refresh-dot');
+
+    // Track known signal IDs to detect new ones
+    const knownIds = new Set();
+    document.querySelectorAll('#signal-feed > a[href*="/dashboard/signal/"]').forEach(el => {
+        const m = el.getAttribute('href').match(/\/dashboard\/signal\/(.+)/);
+        if (m) knownIds.add(m[1]);
+    });
+
+    function stanceColor(stance) {
+        return { bullish: 'text-green-400', bearish: 'text-red-400', mixed: 'text-yellow-400' }[stance] || 'text-gray-400';
+    }
+    function stanceBg(stance) {
+        return {
+            bullish: 'bg-green-900/30 border-green-700',
+            bearish: 'bg-red-900/30 border-red-700',
+            mixed: 'bg-yellow-900/30 border-yellow-700',
+        }[stance] || 'bg-gray-900/30 border-gray-700';
+    }
+    function confBar(conf) {
+        const pct = Math.round(conf * 100);
+        const color = conf >= 0.6 ? 'bg-green-500' : conf >= 0.4 ? 'bg-yellow-500' : 'bg-red-500';
+        return `<div class="w-full bg-gray-700 rounded h-2"><div class="${color} h-2 rounded" style="width:${pct}%"></div></div>`;
+    }
+    function fmtTime(ts) {
+        if (!ts) return 'N/A';
+        const d = new Date(ts * 1000);
+        return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+    }
+
+    function buildCard(s) {
+        const delayed = s._delayed ? `<div class="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs bg-orange-900/70 text-orange-300 border border-orange-700/70 font-semibold">Delayed ${Math.round((s._available_in_s || 0) / 60)}m</div>` : '';
+        const strategy = (s.strategy && s.strategy !== 'none') ? `<span class="badge bg-blue-900/40 text-blue-400 border border-blue-700/60">${s.strategy}</span>` : '';
+        const locked = (s.reasoning && s.reasoning._locked) ? '<span class="badge bg-gray-700/70 text-gray-400">&#128274; Limited</span>' : '';
+        const pct = Math.round(s.confidence * 100);
+
+        return `<a href="/dashboard/signal/${s.id}" class="signal-card signal-new block rounded-lg p-5 transition relative">
+            ${delayed}
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-3 flex-wrap gap-y-2">
+                    <span class="text-xl font-bold text-white tracking-tight">${s.ticker}</span>
+                    <span class="badge border ${stanceBg(s.stance)} ${stanceColor(s.stance)}">${s.stance}</span>
+                    <span class="badge bg-gray-700/70 text-gray-300">${s.event_type}</span>
+                    ${strategy}${locked}
+                </div>
+                <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-4">
+                    <div class="w-28">${confBar(s.confidence)}</div>
+                    <span class="text-gray-300 font-semibold text-sm">${pct}%</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-300 leading-relaxed truncate mb-3">${s.post_title || ''}</p>
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <span class="font-medium">r/${s.subreddit}</span>
+                <span>${fmtTime(s.created_at)}</span>
+            </div>
+        </a>`;
+    }
+
+    let consecutiveErrors = 0;
+
+    async function pollSignals() {
+        try {
+            const resp = await fetch('/api/v1/signals?limit=50');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            consecutiveErrors = 0;
+
+            // Flash the live indicator
+            if (indicator) indicator.style.opacity = '1';
+
+            // Find new signals
+            const newSignals = data.signals.filter(s => !knownIds.has(s.id));
+
+            if (newSignals.length > 0) {
+                // Remove empty-state placeholder if present
+                const empty = feed.querySelector('.text-center.py-12');
+                if (empty) empty.remove();
+
+                // Prepend new signals at top
+                newSignals.reverse().forEach(s => {
+                    knownIds.add(s.id);
+                    const temp = document.createElement('div');
+                    temp.innerHTML = buildCard(s);
+                    const card = temp.firstElementChild;
+                    feed.insertBefore(card, feed.firstChild);
+                });
+
+                // Update refresh status
+                if (refreshStatus) {
+                    refreshStatus.textContent = `${newSignals.length} new signal${newSignals.length > 1 ? 's' : ''} added`;
+                    setTimeout(() => { refreshStatus.textContent = 'Auto-refresh active'; }, 5000);
+                }
+            } else {
+                if (refreshStatus) refreshStatus.textContent = 'Auto-refresh active';
+            }
+        } catch (err) {
+            consecutiveErrors++;
+            console.warn('Signal poll error:', err);
+            if (refreshDot) refreshDot.className = 'w-1.5 h-1.5 rounded-full bg-yellow-500';
+            if (refreshStatus) refreshStatus.textContent = 'Reconnecting...';
+
+            // Back off after repeated failures
+            if (consecutiveErrors >= 5) {
+                if (refreshDot) refreshDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
+                if (refreshStatus) refreshStatus.textContent = 'Connection lost — refresh page';
+                return; // stop polling
+            }
+        }
+
+        setTimeout(pollSignals, POLL_INTERVAL);
+    }
+
+    // Start polling after initial page load
+    setTimeout(pollSignals, POLL_INTERVAL);
+})();
+</script>
 {% endblock %}
