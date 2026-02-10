@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import time
+from typing import Any, Dict, List
+
+_PAID_TIERS = ("pro", "premium", "ultra")
+
+
+def gate_signal(signal: Dict[str, Any], tier: str, delay_s: int = 900) -> Dict[str, Any]:
+    """
+    Apply tier-based gating to a signal dict.
+    Free tier: delay, redact reasoning and trade legs.
+    Paid tiers: full access.
+    """
+    if tier in _PAID_TIERS:
+        return signal
+
+    # Free tier gating
+    gated = dict(signal)
+
+    # 1. Delay check: if signal is newer than delay_s, redact it heavily
+    created_at = signal.get("created_at", 0)
+    age = time.time() - created_at
+    if age < delay_s:
+        gated["_delayed"] = True
+        gated["_available_in_s"] = int(delay_s - age)
+        gated["reasoning"] = {"_locked": True, "_upgrade_message": "Upgrade to Pro for real-time signals"}
+        gated["trade_idea"] = {
+            "strategy": signal.get("strategy", "none"),
+            "legs": [],
+            "_locked": True,
+            "_upgrade_message": "Upgrade to Pro for real-time trade ideas",
+        }
+        return gated
+
+    # 2. Even after delay, free users see limited data
+    gated["reasoning"] = _redact_reasoning(signal.get("reasoning", {}))
+    gated["trade_idea"] = _redact_trade_idea(signal.get("trade_idea", {}))
+
+    return gated
+
+
+def gate_signal_list(
+    signals: List[Dict[str, Any]],
+    tier: str,
+    delay_s: int = 900,
+    page_limit: int = 10,
+) -> List[Dict[str, Any]]:
+    """Gate a list of signals. Free tier also gets page limit enforced."""
+    if tier in _PAID_TIERS:
+        return [gate_signal(s, tier, delay_s) for s in signals]
+
+    # Free tier: limit page size
+    limited = signals[:page_limit]
+    return [gate_signal(s, "free", delay_s) for s in limited]
+
+
+def _redact_reasoning(reasoning: dict) -> dict:
+    """Free users see thesis only, rest is locked."""
+    if not reasoning:
+        return {}
+    return {
+        "thesis": reasoning.get("thesis", ""),
+        "_locked": True,
+        "_locked_fields": [
+            "catalyst_window", "market_expectation",
+            "recommended_structures", "invalidations", "risk_notes",
+        ],
+        "_upgrade_message": "Upgrade to Pro for full analysis",
+    }
+
+
+def _redact_trade_idea(idea: dict) -> dict:
+    """Free users see strategy name only, legs are hidden."""
+    if not idea:
+        return {}
+    return {
+        "strategy": idea.get("strategy", "none"),
+        "thesis": idea.get("thesis", ""),
+        "legs": [],
+        "_locked": True,
+        "_upgrade_message": "Upgrade to Pro to see trade legs and details",
+    }

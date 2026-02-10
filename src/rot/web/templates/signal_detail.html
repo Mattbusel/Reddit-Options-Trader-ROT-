@@ -7,6 +7,13 @@
     <a href="/dashboard" class="text-gray-500 hover:text-white text-sm transition">&larr; Back to signals</a>
 </div>
 
+{% if signal.get('_delayed') %}
+<div class="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-6 flex items-center justify-between">
+    <span class="text-orange-300 text-sm">This signal is delayed. Full details available in {{ (signal.get('_available_in_s', 0) / 60)|int }} minutes, or upgrade for real-time access.</span>
+    <a href="/pricing" class="px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition">Upgrade</a>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Main Signal Info -->
     <div class="lg:col-span-2 space-y-6">
@@ -51,8 +58,27 @@
         {% set reasoning = signal.get('reasoning', {}) %}
         {% if reasoning %}
         <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">🧠 Analysis</h3>
+            <h3 class="text-lg font-semibold text-white mb-4">&#129504; Analysis</h3>
 
+            {% if reasoning.get('_locked') %}
+            <!-- Locked reasoning for free tier -->
+            {% if reasoning.get('thesis') %}
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase mb-1">Thesis</div>
+                <p class="text-gray-300">{{ reasoning.thesis }}</p>
+            </div>
+            {% endif %}
+
+            <div class="relative mt-4">
+                <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6 text-center" style="backdrop-filter: blur(2px);">
+                    <p class="text-gray-400 text-lg mb-1">&#128274;</p>
+                    <p class="text-gray-400 text-sm mb-3">Full analysis locked on Free tier</p>
+                    <p class="text-gray-500 text-xs mb-4">Catalyst window, market expectations, recommended structures, invalidations, and risk notes</p>
+                    <a href="/pricing" class="px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade to Pro</a>
+                </div>
+            </div>
+            {% else %}
+            <!-- Full reasoning for paid tiers -->
             {% if reasoning.get('thesis') %}
             <div class="mb-4">
                 <div class="text-xs text-gray-500 uppercase mb-1">Thesis</div>
@@ -106,14 +132,31 @@
                 </ul>
             </div>
             {% endif %}
+            {% endif %}
         </div>
         {% endif %}
 
         <!-- Trade Idea -->
         {% set idea = signal.get('trade_idea', {}) %}
-        {% if idea and idea.get('strategy') != 'none' %}
+        {% if idea and idea.get('_locked') %}
+        <!-- Locked trade idea -->
+        <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">&#128202; Trade Idea</h3>
+            <div class="mb-4">
+                <div class="text-xs text-gray-500 uppercase">Strategy</div>
+                <div class="text-white font-bold">{{ idea.strategy }}</div>
+            </div>
+            <div class="relative">
+                <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6 text-center">
+                    <p class="text-gray-400 text-lg mb-1">&#128274;</p>
+                    <p class="text-gray-400 text-sm mb-3">Trade legs and details locked on Free tier</p>
+                    <a href="/pricing" class="px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade to Pro</a>
+                </div>
+            </div>
+        </div>
+        {% elif idea and idea.get('strategy') != 'none' %}
         <div class="bg-gray-800/50 border border-blue-700/50 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">📊 Trade Idea</h3>
+            <h3 class="text-lg font-semibold text-white mb-4">&#128202; Trade Idea</h3>
 
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                 <div>

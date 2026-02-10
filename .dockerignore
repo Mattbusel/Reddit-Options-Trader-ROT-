@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+*.egg
+
+# Virtual environments
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Data (rebuilt at runtime)
+data/
+*.db
+*.sqlite
+
+# Environment files (secrets - set via Railway dashboard)
+.env
+.env.local
+
+# Dev/test files
+tests/
+.pytest_cache
+.coverage
+htmlcov
+.ruff_cache
+
+# Docs
+*.md
+LICENSE
+
+# Claude
+.claude/

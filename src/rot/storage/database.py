@@ -3,9 +3,12 @@ from __future__ import annotations
 import json
 import uuid
 import time
+import logging
 import aiosqlite
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+log = logging.getLogger(__name__)
 
 
 _SCHEMA = """
@@ -54,6 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_perf_signal ON signal_performance(signal_id);
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL DEFAULT '',
     api_key_hash TEXT UNIQUE,
     tier TEXT NOT NULL DEFAULT 'free',
     created_at REAL NOT NULL,
@@ -61,7 +65,37 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key_hash);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE TABLE IF NOT EXISTS api_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    called_at REAL NOT NULL,
+    ip_address TEXT DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_usage_user_day ON api_usage(user_id, called_at);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT UNIQUE NOT NULL REFERENCES users(id),
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    tier TEXT NOT NULL DEFAULT 'free',
+    status TEXT NOT NULL DEFAULT 'active',
+    current_period_end REAL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
 """
+
+# Columns to add to existing tables (migration-safe)
+_MIGRATIONS = [
+    ("users", "password_hash", "TEXT NOT NULL DEFAULT ''"),
+]
 
 
 class Database:
@@ -75,6 +109,15 @@ class Database:
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(_SCHEMA)
         await self._db.commit()
+
+        # Safe migrations: add columns that may not exist yet
+        for table, column, col_type in _MIGRATIONS:
+            try:
+                await self._db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                await self._db.commit()
+                log.info("Migration: added %s.%s", table, column)
+            except Exception:
+                pass  # column already exists
 
     async def close(self) -> None:
         if self._db:
@@ -219,6 +262,136 @@ class Database:
             if not row:
                 return {"total_signals": 0}
             return _row_to_dict(row)
+
+    # ── User CRUD ──
+
+    async def create_user(self, email: str, password_hash: str) -> Dict[str, Any]:
+        user_id = str(uuid.uuid4())[:12]
+        now = time.time()
+        await self.db.execute(
+            "INSERT INTO users (id, email, password_hash, tier, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, email, password_hash, "free", now),
+        )
+        await self.db.commit()
+        return {"id": user_id, "email": email, "tier": "free", "created_at": now, "settings": {}}
+
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        async with self.db.execute("SELECT * FROM users WHERE email = ?", (email,)) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
+
+    async def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        async with self.db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
+
+    async def get_user_by_api_key_hash(self, api_key_hash: str) -> Optional[Dict[str, Any]]:
+        async with self.db.execute(
+            "SELECT * FROM users WHERE api_key_hash = ?", (api_key_hash,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
+
+    async def update_user_tier(self, user_id: str, tier: str) -> None:
+        await self.db.execute("UPDATE users SET tier = ? WHERE id = ?", (tier, user_id))
+        await self.db.commit()
+
+    async def set_user_api_key(self, user_id: str, api_key_hash: str) -> None:
+        await self.db.execute(
+            "UPDATE users SET api_key_hash = ? WHERE id = ?", (api_key_hash, user_id)
+        )
+        await self.db.commit()
+
+    async def update_user_settings(self, user_id: str, settings: Dict[str, Any]) -> None:
+        await self.db.execute(
+            "UPDATE users SET settings = ? WHERE id = ?", (json.dumps(settings), user_id)
+        )
+        await self.db.commit()
+
+    # ── Rate Limiting ──
+
+    async def record_api_call(self, user_id: str, endpoint: str, ip: str = "") -> None:
+        await self.db.execute(
+            "INSERT INTO api_usage (user_id, endpoint, called_at, ip_address) VALUES (?, ?, ?, ?)",
+            (user_id, endpoint, time.time(), ip),
+        )
+        await self.db.commit()
+
+    async def get_api_call_count(self, user_id: str, since: float) -> int:
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM api_usage WHERE user_id = ? AND called_at > ?",
+            (user_id, since),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def cleanup_old_api_usage(self, older_than_s: int = 172800) -> int:
+        cutoff = time.time() - older_than_s
+        async with self.db.execute(
+            "DELETE FROM api_usage WHERE called_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        return count
+
+    # ── Subscriptions ──
+
+    async def upsert_subscription(self, user_id: str, data: Dict[str, Any]) -> None:
+        now = time.time()
+        existing = await self.get_subscription(user_id)
+        if existing:
+            await self.db.execute(
+                """UPDATE subscriptions SET
+                    stripe_customer_id = ?, stripe_subscription_id = ?,
+                    tier = ?, status = ?, current_period_end = ?, updated_at = ?
+                   WHERE user_id = ?""",
+                (
+                    data.get("stripe_customer_id", existing.get("stripe_customer_id")),
+                    data.get("stripe_subscription_id", existing.get("stripe_subscription_id")),
+                    data.get("tier", existing.get("tier")),
+                    data.get("status", existing.get("status")),
+                    data.get("current_period_end", existing.get("current_period_end")),
+                    now,
+                    user_id,
+                ),
+            )
+        else:
+            sub_id = str(uuid.uuid4())[:12]
+            await self.db.execute(
+                """INSERT INTO subscriptions
+                   (id, user_id, stripe_customer_id, stripe_subscription_id,
+                    tier, status, current_period_end, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    sub_id,
+                    user_id,
+                    data.get("stripe_customer_id", ""),
+                    data.get("stripe_subscription_id", ""),
+                    data.get("tier", "free"),
+                    data.get("status", "active"),
+                    data.get("current_period_end"),
+                    now,
+                    now,
+                ),
+            )
+        await self.db.commit()
+
+    async def get_subscription(self, user_id: str) -> Optional[Dict[str, Any]]:
+        async with self.db.execute(
+            "SELECT * FROM subscriptions WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
+
+    async def get_subscription_by_stripe_id(
+        self, stripe_subscription_id: str
+    ) -> Optional[Dict[str, Any]]:
+        async with self.db.execute(
+            "SELECT * FROM subscriptions WHERE stripe_subscription_id = ?",
+            (stripe_subscription_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:
