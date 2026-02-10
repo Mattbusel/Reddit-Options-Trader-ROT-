@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict
@@ -14,12 +16,37 @@ from rot.core.config import Settings
 from rot.storage.database import Database
 from rot.web.routes import signals, health, websocket
 
+log = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     db: Database = app.state.db
+
+    # Volume diagnostics
+    db_path = str(db.db_path)
+    db_dir = str(db.db_path.parent)
+    log.info("Database path: %s", db_path)
+    log.info("Database dir exists: %s", os.path.isdir(db_dir))
+    log.info("Database file exists: %s", os.path.isfile(db_path))
+    log.info("RAILWAY_VOLUME_MOUNT_PATH: %s", os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "NOT SET"))
+    log.info("ROT_STORAGE_ROOT: %s", os.environ.get("ROT_STORAGE_ROOT", "NOT SET"))
+
+    # List files in the data directory to check volume state
+    if os.path.isdir(db_dir):
+        files = os.listdir(db_dir)
+        log.info("Files in %s: %s", db_dir, files)
+    else:
+        log.warning("Database directory %s does NOT exist!", db_dir)
+
     await db.connect()
+
+    # Confirm DB is on persistent volume
+    if os.path.isfile(db_path):
+        size = os.path.getsize(db_path)
+        log.info("Database connected: %s (size=%d bytes)", db_path, size)
+
     yield
     # Shutdown
     await db.close()
