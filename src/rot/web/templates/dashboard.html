@@ -78,7 +78,7 @@
                     </div>
                     <div class="flex items-center space-x-3 text-sm">
                         <div class="w-24">
-                            {{ confidence_bar(s.confidence) }}
+                            {{ confidence_bar(s.confidence)|safe }}
                         </div>
                         <span class="text-gray-400 text-xs">{{ "%.0f"|format(s.confidence * 100) }}%</span>
                     </div>
