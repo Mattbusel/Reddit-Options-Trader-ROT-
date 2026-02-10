@@ -101,6 +101,37 @@ class RSSConfig(BaseSettings):
     )
 
 
+class AuthConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_AUTH_")
+
+    jwt_secret: str = ""  # falls back to web.secret_key if empty
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440  # 24 hours
+
+
+class StripeConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_STRIPE_")
+
+    secret_key: str = ""  # empty = Stripe disabled
+    webhook_secret: str = ""
+    pro_price_id: str = ""
+    premium_price_id: str = ""
+    ultra_price_id: str = ""
+    success_url: str = "/dashboard?upgraded=1"
+    cancel_url: str = "/pricing"
+
+
+class TierConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_TIER_")
+
+    free_signal_delay_s: int = 900  # 15 minutes
+    free_page_limit: int = 10
+    free_api_limit_day: int = 100
+    pro_api_limit_day: int = 5000
+    premium_api_limit_day: int = 25000
+    ultra_api_limit_day: int = 50000
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -115,5 +146,8 @@ class Settings(BaseSettings):
     alert: AlertConfig = Field(default_factory=AlertConfig)
     web: WebConfig = Field(default_factory=WebConfig)
     rss: RSSConfig = Field(default_factory=RSSConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+    stripe: StripeConfig = Field(default_factory=StripeConfig)
+    tier_limits: TierConfig = Field(default_factory=TierConfig)
     storage_root: str = "storage"
     db_path: str = "storage/rot.db"

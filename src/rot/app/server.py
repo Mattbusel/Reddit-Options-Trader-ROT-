@@ -215,7 +215,12 @@ async def _run_server(cfg: Settings):
 
 
 def main():
+    import os
     cfg = Settings()
+    # Railway sets PORT env var dynamically — override config if present
+    railway_port = os.environ.get("PORT")
+    if railway_port:
+        cfg.web.port = int(railway_port)
     asyncio.run(_run_server(cfg))
 
 

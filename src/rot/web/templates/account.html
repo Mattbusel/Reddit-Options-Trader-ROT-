@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Account - ROT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-6">Account Settings</h1>
+
+    <div class="space-y-6">
+        <!-- Tier & Subscription -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Subscription</h2>
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-white font-bold text-lg">{{ tier|upper }}</span>
+                        <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier }}</span>
+                    </div>
+                    {% if subscription and subscription.current_period_end %}
+                    <p class="text-sm text-gray-500 mt-1">
+                        Renews: {{ format_time(subscription.current_period_end) }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="flex space-x-2">
+                    {% if tier != 'ultra' %}
+                    <a href="/pricing" class="px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">
+                        {% if tier == 'free' %}Upgrade{% else %}Change Plan{% endif %}
+                    </a>
+                    {% endif %}
+                    {% if subscription and stripe_enabled %}
+                    <a href="/api/v1/billing/portal" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">
+                        Manage Billing
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- API Key -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">API Key</h2>
+            <p class="text-sm text-gray-400 mb-4">
+                Use your API key to access the REST API programmatically.
+                Include it as <code class="bg-gray-900 px-1 rounded text-gray-300">X-API-Key</code> header.
+            </p>
+
+            {% if has_api_key %}
+            <div class="flex items-center space-x-3">
+                <code class="bg-gray-900 px-3 py-2 rounded text-gray-400 text-sm flex-1">rot_****...****</code>
+                <button onclick="regenerateKey()" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">
+                    Regenerate
+                </button>
+            </div>
+            <p class="text-xs text-gray-600 mt-2">Regenerating will invalidate the current key.</p>
+            {% else %}
+            <button onclick="generateKey()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+                Generate API Key
+            </button>
+            {% endif %}
+
+            <div id="new-key-display" class="hidden mt-4 bg-green-900/20 border border-green-700 rounded-lg p-4">
+                <p class="text-sm text-green-400 mb-2 font-semibold">Save this key now -- it will not be shown again:</p>
+                <code id="new-key-value" class="block bg-gray-900 px-3 py-2 rounded text-white text-sm break-all"></code>
+                <button onclick="copyKey()" class="mt-2 px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs transition">
+                    Copy
+                </button>
+            </div>
+        </div>
+
+        <!-- BYOK LLM Settings -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-2">AI Reasoning (BYOK)</h2>
+            <p class="text-sm text-gray-400 mb-4">
+                Provide your own LLM API key for AI-powered signal analysis.
+                Your key is stored securely and used only for your signal processing.
+            </p>
+
+            {% if tier == 'free' %}
+            <div class="bg-gray-900 border border-gray-700 rounded-lg p-4 text-center">
+                <p class="text-gray-500 text-sm mb-2">BYOK AI requires a paid plan.</p>
+                <a href="/pricing" class="text-orange-400 hover:underline text-sm">Upgrade to unlock</a>
+            </div>
+            {% else %}
+            <form id="llm-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">LLM Provider</label>
+                    <select id="llm-provider" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 focus:outline-none">
+                        <option value="openai" {% if llm_settings.provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                        <option value="anthropic" {% if llm_settings.provider == 'anthropic' %}selected{% endif %}>Anthropic</option>
+                        <option value="deepseek" {% if llm_settings.provider == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">Model</label>
+                    <input type="text" id="llm-model" value="{{ llm_settings.model or 'gpt-4o-mini' }}"
+                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">API Key</label>
+                    <input type="password" id="llm-key" placeholder="{% if llm_settings.has_key %}Key configured (enter new to replace){% else %}sk-...{% endif %}"
+                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 focus:outline-none">
+                    {% if llm_settings.has_key %}
+                    <p class="text-xs text-green-600 mt-1">Key is configured</p>
+                    {% endif %}
+                </div>
+                <button type="button" onclick="saveLLMSettings()"
+                    class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+                    Save LLM Settings
+                </button>
+                <span id="llm-save-status" class="text-sm text-gray-500 ml-3"></span>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Usage -->
+        <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">API Usage</h2>
+            <div class="text-sm text-gray-400">
+                <p>Your API usage resets every 24 hours.</p>
+                <p class="mt-1">
+                    Tier limit:
+                    {% if tier == 'free' %}100{% elif tier == 'pro' %}5,000{% elif tier == 'premium' %}25,000{% elif tier == 'ultra' %}50,000{% endif %}
+                    calls/day
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function generateKey() {
+    const resp = await fetch('/api/v1/auth/api-key', {method: 'POST'});
+    const data = await resp.json();
+    if (data.api_key) {
+        document.getElementById('new-key-value').textContent = data.api_key;
+        document.getElementById('new-key-display').classList.remove('hidden');
+    } else {
+        alert(data.detail || 'Failed to generate key');
+    }
+}
+
+async function regenerateKey() {
+    if (!confirm('This will invalidate your current API key. Continue?')) return;
+    await generateKey();
+}
+
+function copyKey() {
+    const key = document.getElementById('new-key-value').textContent;
+    navigator.clipboard.writeText(key);
+}
+
+async function saveLLMSettings() {
+    const provider = document.getElementById('llm-provider').value;
+    const model = document.getElementById('llm-model').value;
+    const key = document.getElementById('llm-key').value;
+
+    const body = {llm_provider: provider, llm_model: model};
+    if (key) body.llm_api_key = key;
+
+    const resp = await fetch('/api/v1/auth/llm-settings', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    const status = document.getElementById('llm-save-status');
+    if (data.ok) {
+        status.textContent = 'Saved!';
+        status.className = 'text-sm text-green-400 ml-3';
+    } else {
+        status.textContent = data.detail || 'Failed';
+        status.className = 'text-sm text-red-400 ml-3';
+    }
+    setTimeout(() => { status.textContent = ''; }, 3000);
+}
+</script>
+{% endblock %}

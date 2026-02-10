@@ -3,8 +3,17 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+
+from rot.web.auth import (
+    create_access_token,
+    get_current_user_optional,
+    hash_password,
+    require_user,
+    verify_password,
+)
+from rot.web.tier_gate import gate_signal, gate_signal_list
 
 router = APIRouter()
 
@@ -40,44 +49,212 @@ def _confidence_bar(conf: float) -> str:
         color = "bg-yellow-500"
     else:
         color = "bg-red-500"
-    return f'<div class="w-full bg-gray-700 rounded h-2"><div class="{color} h-2 rounded" style="width:{pct}%"></div></div>'
+    return (
+        f'<div class="w-full bg-gray-700 rounded h-2">'
+        f'<div class="{color} h-2 rounded" style="width:{pct}%"></div></div>'
+    )
+
+
+def _tier_badge_class(tier: str) -> str:
+    return {
+        "pro": "bg-blue-900/50 text-blue-400 border border-blue-700",
+        "premium": "bg-purple-900/50 text-purple-400 border border-purple-700",
+        "ultra": "bg-amber-900/50 text-amber-400 border border-amber-700",
+    }.get(tier, "bg-gray-700 text-gray-400 border border-gray-600")
+
+
+def _base_context(request: Request, user: dict | None) -> dict:
+    """Common template context for all pages."""
+    return {
+        "request": request,
+        "user": user,
+        "tier": (user or {}).get("tier", "free"),
+        "tier_badge_class": _tier_badge_class((user or {}).get("tier", "free")),
+        "format_time": _format_time,
+        "stance_color": _stance_color,
+        "stance_bg": _stance_bg,
+        "confidence_bar": _confidence_bar,
+        "stripe_enabled": bool(request.app.state.settings.stripe.secret_key),
+    }
 
 
 @router.get("/", response_class=HTMLResponse)
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    user = await get_current_user_optional(request)
+    tier = (user or {}).get("tier", "free")
+    settings = request.app.state.settings
+
     db = request.app.state.db
     signals = await db.get_signals(limit=50)
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
 
-    templates = request.app.state.templates
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "signals": signals,
+    gated = gate_signal_list(
+        signals, tier,
+        delay_s=settings.tier_limits.free_signal_delay_s,
+        page_limit=settings.tier_limits.free_page_limit,
+    )
+
+    ctx = _base_context(request, user)
+    ctx.update({
+        "signals": gated,
         "trending": trending,
         "summary": summary,
-        "format_time": _format_time,
-        "stance_color": _stance_color,
-        "stance_bg": _stance_bg,
-        "confidence_bar": _confidence_bar,
+        "total_signals": len(signals),
     })
+
+    templates = request.app.state.templates
+    return templates.TemplateResponse("dashboard.html", ctx)
 
 
 @router.get("/dashboard/signal/{signal_id}", response_class=HTMLResponse)
 async def signal_detail(request: Request, signal_id: str):
+    user = await get_current_user_optional(request)
+    tier = (user or {}).get("tier", "free")
+    settings = request.app.state.settings
+
     db = request.app.state.db
     signal = await db.get_signal(signal_id)
     if not signal:
         return HTMLResponse("<h1>Signal not found</h1>", status_code=404)
 
-    templates = request.app.state.templates
-    return templates.TemplateResponse("signal_detail.html", {
-        "request": request,
-        "signal": signal,
-        "format_time": _format_time,
-        "stance_color": _stance_color,
-        "stance_bg": _stance_bg,
-        "confidence_bar": _confidence_bar,
+    gated = gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
+
+    ctx = _base_context(request, user)
+    ctx.update({
+        "signal": gated,
         "json_dumps": json.dumps,
     })
+
+    templates = request.app.state.templates
+    return templates.TemplateResponse("signal_detail.html", ctx)
+
+
+# ── Auth HTML routes ──
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    user = await get_current_user_optional(request)
+    if user:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    ctx = _base_context(request, None)
+    ctx["error"] = request.query_params.get("error", "")
+    templates = request.app.state.templates
+    return templates.TemplateResponse("login.html", ctx)
+
+
+@router.post("/login", response_class=HTMLResponse)
+async def login_form(request: Request, email: str = Form(...), password: str = Form(...)):
+    db = request.app.state.db
+    user = await db.get_user_by_email(email.lower())
+
+    if not user or not user.get("password_hash") or not verify_password(password, user["password_hash"]):
+        ctx = _base_context(request, None)
+        ctx["error"] = "Invalid email or password"
+        templates = request.app.state.templates
+        return templates.TemplateResponse("login.html", ctx)
+
+    settings = request.app.state.settings
+    token = create_access_token(user["id"], user["email"], user["tier"], settings)
+
+    response = RedirectResponse(url="/dashboard", status_code=302)
+    response.set_cookie(
+        key="rot_session",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.auth.jwt_expire_minutes * 60,
+    )
+    return response
+
+
+@router.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    user = await get_current_user_optional(request)
+    if user:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    ctx = _base_context(request, None)
+    ctx["error"] = ""
+    templates = request.app.state.templates
+    return templates.TemplateResponse("register.html", ctx)
+
+
+@router.post("/register", response_class=HTMLResponse)
+async def register_form(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    templates = request.app.state.templates
+
+    if password != confirm_password:
+        ctx = _base_context(request, None)
+        ctx["error"] = "Passwords do not match"
+        return templates.TemplateResponse("register.html", ctx)
+
+    if len(password) < 8:
+        ctx = _base_context(request, None)
+        ctx["error"] = "Password must be at least 8 characters"
+        return templates.TemplateResponse("register.html", ctx)
+
+    db = request.app.state.db
+    existing = await db.get_user_by_email(email.lower())
+    if existing:
+        ctx = _base_context(request, None)
+        ctx["error"] = "Email already registered"
+        return templates.TemplateResponse("register.html", ctx)
+
+    pw_hash = hash_password(password)
+    user = await db.create_user(email.lower(), pw_hash)
+
+    settings = request.app.state.settings
+    token = create_access_token(user["id"], user["email"], user["tier"], settings)
+
+    response = RedirectResponse(url="/dashboard", status_code=302)
+    response.set_cookie(
+        key="rot_session",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.auth.jwt_expire_minutes * 60,
+    )
+    return response
+
+
+@router.get("/logout")
+async def logout_page():
+    response = RedirectResponse(url="/", status_code=302)
+    response.delete_cookie("rot_session")
+    return response
+
+
+@router.get("/pricing", response_class=HTMLResponse)
+async def pricing_page(request: Request):
+    user = await get_current_user_optional(request)
+    ctx = _base_context(request, user)
+    templates = request.app.state.templates
+    return templates.TemplateResponse("pricing.html", ctx)
+
+
+@router.get("/account", response_class=HTMLResponse)
+async def account_page(request: Request):
+    user = await get_current_user_optional(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = request.app.state.db
+    sub = await db.get_subscription(user["id"])
+
+    ctx = _base_context(request, user)
+    ctx["subscription"] = sub
+    ctx["has_api_key"] = bool(user.get("api_key_hash"))
+    ctx["llm_settings"] = {
+        "provider": user.get("settings", {}).get("llm_provider", ""),
+        "model": user.get("settings", {}).get("llm_model", ""),
+        "has_key": bool(user.get("settings", {}).get("llm_api_key")),
+    }
+
+    templates = request.app.state.templates
+    return templates.TemplateResponse("account.html", ctx)

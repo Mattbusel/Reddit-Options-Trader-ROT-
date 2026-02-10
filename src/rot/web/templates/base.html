@@ -15,23 +15,32 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .locked-overlay { position: relative; }
+        .locked-overlay::after { content: ''; position: absolute; inset: 0; background: rgba(15,15,35,0.7); backdrop-filter: blur(4px); border-radius: 0.5rem; }
     </style>
 </head>
 <body class="min-h-screen">
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <a href="/dashboard" class="flex items-center space-x-2">
-                <span class="text-2xl">🔥</span>
+                <span class="text-2xl">&#128293;</span>
                 <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ROT</span>
                 <span class="text-sm text-gray-500">Reddit Options Trader</span>
             </a>
-            <div class="flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-4 text-sm">
                 <a href="/dashboard" class="text-gray-400 hover:text-white transition">Signals</a>
-                <a href="/api/v1/tickers/trending" class="text-gray-400 hover:text-white transition">API</a>
-                <a href="/api/v1/health" class="text-gray-400 hover:text-white transition">Health</a>
+                <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
+                {% if user %}
+                <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
+                <a href="/account" class="text-gray-400 hover:text-white transition">Account</a>
+                <a href="/logout" class="text-gray-400 hover:text-white transition">Logout</a>
+                {% else %}
+                <a href="/login" class="text-gray-400 hover:text-white transition">Login</a>
+                <a href="/register" class="px-3 py-1 rounded bg-orange-600 text-white hover:bg-orange-500 transition text-xs font-semibold">Sign Up</a>
+                {% endif %}
                 <div id="ws-status" class="flex items-center space-x-1">
                     <span class="w-2 h-2 rounded-full bg-gray-600" id="ws-dot"></span>
-                    <span class="text-gray-600 text-xs" id="ws-label">Disconnected</span>
+                    <span class="text-gray-600 text-xs" id="ws-label">Offline</span>
                 </div>
             </div>
         </div>
@@ -46,11 +55,27 @@
     </footer>
 
     <script>
-        // WebSocket connection for live updates
+        // WebSocket connection for live updates (paid tiers only)
         let ws;
+        const userTier = '{{ tier|default("free") }}';
+        const paidTiers = ['pro', 'premium', 'ultra'];
+
         function connectWS() {
+            if (!paidTiers.includes(userTier)) {
+                document.getElementById('ws-label').textContent = 'Free tier';
+                return;
+            }
+
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${proto}//${location.host}/api/v1/signals/live`);
+            // Get token from cookie for WS auth
+            const cookies = document.cookie.split(';').reduce((acc, c) => {
+                const [k, v] = c.trim().split('=');
+                acc[k] = v;
+                return acc;
+            }, {});
+            const token = cookies['rot_session'] || '';
+
+            ws = new WebSocket(`${proto}//${location.host}/api/v1/signals/live?token=${token}`);
 
             ws.onopen = () => {
                 document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-green-500 pulse';
@@ -63,16 +88,18 @@
                 addLiveSignal(signal);
             };
 
-            ws.onclose = () => {
+            ws.onclose = (e) => {
                 document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-gray-600';
-                document.getElementById('ws-label').textContent = 'Disconnected';
+                document.getElementById('ws-label').textContent = 'Offline';
                 document.getElementById('ws-label').className = 'text-gray-600 text-xs';
-                setTimeout(connectWS, 3000);
+                if (e.code !== 4003) {
+                    setTimeout(connectWS, 3000);
+                }
             };
 
             // Keepalive
             setInterval(() => {
-                if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+                if (ws && ws.readyState === WebSocket.OPEN) ws.send('ping');
             }, 30000);
         }
 

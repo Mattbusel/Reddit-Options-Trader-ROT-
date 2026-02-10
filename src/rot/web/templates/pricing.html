@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing - ROT{% endblock %}
+
+{% block content %}
+<div class="text-center mb-12">
+    <h1 class="text-3xl font-bold text-white mb-2">Choose Your Plan</h1>
+    <p class="text-gray-400">Real-time Reddit signal intelligence for options traders</p>
+    <p class="text-sm text-gray-500 mt-2">All paid plans use BYOK (Bring Your Own Key) for AI reasoning &mdash; you control your LLM costs</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+    <!-- Free -->
+    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col">
+        <div class="mb-6">
+            <h2 class="text-lg font-bold text-white">Free</h2>
+            <div class="text-3xl font-bold text-white mt-2">$0<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+        </div>
+        <ul class="space-y-3 text-sm text-gray-300 flex-1">
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>15-minute delayed signals</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>10 signals per page</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>100 API calls/day</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Thesis preview only</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No trade legs</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No WebSocket feed</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No CSV export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No AI reasoning</span></li>
+        </ul>
+        <div class="mt-6">
+            {% if tier == 'free' %}
+            <div class="w-full text-center py-2 px-4 rounded bg-gray-700 text-gray-400 text-sm">Current Plan</div>
+            {% else %}
+            <div class="w-full text-center py-2 px-4 rounded bg-gray-700 text-gray-400 text-sm">Free</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pro -->
+    <div class="bg-gray-800/50 border border-blue-700 rounded-lg p-6 flex flex-col relative">
+        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</div>
+        <div class="mb-6">
+            <h2 class="text-lg font-bold text-blue-400">Pro</h2>
+            <div class="text-3xl font-bold text-white mt-2">$9.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+        </div>
+        <ul class="space-y-3 text-sm text-gray-300 flex-1">
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Real-time signals</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>100 signals per page</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>5,000 API calls/day</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Full analysis &amp; reasoning</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Trade legs visible</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>WebSocket live feed</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>CSV export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>BYOK AI reasoning</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Discord alerts</span></li>
+        </ul>
+        <div class="mt-6">
+            {% if tier == 'pro' %}
+            <div class="w-full text-center py-2 px-4 rounded bg-blue-900/30 text-blue-400 border border-blue-700 text-sm">Current Plan</div>
+            {% elif stripe_enabled and user %}
+            <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded transition">Upgrade to Pro</button>
+            {% elif not user %}
+            <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded transition">Sign Up</a>
+            {% else %}
+            <div class="w-full text-center py-2 px-4 rounded bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Premium -->
+    <div class="bg-gray-800/50 border border-purple-700 rounded-lg p-6 flex flex-col">
+        <div class="mb-6">
+            <h2 class="text-lg font-bold text-purple-400">Premium</h2>
+            <div class="text-3xl font-bold text-white mt-2">$29.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+        </div>
+        <ul class="space-y-3 text-sm text-gray-300 flex-1">
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Everything in Pro</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>200 signals per page</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>25,000 API calls/day</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Full trade leg details</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 5)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority support</span></li>
+        </ul>
+        <div class="mt-6">
+            {% if tier == 'premium' %}
+            <div class="w-full text-center py-2 px-4 rounded bg-purple-900/30 text-purple-400 border border-purple-700 text-sm">Current Plan</div>
+            {% elif stripe_enabled and user %}
+            <button onclick="checkout('premium')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded transition">Upgrade to Premium</button>
+            {% elif not user %}
+            <a href="/register" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded transition">Sign Up</a>
+            {% else %}
+            <div class="w-full text-center py-2 px-4 rounded bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ultra -->
+    <div class="bg-gray-800/50 border border-amber-700 rounded-lg p-6 flex flex-col">
+        <div class="mb-6">
+            <h2 class="text-lg font-bold text-amber-400">Ultra</h2>
+            <div class="text-3xl font-bold text-white mt-2">$49.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+        </div>
+        <ul class="space-y-3 text-sm text-gray-300 flex-1">
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Everything in Premium</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>50,000 API calls/day</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 20)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority Discord channel</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Early access to features</span></li>
+        </ul>
+        <div class="mt-6">
+            {% if tier == 'ultra' %}
+            <div class="w-full text-center py-2 px-4 rounded bg-amber-900/30 text-amber-400 border border-amber-700 text-sm">Current Plan</div>
+            {% elif stripe_enabled and user %}
+            <button onclick="checkout('ultra')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 px-4 rounded transition">Upgrade to Ultra</button>
+            {% elif not user %}
+            <a href="/register" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 px-4 rounded transition">Sign Up</a>
+            {% else %}
+            <div class="w-full text-center py-2 px-4 rounded bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- BYOK Explainer -->
+<div class="max-w-3xl mx-auto mt-12 bg-gray-800/30 border border-gray-700 rounded-lg p-6">
+    <h3 class="text-lg font-semibold text-white mb-3">What is BYOK (Bring Your Own Key)?</h3>
+    <p class="text-gray-400 text-sm mb-3">
+        ROT provides the infrastructure, signal pipeline, trend detection, and trade idea generation.
+        For AI-powered reasoning (thesis synthesis, catalyst identification, risk analysis), you use your own
+        LLM API key from OpenAI, Anthropic, or DeepSeek.
+    </p>
+    <p class="text-gray-400 text-sm">
+        This keeps subscription costs low and gives you full control over your AI spend.
+        Configure your API key in <a href="/account" class="text-orange-400 hover:underline">Account Settings</a> after subscribing.
+    </p>
+</div>
+
+{% if stripe_enabled %}
+<script>
+async function checkout(tier) {
+    const resp = await fetch('/api/v1/billing/checkout', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tier: tier})
+    });
+    const data = await resp.json();
+    if (data.url) {
+        window.location.href = data.url;
+    } else {
+        alert(data.detail || data.error || 'Checkout failed');
+    }
+}
+</script>
+{% endif %}
+{% endblock %}
