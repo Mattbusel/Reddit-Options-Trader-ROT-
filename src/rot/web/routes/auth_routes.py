@@ -160,3 +160,72 @@ async def update_llm_settings(body: LLMSettingsRequest, request: Request):
     await db.update_user_settings(user["id"], current_settings)
 
     return {"ok": True, "message": "LLM settings updated"}
+
+
+class WatchlistRequest(BaseModel):
+    ticker: str
+
+
+_WATCHLIST_LIMITS = {"free": 3, "pro": 20, "premium": 50, "ultra": 999}
+
+
+@router.post("/watchlist")
+async def add_to_watchlist(body: WatchlistRequest, request: Request):
+    """Add a ticker to the user's watchlist."""
+    user = await require_user(request)
+    db = request.app.state.db
+
+    ticker = body.ticker.strip().upper()
+    if not ticker or len(ticker) > 10:
+        raise HTTPException(status_code=400, detail="Invalid ticker")
+
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+
+    watchlist = current_settings.get("watchlist", [])
+    limit = _WATCHLIST_LIMITS.get(user["tier"], 3)
+
+    if ticker in watchlist:
+        return {"ok": True, "watchlist": watchlist, "message": "Already watching"}
+
+    if len(watchlist) >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Watchlist limit reached ({limit} tickers on {user['tier']} tier). Upgrade for more.",
+        )
+
+    watchlist.append(ticker)
+    current_settings["watchlist"] = watchlist
+    await db.update_user_settings(user["id"], current_settings)
+    return {"ok": True, "watchlist": watchlist}
+
+
+@router.delete("/watchlist/{ticker}")
+async def remove_from_watchlist(ticker: str, request: Request):
+    """Remove a ticker from the user's watchlist."""
+    user = await require_user(request)
+    db = request.app.state.db
+
+    ticker = ticker.strip().upper()
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+
+    watchlist = current_settings.get("watchlist", [])
+    watchlist = [t for t in watchlist if t != ticker]
+    current_settings["watchlist"] = watchlist
+    await db.update_user_settings(user["id"], current_settings)
+    return {"ok": True, "watchlist": watchlist}
+
+
+@router.get("/watchlist")
+async def get_watchlist(request: Request):
+    """Get the user's watchlist."""
+    user = await require_user(request)
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+    watchlist = current_settings.get("watchlist", [])
+    limit = _WATCHLIST_LIMITS.get(user["tier"], 3)
+    return {"watchlist": watchlist, "limit": limit, "tier": user["tier"]}

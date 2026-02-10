@@ -85,8 +85,26 @@ async def dashboard(request: Request):
     tier = (user or {}).get("tier", "free")
     settings = request.app.state.settings
 
+    # Filter params from query string
+    q_ticker = request.query_params.get("ticker", "").strip().upper() or None
+    q_stance = request.query_params.get("stance", "").strip().lower() or None
+    q_event = request.query_params.get("event_type", "").strip().lower() or None
+    q_confidence = request.query_params.get("min_confidence", "").strip() or None
+    min_conf_float = None
+    if q_confidence:
+        try:
+            min_conf_float = float(q_confidence) / 100.0  # UI sends %, DB stores 0-1
+        except ValueError:
+            min_conf_float = None
+
     db = request.app.state.db
-    signals = await db.get_signals(limit=50)
+    signals = await db.get_signals(
+        limit=50,
+        ticker=q_ticker,
+        stance=q_stance if q_stance in ("bullish", "bearish", "mixed") else None,
+        min_confidence=min_conf_float,
+        event_type=q_event,
+    )
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
 
@@ -116,6 +134,13 @@ async def dashboard(request: Request):
         "chart_data": chart_data,
         "time_series": time_series,
         "chart_access": chart_access,
+        "filter_ticker": q_ticker or "",
+        "filter_stance": q_stance or "",
+        "filter_event": q_event or "",
+        "filter_confidence": q_confidence or "",
+        "has_filters": bool(q_ticker or q_stance or q_event or q_confidence),
+        "watchlist": (user or {}).get("settings", {}).get("watchlist", []) if user else [],
+        "watchlist_limit": {"free": 3, "pro": 20, "premium": 50, "ultra": 999}.get(tier, 3),
     })
 
     templates = request.app.state.templates

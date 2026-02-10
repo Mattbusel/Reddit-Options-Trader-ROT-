@@ -313,6 +313,55 @@
 {% endif %}
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SEARCH & FILTER BAR                                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="mb-6">
+    <form id="filter-form" method="get" action="/dashboard" class="flex flex-wrap items-end gap-3">
+        <!-- Ticker Search -->
+        <div class="flex-1 min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Ticker</label>
+            <input type="text" name="ticker" value="{{ filter_ticker }}" placeholder="e.g. AAPL, TSLA"
+                   class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
+        </div>
+        <!-- Stance -->
+        <div class="min-w-[120px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Stance</label>
+            <select name="stance" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All</option>
+                <option value="bullish" {{ 'selected' if filter_stance == 'bullish' }}>Bullish</option>
+                <option value="bearish" {{ 'selected' if filter_stance == 'bearish' }}>Bearish</option>
+                <option value="mixed" {{ 'selected' if filter_stance == 'mixed' }}>Mixed</option>
+            </select>
+        </div>
+        <!-- Event Type -->
+        <div class="min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Event Type</label>
+            <select name="event_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All</option>
+                <option value="earnings_rumor" {{ 'selected' if filter_event == 'earnings_rumor' }}>Earnings Rumor</option>
+                <option value="squeeze_chatter" {{ 'selected' if filter_event == 'squeeze_chatter' }}>Squeeze Chatter</option>
+                <option value="sector_rotation" {{ 'selected' if filter_event == 'sector_rotation' }}>Sector Rotation</option>
+                <option value="macro_catalyst" {{ 'selected' if filter_event == 'macro_catalyst' }}>Macro Catalyst</option>
+                <option value="other" {{ 'selected' if filter_event == 'other' }}>Other</option>
+            </select>
+        </div>
+        <!-- Min Confidence -->
+        <div class="min-w-[100px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Min Conf %</label>
+            <input type="number" name="min_confidence" value="{{ filter_confidence }}" placeholder="0" min="0" max="100" step="5"
+                   class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
+        </div>
+        <!-- Buttons -->
+        <div class="flex space-x-2">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">Filter</button>
+            {% if has_filters %}
+            <a href="/dashboard" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- SIGNAL FEED + SIDEBAR                                          -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 
@@ -322,12 +371,10 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
                 <span>Latest Signals</span>
+                {% if has_filters %}<span class="text-xs text-gray-500 font-normal ml-2">(filtered)</span>{% endif %}
                 <span class="w-2 h-2 rounded-full bg-green-500 pulse" id="live-indicator"></span>
             </h2>
             <div class="flex space-x-2 text-xs">
-                <a href="/dashboard" class="px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition">All</a>
-                <a href="/dashboard?stance=bullish" class="px-3 py-1 rounded bg-green-900/30 text-green-400 hover:bg-green-900/50 transition">Bullish</a>
-                <a href="/dashboard?stance=bearish" class="px-3 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 transition">Bearish</a>
                 {% if tier != 'free' %}
                 <a href="/api/v1/signals/export" class="px-3 py-1 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition">Export CSV</a>
                 {% endif %}
@@ -387,24 +434,55 @@
         {% endif %}
     </div>
 
-    <!-- Sidebar: Trending Tickers -->
-    <div class="lg:col-span-1">
-        <h2 class="text-lg font-semibold text-white mb-4">&#127919; Trending Tickers (24h)</h2>
-        <div class="space-y-2">
-            {% for t in trending %}
-            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition">
-                <div class="flex items-center justify-between">
-                    <span class="font-bold text-white">{{ t.ticker }}</span>
-                    <span class="text-xs text-gray-400">{{ t.signal_count }} signals</span>
-                </div>
-                <div class="flex items-center justify-between mt-1 text-xs">
-                    <span class="text-gray-500">avg conf: {{ "%.0f"|format((t.avg_confidence or 0) * 100) }}%</span>
-                    <span class="text-gray-500">{{ t.stances }}</span>
-                </div>
+    <!-- Sidebar -->
+    <div class="lg:col-span-1 space-y-6">
+        <!-- Watchlist -->
+        {% if user %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-sm font-semibold text-white">&#11088; Watchlist</h2>
+                <span class="text-xs text-gray-500">{{ watchlist|length }}/{{ watchlist_limit }}</span>
             </div>
-            {% else %}
-            <p class="text-gray-500 text-sm">No trending tickers yet.</p>
-            {% endfor %}
+            <div id="watchlist-container">
+                <div class="flex space-x-1 mb-3">
+                    <input type="text" id="watchlist-input" placeholder="Add ticker..." maxlength="10"
+                           class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition uppercase">
+                    <button onclick="addWatchlistTicker()" class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition">+</button>
+                </div>
+                <div id="watchlist-items" class="space-y-1.5">
+                    {% for ticker in watchlist %}
+                    <div class="flex items-center justify-between bg-gray-800/50 border border-gray-700 rounded-lg px-3 py-2 group hover:border-gray-600 transition" data-ticker="{{ ticker }}">
+                        <a href="/dashboard?ticker={{ ticker }}" class="font-bold text-white text-sm hover:text-blue-400 transition">{{ ticker }}</a>
+                        <button onclick="removeWatchlistTicker('{{ ticker }}')" class="text-gray-600 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition">&#10005;</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if watchlist|length == 0 %}
+                <p id="watchlist-empty" class="text-gray-600 text-xs text-center py-2">Add tickers to track</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Trending Tickers -->
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#127919; Trending (24h)</h2>
+            <div class="space-y-1.5">
+                {% for t in trending %}
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-2.5 hover:border-gray-600 transition">
+                    <div class="flex items-center justify-between">
+                        <a href="/dashboard?ticker={{ t.ticker }}" class="font-bold text-white text-sm hover:text-blue-400 transition">{{ t.ticker }}</a>
+                        <span class="text-xs text-gray-400">{{ t.signal_count }} signals</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1 text-xs">
+                        <span class="text-gray-500">avg conf: {{ "%.0f"|format((t.avg_confidence or 0) * 100) }}%</span>
+                        <span class="text-gray-500">{{ t.stances }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-xs">No trending tickers yet.</p>
+                {% endfor %}
+            </div>
         </div>
 
         <!-- API Info -->
@@ -428,6 +506,58 @@
         </div>
     </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- WATCHLIST: add/remove tickers via API                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% if user %}
+<script>
+async function addWatchlistTicker() {
+    const input = document.getElementById('watchlist-input');
+    const ticker = input.value.trim().toUpperCase();
+    if (!ticker) return;
+    input.value = '';
+
+    try {
+        const resp = await fetch('/api/v1/auth/watchlist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ticker})
+        });
+        const data = await resp.json();
+        if (!resp.ok) { alert(data.detail || 'Error'); return; }
+
+        // Remove empty placeholder
+        const empty = document.getElementById('watchlist-empty');
+        if (empty) empty.remove();
+
+        // Add to UI
+        const items = document.getElementById('watchlist-items');
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between bg-gray-800/50 border border-gray-700 rounded-lg px-3 py-2 group hover:border-gray-600 transition';
+        div.dataset.ticker = ticker;
+        div.innerHTML = `<a href="/dashboard?ticker=${ticker}" class="font-bold text-white text-sm hover:text-blue-400 transition">${ticker}</a>
+            <button onclick="removeWatchlistTicker('${ticker}')" class="text-gray-600 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition">&#10005;</button>`;
+        items.appendChild(div);
+    } catch(e) { console.error('Watchlist error:', e); }
+}
+
+async function removeWatchlistTicker(ticker) {
+    try {
+        const resp = await fetch(`/api/v1/auth/watchlist/${ticker}`, {method: 'DELETE'});
+        if (resp.ok) {
+            const el = document.querySelector(`[data-ticker="${ticker}"]`);
+            if (el) el.remove();
+        }
+    } catch(e) { console.error('Watchlist error:', e); }
+}
+
+// Enter key in watchlist input
+document.getElementById('watchlist-input')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addWatchlistTicker(); }
+});
+</script>
+{% endif %}
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- AUTO-REFRESH: polls for new signals every 30s                  -->
