@@ -11,15 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first (Docker layer caching)
+# Copy project files needed for install
 COPY pyproject.toml ./
+COPY src/ ./src/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
-
-# Copy application code
-COPY src/ ./src/
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
