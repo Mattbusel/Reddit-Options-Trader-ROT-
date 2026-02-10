@@ -13,7 +13,7 @@ from rot.web.auth import (
     require_user,
     verify_password,
 )
-from rot.web.tier_gate import gate_signal, gate_signal_list
+from rot.web.tier_gate import gate_chart_access, gate_signal, gate_signal_list
 
 router = APIRouter()
 
@@ -90,6 +90,17 @@ async def dashboard(request: Request):
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
 
+    # Chart data — gated by tier
+    chart_access = gate_chart_access(tier)
+    chart_data = None
+    time_series = None
+    if chart_access["has_quadrant"]:
+        chart_data = await db.get_chart_data(
+            hours=chart_access["chart_hours"],
+            limit=chart_access["chart_limit"],
+        )
+        time_series = await db.get_time_series_data(hours=chart_access["chart_hours"])
+
     gated = gate_signal_list(
         signals, tier,
         delay_s=settings.tier_limits.free_signal_delay_s,
@@ -102,6 +113,9 @@ async def dashboard(request: Request):
         "trending": trending,
         "summary": summary,
         "total_signals": len(signals),
+        "chart_data": chart_data,
+        "time_series": time_series,
+        "chart_access": chart_access,
     })
 
     templates = request.app.state.templates

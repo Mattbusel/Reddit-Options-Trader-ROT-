@@ -263,6 +263,65 @@ class Database:
                 return {"total_signals": 0}
             return _row_to_dict(row)
 
+    # ── Chart Data ──
+
+    async def get_chart_data(self, hours: int = 24, limit: int = 50) -> List[Dict[str, Any]]:
+        """Aggregated ticker data for quadrant bubble chart."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                ticker,
+                AVG(confidence) as avg_confidence,
+                MAX(trend_score) as max_trend_score,
+                COUNT(*) as signal_count,
+                SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
+                SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
+                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
+                GROUP_CONCAT(DISTINCT strategy) as strategies
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            GROUP BY ticker
+            HAVING signal_count > 0
+            ORDER BY signal_count DESC, avg_confidence DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, limit)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                # Determine dominant stance
+                bc = d.get("bullish_count", 0) or 0
+                brc = d.get("bearish_count", 0) or 0
+                mc = d.get("mixed_count", 0) or 0
+                if bc >= brc and bc >= mc:
+                    d["dominant_stance"] = "bullish"
+                elif brc > bc and brc >= mc:
+                    d["dominant_stance"] = "bearish"
+                else:
+                    d["dominant_stance"] = "mixed"
+                results.append(d)
+            return results
+
+    async def get_time_series_data(self, hours: int = 24) -> List[Dict[str, Any]]:
+        """Hourly signal counts for timeline chart."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                CAST(created_at / 3600 AS INTEGER) * 3600 as hour_bucket,
+                COUNT(*) as total,
+                SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed
+            FROM signals
+            WHERE created_at > ?
+            GROUP BY hour_bucket
+            ORDER BY hour_bucket ASC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
     # ── User CRUD ──
 
     async def create_user(self, email: str, password_hash: str) -> Dict[str, Any]:

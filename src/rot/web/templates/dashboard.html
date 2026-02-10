@@ -16,27 +16,303 @@
 
 <!-- Stats Bar -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-        <div class="text-xs text-gray-500 uppercase tracking-wider">Total Signals (30d)</div>
-        <div class="text-2xl font-bold text-white mt-1">{{ summary.get('total_signals', 0) }}</div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
+        <div class="text-3xl font-bold text-white">{{ summary.get('total_signals', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-1">Last 30 days</div>
     </div>
-    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-        <div class="text-xs text-gray-500 uppercase tracking-wider">Tradeable</div>
-        <div class="text-2xl font-bold text-green-400 mt-1">{{ summary.get('tradeable_signals', 0) }}</div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tradeable</div>
+        <div class="text-3xl font-bold text-green-400">{{ summary.get('tradeable_signals', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-1">With strategy</div>
     </div>
-    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-        <div class="text-xs text-gray-500 uppercase tracking-wider">Avg Confidence</div>
-        <div class="text-2xl font-bold text-yellow-400 mt-1">{{ "%.0f"|format((summary.get('avg_confidence', 0) or 0) * 100) }}%</div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
+        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format((summary.get('avg_confidence', 0) or 0) * 100) }}%</div>
+        <div class="text-xs text-gray-500 mt-1">Quality metric</div>
     </div>
-    <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-        <div class="text-xs text-gray-500 uppercase tracking-wider">Bull / Bear / Mix</div>
-        <div class="text-lg font-bold mt-1">
-            <span class="text-green-400">{{ summary.get('bullish_count', 0) }}</span> /
-            <span class="text-red-400">{{ summary.get('bearish_count', 0) }}</span> /
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Sentiment Split</div>
+        <div class="flex items-center gap-2 text-xl font-bold mt-1">
+            <span class="text-green-400">{{ summary.get('bullish_count', 0) }}</span>
+            <span class="text-gray-600">/</span>
+            <span class="text-red-400">{{ summary.get('bearish_count', 0) }}</span>
+            <span class="text-gray-600">/</span>
             <span class="text-yellow-400">{{ summary.get('mixed_count', 0) }}</span>
         </div>
+        <div class="text-xs text-gray-500 mt-1">Bull / Bear / Mix</div>
     </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- VISUALIZATION SECTION — Tiered by plan                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+{% if tier == 'free' %}
+<!-- ── FREE TIER: Simple stance bar chart ── -->
+<div class="mb-8">
+    <div class="chart-container">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Signal Distribution</h2>
+            <span class="text-xs text-gray-500 uppercase tracking-wider">Last 30 days</span>
+        </div>
+        <canvas id="stanceBarChart" height="80"></canvas>
+    </div>
+    <div class="mt-4 bg-gray-800/30 border border-orange-700/40 rounded-lg p-4 text-center">
+        <p class="text-gray-400 text-sm mb-2">
+            &#128200; Upgrade to <span class="text-orange-400 font-semibold">Pro</span> for interactive signal maps and timeline charts
+        </p>
+        <a href="/pricing" class="inline-block px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">View Plans</a>
+    </div>
+</div>
+<script>
+(function() {
+    const ctx = document.getElementById('stanceBarChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Bullish', 'Bearish', 'Mixed'],
+            datasets: [{
+                data: [{{ summary.get('bullish_count', 0) }}, {{ summary.get('bearish_count', 0) }}, {{ summary.get('mixed_count', 0) }}],
+                backgroundColor: ['rgba(74,222,128,0.7)', 'rgba(248,113,113,0.7)', 'rgba(251,191,36,0.7)'],
+                borderColor: ['rgba(74,222,128,1)', 'rgba(248,113,113,1)', 'rgba(251,191,36,1)'],
+                borderWidth: 2, borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 } },
+            scales: {
+                y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: 'rgba(75,85,99,0.2)' } },
+                x: { ticks: { color: '#9ca3af' }, grid: { display: false } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+
+{% if chart_access and chart_access.has_quadrant %}
+<!-- ── PAID TIERS: Quadrant Bubble + Timeline ── -->
+<div class="mb-8">
+    {% if chart_access.has_custom_time_range %}
+    <!-- Ultra: time range selector -->
+    <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-white">Market Intelligence</h2>
+        <div class="flex items-center space-x-2">
+            <span class="text-xs text-gray-500 uppercase">Range:</span>
+            <select id="timeRangeSelect" class="bg-gray-800 border border-gray-700 text-gray-300 rounded px-3 py-1 text-sm focus:border-amber-600 focus:outline-none">
+                <option value="24" {{ 'selected' if chart_access.chart_hours == 24 }}>24h</option>
+                <option value="48" {{ 'selected' if chart_access.chart_hours == 48 }}>48h</option>
+            </select>
+            <span class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-400 border border-amber-700 font-semibold">Ultra</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Quadrant Bubble Chart (2/3 width) -->
+        <div class="lg:col-span-2 chart-container">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white">Signal Map ({{ chart_access.chart_hours }}h)</h2>
+                <div class="flex items-center space-x-2">
+                    {% if chart_access.has_realtime_badge %}
+                    <span class="w-2 h-2 rounded-full bg-green-500 pulse"></span>
+                    <span class="text-xs text-green-500">Live</span>
+                    {% endif %}
+                    <span class="text-xs text-gray-500">Click to filter</span>
+                </div>
+            </div>
+            <div style="height: 320px;">
+                <canvas id="quadrantChart"></canvas>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4 text-xs">
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <span class="text-green-400 font-semibold block">Top-Right</span>
+                    <span class="text-gray-500">Hot &amp; Confident</span>
+                </div>
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <span class="text-yellow-400 font-semibold block">Top-Left</span>
+                    <span class="text-gray-500">Trending, Uncertain</span>
+                </div>
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <span class="text-blue-400 font-semibold block">Bottom-Right</span>
+                    <span class="text-gray-500">Confident, Quiet</span>
+                </div>
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <span class="text-gray-600 font-semibold block">Bottom-Left</span>
+                    <span class="text-gray-500">Weak Signals</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Chart (1/3 width) -->
+        <div class="chart-container">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white">Signal Volume</h2>
+                <span class="text-xs text-gray-500">Last {{ chart_access.chart_hours }}h</span>
+            </div>
+            <div style="height: 320px;">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    {% if chart_access.has_strategy_breakdown %}
+    <!-- Premium/Ultra: Strategy Breakdown -->
+    <div class="chart-container mt-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Strategy Breakdown</h2>
+            <span class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+        </div>
+        <canvas id="strategyChart" height="100"></canvas>
+    </div>
+    {% endif %}
+
+    {% if chart_access.has_chart_export %}
+    <!-- Ultra: Export Buttons -->
+    <div class="mt-4 flex items-center space-x-3">
+        <button onclick="exportChart('quadrantChart','signal-map')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
+            &#128190; Export Map (PNG)
+        </button>
+        <button onclick="exportChart('timelineChart','timeline')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
+            &#128190; Export Timeline (PNG)
+        </button>
+        {% if chart_access.has_strategy_breakdown %}
+        <button onclick="exportChart('strategyChart','strategy')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
+            &#128190; Export Strategy (PNG)
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    const chartData = {{ chart_data|tojson|safe }};
+    const timeSeries = {{ time_series|tojson|safe }};
+    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
+    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+    // ── Quadrant Bubble Chart ──
+    function makeBubbles(stance, color, borderColor) {
+        return {
+            label: stance.charAt(0).toUpperCase() + stance.slice(1),
+            data: chartData.filter(d => d.dominant_stance === stance).map(d => ({
+                x: (d.avg_confidence || 0) * 100,
+                y: d.max_trend_score || 0,
+                r: Math.max(Math.sqrt(d.signal_count) * 6, 5),
+                ticker: d.ticker
+            })),
+            backgroundColor: color,
+            borderColor: borderColor,
+            borderWidth: 2
+        };
+    }
+
+    const quadrantChart = new Chart(document.getElementById('quadrantChart').getContext('2d'), {
+        type: 'bubble',
+        data: {
+            datasets: [
+                makeBubbles('bullish', 'rgba(74,222,128,0.55)', 'rgba(74,222,128,1)'),
+                makeBubbles('bearish', 'rgba(248,113,113,0.55)', 'rgba(248,113,113,1)'),
+                makeBubbles('mixed', 'rgba(251,191,36,0.55)', 'rgba(251,191,36,1)')
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            onClick: (e, items) => {
+                if (items.length > 0) {
+                    const ds = items[0].datasetIndex;
+                    const idx = items[0].index;
+                    const ticker = quadrantChart.data.datasets[ds].data[idx].ticker;
+                    window.location.href = '/api/v1/signals?ticker=' + ticker;
+                }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { color: '#9ca3af', font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' } },
+                tooltip: { ...darkTooltip, callbacks: {
+                    label: ctx => `${ctx.raw.ticker}  |  Conf: ${ctx.raw.x.toFixed(0)}%  |  Trend: ${ctx.raw.y.toFixed(3)}`
+                }}
+            },
+            scales: {
+                x: { title: { display: true, text: 'Confidence (%)', color: '#9ca3af' }, min: 0, max: 100, ticks: { color: '#9ca3af' }, grid: darkGrid },
+                y: { title: { display: true, text: 'Trend Score', color: '#9ca3af' }, min: 0, ticks: { color: '#9ca3af' }, grid: darkGrid }
+            }
+        }
+    });
+
+    // ── Timeline Chart ──
+    const labels = timeSeries.map(d => {
+        const dt = new Date(d.hour_bucket * 1000);
+        return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    });
+
+    const timelineChart = new Chart(document.getElementById('timelineChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Bullish', data: timeSeries.map(d => d.bullish), borderColor: 'rgba(74,222,128,1)', backgroundColor: 'rgba(74,222,128,0.1)', fill: true, tension: 0.35, pointRadius: 2 },
+                { label: 'Bearish', data: timeSeries.map(d => d.bearish), borderColor: 'rgba(248,113,113,1)', backgroundColor: 'rgba(248,113,113,0.1)', fill: true, tension: 0.35, pointRadius: 2 },
+                { label: 'Mixed', data: timeSeries.map(d => d.mixed), borderColor: 'rgba(251,191,36,1)', backgroundColor: 'rgba(251,191,36,0.1)', fill: true, tension: 0.35, pointRadius: 2 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', font: { size: 11 }, usePointStyle: true } }, tooltip: darkTooltip },
+            scales: {
+                y: { beginAtZero: true, ticks: { color: '#9ca3af', font: { size: 10 } }, grid: darkGrid },
+                x: { ticks: { color: '#9ca3af', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }
+            }
+        }
+    });
+
+    {% if chart_access.has_strategy_breakdown %}
+    // ── Strategy Breakdown ──
+    const strategyCounts = {};
+    chartData.forEach(d => {
+        (d.strategies || 'none').split(',').forEach(s => {
+            s = s.trim();
+            if (s && s !== 'none') strategyCounts[s] = (strategyCounts[s] || 0) + d.signal_count;
+        });
+    });
+    if (Object.keys(strategyCounts).length === 0) strategyCounts['no strategies detected'] = 0;
+
+    const strategyChart = new Chart(document.getElementById('strategyChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(strategyCounts),
+            datasets: [{ data: Object.values(strategyCounts), backgroundColor: 'rgba(168,85,247,0.6)', borderColor: 'rgba(168,85,247,1)', borderWidth: 2, borderRadius: 4 }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false }, tooltip: darkTooltip },
+            scales: {
+                x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: darkGrid },
+                y: { ticks: { color: '#d1d5db', font: { size: 12 } }, grid: { display: false } }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if chart_access.has_chart_export %}
+    // ── Chart Export ──
+    window.exportChart = function(canvasId, name) {
+        const canvas = document.getElementById(canvasId);
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = 'rot-' + name + '-' + Date.now() + '.png';
+        link.click();
+    };
+    {% endif %}
+})();
+</script>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SIGNAL FEED + SIDEBAR                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
     <!-- Main Signal Feed -->
@@ -58,34 +334,34 @@
 
         <div id="signal-feed" class="space-y-3">
             {% for s in signals %}
-            <a href="/dashboard/signal/{{ s.id }}" class="signal-card block bg-gray-800/50 border {{ 'border-orange-700/30' if s.get('_delayed') else 'border-gray-700' }} rounded-lg p-4 hover:border-gray-500 transition relative">
+            <a href="/dashboard/signal/{{ s.id }}" class="signal-card block rounded-lg p-5 transition relative">
                 {% if s.get('_delayed') %}
-                <div class="absolute top-2 right-2 px-2 py-0.5 rounded text-xs bg-orange-900/50 text-orange-400 border border-orange-700/50">
+                <div class="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs bg-orange-900/70 text-orange-300 border border-orange-700/70 font-semibold">
                     Delayed {{ (s.get('_available_in_s', 0) / 60)|int }}m
                 </div>
                 {% endif %}
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-lg font-bold text-white">{{ s.ticker }}</span>
-                        <span class="px-2 py-0.5 rounded text-xs border {{ stance_bg(s.stance) }} {{ stance_color(s.stance) }}">{{ s.stance }}</span>
-                        <span class="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-300">{{ s.event_type }}</span>
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center space-x-3 flex-wrap gap-y-2">
+                        <span class="text-xl font-bold text-white tracking-tight">{{ s.ticker }}</span>
+                        <span class="badge border {{ stance_bg(s.stance) }} {{ stance_color(s.stance) }}">{{ s.stance }}</span>
+                        <span class="badge bg-gray-700/70 text-gray-300">{{ s.event_type }}</span>
                         {% if s.strategy and s.strategy != 'none' %}
-                        <span class="px-2 py-0.5 rounded text-xs bg-blue-900/30 text-blue-400 border border-blue-700">{{ s.strategy }}</span>
+                        <span class="badge bg-blue-900/40 text-blue-400 border border-blue-700/60">{{ s.strategy }}</span>
                         {% endif %}
                         {% if s.get('reasoning', {}).get('_locked') %}
-                        <span class="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-500">&#128274; Limited</span>
+                        <span class="badge bg-gray-700/70 text-gray-400">&#128274; Limited</span>
                         {% endif %}
                     </div>
-                    <div class="flex items-center space-x-3 text-sm">
-                        <div class="w-24">
+                    <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-4">
+                        <div class="w-28">
                             {{ confidence_bar(s.confidence)|safe }}
                         </div>
-                        <span class="text-gray-400 text-xs">{{ "%.0f"|format(s.confidence * 100) }}%</span>
+                        <span class="text-gray-300 font-semibold text-sm">{{ "%.0f"|format(s.confidence * 100) }}%</span>
                     </div>
                 </div>
-                <p class="text-sm text-gray-400 truncate">{{ s.post_title }}</p>
-                <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
-                    <span>r/{{ s.subreddit }}</span>
+                <p class="text-sm text-gray-300 leading-relaxed truncate mb-3">{{ s.post_title }}</p>
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <span class="font-medium">r/{{ s.subreddit }}</span>
                     <span>{{ format_time(s.created_at) }}</span>
                 </div>
             </a>
@@ -114,7 +390,7 @@
         <h2 class="text-lg font-semibold text-white mb-4">&#127919; Trending Tickers (24h)</h2>
         <div class="space-y-2">
             {% for t in trending %}
-            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition">
                 <div class="flex items-center justify-between">
                     <span class="font-bold text-white">{{ t.ticker }}</span>
                     <span class="text-xs text-gray-400">{{ t.signal_count }} signals</span>
