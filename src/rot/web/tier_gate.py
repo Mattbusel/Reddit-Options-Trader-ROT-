@@ -55,6 +55,20 @@ def gate_signal_list(
     return [gate_signal(s, "free", delay_s) for s in limited]
 
 
+def gate_chart_access(tier: str) -> dict:
+    """Return chart feature access flags based on tier."""
+    return {
+        "has_quadrant": tier in _PAID_TIERS,
+        "has_timeline": tier in _PAID_TIERS,
+        "has_strategy_breakdown": tier in ("premium", "ultra"),
+        "has_realtime_badge": tier == "ultra",
+        "has_custom_time_range": tier == "ultra",
+        "has_chart_export": tier == "ultra",
+        "chart_hours": 24 if tier == "pro" else 48 if tier in ("premium", "ultra") else 0,
+        "chart_limit": 50 if tier == "pro" else 100 if tier in ("premium", "ultra") else 0,
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:
