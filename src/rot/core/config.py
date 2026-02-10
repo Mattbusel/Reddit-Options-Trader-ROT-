@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -150,4 +150,8 @@ class Settings(BaseSettings):
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     storage_root: str = "storage"
-    db_path: str = "storage/rot.db"
+    db_path: str = ""  # auto-derived from storage_root if empty
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.db_path:
+            self.db_path = f"{self.storage_root}/rot.db"
