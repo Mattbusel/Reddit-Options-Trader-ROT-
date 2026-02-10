@@ -88,15 +88,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     static_dir.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    # Routes
+    # Routes — export MUST be registered before signals so /signals/export
+    # matches before /signals/{signal_id} catch-all
+    from rot.web.routes import auth_routes, export, stripe_routes
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
+    app.include_router(export.router, prefix="/api/v1", tags=["export"])
     app.include_router(signals.router, prefix="/api/v1", tags=["signals"])
     app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 
     # Auth & billing routes
-    from rot.web.routes import auth_routes, export, stripe_routes
     app.include_router(auth_routes.router, prefix="/api/v1", tags=["auth"])
-    app.include_router(export.router, prefix="/api/v1", tags=["export"])
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
     # Dashboard routes (HTML)
