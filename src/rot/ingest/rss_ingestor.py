@@ -99,6 +99,27 @@ class RSSIngestor:
                 log.warning("RSS feed parse error (%s): %s", feed_cfg.label, e)
                 continue
 
+            # Log feed status for debugging
+            status = getattr(parsed, "status", None)
+            bozo = getattr(parsed, "bozo", False)
+            n_entries = len(parsed.entries) if parsed.entries else 0
+
+            if bozo:
+                bozo_exc = getattr(parsed, "bozo_exception", "unknown")
+                log.warning(
+                    "RSS feed %s: bozo=%s status=%s entries=%d exc=%s",
+                    feed_cfg.label, bozo, status, n_entries, bozo_exc,
+                )
+            else:
+                log.info(
+                    "RSS feed %s: status=%s entries=%d",
+                    feed_cfg.label, status, n_entries,
+                )
+
+            if n_entries == 0:
+                log.warning("RSS feed %s returned 0 entries (url=%s)", feed_cfg.label, feed_cfg.url)
+                continue
+
             feed_title = getattr(parsed.feed, "title", feed_cfg.label) or feed_cfg.label
 
             for entry in parsed.entries:
@@ -142,5 +163,5 @@ class RSSIngestor:
                 self.seen.update(item_id, 0, 0, now)
 
         self.seen.save()
-        log.debug("RSS poll: %d new items from %d feeds", len(snaps), len(self.feeds))
+        log.info("RSS poll complete: %d new items from %d feeds", len(snaps), len(self.feeds))
         return snaps
