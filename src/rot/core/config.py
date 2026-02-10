@@ -82,20 +82,28 @@ class RSSConfig(BaseSettings):
     feeds: List[RSSFeedEntry] = Field(
         default_factory=lambda: [
             RSSFeedEntry(
-                url="https://feeds.reuters.com/reuters/businessNews",
-                label="reuters-business",
+                url="https://feeds.content.dowjones.io/public/rss/mw_topstories",
+                label="marketwatch-top",
             ),
             RSSFeedEntry(
-                url="https://feeds.reuters.com/reuters/companyNews",
-                label="reuters-company",
+                url="https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",
+                label="marketwatch-realtime",
             ),
             RSSFeedEntry(
-                url=(
-                    "https://www.sec.gov/cgi-bin/browse-edgar"
-                    "?action=getcurrent&type=8-K&dateb=&owner=include"
-                    "&count=40&search_text=&output=atom"
-                ),
-                label="sec-8k-filings",
+                url="https://www.investing.com/rss/news_25.rss",
+                label="investing-com-stocks",
+            ),
+            RSSFeedEntry(
+                url="https://feeds.finance.yahoo.com/rss/2.0/headline?s=SPY,QQQ,AAPL,TSLA,NVDA,AMZN,MSFT&region=US&lang=en-US",
+                label="yahoo-finance-top",
+            ),
+            RSSFeedEntry(
+                url="https://www.cnbc.com/id/20409666/device/rss/rss.html",
+                label="cnbc-market",
+            ),
+            RSSFeedEntry(
+                url="https://seekingalpha.com/market_currents.xml",
+                label="seekingalpha-currents",
             ),
         ]
     )
