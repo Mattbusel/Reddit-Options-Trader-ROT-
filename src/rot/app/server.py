@@ -174,6 +174,13 @@ async def _async_signal_handler(
 async def _price_check_loop(price_checker: PriceChecker, interval_s: int, stop_event: threading.Event):
     """Background task that periodically checks prices for signal performance tracking."""
     log.info("Price check loop starting (interval=%ds)", interval_s)
+
+    # Wait 30s on startup for DB to fully initialize
+    for _ in range(30):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
     while not stop_event.is_set():
         try:
             updated = await price_checker.check_pending_prices()
@@ -285,6 +292,8 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
             return
         await asyncio.sleep(1)
 
+    log.info("X posting loop: first check starting after startup delay")
+
     while not stop_event.is_set():
         try:
             signal = await db.get_top_signal_for_x_post(min_confidence=min_confidence)
@@ -303,14 +312,21 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
                         signal["ticker"], signal["stance"],
                         signal["confidence"] * 100, tweet_id,
                     )
+                    # After successful post, wait the full interval before next post
+                    wait_time = interval_s
                 else:
                     log.warning("X post failed for %s (API error)", signal.get("ticker", "?"))
+                    # Retry sooner on API failure
+                    wait_time = min(900, interval_s)
             else:
-                log.debug("X post: no qualifying signal found this cycle")
+                log.info("X post: no qualifying signal (checked last 6h, min_confidence=%.2f)", min_confidence)
+                # Retry sooner (15 min) when no signal found instead of waiting full 3h
+                wait_time = min(900, interval_s)
         except Exception as e:
             log.error("X posting loop error: %s", e, exc_info=True)
+            wait_time = min(900, interval_s)
 
-        for _ in range(interval_s):
+        for _ in range(wait_time):
             if stop_event.is_set():
                 break
             await asyncio.sleep(1)
