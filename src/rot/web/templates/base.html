@@ -124,6 +124,21 @@
                         </div>
                     </div>
                 </div>
+                <!-- Tools Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Tools <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-52 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/paper-trading" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128184; Paper Trading</a>
+                            <a href="/correlations" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128279; Correlations</a>
+                            <a href="/unusual-activity" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Unusual Activity</a>
+                            <a href="/badges" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Badges & Streaks</a>
+                            <a href="/widgets" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#129513; Embed Widgets</a>
+                        </div>
+                    </div>
+                </div>
                 <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
                 {% if user %}
                 <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
