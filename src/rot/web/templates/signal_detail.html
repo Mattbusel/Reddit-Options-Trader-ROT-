@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{{ signal.ticker }} Signal - ROT{% endblock %}
+{% block title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block meta_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal detected on r/{{ signal.subreddit|default('reddit') }} with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. {{ signal.event_type|default('other')|replace('_',' ')|title }} analysis by ROT.{% endblock %}
+{% block og_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block og_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal: {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. AI-powered Reddit options analysis.{% endblock %}
+{% block twitter_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block twitter_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence from Reddit.{% endblock %}
 
 {% block content %}
 <div class="mb-6">

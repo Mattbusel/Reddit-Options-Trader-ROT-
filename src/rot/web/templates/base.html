@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ROT - Reddit Options Trader{% endblock %}</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block meta_description %}ROT - Reddit Options Trader. Real-time AI-powered signal intelligence from Reddit, with options trade ideas, performance tracking, and market analysis.{% endblock %}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{% block canonical_url %}{{ request.url }}{% endblock %}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}ROT - Reddit Options Trader{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Real-time AI-powered options signal intelligence from Reddit. Track sentiment, analyze trades, and beat the market.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="ROT - Reddit Options Trader">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}ROT - Reddit Options Trader{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Real-time AI-powered options signal intelligence from Reddit.{% endblock %}">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128293;</text></svg>">
+    <meta name="theme-color" content="#0f0f23">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>

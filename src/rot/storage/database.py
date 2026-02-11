@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS signal_performance (
 
 CREATE INDEX IF NOT EXISTS idx_perf_signal ON signal_performance(signal_id);
 CREATE INDEX IF NOT EXISTS idx_perf_ticker ON signal_performance(ticker);
+CREATE INDEX IF NOT EXISTS idx_perf_checked ON signal_performance(checked_at);
+CREATE INDEX IF NOT EXISTS idx_signals_created_ticker ON signals(created_at DESC, ticker);
 
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -652,8 +654,8 @@ class Database:
         """Get aggregate win/loss stats for signal performance.
 
         Uses the best available price snapshot (1d > 4h > 1h) for evaluation.
-        Only counts records that have actual price movement (different from
-        price_at_signal) to avoid counting flat/same-price results.
+        Applies a 0.5% minimum movement threshold — price changes below
+        this are classified as neutral (noise within bid-ask spread).
         """
         cutoff = time.time() - (days * 86400)
         conditions = ["s.created_at > ?"]
@@ -665,27 +667,33 @@ class Database:
 
         where = f"WHERE {' AND '.join(conditions)}"
         # Use COALESCE to pick the best available price: 1d > 4h > 1h
+        # 0.5% minimum threshold: ABS(price change) must exceed 0.005 to count
         query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 SUM(CASE
                     WHEN s.stance = 'bearish'
-                         AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) < sp.price_at_signal
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
                     THEN 1
                     WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) > sp.price_at_signal
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
                     THEN 1
                     ELSE 0 END) as winners,
                 SUM(CASE
                     WHEN s.stance = 'bearish'
-                         AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) > sp.price_at_signal
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
                     THEN 1
                     WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) < sp.price_at_signal
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
                     THEN 1
                     ELSE 0 END) as losers,
                 SUM(CASE
-                    WHEN COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) = sp.price_at_signal
+                    WHEN ABS(COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                         / sp.price_at_signal <= 0.005
                     THEN 1 ELSE 0 END) as neutral,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
@@ -711,7 +719,9 @@ class Database:
             d = _row_to_dict(row)
             total = d.get("total_tracked", 0) or 0
             winners = d.get("winners", 0) or 0
-            d["win_rate"] = (winners / total * 100) if total > 0 else 0
+            # Win rate based on decided signals only (exclude neutrals)
+            decided = winners + (d.get("losers", 0) or 0)
+            d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
             return d
 
     async def get_performance_history(
@@ -1316,7 +1326,7 @@ class Database:
                 JOIN signals s ON sp.signal_id = s.id
                 WHERE s.created_at >= ? AND s.created_at < ?
                   AND sp.max_gain_pct IS NOT NULL
-                  AND sp.max_gain_pct > 0.01
+                  AND sp.max_gain_pct > 0.5
                   AND s.stance != 'unknown'
                   AND s.ticker != 'UNKNOWN'
                 ORDER BY sp.max_gain_pct DESC
@@ -1333,7 +1343,7 @@ class Database:
                 JOIN signals s ON sp.signal_id = s.id
                 WHERE s.created_at >= ? AND s.created_at < ?
                   AND sp.max_loss_pct IS NOT NULL
-                  AND sp.max_loss_pct < -0.01
+                  AND sp.max_loss_pct < -0.5
                   AND s.stance != 'unknown'
                   AND s.ticker != 'UNKNOWN'
                 ORDER BY sp.max_loss_pct ASC

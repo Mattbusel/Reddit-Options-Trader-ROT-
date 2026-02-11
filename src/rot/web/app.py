@@ -104,7 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from rot.web.routes import (
         dashboard, performance, backtest, raid_tracker, sports_tracker,
         hall_of_legends, glossary, ceo_rap_sheet,
-        sentiment, ticker_dive, weekly_wrap, replay,
+        sentiment, ticker_dive, weekly_wrap, replay, seo,
     )
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(performance.router, tags=["performance"])
@@ -118,5 +118,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ticker_dive.router, tags=["ticker-dive"])
     app.include_router(weekly_wrap.router, tags=["weekly-wrap"])
     app.include_router(replay.router, tags=["replay"])
+    app.include_router(seo.router, tags=["seo"])
 
     return app

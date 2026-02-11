@@ -1,5 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Weekly Wrap - {{ week_label }}{% endblock %}
+{% block title %}Weekly Wrap - {{ week_label }} | ROT{% endblock %}
+{% block meta_description %}ROT Weekly Market Summary for {{ week_label }}. Auto-generated options signal recap with top tickers, sentiment analysis, and best/worst calls.{% endblock %}
+{% block og_title %}ROT Weekly Wrap - {{ week_label }}{% endblock %}
+{% block og_description %}Weekly Reddit options signal recap: top tickers, sentiment trends, and best/worst calls for {{ week_label }}.{% endblock %}
+{% block twitter_title %}ROT Weekly Wrap - {{ week_label }}{% endblock %}
 
 {% block content %}
 <div class="space-y-8">
