@@ -59,15 +59,47 @@ async def weekly_wrap(request: Request, week: str = "0"):
     db = request.app.state.db
     summary = await db.get_weekly_summary(start_ts, end_ts)
 
-    # Parse summary data
-    total_signals = summary.get("total_signals", 0)
-    bullish_count = summary.get("bullish_count", 0)
-    bearish_count = summary.get("bearish_count", 0)
-    mixed_count = summary.get("mixed_count", 0)
+    # Parse summary data — DB returns: total_signals, bullish, bearish, mixed, avg_confidence
+    total_signals = summary.get("total_signals", 0) or 0
+    bullish_count = summary.get("bullish", 0) or 0
+    bearish_count = summary.get("bearish", 0) or 0
+    mixed_count = summary.get("mixed", 0) or 0
     avg_confidence = round((summary.get("avg_confidence") or 0) * 100, 1)
-    top_tickers = summary.get("top_tickers", [])
-    best_call = summary.get("best_call")
-    worst_call = summary.get("worst_call")
+
+    # DB returns top_tickers as list of {ticker, count, avg_conf, bull, bear}
+    # Normalize field names for template
+    raw_tickers = summary.get("top_tickers", [])
+    top_tickers = []
+    for t in raw_tickers:
+        top_tickers.append({
+            "ticker": t.get("ticker", "???"),
+            "total": t.get("count", 0) or 0,
+            "avg_confidence": t.get("avg_conf", 0) or 0,
+            "bullish": t.get("bull", 0) or 0,
+            "bearish": t.get("bear", 0) or 0,
+        })
+
+    # DB returns best_calls / worst_calls as lists
+    best_calls = summary.get("best_calls", [])
+    worst_calls = summary.get("worst_calls", [])
+    best_call = None
+    worst_call = None
+    if best_calls:
+        bc = best_calls[0]
+        best_call = {
+            "ticker": bc.get("ticker", "???"),
+            "stance": bc.get("stance", "unknown"),
+            "confidence": bc.get("confidence", 0) or 0,
+            "gain_pct": bc.get("max_gain_pct"),
+        }
+    if worst_calls:
+        wc = worst_calls[0]
+        worst_call = {
+            "ticker": wc.get("ticker", "???"),
+            "stance": wc.get("stance", "unknown"),
+            "confidence": wc.get("confidence", 0) or 0,
+            "gain_pct": wc.get("max_loss_pct"),
+        }
 
     # Bullish consensus: tickers with 3+ bullish signals
     bullish_tickers = [t for t in top_tickers if t.get("bullish", 0) >= 3]

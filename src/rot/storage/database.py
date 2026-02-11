@@ -1308,33 +1308,37 @@ class Database:
             summary["top_tickers"] = [dict(r) for r in rows]
 
         # Best and worst performers (from signal_performance)
-        query3 = """
-            SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
-                   s.stance, s.confidence, s.event_type
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at >= ? AND s.created_at < ?
-              AND sp.max_gain_pct IS NOT NULL
-            ORDER BY sp.max_gain_pct DESC
-            LIMIT 5
-        """
-        async with self.db.execute(query3, (start_ts, end_ts)) as cursor:
-            rows = await cursor.fetchall()
-            summary["best_calls"] = [dict(r) for r in rows]
+        try:
+            query3 = """
+                SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
+                       s.stance, s.confidence, s.event_type
+                FROM signal_performance sp
+                JOIN signals s ON sp.signal_id = s.id
+                WHERE s.created_at >= ? AND s.created_at < ?
+                  AND sp.max_gain_pct IS NOT NULL
+                ORDER BY sp.max_gain_pct DESC
+                LIMIT 5
+            """
+            async with self.db.execute(query3, (start_ts, end_ts)) as cursor:
+                rows = await cursor.fetchall()
+                summary["best_calls"] = [dict(r) for r in rows]
 
-        query4 = """
-            SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
-                   s.stance, s.confidence, s.event_type
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at >= ? AND s.created_at < ?
-              AND sp.max_loss_pct IS NOT NULL
-            ORDER BY sp.max_loss_pct ASC
-            LIMIT 5
-        """
-        async with self.db.execute(query4, (start_ts, end_ts)) as cursor:
-            rows = await cursor.fetchall()
-            summary["worst_calls"] = [dict(r) for r in rows]
+            query4 = """
+                SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
+                       s.stance, s.confidence, s.event_type
+                FROM signal_performance sp
+                JOIN signals s ON sp.signal_id = s.id
+                WHERE s.created_at >= ? AND s.created_at < ?
+                  AND sp.max_loss_pct IS NOT NULL
+                ORDER BY sp.max_loss_pct ASC
+                LIMIT 5
+            """
+            async with self.db.execute(query4, (start_ts, end_ts)) as cursor:
+                rows = await cursor.fetchall()
+                summary["worst_calls"] = [dict(r) for r in rows]
+        except Exception:
+            summary["best_calls"] = []
+            summary["worst_calls"] = []
 
         return summary
 
