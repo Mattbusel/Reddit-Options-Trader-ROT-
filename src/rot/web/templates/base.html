@@ -55,18 +55,27 @@
                     Signals
                     <span id="signal-badge" class="hidden ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold absolute -top-2 -right-4"></span>
                 </a>
+                <a href="/sports-tracker" class="text-gray-400 hover:text-white transition">Sports</a>
                 {% if user and user.tier in ('premium', 'ultra') %}
                 <a href="/performance" class="text-gray-400 hover:text-white transition">Performance</a>
                 {% endif %}
                 {% if user and user.tier == 'ultra' %}
                 <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
                 {% endif %}
-                <a href="/sentiment" class="text-gray-400 hover:text-white transition">Sentiment</a>
-                <a href="/weekly-wrap" class="text-gray-400 hover:text-white transition">Weekly</a>
-                {% if user and user.tier in ('pro', 'premium', 'ultra') %}
-                <a href="/replay" class="text-gray-400 hover:text-white transition">Replay</a>
-                {% endif %}
-                <!-- More Dropdown -->
+                <!-- Analytics Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Analytics <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
+                            <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
+                            <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Explore Dropdown -->
                 <div class="relative group">
                     <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
                         Explore <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -77,11 +86,6 @@
                             <a href="/wall-of-shame" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Wall of Shame</a>
                             <a href="/ceo-rap-sheet" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128373; CEO Rap Sheet</a>
                             <a href="/glossary" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128218; Glossary of Degens</a>
-                            <div class="border-t border-gray-700 my-1"></div>
-                            <a href="/sports-tracker" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127944; Sports Tracker</a>
-                            <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
-                            <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
-                            <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
                         </div>
                     </div>
                 </div>
