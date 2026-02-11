@@ -494,7 +494,12 @@ async def forgot_password_form(request: Request, email: str = Form(...)):
     from rot.alerts.email_templates import render_password_reset
     html = render_password_reset(reset_url)
     try:
-        email_alerter._send_email(user["email"], "ROT - Password Reset", html)
+        success = email_alerter._send_email(user["email"], "ROT - Password Reset", html)
+        if not success:
+            log.error("Password reset email failed to send to %s", user["email"])
+            ctx["error"] = "Failed to send reset email. Please try again later."
+            ctx["success"] = ""
+            return templates.TemplateResponse("forgot_password.html", ctx)
         log.info("Password reset email sent to %s", user["email"])
     except Exception as e:
         log.error("Failed to send reset email to %s: %s", user["email"], e)

@@ -120,6 +120,7 @@ class EmailConfig(BaseSettings):
     smtp_password: str = ""
     from_address: str = "alerts@rot.app"
     enabled: bool = False
+    use_ssl: bool = False  # True = SMTP_SSL (port 465), False = STARTTLS (port 587)
 
 
 class AuthConfig(BaseSettings):

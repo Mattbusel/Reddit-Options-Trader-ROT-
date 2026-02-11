@@ -2,6 +2,13 @@
 
 Sends real-time signal alerts and daily digest emails.
 Requires SMTP configuration via ROT_EMAIL_* environment variables.
+
+Supports two connection modes:
+  - STARTTLS (port 587, default): Connects plaintext, upgrades to TLS
+  - SMTP_SSL (port 465, use_ssl=True): Connects with SSL from the start
+
+Many cloud providers (Railway, Render, etc.) block outbound port 587.
+Set ROT_EMAIL_SMTP_PORT=465 and ROT_EMAIL_USE_SSL=true to use SSL mode.
 """
 from __future__ import annotations
 
@@ -30,12 +37,14 @@ class EmailAlerter:
         smtp_user: str = "",
         smtp_password: str = "",
         from_address: str = "alerts@rot.app",
+        use_ssl: bool = False,
     ) -> None:
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
         self.smtp_user = smtp_user
         self.smtp_password = smtp_password
         self.from_address = from_address
+        self.use_ssl = use_ssl
 
     @property
     def is_configured(self) -> bool:
@@ -50,11 +59,21 @@ class EmailAlerter:
             msg["Subject"] = subject
             msg.attach(MIMEText(html_body, "html"))
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT) as server:
-                server.starttls()
-                if self.smtp_user and self.smtp_password:
-                    server.login(self.smtp_user, self.smtp_password)
-                server.sendmail(self.from_address, to_email, msg.as_string())
+            if self.use_ssl or self.smtp_port == 465:
+                # SMTP_SSL: direct SSL connection (port 465)
+                log.debug("Connecting to %s:%d via SMTP_SSL", self.smtp_host, self.smtp_port)
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT) as server:
+                    if self.smtp_user and self.smtp_password:
+                        server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.from_address, to_email, msg.as_string())
+            else:
+                # STARTTLS: connect plaintext then upgrade (port 587)
+                log.debug("Connecting to %s:%d via STARTTLS", self.smtp_host, self.smtp_port)
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT) as server:
+                    server.starttls()
+                    if self.smtp_user and self.smtp_password:
+                        server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.from_address, to_email, msg.as_string())
 
             log.info("Email sent to %s: %s", to_email, subject)
             return True

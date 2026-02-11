@@ -264,8 +264,10 @@ async def _run_server(cfg: Settings):
             smtp_user=cfg.email.smtp_user,
             smtp_password=cfg.email.smtp_password,
             from_address=cfg.email.from_address,
+            use_ssl=cfg.email.use_ssl,
         )
-        log.info("Email alerter: ACTIVE (smtp=%s)", cfg.email.smtp_host)
+        ssl_mode = "SSL" if cfg.email.use_ssl or cfg.email.smtp_port == 465 else "STARTTLS"
+        log.info("Email alerter: ACTIVE (smtp=%s:%d mode=%s)", cfg.email.smtp_host, cfg.email.smtp_port, ssl_mode)
     else:
         log.info("Email alerter: DISABLED (set ROT_EMAIL_* to enable)")
 
