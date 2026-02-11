@@ -208,6 +208,16 @@ def gate_sponsored_access(tier: str) -> dict:
     }
 
 
+def gate_unusual_activity(tier: str) -> dict:
+    """Return unusual activity feed access flags based on tier."""
+    return {
+        "has_access": tier in _PAID_TIERS,
+        "has_detail": tier in ("premium", "ultra", "enterprise"),
+        "has_history": tier in ("ultra", "enterprise"),
+        "max_hours": 0 if tier == "free" else 24 if tier == "pro" else 48 if tier == "premium" else 168 if tier == "ultra" else 720,
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

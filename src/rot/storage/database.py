@@ -171,6 +171,36 @@ CREATE TABLE IF NOT EXISTS data_exports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_data_exports_user ON data_exports(user_id);
+
+CREATE TABLE IF NOT EXISTS paper_portfolios (
+    user_id TEXT PRIMARY KEY REFERENCES users(id),
+    balance REAL NOT NULL DEFAULT 10000.0,
+    initial_balance REAL NOT NULL DEFAULT 10000.0,
+    total_trades INTEGER NOT NULL DEFAULT 0,
+    winning_trades INTEGER NOT NULL DEFAULT 0,
+    total_pnl REAL NOT NULL DEFAULT 0.0,
+    last_trade_at REAL
+);
+
+CREATE TABLE IF NOT EXISTS paper_trades (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    signal_id TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    stance TEXT NOT NULL DEFAULT 'unknown',
+    entry_price REAL NOT NULL,
+    quantity REAL NOT NULL DEFAULT 1,
+    paper_balance_after REAL NOT NULL,
+    created_at REAL NOT NULL,
+    closed_at REAL,
+    exit_price REAL,
+    pnl_dollars REAL,
+    pnl_pct REAL,
+    status TEXT NOT NULL DEFAULT 'open'
+);
+
+CREATE INDEX IF NOT EXISTS idx_paper_trades_user ON paper_trades(user_id);
+CREATE INDEX IF NOT EXISTS idx_paper_trades_status ON paper_trades(status);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -1624,6 +1654,243 @@ class Database:
         async with self.db.execute(query, params) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+    # ── Paper Trading ──
+
+    async def init_paper_portfolio(self, user_id: str) -> None:
+        """Initialize a paper portfolio for a user."""
+        await self.db.execute(
+            "INSERT OR IGNORE INTO paper_portfolios (user_id) VALUES (?)",
+            (user_id,),
+        )
+        await self.db.commit()
+
+    async def get_paper_portfolio(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get paper portfolio for a user."""
+        async with self.db.execute(
+            "SELECT * FROM paper_portfolios WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def create_paper_trade(
+        self, user_id: str, signal_id: str, ticker: str, stance: str,
+        entry_price: float, quantity: float, dollars: float,
+    ) -> Dict[str, Any]:
+        """Create a paper trade and deduct from balance."""
+        trade_id = str(uuid.uuid4())[:12]
+        now = time.time()
+
+        # Deduct from balance
+        portfolio = await self.get_paper_portfolio(user_id)
+        new_balance = portfolio["balance"] - dollars
+
+        await self.db.execute("""
+            INSERT INTO paper_trades
+            (id, user_id, signal_id, ticker, stance, entry_price, quantity, paper_balance_after, created_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
+        """, (trade_id, user_id, signal_id, ticker, stance, entry_price, quantity, new_balance, now))
+
+        await self.db.execute(
+            "UPDATE paper_portfolios SET balance = ?, last_trade_at = ? WHERE user_id = ?",
+            (new_balance, now, user_id),
+        )
+        await self.db.commit()
+
+        return {
+            "id": trade_id, "ticker": ticker, "stance": stance,
+            "entry_price": entry_price, "quantity": quantity,
+            "balance_after": new_balance,
+        }
+
+    async def get_paper_trade(self, trade_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single paper trade."""
+        async with self.db.execute(
+            "SELECT * FROM paper_trades WHERE id = ?", (trade_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def close_paper_trade(self, trade_id: str, exit_price: float) -> Dict[str, Any]:
+        """Close a paper trade and update portfolio stats."""
+        trade = await self.get_paper_trade(trade_id)
+        if not trade:
+            return {}
+
+        now = time.time()
+        entry = trade["entry_price"]
+        qty = trade["quantity"]
+        stance = trade["stance"]
+
+        # Calculate P&L (stance-aware: bearish = profit on price drop)
+        if stance == "bearish":
+            pnl_pct = ((entry - exit_price) / entry) * 100
+        else:
+            pnl_pct = ((exit_price - entry) / entry) * 100
+
+        cost = entry * qty
+        pnl_dollars = cost * (pnl_pct / 100)
+
+        # Update trade
+        await self.db.execute("""
+            UPDATE paper_trades
+            SET closed_at = ?, exit_price = ?, pnl_dollars = ?, pnl_pct = ?, status = 'closed'
+            WHERE id = ?
+        """, (now, exit_price, pnl_dollars, pnl_pct, trade_id))
+
+        # Update portfolio
+        portfolio = await self.get_paper_portfolio(trade["user_id"])
+        new_balance = portfolio["balance"] + cost + pnl_dollars
+        new_total = portfolio["total_trades"] + 1
+        new_winning = portfolio["winning_trades"] + (1 if pnl_dollars > 0 else 0)
+        new_pnl = portfolio["total_pnl"] + pnl_dollars
+
+        await self.db.execute("""
+            UPDATE paper_portfolios
+            SET balance = ?, total_trades = ?, winning_trades = ?, total_pnl = ?
+            WHERE user_id = ?
+        """, (new_balance, new_total, new_winning, new_pnl, trade["user_id"]))
+
+        await self.db.commit()
+
+        return {
+            "id": trade_id, "ticker": trade["ticker"],
+            "entry_price": entry, "exit_price": exit_price,
+            "pnl_dollars": round(pnl_dollars, 2), "pnl_pct": round(pnl_pct, 2),
+            "new_balance": round(new_balance, 2),
+        }
+
+    async def get_paper_trades(
+        self, user_id: str, status: Optional[str] = None, limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Get paper trades for a user."""
+        if status:
+            query = "SELECT * FROM paper_trades WHERE user_id = ? AND status = ? ORDER BY created_at DESC LIMIT ?"
+            params = (user_id, status, limit)
+        else:
+            query = "SELECT * FROM paper_trades WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
+            params = (user_id, limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    # ── Correlation Engine ──
+
+    async def get_ticker_correlations(
+        self, ticker: str, days: int = 90, window_hours: int = 4,
+    ) -> List[Dict[str, Any]]:
+        """Find tickers that fire signals within N hours of the given ticker."""
+        cutoff = time.time() - (days * 86400)
+        window_s = window_hours * 3600
+        query = """
+            SELECT s2.ticker AS ticker,
+                   COUNT(*) AS co_fires,
+                   SUM(CASE WHEN s1.stance = s2.stance THEN 1 ELSE 0 END) AS same_stance,
+                   ROUND(AVG(s2.confidence), 3) AS avg_confidence
+            FROM signals s1
+            JOIN signals s2 ON s1.ticker != s2.ticker
+                AND ABS(s1.created_at - s2.created_at) < ?
+            WHERE s1.ticker = ?
+              AND s1.created_at > ?
+              AND s2.created_at > ?
+              AND s2.ticker != 'UNKNOWN'
+            GROUP BY s2.ticker
+            HAVING co_fires >= 3
+            ORDER BY co_fires DESC
+            LIMIT 20
+        """
+        async with self.db.execute(query, (window_s, ticker, cutoff, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_correlation_matrix(
+        self, days: int = 30, min_co: int = 3, limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Get top correlated ticker pairs globally."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                CASE WHEN s1.ticker < s2.ticker THEN s1.ticker ELSE s2.ticker END AS ticker_a,
+                CASE WHEN s1.ticker < s2.ticker THEN s2.ticker ELSE s1.ticker END AS ticker_b,
+                COUNT(*) AS co_fires,
+                SUM(CASE WHEN s1.stance = s2.stance THEN 1 ELSE 0 END) AS same_stance,
+                ROUND(AVG(s1.confidence + s2.confidence) / 2, 3) AS avg_confidence
+            FROM signals s1
+            JOIN signals s2 ON s1.id < s2.id
+                AND s1.ticker != s2.ticker
+                AND ABS(s1.created_at - s2.created_at) < 14400
+            WHERE s1.created_at > ?
+              AND s2.created_at > ?
+              AND s1.ticker != 'UNKNOWN'
+              AND s2.ticker != 'UNKNOWN'
+            GROUP BY ticker_a, ticker_b
+            HAVING co_fires >= ?
+            ORDER BY co_fires DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, cutoff, min_co, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    # ── Unusual Activity Detection ──
+
+    async def get_unusual_activity_signals(
+        self, hours: int = 24, limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Get signals with unusual options activity from market_data JSON."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT * FROM signals
+            WHERE created_at > ? AND market_data != '{}'
+            ORDER BY created_at DESC
+            LIMIT 500
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+
+        unusual = []
+        for row in rows:
+            d = _row_to_dict(dict(row))
+            md = d.get("market_data", {})
+            ticker = d.get("ticker", "")
+            ticker_data = md.get(ticker, md) if isinstance(md, dict) else {}
+            if not isinstance(ticker_data, dict):
+                continue
+
+            flags = []
+            detail = {}
+
+            # Check ATM IV (high implied volatility)
+            atm_iv = ticker_data.get("atm_iv") or ticker_data.get("impliedVolatility")
+            if atm_iv and isinstance(atm_iv, (int, float)) and atm_iv > 0.6:
+                flags.append("High IV")
+                detail["atm_iv"] = atm_iv
+
+            # Check put/call ratio
+            pc_ratio = ticker_data.get("pc_ratio") or ticker_data.get("putCallRatio")
+            if pc_ratio and isinstance(pc_ratio, (int, float)):
+                if pc_ratio > 3.0 or pc_ratio < 0.3:
+                    flags.append("Extreme P/C Ratio")
+                    detail["pc_ratio"] = pc_ratio
+
+            # Check volume vs OI (volume spike)
+            vol = ticker_data.get("volume") or ticker_data.get("totalVolume", 0)
+            oi = ticker_data.get("openInterest") or ticker_data.get("totalOpenInterest", 0)
+            if vol and oi and isinstance(vol, (int, float)) and isinstance(oi, (int, float)) and oi > 0:
+                ratio = vol / oi
+                if ratio > 2.0:
+                    flags.append("Volume Spike")
+                    detail["vol_oi_ratio"] = round(ratio, 2)
+
+            if flags:
+                d["unusual_flags"] = flags
+                d["unusual_detail"] = detail
+                unusual.append(d)
+
+                if len(unusual) >= limit:
+                    break
+
+        return unusual
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:

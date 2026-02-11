@@ -107,6 +107,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(affiliates.router, tags=["affiliates"])
     app.include_router(enterprise.router, tags=["enterprise"])
 
+    # Widget, paper trading, badges, correlation, unusual activity routes
+    from rot.web.routes import widgets, paper_trading, badges, correlations, unusual_activity
+    app.include_router(widgets.router, tags=["widgets"])
+    app.include_router(paper_trading.router, tags=["paper-trading"])
+    app.include_router(badges.router, tags=["badges"])
+    app.include_router(correlations.router, tags=["correlations"])
+    app.include_router(unusual_activity.router, tags=["unusual-activity"])
+
     # Dashboard routes (HTML)
     from rot.web.routes import (
         dashboard, performance, backtest, raid_tracker, sports_tracker,
