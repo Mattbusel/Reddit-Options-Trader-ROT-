@@ -74,13 +74,49 @@ async def debug_perf_data(request: Request):
             d["_passes_7d_cutoff"] = (d.get("s_created_at") or 0) > cutoff_7d
             results.append(d)
 
+    # Get records WITH prices
+    query2 = """
+        SELECT sp.id, sp.ticker, sp.price_at_signal,
+               sp.price_1h, sp.price_4h, sp.price_1d, sp.price_1w,
+               sp.max_gain_pct, sp.max_loss_pct,
+               sp.created_at as sp_created_at,
+               s.stance, s.created_at as s_created_at
+        FROM signal_performance sp
+        JOIN signals s ON sp.signal_id = s.id
+        WHERE sp.price_at_signal > 0
+          AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL OR sp.price_1d IS NOT NULL)
+        ORDER BY s.created_at DESC
+        LIMIT 10
+    """
+    async with db.db.execute(query2) as cursor:
+        rows2 = await cursor.fetchall()
+        with_prices = [dict(r) for r in rows2]
+
+    # Count totals
+    count_query = """
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
+                     OR sp.price_1d IS NOT NULL THEN 1 ELSE 0 END) as has_any_price,
+            SUM(CASE WHEN sp.price_1h IS NULL AND sp.price_4h IS NULL
+                     AND sp.price_1d IS NULL THEN 1 ELSE 0 END) as no_prices
+        FROM signal_performance sp
+        JOIN signals s ON sp.signal_id = s.id
+        WHERE sp.price_at_signal > 0 AND s.created_at > ?
+    """
+    async with db.db.execute(count_query, (cutoff_7d,)) as cursor:
+        count_row = await cursor.fetchone()
+        counts = dict(count_row) if count_row else {}
+
     # Also get the aggregate result
     accuracy = await db.get_aggregate_accuracy(days=7)
 
     return JSONResponse({
         "accuracy_result": accuracy,
         "cutoff_7d": cutoff_7d,
-        "sample_records": results,
+        "counts_7d": counts,
+        "sample_recent_no_prices": results[:5],
+        "sample_with_prices": with_prices,
     })
 
 
