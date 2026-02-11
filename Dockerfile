@@ -1,26 +1,18 @@
-FROM python:3.12-slim
+# ── Stage 1: Build dependencies ──
+FROM python:3.12-slim AS builder
 
-# Prevent Python from buffering stdout/stderr (important for Railway logs)
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip first
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Copy ONLY pyproject.toml first for dependency caching.
-# This layer is cached until pyproject.toml changes, so deps
-# don't recompile on every code change.
-COPY pyproject.toml ./
+COPY pyproject.toml /build/
+WORKDIR /build
 
-# Install dependencies separately (without the project itself).
-# This is the heavy step — cached by Docker unless deps change.
+# Install all deps into a virtual env so we can copy it cleanly
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 RUN pip install --no-cache-dir \
     praw \
     "yfinance" \
@@ -39,11 +31,20 @@ RUN pip install --no-cache-dir \
     "python-multipart>=0.0.6" \
     "stripe>=7.0"
 
-# NOW copy source code (changes frequently, but deps are already cached)
 COPY src/ ./src/
-
-# Install the project itself (fast — just sets up the package, deps already installed)
 RUN pip install --no-cache-dir --no-deps .
+
+# ── Stage 2: Lean runtime image (no gcc, no build tools) ──
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copy the virtual env with all installed packages
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
@@ -53,8 +54,6 @@ ENV ROT_STORAGE_ROOT=/app/data
 ENV ROT_WEB_HOST=0.0.0.0
 ENV PORT=8000
 
-# Railway sets PORT dynamically; use it
 EXPOSE ${PORT}
 
-# Start the server
 CMD python -m rot.app.server
