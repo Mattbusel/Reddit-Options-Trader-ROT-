@@ -9,7 +9,7 @@ from typing import Any, Dict
 import uvicorn
 
 from rot.core.config import Settings
-from rot.core.logging import JsonlLogger
+from rot.core.logging import JsonlLogger, cleanup_market_cache
 from rot.ingest.reddit_ingestor import RedditIngestor
 from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
 from rot.ingest.multi_ingestor import MultiSourceIngestor
@@ -335,6 +335,62 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
     log.info("X posting loop stopped")
 
 
+async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
+    """Background task that periodically purges old data to keep storage lean.
+
+    Runs every 6 hours:
+      - Purge old/duplicate signals, performance, x_posts, referrals, closed paper trades
+      - Rotate JSONL log files (keep 7 days)
+      - Clean stale market_cache.json entries
+      - VACUUM SQLite to reclaim disk space
+    NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
+    """
+    CLEANUP_INTERVAL = 21600  # 6 hours
+    log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
+
+    # Wait 5 minutes on startup before first cleanup
+    for _ in range(300):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            # 1. Database purges
+            summary = await db.run_full_cleanup()
+            total_deleted = sum(v for v in summary.values() if isinstance(v, int))
+            log.info("Cleanup: DB purge complete — %d total rows removed | %s", total_deleted, summary)
+        except Exception as e:
+            log.error("Cleanup DB purge error: %s", e, exc_info=True)
+
+        try:
+            # 2. JSONL log rotation
+            jsonl_logger = JsonlLogger(root=storage_root)
+            rotation_results = jsonl_logger.rotate(max_age_days=7)
+            rotated = sum(rotation_results.values())
+            if rotated > 0:
+                log.info("Cleanup: JSONL rotation — removed %d old entries across %d files",
+                         rotated, len([v for v in rotation_results.values() if v > 0]))
+        except Exception as e:
+            log.error("Cleanup JSONL rotation error: %s", e, exc_info=True)
+
+        try:
+            # 3. Market cache cleanup
+            evicted = cleanup_market_cache(storage_root, max_age_days=7)
+            if evicted > 0:
+                log.info("Cleanup: market cache — evicted %d stale entries", evicted)
+        except Exception as e:
+            log.error("Cleanup market cache error: %s", e, exc_info=True)
+
+        log.info("Cleanup cycle complete — next run in %d hours", CLEANUP_INTERVAL // 3600)
+
+        for _ in range(CLEANUP_INTERVAL):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Cleanup loop stopped")
+
+
 async def _run_server(cfg: Settings):
     """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
     # Create FastAPI app
@@ -462,6 +518,12 @@ async def _run_server(cfg: Settings):
     else:
         log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
 
+    # Start storage cleanup background task (always active)
+    cleanup_task = asyncio.create_task(
+        _cleanup_loop(app.state.db, cfg.storage_root, stop_event)
+    )
+    log.info("Cleanup loop: ACTIVE (every 6h — purge old data, rotate logs, VACUUM)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -479,6 +541,7 @@ async def _run_server(cfg: Settings):
     finally:
         stop_event.set()
         price_check_task.cancel()
+        cleanup_task.cancel()
         if digest_task:
             digest_task.cancel()
         if x_post_task:

@@ -1972,6 +1972,163 @@ class Database:
 
         return unusual
 
+    # ── Storage Cleanup / Purge ──
+
+    async def purge_old_signals(self, keep_days: int = 90) -> int:
+        """Delete signals older than keep_days. Returns count deleted."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM signals WHERE created_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d signals older than %d days", count, keep_days)
+        return count
+
+    async def purge_duplicate_signals(self) -> int:
+        """Remove duplicate signals (same post_url + ticker), keep the newest."""
+        query = """
+            DELETE FROM signals WHERE id NOT IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER (
+                        PARTITION BY post_url, ticker ORDER BY created_at DESC
+                    ) AS rn
+                    FROM signals
+                    WHERE post_url != ''
+                )
+                WHERE rn = 1
+            ) AND post_url != '' AND id IN (
+                SELECT s1.id FROM signals s1
+                INNER JOIN signals s2
+                ON s1.post_url = s2.post_url
+                AND s1.ticker = s2.ticker
+                AND s1.id != s2.id
+                AND s1.created_at < s2.created_at
+            )
+        """
+        async with self.db.execute(query) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d duplicate signals", count)
+        return count
+
+    async def purge_orphaned_performance(self) -> int:
+        """Delete signal_performance rows whose signal no longer exists."""
+        query = """
+            DELETE FROM signal_performance
+            WHERE signal_id NOT IN (SELECT id FROM signals)
+        """
+        async with self.db.execute(query) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d orphaned performance rows", count)
+        return count
+
+    async def purge_old_performance(self, keep_days: int = 90) -> int:
+        """Delete signal_performance rows older than keep_days."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM signal_performance WHERE checked_at < ? AND checked_at > 0",
+            (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d old performance rows", count)
+        return count
+
+    async def purge_old_x_posts(self, keep_days: int = 30) -> int:
+        """Delete x_posts older than keep_days."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM x_posts WHERE posted_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d old x_posts", count)
+        return count
+
+    async def purge_old_referral_clicks(self, keep_days: int = 90) -> int:
+        """Delete referral_clicks older than keep_days."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM referral_clicks WHERE clicked_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d old referral clicks", count)
+        return count
+
+    async def purge_old_paper_trades(self, keep_days: int = 180) -> int:
+        """Delete CLOSED paper_trades older than keep_days. Never touches open trades."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM paper_trades WHERE status = 'closed' AND closed_at < ?",
+            (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        log.info("Purge: deleted %d old closed paper trades", count)
+        return count
+
+    async def vacuum(self) -> None:
+        """Run VACUUM to reclaim disk space after bulk deletes."""
+        await self.db.execute("VACUUM")
+        log.info("Purge: VACUUM complete")
+
+    async def run_full_cleanup(self) -> Dict[str, int]:
+        """Run all purge methods and VACUUM. Returns summary."""
+        results = {}
+        try:
+            results["duplicate_signals"] = await self.purge_duplicate_signals()
+        except Exception as e:
+            log.warning("Purge duplicate signals failed: %s", e)
+            results["duplicate_signals"] = 0
+        try:
+            results["old_signals"] = await self.purge_old_signals(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old signals failed: %s", e)
+            results["old_signals"] = 0
+        try:
+            results["orphaned_performance"] = await self.purge_orphaned_performance()
+        except Exception as e:
+            log.warning("Purge orphaned performance failed: %s", e)
+            results["orphaned_performance"] = 0
+        try:
+            results["old_performance"] = await self.purge_old_performance(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old performance failed: %s", e)
+            results["old_performance"] = 0
+        try:
+            results["old_api_usage"] = await self.cleanup_old_api_usage(older_than_s=172800)
+        except Exception as e:
+            log.warning("Purge old api usage failed: %s", e)
+            results["old_api_usage"] = 0
+        try:
+            results["old_x_posts"] = await self.purge_old_x_posts(keep_days=30)
+        except Exception as e:
+            log.warning("Purge old x_posts failed: %s", e)
+            results["old_x_posts"] = 0
+        try:
+            results["old_referral_clicks"] = await self.purge_old_referral_clicks(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old referral clicks failed: %s", e)
+            results["old_referral_clicks"] = 0
+        try:
+            results["old_paper_trades"] = await self.purge_old_paper_trades(keep_days=180)
+        except Exception as e:
+            log.warning("Purge old paper trades failed: %s", e)
+            results["old_paper_trades"] = 0
+
+        # Reclaim disk space
+        try:
+            await self.vacuum()
+        except Exception as e:
+            log.warning("VACUUM failed: %s", e)
+
+        total = sum(results.values())
+        log.info("Cleanup complete: %d total rows deleted | %s", total, results)
+        return results
+
 
 def _to_dict(obj: Any) -> Dict[str, Any]:
     """Convert dataclass or dict to plain dict."""
