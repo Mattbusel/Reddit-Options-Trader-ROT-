@@ -399,8 +399,14 @@ async def sports_tracker(
     """Sports Betting News Tracker — Injuries, trades, and lineup news."""
     user = await get_current_user_optional(request)
     ctx = _base_context(request, user)
+    tier = ctx["tier"]
 
     items = await _news_cache.get_items(league=league, category=category)
+
+    # Tier-based time cap: free = 2 days, pro+ = 5 days
+    max_age_s = 2 * 86400 if tier == "free" else 5 * 86400
+    cutoff = time.time() - max_age_s
+    items = [i for i in items if i.published >= cutoff]
 
     # Calculate stats
     total_items = len(items)
@@ -417,9 +423,11 @@ async def sports_tracker(
     all_leagues = sorted(set(f["league"] for f in SPORTS_FEEDS))
     all_categories = ["injury", "trade", "suspension", "lineup", "game", "news"]
 
+    max_days = 2 if tier == "free" else 5
     ctx.update({
         "items": items[:100],  # Show max 100 items
         "total_items": total_items,
+        "max_days": max_days,
         "injury_count": injury_count,
         "trade_count": trade_count,
         "high_urgency": high_urgency,

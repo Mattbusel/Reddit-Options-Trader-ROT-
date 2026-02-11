@@ -699,8 +699,8 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             {where}
             AND sp.price_at_signal > 0
-            AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
-            AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) != sp.price_at_signal
+            AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                 OR sp.max_gain_pct IS NOT NULL)
         """
         async with self.db.execute(query, params) as cursor:
             row = await cursor.fetchone()
@@ -1316,6 +1316,9 @@ class Database:
                 JOIN signals s ON sp.signal_id = s.id
                 WHERE s.created_at >= ? AND s.created_at < ?
                   AND sp.max_gain_pct IS NOT NULL
+                  AND sp.max_gain_pct > 0.01
+                  AND s.stance != 'unknown'
+                  AND s.ticker != 'UNKNOWN'
                 ORDER BY sp.max_gain_pct DESC
                 LIMIT 5
             """
@@ -1330,6 +1333,9 @@ class Database:
                 JOIN signals s ON sp.signal_id = s.id
                 WHERE s.created_at >= ? AND s.created_at < ?
                   AND sp.max_loss_pct IS NOT NULL
+                  AND sp.max_loss_pct < -0.01
+                  AND s.stance != 'unknown'
+                  AND s.ticker != 'UNKNOWN'
                 ORDER BY sp.max_loss_pct ASC
                 LIMIT 5
             """

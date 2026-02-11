@@ -93,13 +93,25 @@ async def weekly_wrap(request: Request, week: str = "0"):
             "gain_pct": bc.get("max_gain_pct"),
         }
     if worst_calls:
-        wc = worst_calls[0]
-        worst_call = {
-            "ticker": wc.get("ticker", "???"),
-            "stance": wc.get("stance", "unknown"),
-            "confidence": wc.get("confidence", 0) or 0,
-            "gain_pct": wc.get("max_loss_pct"),
-        }
+        # Pick a worst call that's different from the best call if possible
+        for wc in worst_calls:
+            if not best_call or wc.get("ticker") != best_call["ticker"]:
+                worst_call = {
+                    "ticker": wc.get("ticker", "???"),
+                    "stance": wc.get("stance", "unknown"),
+                    "confidence": wc.get("confidence", 0) or 0,
+                    "gain_pct": wc.get("max_loss_pct"),
+                }
+                break
+        # If all worst calls are the same ticker as best, just use first
+        if not worst_call and worst_calls:
+            wc = worst_calls[0]
+            worst_call = {
+                "ticker": wc.get("ticker", "???"),
+                "stance": wc.get("stance", "unknown"),
+                "confidence": wc.get("confidence", 0) or 0,
+                "gain_pct": wc.get("max_loss_pct"),
+            }
 
     # Bullish consensus: tickers with 3+ bullish signals
     bullish_tickers = [t for t in top_tickers if t.get("bullish", 0) >= 3]

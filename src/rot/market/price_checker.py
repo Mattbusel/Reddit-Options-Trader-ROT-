@@ -33,7 +33,7 @@ class PriceChecker:
                 if hist is not None and len(hist) > 0:
                     return float(hist["Close"].iloc[-1])
         except Exception as e:
-            log.debug("Price fetch failed for %s: %s", ticker, e)
+            log.warning("Price fetch failed for %s: %s", ticker, e)
         return None
 
     async def record_initial_price(self, signal_id: str, ticker: str) -> None:
