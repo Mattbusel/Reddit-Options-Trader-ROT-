@@ -525,7 +525,7 @@ class Database:
     async def get_unchecked_performances(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Find performance records that still need price updates."""
         query = """
-            SELECT sp.*, s.created_at as signal_created_at
+            SELECT sp.*, s.created_at as signal_created_at, s.stance as signal_stance
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE sp.price_1h IS NULL OR sp.price_4h IS NULL
@@ -588,14 +588,44 @@ class Database:
         query = f"""
             SELECT
                 COUNT(*) as total_tracked,
-                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
-                SUM(CASE WHEN sp.max_gain_pct <= 0 THEN 1 ELSE 0 END) as losers,
+                SUM(CASE
+                    WHEN s.stance = 'bearish' AND sp.price_1d IS NOT NULL
+                        THEN CASE WHEN sp.price_1d < sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN s.stance = 'bearish' AND sp.price_4h IS NOT NULL
+                        THEN CASE WHEN sp.price_4h < sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN s.stance = 'bearish' AND sp.price_1h IS NOT NULL
+                        THEN CASE WHEN sp.price_1h < sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_1d IS NOT NULL
+                        THEN CASE WHEN sp.price_1d > sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_4h IS NOT NULL
+                        THEN CASE WHEN sp.price_4h > sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_1h IS NOT NULL
+                        THEN CASE WHEN sp.price_1h > sp.price_at_signal THEN 1 ELSE 0 END
+                    ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN s.stance = 'bearish' AND sp.price_1d IS NOT NULL
+                        THEN CASE WHEN sp.price_1d >= sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN s.stance = 'bearish' AND sp.price_4h IS NOT NULL
+                        THEN CASE WHEN sp.price_4h >= sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN s.stance = 'bearish' AND sp.price_1h IS NOT NULL
+                        THEN CASE WHEN sp.price_1h >= sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_1d IS NOT NULL
+                        THEN CASE WHEN sp.price_1d <= sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_4h IS NOT NULL
+                        THEN CASE WHEN sp.price_4h <= sp.price_at_signal THEN 1 ELSE 0 END
+                    WHEN sp.price_1h IS NOT NULL
+                        THEN CASE WHEN sp.price_1h <= sp.price_at_signal THEN 1 ELSE 0 END
+                    ELSE 1 END) as losers,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END
                     ELSE NULL END) as avg_1d_return_pct
             FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
             {where}
             AND sp.price_at_signal > 0
             AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
@@ -675,10 +705,17 @@ class Database:
             SELECT
                 CAST(sp.created_at / ? AS INTEGER) * ? as time_bucket,
                 COUNT(*) as total,
-                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
+                    WHEN sp.price_1d IS NULL AND (
+                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
+                    ELSE 0 END) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
             WHERE sp.created_at > ? AND sp.price_at_signal > 0
                   AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
             GROUP BY time_bucket
@@ -695,11 +732,20 @@ class Database:
             SELECT
                 s.strategy,
                 COUNT(*) as total,
-                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
+                    WHEN sp.price_1d IS NULL AND (
+                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
+                    ELSE 0 END) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END
                     ELSE NULL END) as avg_1d_return_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
@@ -721,10 +767,17 @@ class Database:
             SELECT
                 sp.ticker,
                 COUNT(*) as total_signals,
-                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
+                    WHEN sp.price_1d IS NULL AND (
+                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
+                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
+                    ELSE 0 END) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
             WHERE sp.created_at > ? AND sp.price_at_signal > 0
             GROUP BY sp.ticker
             ORDER BY total_signals DESC
@@ -840,8 +893,19 @@ class Database:
                 AVG(s.confidence) as avg_confidence,
                 MAX(s.trend_score) as max_trend_score,
                 GROUP_CONCAT(DISTINCT s.stance) as stances,
-                COUNT(CASE WHEN sp.max_gain_pct > 0 THEN 1 END) as perf_winners,
-                COUNT(CASE WHEN sp.price_at_signal IS NOT NULL THEN 1 END) as perf_tracked
+                COUNT(CASE
+                    WHEN sp.price_at_signal IS NOT NULL AND sp.price_1d IS NOT NULL THEN
+                        CASE WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
+                                  OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal)
+                             THEN 1 END
+                    WHEN sp.price_at_signal IS NOT NULL AND sp.price_1h IS NOT NULL THEN
+                        CASE WHEN (s.stance = 'bearish' AND sp.price_1h < sp.price_at_signal)
+                                  OR (s.stance != 'bearish' AND sp.price_1h > sp.price_at_signal)
+                             THEN 1 END
+                    END) as perf_winners,
+                COUNT(CASE WHEN sp.price_at_signal IS NOT NULL
+                           AND (sp.price_1h IS NOT NULL OR sp.price_1d IS NOT NULL)
+                      THEN 1 END) as perf_tracked
             FROM signals s
             LEFT JOIN signal_performance sp ON s.id = sp.signal_id
             WHERE s.created_at > ? AND s.ticker != 'UNKNOWN'

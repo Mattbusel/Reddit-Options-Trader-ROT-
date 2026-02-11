@@ -98,7 +98,8 @@ class PriceChecker:
             if needs_1w and perf.get("price_1w") is None:
                 updates["price_1w"] = current_price
 
-            # Compute max gain/loss across all tracked prices
+            # Compute stance-aware gain/loss across all tracked prices
+            # For bullish signals: price UP = gain. For bearish: price DOWN = gain.
             tracked_prices = []
             for key in ("price_1h", "price_4h", "price_1d", "price_1w"):
                 p = updates.get(key) or perf.get(key)
@@ -106,7 +107,16 @@ class PriceChecker:
                     tracked_prices.append(p)
 
             if tracked_prices and price_at_signal > 0:
-                pct_changes = [(p / price_at_signal - 1.0) * 100 for p in tracked_prices]
+                stance = perf.get("signal_stance", "bullish")
+                raw_pct_changes = [(p / price_at_signal - 1.0) * 100 for p in tracked_prices]
+
+                if stance == "bearish":
+                    # For bearish signals, invert: price drop = positive gain
+                    pct_changes = [-pct for pct in raw_pct_changes]
+                else:
+                    # For bullish/mixed/unknown: price rise = positive gain
+                    pct_changes = raw_pct_changes
+
                 updates["max_gain_pct"] = max(pct_changes)
                 updates["max_loss_pct"] = min(pct_changes)
 
