@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}ROT - Reddit Options Trader | AI-Powered Trading Signals from Reddit{% endblock %}
+{% block meta_description %}ROT analyzes Reddit posts from r/wallstreetbets, r/options, and r/investing to generate real-time options trading signals with AI-powered confidence scoring and performance tracking.{% endblock %}
+{% block og_title %}ROT - Reddit Options Trader | AI-Powered Trading Signals{% endblock %}
+{% block og_description %}Real-time AI-powered options signal intelligence from Reddit. Track sentiment, analyze trades, and monitor signal performance across r/wallstreetbets, r/options, and more.{% endblock %}
+{% block twitter_title %}ROT - AI-Powered Trading Signals from Reddit{% endblock %}
+{% block twitter_description %}Real-time options trading signals extracted from Reddit with AI confidence scoring, sentiment analysis, and performance tracking.{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="text-center py-16 md:py-24">
+    <h1 class="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+        Reddit is talking.<br>
+        <span class="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ROT is listening.</span>
+    </h1>
+    <p class="text-xl text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">
+        AI-powered signal intelligence that monitors Reddit's top trading communities
+        in real time. From r/wallstreetbets chatter to r/options DD, ROT extracts
+        actionable trade signals with confidence scoring and performance tracking.
+    </p>
+    <div class="flex items-center justify-center gap-4 flex-wrap">
+        <a href="/register" class="px-8 py-3 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold text-lg transition shadow-lg shadow-orange-900/30">
+            Sign Up Free
+        </a>
+        <a href="/pricing" class="px-8 py-3 rounded-lg border border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white font-semibold text-lg transition">
+            See Pricing
+        </a>
+    </div>
+</section>
+
+<!-- Live Stats Bar -->
+<section class="border-y border-gray-800 py-6 mb-16">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+        <div>
+            <div class="text-3xl font-bold text-white">{{ "{:,}".format(stats.total_signals) }}</div>
+            <div class="text-sm text-gray-500 mt-1">Signals Analyzed</div>
+        </div>
+        <div>
+            <div class="text-3xl font-bold text-white">{{ stats.active_tickers }}</div>
+            <div class="text-sm text-gray-500 mt-1">Active Tickers (24h)</div>
+        </div>
+        <div>
+            {% if stats.win_rate is not none %}
+            <div class="text-3xl font-bold {% if stats.win_rate >= 50 %}text-green-400{% elif stats.win_rate >= 30 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ "%.0f"|format(stats.win_rate) }}%</div>
+            {% else %}
+            <div class="text-3xl font-bold text-gray-400">Tracking...</div>
+            {% endif %}
+            <div class="text-sm text-gray-500 mt-1">Signal Win Rate (30d)</div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="mb-20">
+    <h2 class="text-3xl font-bold text-white text-center mb-12">How ROT Works</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div class="text-center">
+            <div class="text-5xl mb-4">&#128241;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">1. Reddit Ingestion</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                ROT continuously monitors r/wallstreetbets, r/options, r/investing, and
+                more for trending posts, DD, and unusual activity.
+            </p>
+        </div>
+        <div class="text-center">
+            <div class="text-5xl mb-4">&#129302;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">2. AI Analysis</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Multi-factor credibility scoring evaluates subreddit quality, post engagement,
+                ticker mentions, and content depth to assign confidence scores.
+            </p>
+        </div>
+        <div class="text-center">
+            <div class="text-5xl mb-4">&#128200;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">3. Trade Signals</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Signals are generated with stance (bullish/bearish), event classification,
+                time horizon, and recommended options structures.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Highlights -->
+<section class="mb-20">
+    <h2 class="text-3xl font-bold text-white text-center mb-12">Built for Options Traders</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        <div class="signal-card rounded-xl p-6">
+            <div class="text-2xl mb-3">&#9889;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Real-Time Signals</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Get trade signals within seconds of Reddit posts trending. WebSocket live feed
+                for paid tiers, with 15-minute delayed signals on the free tier.
+            </p>
+        </div>
+        <div class="signal-card rounded-xl p-6">
+            <div class="text-2xl mb-3">&#129504;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">AI-Powered Analysis</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                BYOK (Bring Your Own Key) AI reasoning generates investment theses, catalyst windows,
+                invalidation conditions, and specific options strategy recommendations.
+            </p>
+        </div>
+        <div class="signal-card rounded-xl p-6">
+            <div class="text-2xl mb-3">&#127919;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Performance Tracking</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Every signal is tracked with 1h, 4h, 1d, and 1w price snapshots. See stance-aware
+                win rates, gain/loss percentages, and best/worst calls.
+            </p>
+        </div>
+        <div class="signal-card rounded-xl p-6">
+            <div class="text-2xl mb-3">&#128269;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Multi-Source Intelligence</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Signals are weighted by subreddit credibility — r/options and r/thetagang posts
+                get a boost, while r/wallstreetbets noise is discounted.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Public Content Teasers -->
+<section class="mb-20">
+    <h2 class="text-3xl font-bold text-white text-center mb-4">Explore Free Content</h2>
+    <p class="text-gray-400 text-center mb-12 max-w-xl mx-auto">Dive into trading history, learn the lingo, and track corporate scandals — no account required.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <a href="/hall-of-legends" class="signal-card rounded-xl p-6 block hover:border-yellow-700 transition">
+            <div class="text-2xl mb-3">&#127942;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Hall of Legends</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                The greatest trades in history — from Soros breaking the Bank of England to
+                Paulson's $15B subprime short. 27 legendary trades ranked by profit.
+            </p>
+        </a>
+        <a href="/glossary" class="signal-card rounded-xl p-6 block hover:border-blue-700 transition">
+            <div class="text-2xl mb-3">&#128218;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Glossary of Degens</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                The definitive WSB trading dictionary. 75 terms from "Ape" to "YOLO" explained
+                with examples and degen ratings.
+            </p>
+        </a>
+        <a href="/ceo-rap-sheet" class="signal-card rounded-xl p-6 block hover:border-red-700 transition">
+            <div class="text-2xl mb-3">&#128373;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">CEO Rap Sheet</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Corporate executive scandals they hope you forgot. Insider trading, fraud,
+                regulatory violations — tracked with outcomes and fines.
+            </p>
+        </a>
+    </div>
+</section>
+
+<!-- Pricing Summary -->
+<section class="mb-20">
+    <h2 class="text-3xl font-bold text-white text-center mb-12">Simple, Transparent Pricing</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-center">
+        <div class="signal-card rounded-xl p-5">
+            <div class="text-sm text-gray-400 mb-1">Free</div>
+            <div class="text-2xl font-bold text-white">$0</div>
+            <div class="text-xs text-gray-500 mt-2">Delayed signals<br>10 per page</div>
+        </div>
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(59, 130, 246, 0.5);">
+            <div class="text-sm text-blue-400 mb-1">Pro</div>
+            <div class="text-2xl font-bold text-white">$9.99<span class="text-xs text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500 mt-2">Real-time signals<br>Full analysis</div>
+        </div>
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(168, 85, 247, 0.4);">
+            <div class="text-sm text-purple-400 mb-1">Premium</div>
+            <div class="text-2xl font-bold text-white">$29.99<span class="text-xs text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500 mt-2">Extended charts<br>Priority support</div>
+        </div>
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(245, 158, 11, 0.4);">
+            <div class="text-sm text-amber-400 mb-1">Ultra</div>
+            <div class="text-2xl font-bold text-white">$49.99<span class="text-xs text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500 mt-2">Full platform<br>Custom everything</div>
+        </div>
+    </div>
+    <div class="text-center mt-8">
+        <a href="/pricing" class="text-orange-400 hover:text-orange-300 hover:underline transition text-sm">
+            Compare all features &rarr;
+        </a>
+    </div>
+</section>
+
+<!-- Footer CTA -->
+<section class="text-center py-16 border-t border-gray-800">
+    <h2 class="text-3xl font-bold text-white mb-4">Start Tracking Reddit Signals</h2>
+    <p class="text-gray-400 mb-8 max-w-lg mx-auto">
+        Free tier includes delayed signals, trend tracking, and access to all
+        public content. No credit card required.
+    </p>
+    <a href="/register" class="px-10 py-3 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold text-lg transition shadow-lg shadow-orange-900/30">
+        Sign Up Free
+    </a>
+</section>
+{% endblock %}

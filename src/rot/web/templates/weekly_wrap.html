@@ -5,6 +5,22 @@
 {% block og_description %}Weekly Reddit options signal recap: top tickers, sentiment trends, and best/worst calls for {{ week_label }}.{% endblock %}
 {% block twitter_title %}ROT Weekly Wrap - {{ week_label }}{% endblock %}
 
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">Weekly Wrap</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8">
 
@@ -14,6 +30,12 @@
             <span class="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Weekly Wrap</span>
         </h1>
         <p class="text-gray-400 text-lg">Your week in Reddit signals, distilled</p>
+        <!-- Share Buttons -->
+        <div class="mt-4 flex justify-center">
+            {% set share_url = request.url|string %}
+            {% set share_text = "ROT Weekly Wrap — " ~ week_label %}
+            {% include "components/share_buttons.html" %}
+        </div>
     </div>
 
     <!-- Week Selector -->

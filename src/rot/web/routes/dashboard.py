@@ -94,6 +94,25 @@ def _base_context(request: Request, user: dict | None) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
+async def landing_or_dashboard(request: Request):
+    """Serve landing page for logged-out users, dashboard for logged-in."""
+    try:
+        user = await get_current_user_optional(request)
+        if user:
+            return await _dashboard_inner(request)
+        return await _landing_page(request)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        log.exception("Landing/dashboard route failed: %s", e)
+        return HTMLResponse(
+            f"<h1>Something went wrong</h1><p>The page encountered an error. "
+            f"Please try <a href='/dashboard'>refresh</a>.</p>"
+            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            status_code=500,
+        )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     try:
@@ -274,6 +293,38 @@ async def _dashboard_inner(request: Request):
 
     templates = request.app.state.templates
     return templates.TemplateResponse("dashboard.html", ctx)
+
+
+async def _landing_page(request: Request):
+    """Render the marketing landing page for logged-out visitors."""
+    db = request.app.state.db
+
+    # Gather stats for the landing page (graceful degradation)
+    stats = {"total_signals": 0, "active_tickers": 0, "win_rate": None}
+    try:
+        summary = await db.get_performance_summary(days=90)
+        stats["total_signals"] = summary.get("total_signals", 0) or 0
+    except Exception:
+        pass
+    try:
+        trending = await db.get_trending_tickers(hours=24, limit=100)
+        stats["active_tickers"] = len(trending)
+    except Exception:
+        pass
+    try:
+        accuracy = await db.get_aggregate_accuracy(days=30)
+        winners = accuracy.get("winners", 0) or 0
+        losers = accuracy.get("losers", 0) or 0
+        decided = winners + losers
+        if decided > 0:
+            stats["win_rate"] = (winners / decided) * 100
+    except Exception:
+        pass
+
+    ctx = _base_context(request, None)
+    ctx["stats"] = stats
+    templates = request.app.state.templates
+    return templates.TemplateResponse("landing.html", ctx)
 
 
 @router.get("/dashboard/signal/{signal_id}", response_class=HTMLResponse)

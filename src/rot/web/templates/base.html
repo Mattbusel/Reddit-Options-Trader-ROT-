@@ -26,6 +26,19 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128293;</text></svg>">
     <meta name="theme-color" content="#0f0f23">
 
+    <!-- Structured Data (JSON-LD) -->
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "ROT - Reddit Options Trader",
+        "url": "{{ request.base_url }}",
+        "description": "Real-time AI-powered options signal intelligence from Reddit"
+    }
+    </script>
+    {% endblock %}
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -67,7 +80,7 @@
 <body class="min-h-screen">
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/dashboard" class="flex items-center space-x-2">
+            <a href="/" class="flex items-center space-x-2">
                 <span class="text-2xl">&#128293;</span>
                 <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ROT</span>
                 <span class="text-sm text-gray-500">Reddit Options Trader</span>
@@ -129,6 +142,7 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block breadcrumbs %}{% endblock %}
         {% block content %}{% endblock %}
     </main>
 

@@ -485,6 +485,7 @@ async def ceo_rap_sheet(request: Request, category: str = "all"):
     for c in CEO_DATA:
         category_counts[c["category"]] = category_counts.get(c["category"], 0) + 1
 
+    base = str(request.base_url).rstrip("/")
     ctx.update({
         "ceos": sorted_ceos,
         "total_ceos": len(CEO_DATA),
@@ -500,6 +501,8 @@ async def ceo_rap_sheet(request: Request, category: str = "all"):
         "category_color": _category_color,
         "outcome_color": _outcome_color,
         "outcome_emoji": _outcome_emoji,
+        "share_url": f"{base}/ceo-rap-sheet",
+        "share_text": f"CEO scandals they hope you forgot — {len(CEO_DATA)} executives tracked",
     })
 
     templates = request.app.state.templates

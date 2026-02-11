@@ -1,16 +1,48 @@
 {% extends "base.html" %}
-{% block title %}CEO Rap Sheet - Corporate Leader Scandal Tracker{% endblock %}
+{% block title %}CEO Rap Sheet - Corporate Leader Scandal Tracker | ROT{% endblock %}
+{% block meta_description %}Corporate executive scandals they hope you forgot. {{ total_ceos }} CEOs tracked for fraud, insider trading, and regulatory violations with outcomes, fines totaling {{ format_usd(total_fines) }}, and shame scores.{% endblock %}
+{% block og_title %}CEO Rap Sheet - Corporate Scandal Tracker | ROT{% endblock %}
+{% block og_description %}{{ total_ceos }} corporate executives tracked for fraud, insider trading, and SEC violations. {{ convicted }} convicted, {{ format_usd(total_fines) }} in fines.{% endblock %}
+{% block twitter_title %}CEO Rap Sheet - {{ total_ceos }} Corporate Scandals Tracked{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">CEO Rap Sheet</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="space-y-8">
+
+    <!-- CTA Banner -->
+    {% if not user %}
+    <div class="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-700/40 rounded-xl px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+        <p class="text-sm text-gray-300">Track live trading signals from Reddit &mdash; powered by AI analysis.</p>
+        <a href="/register" class="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition whitespace-nowrap">Sign Up Free</a>
+    </div>
+    {% endif %}
 
     <!-- Header -->
     <div class="text-center mb-8">
         <h1 class="text-4xl font-bold mb-2">
             <span class="bg-gradient-to-r from-red-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">CEO Rap Sheet</span>
         </h1>
-        <p class="text-gray-400 text-lg">Know your CEO. The scandals they hope you forgot.</p>
-        <p class="text-gray-600 text-sm mt-1">{{ total_ceos }} executives tracked &mdash; ranked by shame score</p>
+        <p class="text-gray-400 text-lg">Over {{ format_usd(total_fines) }} in fines have been levied against corporate executives for fraud, insider trading, and regulatory violations. This tracker covers {{ total_ceos }} executives with outcomes ranging from conviction to acquittal.</p>
+        <p class="text-gray-600 text-sm mt-2">{{ total_ceos }} executives tracked &mdash; ranked by shame score</p>
+        <!-- Share Buttons -->
+        <div class="mt-4 flex justify-center">
+            {% include "components/share_buttons.html" %}
+        </div>
     </div>
 
     <!-- Summary Stats -->
@@ -121,12 +153,42 @@
         {% endfor %}
     </div>
 
+    <!-- Internal Links -->
+    <div class="border-t border-gray-800 pt-8 mt-8">
+        <h3 class="text-lg font-semibold text-white mb-4">Related Content</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition">
+                <div class="text-lg mb-1">&#127942;</div>
+                <div class="text-sm font-semibold text-white">Hall of Legends</div>
+                <p class="text-xs text-gray-400 mt-1">The good guys &mdash; greatest trades in history</p>
+            </a>
+            <a href="/glossary" class="signal-card rounded-xl p-4 block hover:border-blue-700 transition">
+                <div class="text-lg mb-1">&#128218;</div>
+                <div class="text-sm font-semibold text-white">Glossary of Degens</div>
+                <p class="text-xs text-gray-400 mt-1">Learn the lingo &mdash; 75 trading terms explained</p>
+            </a>
+            <a href="/register" class="signal-card rounded-xl p-4 block hover:border-orange-700 transition">
+                <div class="text-lg mb-1">&#128200;</div>
+                <div class="text-sm font-semibold text-white">Track Live Signals</div>
+                <p class="text-xs text-gray-400 mt-1">AI-powered Reddit signal intelligence &mdash; sign up free</p>
+            </a>
+        </div>
+    </div>
+
     <!-- Footer -->
     <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
         <p>Information compiled from public court records, SEC filings, and reporting.</p>
         <p>Shame scores are editorial assessments based on impact, accountability, and public trust violations.</p>
         <p class="text-gray-700 mt-2">Not legal advice. Individuals are innocent until proven guilty.</p>
     </div>
+
+    <!-- Bottom CTA -->
+    {% if not user %}
+    <div class="text-center py-8 border-t border-gray-800">
+        <p class="text-gray-400 mb-4">Want to see what Reddit is saying about stocks right now?</p>
+        <a href="/register" class="px-8 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold transition">Start Tracking Signals</a>
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}

@@ -1,6 +1,8 @@
 """Glossary of Degens — The definitive WSB trading dictionary."""
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -145,6 +147,26 @@ async def glossary(request: Request, category: str = "all", letter: str = "all")
     avg_degen = sum(t["degen_rating"] for t in GLOSSARY_DATA) / len(GLOSSARY_DATA) if GLOSSARY_DATA else 0
     max_degen = [t for t in GLOSSARY_DATA if t["degen_rating"] == 5]
 
+    # Build FAQPage JSON-LD schema from glossary data
+    faq_items = []
+    for t in GLOSSARY_DATA:
+        faq_items.append({
+            "@type": "Question",
+            "name": f"What does {t['term']} mean in trading?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": t["definition"],
+            },
+        })
+    faq_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faq_items,
+    })
+
+    # Share URL
+    base = str(request.base_url).rstrip("/")
+
     ctx.update({
         "terms": sorted_terms,
         "total_terms": len(GLOSSARY_DATA),
@@ -158,6 +180,9 @@ async def glossary(request: Request, category: str = "all", letter: str = "all")
         "degen_skulls": _degen_skulls,
         "category_color": _category_color,
         "category_emoji": _category_emoji,
+        "faq_schema": faq_schema,
+        "share_url": f"{base}/glossary",
+        "share_text": f"WSB Trading Dictionary — {len(GLOSSARY_DATA)} degen terms explained",
     })
 
     templates = request.app.state.templates

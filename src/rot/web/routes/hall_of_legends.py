@@ -383,6 +383,7 @@ async def hall_of_legends(request: Request):
         st = r["strategy_type"]
         strategy_counts[st] = strategy_counts.get(st, 0) + 1
 
+    base = str(request.base_url).rstrip("/")
     ctx.update({
         "legends": sorted_by_profit,
         "total_profit": total_profit,
@@ -395,6 +396,8 @@ async def hall_of_legends(request: Request):
         "format_usd": _format_usd,
         "strategy_emoji": _strategy_emoji,
         "strategy_color": _strategy_color,
+        "share_url": f"{base}/hall-of-legends",
+        "share_text": f"The greatest trades in history — {len(LEGENDS_DATA)} legendary plays ranked by profit",
     })
 
     templates = request.app.state.templates
