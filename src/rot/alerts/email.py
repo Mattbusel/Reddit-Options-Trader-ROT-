@@ -5,6 +5,7 @@ Requires SMTP configuration via ROT_EMAIL_* environment variables.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -14,6 +15,9 @@ from typing import Any, Dict, List, Optional
 from rot.alerts.email_templates import render_signal_alert, render_daily_digest
 
 log = logging.getLogger(__name__)
+
+# SMTP connection timeout in seconds
+_SMTP_TIMEOUT = 15
 
 
 class EmailAlerter:
@@ -37,8 +41,8 @@ class EmailAlerter:
     def is_configured(self) -> bool:
         return bool(self.smtp_host and self.smtp_user)
 
-    def _send_email(self, to_email: str, subject: str, html_body: str) -> bool:
-        """Send an HTML email via SMTP. Returns True on success."""
+    def _send_email_sync(self, to_email: str, subject: str, html_body: str) -> bool:
+        """Send an HTML email via SMTP (synchronous). Returns True on success."""
         try:
             msg = MIMEMultipart("alternative")
             msg["From"] = self.from_address
@@ -46,7 +50,7 @@ class EmailAlerter:
             msg["Subject"] = subject
             msg.attach(MIMEText(html_body, "html"))
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT) as server:
                 server.starttls()
                 if self.smtp_user and self.smtp_password:
                     server.login(self.smtp_user, self.smtp_password)
@@ -58,6 +62,17 @@ class EmailAlerter:
             log.error("Email send failed to %s: %s", to_email, e)
             return False
 
+    def _send_email(self, to_email: str, subject: str, html_body: str) -> bool:
+        """Synchronous wrapper for backward compatibility."""
+        return self._send_email_sync(to_email, subject, html_body)
+
+    async def _send_email_async(self, to_email: str, subject: str, html_body: str) -> bool:
+        """Send email in a thread executor to avoid blocking the event loop."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, self._send_email_sync, to_email, subject, html_body
+        )
+
     async def send_signal_alert(
         self, to_email: str, signal_data: Dict[str, Any]
     ) -> bool:
@@ -66,7 +81,7 @@ class EmailAlerter:
         ticker = signal_data.get("ticker", "UNKNOWN")
         stance = signal_data.get("stance", "unknown")
         subject = f"ROT Signal: {ticker} ({stance.upper()})"
-        return self._send_email(to_email, subject, html)
+        return await self._send_email_async(to_email, subject, html)
 
     async def send_daily_digest(
         self,
@@ -78,4 +93,4 @@ class EmailAlerter:
         html = render_daily_digest(signals, summary)
         count = len(signals)
         subject = f"ROT Daily Digest: {count} signal{'s' if count != 1 else ''}"
-        return self._send_email(to_email, subject, html)
+        return await self._send_email_async(to_email, subject, html)

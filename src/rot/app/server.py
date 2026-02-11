@@ -194,12 +194,18 @@ async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
     """Background task that sends daily digest emails to subscribed users."""
     DIGEST_INTERVAL = 3600  # Check every hour if digests need sending
     log.info("Digest email loop starting (check interval=%ds)", DIGEST_INTERVAL)
+
+    # Wait 60s on startup before first check to let server fully initialize
+    for _ in range(60):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
     while not stop_event.is_set():
         try:
             users = await db.get_users_for_digest()
             if users:
                 # Get recent signals for digest (last 24h)
-                import time
                 cutoff = time.time() - 86400
                 async with db.db.execute(
                     """SELECT id, ticker, stance, confidence, event_type, strategy,
@@ -220,17 +226,19 @@ async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
 
                     sent = 0
                     for u in users:
-                        email = u.get("email", "")
-                        if email:
+                        email_addr = u.get("email", "")
+                        if email_addr:
                             try:
-                                ok = await email_alerter.send_daily_digest(email, recent_signals, summary)
+                                ok = await email_alerter.send_daily_digest(email_addr, recent_signals, summary)
                                 if ok:
                                     await db.update_digest_sent(u["id"])
                                     sent += 1
                             except Exception as e:
-                                log.error("Digest to %s failed: %s", email, e)
+                                log.error("Digest to %s failed: %s", email_addr, e)
                     if sent > 0:
                         log.info("Daily digest: sent to %d users", sent)
+                else:
+                    log.debug("Digest: no recent signals to send")
         except Exception as e:
             log.error("Digest email loop error: %s", e, exc_info=True)
 
