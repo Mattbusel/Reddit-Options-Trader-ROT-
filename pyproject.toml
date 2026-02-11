@@ -41,7 +41,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"rot.web" = ["templates/*.html", "static/**/*"]
+"rot.web" = ["templates/**/*.html", "static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
