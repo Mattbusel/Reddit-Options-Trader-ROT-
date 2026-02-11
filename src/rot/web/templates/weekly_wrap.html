@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Weekly Wrap - {{ week_label }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Weekly Wrap</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Your week in Reddit signals, distilled</p>
+    </div>
+
+    <!-- Week Selector -->
+    <div class="stat-card rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Week:</span>
+                <select onchange="window.location='/weekly-wrap?week='+this.value"
+                        class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    {% for opt in week_options %}
+                    <option value="{{ opt.value }}" {% if selected_week == opt.value %}selected{% endif %}>
+                        {{ opt.label }}{% if loop.index == 1 %} (Current){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="text-sm text-gray-400">
+                &#128197; {{ week_label }}
+            </div>
+        </div>
+    </div>
+
+    {% if total_signals > 0 %}
+
+    <!-- Headline Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-400">{{ total_signals }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Signals</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-purple-400">{{ avg_confidence }}%</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Confidence</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ bullish_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Bullish</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ bearish_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Bearish</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ mixed_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Mixed</div>
+        </div>
+    </div>
+
+    <!-- Sentiment Bar -->
+    {% if total_signals > 0 %}
+    <div class="stat-card rounded-xl p-4">
+        <h2 class="text-sm font-semibold text-white mb-3">Weekly Sentiment</h2>
+        <div class="flex rounded-full overflow-hidden h-4 bg-gray-800">
+            {% if bullish_count > 0 %}
+            <div class="bg-green-500" style="width: {{ (bullish_count / total_signals * 100)|int }}%"></div>
+            {% endif %}
+            {% if mixed_count > 0 %}
+            <div class="bg-yellow-500" style="width: {{ (mixed_count / total_signals * 100)|int }}%"></div>
+            {% endif %}
+            {% if bearish_count > 0 %}
+            <div class="bg-red-500" style="width: {{ (bearish_count / total_signals * 100)|int }}%"></div>
+            {% endif %}
+        </div>
+        <div class="flex justify-between mt-2 text-xs text-gray-500">
+            <span class="text-green-400">{{ (bullish_count / total_signals * 100)|int }}% bullish</span>
+            <span class="text-yellow-400">{{ (mixed_count / total_signals * 100)|int }}% mixed</span>
+            <span class="text-red-400">{{ (bearish_count / total_signals * 100)|int }}% bearish</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Three Column Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Bullish Consensus -->
+        <div class="stat-card rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-xl">&#128994;</span>
+                <h2 class="text-sm font-bold text-green-400 uppercase tracking-wider">Bullish Consensus</h2>
+            </div>
+            {% if bullish_tickers %}
+            <div class="space-y-2">
+                {% for t in bullish_tickers %}
+                <a href="/ticker/{{ t.ticker }}" class="flex items-center justify-between p-2 rounded-lg bg-green-900/10 hover:bg-green-900/20 border border-green-900/30 transition">
+                    <span class="text-sm font-bold text-white">{{ t.ticker }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-green-400">{{ t.bullish }} bull</span>
+                        <span class="text-xs text-gray-600">{{ t.total }} total</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No tickers with 3+ bullish signals this week</p>
+            {% endif %}
+        </div>
+
+        <!-- Bearish Consensus -->
+        <div class="stat-card rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-xl">&#128308;</span>
+                <h2 class="text-sm font-bold text-red-400 uppercase tracking-wider">Bearish Consensus</h2>
+            </div>
+            {% if bearish_tickers %}
+            <div class="space-y-2">
+                {% for t in bearish_tickers %}
+                <a href="/ticker/{{ t.ticker }}" class="flex items-center justify-between p-2 rounded-lg bg-red-900/10 hover:bg-red-900/20 border border-red-900/30 transition">
+                    <span class="text-sm font-bold text-white">{{ t.ticker }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-red-400">{{ t.bearish }} bear</span>
+                        <span class="text-xs text-gray-600">{{ t.total }} total</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No tickers with 3+ bearish signals this week</p>
+            {% endif %}
+        </div>
+
+        <!-- Controversy Corner -->
+        <div class="stat-card rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-xl">&#9888;&#65039;</span>
+                <h2 class="text-sm font-bold text-yellow-400 uppercase tracking-wider">Controversy Corner</h2>
+            </div>
+            {% if controversial %}
+            <div class="space-y-2">
+                {% for t in controversial %}
+                <a href="/ticker/{{ t.ticker }}" class="flex items-center justify-between p-2 rounded-lg bg-yellow-900/10 hover:bg-yellow-900/20 border border-yellow-900/30 transition">
+                    <span class="text-sm font-bold text-white">{{ t.ticker }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-green-400">{{ t.bullish }}&#9650;</span>
+                        <span class="text-xs text-red-400">{{ t.bearish }}&#9660;</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No mixed-sentiment tickers this week</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Top Tickers Table -->
+    <div class="stat-card rounded-xl p-5">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">&#128200; Top Tickers This Week</h2>
+        {% if top_tickers %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-500 text-xs uppercase tracking-wider border-b border-gray-800">
+                        <th class="text-left py-2 pr-4">#</th>
+                        <th class="text-left py-2 pr-4">Ticker</th>
+                        <th class="text-center py-2 px-2">Signals</th>
+                        <th class="text-center py-2 px-2">&#128994; Bull</th>
+                        <th class="text-center py-2 px-2">&#128308; Bear</th>
+                        <th class="text-center py-2 px-2">Confidence</th>
+                        <th class="text-center py-2 px-2">Consensus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in top_tickers %}
+                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                        <td class="py-2 pr-4 text-gray-600 text-xs">{{ loop.index }}</td>
+                        <td class="py-2 pr-4">
+                            <a href="/ticker/{{ t.ticker }}" class="text-white font-bold hover:text-orange-400 transition">{{ t.ticker }}</a>
+                        </td>
+                        <td class="py-2 px-2 text-center text-gray-300">{{ t.total }}</td>
+                        <td class="py-2 px-2 text-center text-green-400">{{ t.bullish }}</td>
+                        <td class="py-2 px-2 text-center text-red-400">{{ t.bearish }}</td>
+                        <td class="py-2 px-2 text-center text-blue-400">{{ (t.avg_confidence * 100)|int }}%</td>
+                        <td class="py-2 px-2 text-center">
+                            {% if t.bullish > t.bearish %}
+                            <span class="text-green-400 text-xs font-semibold">BULLISH</span>
+                            {% elif t.bearish > t.bullish %}
+                            <span class="text-red-400 text-xs font-semibold">BEARISH</span>
+                            {% else %}
+                            <span class="text-yellow-400 text-xs font-semibold">MIXED</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500 text-center py-4">No ticker data available</p>
+        {% endif %}
+    </div>
+
+    <!-- Best & Worst Calls (Pro+ with charts) -->
+    {% if access.has_charts %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Best Call -->
+        <div class="stat-card rounded-xl p-5 border-l-4 border-green-500">
+            <h2 class="text-sm font-bold text-green-400 uppercase tracking-wider mb-3">&#127942; Best Call</h2>
+            {% if best_call %}
+            <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                    <a href="/ticker/{{ best_call.ticker }}" class="text-xl font-bold text-white hover:text-orange-400 transition">{{ best_call.ticker }}</a>
+                    <span class="px-2 py-0.5 rounded text-xs bg-green-900/30 border border-green-700 text-green-400">{{ best_call.stance|upper }}</span>
+                </div>
+                {% if best_call.gain_pct is not none %}
+                <p class="text-2xl font-bold text-green-400">+{{ "%.1f"|format(best_call.gain_pct) }}%</p>
+                {% endif %}
+                <p class="text-xs text-gray-400">{{ (best_call.confidence * 100)|int }}% confidence</p>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No performance data available yet</p>
+            {% endif %}
+        </div>
+
+        <!-- Worst Call -->
+        <div class="stat-card rounded-xl p-5 border-l-4 border-red-500">
+            <h2 class="text-sm font-bold text-red-400 uppercase tracking-wider mb-3">&#128169; Worst Call</h2>
+            {% if worst_call %}
+            <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                    <a href="/ticker/{{ worst_call.ticker }}" class="text-xl font-bold text-white hover:text-orange-400 transition">{{ worst_call.ticker }}</a>
+                    <span class="px-2 py-0.5 rounded text-xs bg-red-900/30 border border-red-700 text-red-400">{{ worst_call.stance|upper }}</span>
+                </div>
+                {% if worst_call.gain_pct is not none %}
+                <p class="text-2xl font-bold text-red-400">{{ "%.1f"|format(worst_call.gain_pct) }}%</p>
+                {% endif %}
+                <p class="text-xs text-gray-400">{{ (worst_call.confidence * 100)|int }}% confidence</p>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No performance data available yet</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="stat-card rounded-xl p-6 text-center locked-overlay">
+        <div class="relative z-10">
+            <p class="text-orange-400 text-sm font-semibold mb-1">&#128274; Best &amp; Worst Calls</p>
+            <p class="text-gray-400 text-xs">Upgrade to Pro to see which calls hit and which missed</p>
+            <a href="/pricing" class="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition">Upgrade to Pro</a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- No data state -->
+    <div class="text-center py-16 text-gray-500">
+        <div class="text-5xl mb-4">&#128240;</div>
+        <p class="text-xl font-semibold text-gray-400">No signals this week</p>
+        <p class="text-sm mt-2">Check back later — ROT generates wraps as signals come in.</p>
+        {% if selected_week != "0" %}
+        <a href="/weekly-wrap" class="inline-block mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg transition">
+            View Current Week
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Tier CTA -->
+    {% if tier == 'free' %}
+    <div class="text-center py-6 bg-blue-900/10 border border-blue-700/30 rounded-xl">
+        <p class="text-blue-400 text-sm font-semibold mb-1">&#128274; Viewing current week only</p>
+        <p class="text-gray-400 text-xs">Upgrade to Pro for 4-week archive, Premium for 12 weeks, Ultra for full history</p>
+        <a href="/pricing" class="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition">Upgrade</a>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Auto-generated from ROT signal data. Not financial advice.</p>
+        <p>Wraps are generated weekly from Reddit sentiment analysis.</p>
+    </div>
+
+</div>
+{% endblock %}

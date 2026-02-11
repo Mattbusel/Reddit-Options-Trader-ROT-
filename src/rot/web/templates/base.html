@@ -61,7 +61,11 @@
                 {% if user and user.tier == 'ultra' %}
                 <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
                 {% endif %}
-                <a href="/sports-tracker" class="text-gray-400 hover:text-white transition">Sports</a>
+                <a href="/sentiment" class="text-gray-400 hover:text-white transition">Sentiment</a>
+                <a href="/weekly-wrap" class="text-gray-400 hover:text-white transition">Weekly</a>
+                {% if user and user.tier in ('pro', 'premium', 'ultra') %}
+                <a href="/replay" class="text-gray-400 hover:text-white transition">Replay</a>
+                {% endif %}
                 <!-- More Dropdown -->
                 <div class="relative group">
                     <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
@@ -75,6 +79,9 @@
                             <a href="/glossary" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128218; Glossary of Degens</a>
                             <div class="border-t border-gray-700 my-1"></div>
                             <a href="/sports-tracker" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127944; Sports Tracker</a>
+                            <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
+                            <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
+                            <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
                         </div>
                     </div>
                 </div>

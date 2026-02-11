@@ -1203,6 +1203,173 @@ class Database:
         await self.db.commit()
 
 
+    # ── Sentiment Heatmap ──
+
+    async def get_sentiment_heatmap(
+        self, hours: int = 24, ticker_limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get sentiment data bucketed by ticker and time period for heatmap."""
+        cutoff = time.time() - (hours * 3600)
+        # Use 1h buckets for <= 24h, 4h for <= 7d, 1d for longer
+        if hours <= 24:
+            bucket_s = 3600
+        elif hours <= 168:
+            bucket_s = 14400
+        else:
+            bucket_s = 86400
+
+        query = """
+            SELECT ticker,
+                   CAST(created_at / ? AS INTEGER) * ? as time_bucket,
+                   COUNT(*) as signal_count,
+                   AVG(confidence) as avg_confidence,
+                   SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                   SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                   SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            GROUP BY ticker, time_bucket
+            ORDER BY signal_count DESC
+        """
+        async with self.db.execute(query, (bucket_s, bucket_s, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    # ── Ticker Deep Dive ──
+
+    async def get_ticker_summary(self, ticker: str) -> Dict[str, Any]:
+        """Get aggregate summary for a single ticker."""
+        query = """
+            SELECT ticker,
+                   COUNT(*) as total_signals,
+                   AVG(confidence) as avg_confidence,
+                   SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
+                   SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
+                   SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
+                   MIN(created_at) as first_signal_at,
+                   MAX(created_at) as latest_signal_at
+            FROM signals
+            WHERE ticker = ? AND ticker != 'UNKNOWN'
+        """
+        async with self.db.execute(query, (ticker.upper(),)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else {}
+
+    async def get_ticker_signals(
+        self, ticker: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get signals for a specific ticker, newest first."""
+        query = """
+            SELECT * FROM signals
+            WHERE ticker = ? AND ticker != 'UNKNOWN'
+            ORDER BY created_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (ticker.upper(), limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(r) for r in rows]
+
+    # ── Weekly Wrap ──
+
+    async def get_weekly_summary(
+        self, start_ts: float, end_ts: float
+    ) -> Dict[str, Any]:
+        """Get aggregated signal data for a given time window (week)."""
+        # Total signals and stance breakdown
+        query = """
+            SELECT COUNT(*) as total_signals,
+                   SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                   SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                   SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed,
+                   AVG(confidence) as avg_confidence
+            FROM signals
+            WHERE created_at >= ? AND created_at < ?
+              AND ticker != 'UNKNOWN'
+        """
+        async with self.db.execute(query, (start_ts, end_ts)) as cursor:
+            row = await cursor.fetchone()
+            summary = dict(row) if row else {}
+
+        # Top tickers by signal count
+        query2 = """
+            SELECT ticker, COUNT(*) as count,
+                   AVG(confidence) as avg_conf,
+                   SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bull,
+                   SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bear
+            FROM signals
+            WHERE created_at >= ? AND created_at < ?
+              AND ticker != 'UNKNOWN'
+            GROUP BY ticker
+            ORDER BY count DESC
+            LIMIT 20
+        """
+        async with self.db.execute(query2, (start_ts, end_ts)) as cursor:
+            rows = await cursor.fetchall()
+            summary["top_tickers"] = [dict(r) for r in rows]
+
+        # Best and worst performers (from signal_performance)
+        query3 = """
+            SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
+                   s.stance, s.confidence, s.event_type
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at >= ? AND s.created_at < ?
+              AND sp.max_gain_pct IS NOT NULL
+            ORDER BY sp.max_gain_pct DESC
+            LIMIT 5
+        """
+        async with self.db.execute(query3, (start_ts, end_ts)) as cursor:
+            rows = await cursor.fetchall()
+            summary["best_calls"] = [dict(r) for r in rows]
+
+        query4 = """
+            SELECT sp.ticker, sp.max_gain_pct, sp.max_loss_pct,
+                   s.stance, s.confidence, s.event_type
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at >= ? AND s.created_at < ?
+              AND sp.max_loss_pct IS NOT NULL
+            ORDER BY sp.max_loss_pct ASC
+            LIMIT 5
+        """
+        async with self.db.execute(query4, (start_ts, end_ts)) as cursor:
+            rows = await cursor.fetchall()
+            summary["worst_calls"] = [dict(r) for r in rows]
+
+        return summary
+
+    # ── Signal Replay ──
+
+    async def get_replay_data(
+        self, hours: int = 24, include_performance: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Get signals ordered by creation time for replay animation."""
+        cutoff = time.time() - (hours * 3600)
+
+        if include_performance:
+            query = """
+                SELECT s.id, s.ticker, s.stance, s.confidence, s.event_type,
+                       s.created_at, s.strategy, s.trend_score,
+                       sp.price_at_signal, sp.price_1d, sp.max_gain_pct, sp.max_loss_pct
+                FROM signals s
+                LEFT JOIN signal_performance sp ON s.id = sp.signal_id
+                WHERE s.created_at > ? AND s.ticker != 'UNKNOWN'
+                ORDER BY s.created_at ASC
+            """
+        else:
+            query = """
+                SELECT id, ticker, stance, confidence, event_type,
+                       created_at, strategy, trend_score
+                FROM signals
+                WHERE created_at > ? AND ticker != 'UNKNOWN'
+                ORDER BY created_at ASC
+            """
+
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
 def _to_dict(obj: Any) -> Dict[str, Any]:
     """Convert dataclass or dict to plain dict."""
     if hasattr(obj, "__dataclass_fields__"):

@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Signal Replay - Animated Timeline{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">Signal Replay</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Watch how signals unfolded in real time</p>
+    </div>
+
+    {% if not access.has_access %}
+    <!-- Free tier: no access -->
+    <div class="text-center py-16">
+        <div class="text-6xl mb-4">&#127916;</div>
+        <h2 class="text-2xl font-bold text-white mb-2">Signal Replay is a Pro Feature</h2>
+        <p class="text-gray-400 text-sm mb-6 max-w-md mx-auto">
+            Watch signals appear in real-time on an animated timeline. See how Reddit sentiment
+            evolved and whether predictions came true.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
+            <div class="stat-card rounded-xl p-4">
+                <div class="text-blue-400 font-bold text-sm mb-1">Pro</div>
+                <div class="text-xs text-gray-400">24h replay</div>
+            </div>
+            <div class="stat-card rounded-xl p-4">
+                <div class="text-purple-400 font-bold text-sm mb-1">Premium</div>
+                <div class="text-xs text-gray-400">7d + price overlay</div>
+            </div>
+            <div class="stat-card rounded-xl p-4">
+                <div class="text-orange-400 font-bold text-sm mb-1">Ultra</div>
+                <div class="text-xs text-gray-400">30d + export + step</div>
+            </div>
+        </div>
+        <a href="/pricing" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition">
+            Upgrade to Pro — $9.99/mo
+        </a>
+    </div>
+
+    {% else %}
+    <!-- Replay Controls -->
+    <div class="stat-card rounded-xl p-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <!-- Playback Controls -->
+            <div class="flex items-center gap-3">
+                <button id="btn-play" onclick="togglePlay()"
+                        class="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center transition text-lg">
+                    &#9654;
+                </button>
+                <button onclick="resetReplay()"
+                        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 text-xs hover:text-white transition">
+                    &#8634; Reset
+                </button>
+
+                <!-- Speed selector -->
+                <div class="flex items-center gap-1">
+                    <span class="text-xs text-gray-500">Speed:</span>
+                    <button onclick="setSpeed(1)" id="speed-1" class="px-2 py-1 rounded text-xs bg-white/10 text-white border border-white/20">1x</button>
+                    <button onclick="setSpeed(2)" id="speed-2" class="px-2 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-white/5">2x</button>
+                    <button onclick="setSpeed(5)" id="speed-5" class="px-2 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-white/5">5x</button>
+                    <button onclick="setSpeed(10)" id="speed-10" class="px-2 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-white/5">10x</button>
+                </div>
+
+                {% if access.has_step_controls %}
+                <div class="border-l border-gray-700 pl-3 flex items-center gap-1">
+                    <button onclick="stepBackward()" class="px-2 py-1 rounded text-xs bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition">&#9664; Step</button>
+                    <button onclick="stepForward()" class="px-2 py-1 rounded text-xs bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition">Step &#9654;</button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Time Range -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Range:</span>
+                {% for opt in time_options %}
+                {% if (opt.min_tier == 'pro' and tier in ('pro','premium','ultra')) or (opt.min_tier == 'premium' and tier in ('premium','ultra')) or (opt.min_tier == 'ultra' and tier == 'ultra') %}
+                <a href="/replay?hours={{ opt.value }}"
+                   class="px-3 py-1 rounded-full text-xs font-medium transition
+                   {% if selected_hours == opt.value %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                    {{ opt.label }}
+                </a>
+                {% else %}
+                <span class="px-3 py-1 rounded-full text-xs font-medium text-gray-600 border border-gray-800 cursor-not-allowed" title="Requires {{ opt.min_tier|capitalize }}">
+                    &#128274; {{ opt.label }}
+                </span>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-4">
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span id="replay-current">--</span>
+                <span id="replay-counter">0 / {{ total_signals }} signals</span>
+                <span id="replay-end">--</span>
+            </div>
+            <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden cursor-pointer" onclick="seekReplay(event)">
+                <div id="replay-progress" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="stat-card rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-green-400" id="stat-bull">0</div>
+            <div class="text-xs text-gray-500">Bullish</div>
+        </div>
+        <div class="stat-card rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-red-400" id="stat-bear">0</div>
+            <div class="text-xs text-gray-500">Bearish</div>
+        </div>
+        <div class="stat-card rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-yellow-400" id="stat-mixed">0</div>
+            <div class="text-xs text-gray-500">Mixed</div>
+        </div>
+        <div class="stat-card rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-blue-400" id="stat-total">0</div>
+            <div class="text-xs text-gray-500">Total</div>
+        </div>
+    </div>
+
+    <!-- Canvas Area -->
+    <div class="chart-container" style="min-height: 400px; position: relative;">
+        <canvas id="replayCanvas" style="width: 100%; height: 400px;"></canvas>
+        <div id="tooltip" class="absolute hidden bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl text-xs z-50 pointer-events-none" style="max-width: 250px;"></div>
+    </div>
+
+    <!-- Live Feed -->
+    <div class="stat-card rounded-xl p-4" style="max-height: 300px; overflow-y: auto;" id="live-feed">
+        <h2 class="text-sm font-semibold text-white mb-3 sticky top-0 bg-inherit">Live Signal Feed</h2>
+        <div id="feed-items" class="space-y-2"></div>
+    </div>
+
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8">
+        <p>Animated timeline of Reddit-sourced signals. Not financial advice.</p>
+    </div>
+</div>
+
+{% if access.has_access %}
+<script>
+(function() {
+    const signals = {{ signals_json|safe }};
+    const totalSignals = signals.length;
+    if (totalSignals === 0) return;
+
+    const canvas = document.getElementById('replayCanvas');
+    const ctx2d = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+
+    // State
+    let currentIndex = 0;
+    let playing = false;
+    let speed = 1;
+    let animFrame = null;
+    let lastTick = 0;
+    let visibleSignals = [];
+    let stats = { bull: 0, bear: 0, mixed: 0, total: 0 };
+
+    // Colors
+    const stanceColor = {
+        bullish: '#4ade80',
+        bearish: '#f87171',
+        mixed: '#facc15',
+        unknown: '#9ca3af',
+        neutral: '#9ca3af',
+    };
+
+    // Time range
+    const startTime = signals[0].ts;
+    const endTime = signals[signals.length - 1].ts;
+    const timeRange = endTime - startTime || 1;
+
+    // Set up labels
+    document.getElementById('replay-current').textContent = new Date(startTime).toLocaleString();
+    document.getElementById('replay-end').textContent = new Date(endTime).toLocaleString();
+
+    // Resize canvas
+    function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 48;
+        canvas.height = 400;
+        drawFrame();
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Draw
+    function drawFrame() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx2d.clearRect(0, 0, w, h);
+
+        // Grid lines
+        ctx2d.strokeStyle = 'rgba(75, 85, 99, 0.2)';
+        ctx2d.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (h / 4) * i;
+            ctx2d.beginPath();
+            ctx2d.moveTo(0, y);
+            ctx2d.lineTo(w, y);
+            ctx2d.stroke();
+        }
+
+        // Y axis labels
+        ctx2d.fillStyle = '#6b7280';
+        ctx2d.font = '10px sans-serif';
+        ctx2d.fillText('100%', 2, 14);
+        ctx2d.fillText('75%', 2, h * 0.25 + 4);
+        ctx2d.fillText('50%', 2, h * 0.5 + 4);
+        ctx2d.fillText('25%', 2, h * 0.75 + 4);
+        ctx2d.fillText('0%', 2, h - 4);
+
+        // Draw signals as dots
+        for (const s of visibleSignals) {
+            const x = ((s.ts - startTime) / timeRange) * (w - 40) + 20;
+            const y = h - (s.confidence / 100) * (h - 20) - 10;
+            const color = stanceColor[s.stance] || stanceColor.unknown;
+
+            // Glow
+            ctx2d.beginPath();
+            ctx2d.arc(x, y, 12, 0, Math.PI * 2);
+            ctx2d.fillStyle = color.replace(')', ', 0.15)').replace('rgb', 'rgba');
+            ctx2d.fill();
+
+            // Dot
+            ctx2d.beginPath();
+            ctx2d.arc(x, y, 5, 0, Math.PI * 2);
+            ctx2d.fillStyle = color;
+            ctx2d.fill();
+
+            // Ticker label for recent ones
+            if (visibleSignals.indexOf(s) >= visibleSignals.length - 8) {
+                ctx2d.fillStyle = '#e0e0e0';
+                ctx2d.font = 'bold 10px sans-serif';
+                ctx2d.fillText(s.ticker, x + 8, y - 4);
+            }
+
+            // Store position for hover
+            s._x = x;
+            s._y = y;
+        }
+    }
+
+    // Animation loop
+    function tick(timestamp) {
+        if (!playing) return;
+
+        if (timestamp - lastTick > (800 / speed)) {
+            lastTick = timestamp;
+
+            if (currentIndex < totalSignals) {
+                addSignal(currentIndex);
+                currentIndex++;
+                updateUI();
+            } else {
+                playing = false;
+                document.getElementById('btn-play').innerHTML = '&#9654;';
+                return;
+            }
+        }
+
+        animFrame = requestAnimationFrame(tick);
+    }
+
+    function addSignal(index) {
+        const s = signals[index];
+        visibleSignals.push(s);
+
+        // Update stats
+        if (s.stance === 'bullish') stats.bull++;
+        else if (s.stance === 'bearish') stats.bear++;
+        else if (s.stance === 'mixed') stats.mixed++;
+        stats.total++;
+
+        // Add to feed
+        addFeedItem(s);
+        drawFrame();
+    }
+
+    function addFeedItem(s) {
+        const container = document.getElementById('feed-items');
+        const color = s.stance === 'bullish' ? 'text-green-400 bg-green-900/30 border-green-700' :
+                      s.stance === 'bearish' ? 'text-red-400 bg-red-900/30 border-red-700' :
+                      s.stance === 'mixed' ? 'text-yellow-400 bg-yellow-900/30 border-yellow-700' :
+                      'text-gray-400 bg-gray-900/30 border-gray-700';
+
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-3 p-2 rounded-lg bg-gray-800/30 fade-in';
+        div.innerHTML = `
+            <span class="text-sm font-bold text-white">${s.ticker}</span>
+            <span class="px-2 py-0.5 rounded text-xs border ${color}">${s.stance}</span>
+            <span class="text-xs text-gray-400">${s.confidence}%</span>
+            <span class="text-xs text-gray-600 truncate flex-1">${s.thesis || s.event_type || ''}</span>
+            <span class="text-xs text-gray-600">${new Date(s.ts).toLocaleTimeString()}</span>
+        `;
+        container.insertBefore(div, container.firstChild);
+
+        // Keep max 30
+        while (container.children.length > 30) {
+            container.removeChild(container.lastChild);
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('stat-bull').textContent = stats.bull;
+        document.getElementById('stat-bear').textContent = stats.bear;
+        document.getElementById('stat-mixed').textContent = stats.mixed;
+        document.getElementById('stat-total').textContent = stats.total;
+        document.getElementById('replay-counter').textContent = `${currentIndex} / ${totalSignals} signals`;
+
+        const pct = (currentIndex / totalSignals) * 100;
+        document.getElementById('replay-progress').style.width = pct + '%';
+
+        if (currentIndex > 0 && currentIndex <= totalSignals) {
+            const ts = signals[currentIndex - 1].ts;
+            document.getElementById('replay-current').textContent = new Date(ts).toLocaleString();
+        }
+    }
+
+    // Controls
+    window.togglePlay = function() {
+        playing = !playing;
+        document.getElementById('btn-play').innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
+        if (playing) {
+            lastTick = 0;
+            animFrame = requestAnimationFrame(tick);
+        }
+    };
+
+    window.resetReplay = function() {
+        playing = false;
+        document.getElementById('btn-play').innerHTML = '&#9654;';
+        if (animFrame) cancelAnimationFrame(animFrame);
+        currentIndex = 0;
+        visibleSignals = [];
+        stats = { bull: 0, bear: 0, mixed: 0, total: 0 };
+        document.getElementById('feed-items').innerHTML = '';
+        updateUI();
+        drawFrame();
+    };
+
+    window.setSpeed = function(s) {
+        speed = s;
+        [1, 2, 5, 10].forEach(v => {
+            const el = document.getElementById('speed-' + v);
+            if (v === s) {
+                el.className = 'px-2 py-1 rounded text-xs bg-white/10 text-white border border-white/20';
+            } else {
+                el.className = 'px-2 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-white/5';
+            }
+        });
+    };
+
+    window.stepForward = function() {
+        if (currentIndex < totalSignals) {
+            addSignal(currentIndex);
+            currentIndex++;
+            updateUI();
+        }
+    };
+
+    window.stepBackward = function() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            const removed = visibleSignals.pop();
+            if (removed) {
+                if (removed.stance === 'bullish') stats.bull--;
+                else if (removed.stance === 'bearish') stats.bear--;
+                else if (removed.stance === 'mixed') stats.mixed--;
+                stats.total--;
+            }
+            updateUI();
+            drawFrame();
+        }
+    };
+
+    window.seekReplay = function(e) {
+        const bar = e.currentTarget;
+        const rect = bar.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        const targetIndex = Math.floor(pct * totalSignals);
+
+        // Reset and replay up to target
+        visibleSignals = [];
+        stats = { bull: 0, bear: 0, mixed: 0, total: 0 };
+        document.getElementById('feed-items').innerHTML = '';
+
+        for (let i = 0; i < targetIndex && i < totalSignals; i++) {
+            const s = signals[i];
+            visibleSignals.push(s);
+            if (s.stance === 'bullish') stats.bull++;
+            else if (s.stance === 'bearish') stats.bear++;
+            else if (s.stance === 'mixed') stats.mixed++;
+            stats.total++;
+        }
+
+        // Only add last few to feed
+        const feedStart = Math.max(0, targetIndex - 10);
+        for (let i = feedStart; i < targetIndex; i++) {
+            addFeedItem(signals[i]);
+        }
+
+        currentIndex = targetIndex;
+        updateUI();
+        drawFrame();
+    };
+
+    // Mouse hover for tooltips
+    canvas.addEventListener('mousemove', function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let found = null;
+        for (const s of visibleSignals) {
+            if (s._x && Math.abs(s._x - mx) < 10 && Math.abs(s._y - my) < 10) {
+                found = s;
+                break;
+            }
+        }
+
+        if (found) {
+            tooltip.classList.remove('hidden');
+            tooltip.style.left = (found._x + 15) + 'px';
+            tooltip.style.top = (found._y - 10) + 'px';
+            tooltip.innerHTML = `
+                <div class="font-bold text-white">${found.ticker}</div>
+                <div class="text-gray-400">${found.stance} · ${found.confidence}% conf</div>
+                <div class="text-gray-500 mt-1">${found.thesis || found.event_type || ''}</div>
+                <div class="text-gray-600 mt-1">${new Date(found.ts).toLocaleString()}</div>
+                ${found.gain_pct !== null && found.gain_pct !== undefined ? `<div class="${found.gain_pct >= 0 ? 'text-green-400' : 'text-red-400'} font-bold mt-1">${found.gain_pct >= 0 ? '+' : ''}${found.gain_pct.toFixed(1)}%</div>` : ''}
+            `;
+        } else {
+            tooltip.classList.add('hidden');
+        }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        tooltip.classList.add('hidden');
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

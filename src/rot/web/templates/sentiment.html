@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Sentiment Heatmap - Reddit Signal Intelligence{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-green-400 via-yellow-400 to-red-400 bg-clip-text text-transparent">Sentiment Heatmap</span>
+        </h1>
+        <p class="text-gray-400 text-lg">See what Reddit thinks about every ticker, at a glance</p>
+    </div>
+
+    <!-- Stats + Time Range -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div class="flex gap-4">
+            <div class="stat-card rounded-xl px-4 py-3 text-center">
+                <div class="text-2xl font-bold text-blue-400">{{ total_tickers }}</div>
+                <div class="text-xs text-gray-500">Tickers</div>
+            </div>
+            <div class="stat-card rounded-xl px-4 py-3 text-center">
+                <div class="text-2xl font-bold text-green-400">{{ total_signals }}</div>
+                <div class="text-xs text-gray-500">Signals</div>
+            </div>
+            <div class="stat-card rounded-xl px-4 py-3 text-center">
+                <div class="text-2xl font-bold text-orange-400">{{ buckets|length }}</div>
+                <div class="text-xs text-gray-500">Time Periods</div>
+            </div>
+        </div>
+
+        <!-- Time Range Selector -->
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Range:</span>
+            {% for opt in time_options %}
+            {% if opt.min_tier == 'free' or (opt.min_tier == 'pro' and tier in ('pro','premium','ultra')) or (opt.min_tier == 'premium' and tier in ('premium','ultra')) or (opt.min_tier == 'ultra' and tier == 'ultra') %}
+            <a href="/sentiment?hours={{ opt.value }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition
+               {% if selected_hours == opt.value %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ opt.label }}
+            </a>
+            {% else %}
+            <span class="px-3 py-1 rounded-full text-xs font-medium text-gray-600 border border-gray-800 cursor-not-allowed" title="Requires {{ opt.min_tier|capitalize }}">
+                &#128274; {{ opt.label }}
+            </span>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Hot Right Now -->
+    {% if hot_now %}
+    <div class="stat-card rounded-xl p-4 mb-6">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-semibold text-white">Hottest Right Now</span>
+            <span class="w-2 h-2 rounded-full bg-green-500 pulse"></span>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            {% for h in hot_now %}
+            <a href="/ticker/{{ h.ticker }}" class="px-3 py-1.5 rounded-lg bg-orange-900/30 border border-orange-700/50 text-orange-300 text-sm font-semibold hover:bg-orange-800/40 transition">
+                {{ h.ticker }} <span class="text-orange-500 text-xs">({{ h.count }})</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Heatmap Grid -->
+    {% if tickers %}
+    <div class="stat-card rounded-xl p-4 overflow-x-auto">
+        <h2 class="text-sm font-semibold text-white mb-3">Sentiment Grid ({{ selected_hours }}h)</h2>
+
+        <div class="min-w-[600px]">
+            <!-- Header row: time labels -->
+            <div class="flex items-center mb-1">
+                <div class="w-20 flex-shrink-0"></div>
+                {% for label in bucket_labels %}
+                <div class="flex-1 text-center text-[10px] text-gray-600 truncate px-0.5">{{ label }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Data rows -->
+            {% for ticker in tickers %}
+            <div class="flex items-center mb-0.5 group">
+                <a href="/ticker/{{ ticker }}" class="w-20 flex-shrink-0 text-xs font-bold text-gray-300 group-hover:text-white transition truncate pr-2">
+                    {{ ticker }}
+                </a>
+                {% for bucket in buckets %}
+                {% set cell = ticker_data.get(ticker, {}).get(bucket, {}) %}
+                {% if cell %}
+                    {% set s = cell.sentiment %}
+                    {% set opacity = (cell.confidence * 100)|int %}
+                    <div class="flex-1 h-6 mx-0.5 rounded-sm cursor-pointer transition-all hover:scale-110
+                        {% if s == 'bullish' %}bg-green-500
+                        {% elif s == 'bearish' %}bg-red-500
+                        {% elif s == 'mixed' %}bg-yellow-500
+                        {% else %}bg-gray-700{% endif %}"
+                        style="opacity: {{ [0.3, opacity / 100]|max }};"
+                        title="{{ ticker }} | {{ cell.sentiment|capitalize }} | {{ cell.count }} signals | {{ (cell.confidence * 100)|int }}% conf">
+                    </div>
+                {% else %}
+                    <div class="flex-1 h-6 mx-0.5 rounded-sm bg-gray-800/30"></div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center gap-4 mt-4 justify-center text-xs text-gray-500">
+            <div class="flex items-center gap-1"><div class="w-4 h-4 rounded bg-green-500"></div> Bullish</div>
+            <div class="flex items-center gap-1"><div class="w-4 h-4 rounded bg-red-500"></div> Bearish</div>
+            <div class="flex items-center gap-1"><div class="w-4 h-4 rounded bg-yellow-500"></div> Mixed</div>
+            <div class="flex items-center gap-1"><div class="w-4 h-4 rounded bg-gray-700"></div> No Data</div>
+            <span class="text-gray-600">|</span>
+            <span>Opacity = confidence level</span>
+        </div>
+    </div>
+
+    {% if tier == 'free' %}
+    <div class="text-center py-6 bg-orange-900/10 border border-orange-700/30 rounded-xl">
+        <p class="text-orange-400 text-sm font-semibold mb-1">&#128274; Showing top {{ access.max_tickers }} tickers (24h only)</p>
+        <p class="text-gray-400 text-xs">Upgrade to Pro to see 50 tickers across 7 days</p>
+        <a href="/pricing" class="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition">Upgrade</a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-12 text-gray-500">
+        <div class="text-4xl mb-3">&#128200;</div>
+        <p class="text-lg">No sentiment data yet</p>
+        <p class="text-sm mt-1">Signals will populate the heatmap as they're generated.</p>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8">
+        <p>Sentiment derived from Reddit signal analysis. Brighter cells = higher confidence. Not financial advice.</p>
+    </div>
+
+</div>
+{% endblock %}
