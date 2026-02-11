@@ -261,6 +261,9 @@ async def _run_server(cfg: Settings):
     else:
         log.info("Email alerter: DISABLED (set ROT_EMAIL_* to enable)")
 
+    # Store email alerter on app state so routes can send emails (e.g. password reset)
+    app.state.email_alerter = email_alerter
+
     # Create alert dispatcher
     dispatcher = AlertDispatcher(
         discord_webhook_url=cfg.alert.discord_webhook_url,

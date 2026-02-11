@@ -415,6 +415,13 @@ class Database:
         )
         await self.db.commit()
 
+    async def update_user_password(self, user_id: str, password_hash: str) -> None:
+        """Update a user's password hash."""
+        await self.db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id)
+        )
+        await self.db.commit()
+
     async def update_user_settings(self, user_id: str, settings: Dict[str, Any]) -> None:
         await self.db.execute(
             "UPDATE users SET settings = ? WHERE id = ?", (json.dumps(settings), user_id)

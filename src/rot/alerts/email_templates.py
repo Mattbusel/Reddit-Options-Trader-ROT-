@@ -1,4 +1,4 @@
-"""HTML email templates for ROT signal alerts and digests."""
+"""HTML email templates for ROT signal alerts, digests, and password reset."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -130,6 +130,38 @@ def render_daily_digest(
     </div>
     <div style="padding:12px 24px;border-top:1px solid #2a2a4a;text-align:center;font-size:11px;color:#666;">
       Reddit Options Trader (ROT) &mdash; Manage alerts in Account Settings
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def render_password_reset(reset_url: str) -> str:
+    """Render a password reset email with a link."""
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="background:#1a1a2e;color:#e0e0e0;font-family:Arial,sans-serif;padding:20px;">
+  <div style="max-width:600px;margin:0 auto;background:#16213e;border-radius:12px;overflow:hidden;">
+    <div style="background:#f59e0b;padding:16px 24px;">
+      <h1 style="margin:0;color:#000;font-size:22px;">Password Reset</h1>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;line-height:1.6;">
+        You requested a password reset for your ROT account. Click the button below to set a new password.
+      </p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{reset_url}" style="background:#f59e0b;color:#000;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">Reset Password</a>
+      </div>
+      <p style="margin:16px 0 0;color:#9ca3af;font-size:13px;line-height:1.5;">
+        This link expires in 1 hour. If you didn't request this, you can ignore this email.
+      </p>
+      <p style="margin:12px 0 0;color:#666;font-size:11px;word-break:break-all;">
+        {reset_url}
+      </p>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #2a2a4a;text-align:center;font-size:11px;color:#666;">
+      Reddit Options Trader (ROT) &mdash; Do not share this link
     </div>
   </div>
 </body>
