@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 log = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from rot.web.auth import (
     create_access_token,
@@ -29,95 +29,6 @@ from rot.web.tier_gate import (
 )
 
 router = APIRouter()
-
-
-@router.get("/debug/perf-data")
-async def debug_perf_data(request: Request):
-    """Temporary diagnostic endpoint to debug win rate calculation."""
-    db = request.app.state.db
-    # Get raw performance data with stance info
-    query = """
-        SELECT sp.id, sp.ticker, sp.price_at_signal,
-               sp.price_1h, sp.price_4h, sp.price_1d, sp.price_1w,
-               sp.max_gain_pct, sp.max_loss_pct,
-               sp.created_at as sp_created_at,
-               s.stance, s.created_at as s_created_at
-        FROM signal_performance sp
-        JOIN signals s ON sp.signal_id = s.id
-        WHERE sp.price_at_signal > 0
-        ORDER BY s.created_at DESC
-        LIMIT 20
-    """
-    import time
-    cutoff_7d = time.time() - (7 * 86400)
-    async with db.db.execute(query) as cursor:
-        rows = await cursor.fetchall()
-        results = []
-        for row in rows:
-            d = dict(row)
-            # Calculate what the win/loss logic would say
-            stance = d.get("stance", "unknown")
-            best_price = d.get("price_1d") or d.get("price_4h") or d.get("price_1h")
-            price_at = d.get("price_at_signal")
-            if best_price and price_at:
-                pct_change = (best_price / price_at - 1.0) * 100
-                if stance == "bearish":
-                    is_winner = best_price < price_at
-                else:
-                    is_winner = best_price > price_at
-            else:
-                pct_change = None
-                is_winner = None
-            d["_pct_change"] = round(pct_change, 4) if pct_change else None
-            d["_is_winner"] = is_winner
-            d["_best_price_source"] = "1d" if d.get("price_1d") else "4h" if d.get("price_4h") else "1h" if d.get("price_1h") else "none"
-            d["_passes_7d_cutoff"] = (d.get("s_created_at") or 0) > cutoff_7d
-            results.append(d)
-
-    # Get records WITH prices
-    query2 = """
-        SELECT sp.id, sp.ticker, sp.price_at_signal,
-               sp.price_1h, sp.price_4h, sp.price_1d, sp.price_1w,
-               sp.max_gain_pct, sp.max_loss_pct,
-               sp.created_at as sp_created_at,
-               s.stance, s.created_at as s_created_at
-        FROM signal_performance sp
-        JOIN signals s ON sp.signal_id = s.id
-        WHERE sp.price_at_signal > 0
-          AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL OR sp.price_1d IS NOT NULL)
-        ORDER BY s.created_at DESC
-        LIMIT 10
-    """
-    async with db.db.execute(query2) as cursor:
-        rows2 = await cursor.fetchall()
-        with_prices = [dict(r) for r in rows2]
-
-    # Count totals
-    count_query = """
-        SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
-                     OR sp.price_1d IS NOT NULL THEN 1 ELSE 0 END) as has_any_price,
-            SUM(CASE WHEN sp.price_1h IS NULL AND sp.price_4h IS NULL
-                     AND sp.price_1d IS NULL THEN 1 ELSE 0 END) as no_prices
-        FROM signal_performance sp
-        JOIN signals s ON sp.signal_id = s.id
-        WHERE sp.price_at_signal > 0 AND s.created_at > ?
-    """
-    async with db.db.execute(count_query, (cutoff_7d,)) as cursor:
-        count_row = await cursor.fetchone()
-        counts = dict(count_row) if count_row else {}
-
-    # Also get the aggregate result
-    accuracy = await db.get_aggregate_accuracy(days=7)
-
-    return JSONResponse({
-        "accuracy_result": accuracy,
-        "cutoff_7d": cutoff_7d,
-        "counts_7d": counts,
-        "sample_recent_no_prices": results[:5],
-        "sample_with_prices": with_prices,
-    })
 
 
 def _format_time(ts: float | None) -> str:
