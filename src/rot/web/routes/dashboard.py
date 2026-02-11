@@ -13,7 +13,17 @@ from rot.web.auth import (
     require_user,
     verify_password,
 )
-from rot.web.tier_gate import gate_chart_access, gate_signal, gate_signal_list
+from rot.web.tier_gate import (
+    gate_chart_access,
+    gate_correlation_access,
+    gate_filter_access,
+    gate_heatmap_access,
+    gate_leaderboard_access,
+    gate_market_context,
+    gate_performance_access,
+    gate_signal,
+    gate_signal_list,
+)
 
 router = APIRouter()
 
@@ -90,12 +100,24 @@ async def dashboard(request: Request):
     q_stance = request.query_params.get("stance", "").strip().lower() or None
     q_event = request.query_params.get("event_type", "").strip().lower() or None
     q_confidence = request.query_params.get("min_confidence", "").strip() or None
+    q_date_range = request.query_params.get("date_range", "").strip() or None
     min_conf_float = None
     if q_confidence:
         try:
             min_conf_float = float(q_confidence) / 100.0  # UI sends %, DB stores 0-1
         except ValueError:
             min_conf_float = None
+
+    # Date range filter (premium+ only)
+    import time as _time
+    filter_access = gate_filter_access(tier)
+    date_from = None
+    date_to = None
+    if filter_access["has_date_range"] and q_date_range:
+        now = _time.time()
+        range_map = {"24h": 86400, "7d": 604800, "30d": 2592000}
+        if q_date_range in range_map:
+            date_from = now - range_map[q_date_range]
 
     db = request.app.state.db
     signals = await db.get_signals(
@@ -104,6 +126,8 @@ async def dashboard(request: Request):
         stance=q_stance if q_stance in ("bullish", "bearish", "mixed") else None,
         min_confidence=min_conf_float,
         event_type=q_event,
+        date_from=date_from,
+        date_to=date_to,
     )
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
@@ -125,6 +149,59 @@ async def dashboard(request: Request):
         page_limit=settings.tier_limits.free_page_limit,
     )
 
+    # Accuracy tracker data
+    perf_access = gate_performance_access(tier)
+    accuracy = await db.get_aggregate_accuracy(days=perf_access["accuracy_days"])
+
+    # Leaderboard data
+    lb_access = gate_leaderboard_access(tier)
+    leaderboard_hours = 24
+    q_lb_hours = request.query_params.get("lb_hours", "")
+    if q_lb_hours and lb_access["has_historical"]:
+        try:
+            leaderboard_hours = int(q_lb_hours)
+        except ValueError:
+            pass
+    if lb_access["has_performance_column"]:
+        leaderboard = await db.get_leaderboard_with_performance(
+            hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
+        )
+    else:
+        leaderboard = await db.get_leaderboard(
+            hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
+        )
+
+    # Sector heatmap data (pro+)
+    heatmap_access = gate_heatmap_access(tier)
+    heatmap_data = None
+    if heatmap_access["has_heatmap"]:
+        heatmap_data = await db.get_sector_heatmap_data(
+            hours=chart_access["chart_hours"] or 24
+        )
+
+    # Correlation data (pro+)
+    corr_access = gate_correlation_access(tier)
+    correlations = None
+    if corr_access["has_correlation"]:
+        correlations = await db.get_co_occurring_tickers(hours=24, min_co_occurrence=2)
+
+    # Signal count badge
+    new_signal_count = 0
+    if user:
+        user_settings = user.get("settings", {})
+        last_visit = user_settings.get("last_visit_at", 0) if isinstance(user_settings, dict) else 0
+        if last_visit:
+            new_signal_count = await db.get_signals_since(last_visit)
+        # Update last visit timestamp
+        await db.update_last_visit(user["id"])
+
+    # Saved filter presets (ultra only)
+    filter_presets = []
+    if filter_access["has_saved_presets"] and user:
+        user_settings = user.get("settings", {})
+        if isinstance(user_settings, dict):
+            filter_presets = user_settings.get("filter_presets", [])
+
     ctx = _base_context(request, user)
     ctx.update({
         "signals": gated,
@@ -138,9 +215,23 @@ async def dashboard(request: Request):
         "filter_stance": q_stance or "",
         "filter_event": q_event or "",
         "filter_confidence": q_confidence or "",
-        "has_filters": bool(q_ticker or q_stance or q_event or q_confidence),
+        "filter_date_range": q_date_range or "",
+        "has_filters": bool(q_ticker or q_stance or q_event or q_confidence or q_date_range),
         "watchlist": (user or {}).get("settings", {}).get("watchlist", []) if user else [],
         "watchlist_limit": {"free": 3, "pro": 20, "premium": 50, "ultra": 999}.get(tier, 3),
+        "filter_access": filter_access,
+        "perf_access": perf_access,
+        "accuracy": accuracy,
+        "leaderboard": leaderboard,
+        "lb_access": lb_access,
+        "lb_hours": leaderboard_hours,
+        "heatmap_access": heatmap_access,
+        "heatmap_data": heatmap_data,
+        "corr_access": corr_access,
+        "correlations": correlations,
+        "market_context": gate_market_context(tier),
+        "new_signal_count": new_signal_count,
+        "filter_presets": filter_presets,
     })
 
     templates = request.app.state.templates
@@ -160,10 +251,19 @@ async def signal_detail(request: Request, signal_id: str):
 
     gated = gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
 
+    # Get performance data for this signal
+    perf_access = gate_performance_access(tier)
+    performance = None
+    if perf_access["has_per_signal_pnl"]:
+        performance = await db.get_performance_for_signal(signal_id)
+
     ctx = _base_context(request, user)
     ctx.update({
         "signal": gated,
         "json_dumps": json.dumps,
+        "performance": performance,
+        "perf_access": perf_access,
+        "market_context": gate_market_context(tier),
     })
 
     templates = request.app.state.templates
@@ -286,6 +386,9 @@ async def account_page(request: Request):
     db = request.app.state.db
     sub = await db.get_subscription(user["id"])
 
+    from rot.web.tier_gate import gate_email_access
+    tier = user.get("tier", "free")
+
     ctx = _base_context(request, user)
     ctx["subscription"] = sub
     ctx["has_api_key"] = bool(user.get("api_key_hash"))
@@ -294,6 +397,7 @@ async def account_page(request: Request):
         "model": user.get("settings", {}).get("llm_model", ""),
         "has_key": bool(user.get("settings", {}).get("llm_api_key")),
     }
+    ctx["email_access"] = gate_email_access(tier)
 
     templates = request.app.state.templates
     return templates.TemplateResponse("account.html", ctx)

@@ -141,6 +141,21 @@ class MarketEnricher:
             except Exception:
                 pass
 
+            # Extended market data: sector, industry, volume, etc.
+            try:
+                full_info = t.info
+                if isinstance(full_info, dict):
+                    out["sector"] = full_info.get("sector", "")
+                    out["industry"] = full_info.get("industry", "")
+                    out["volume"] = full_info.get("volume")
+                    out["avg_volume"] = full_info.get("averageVolume")
+                    out["fifty_two_week_high"] = full_info.get("fiftyTwoWeekHigh")
+                    out["fifty_two_week_low"] = full_info.get("fiftyTwoWeekLow")
+                    out["pe_ratio"] = full_info.get("trailingPE")
+                    out["beta"] = full_info.get("beta")
+            except Exception:
+                pass
+
         return out
 
     def get_symbol(self, raw: str) -> Optional[str]:

@@ -251,6 +251,94 @@
 
     <!-- Sidebar -->
     <div class="space-y-6">
+        <!-- Performance Tracking Card (pro+) -->
+        {% if performance and perf_access.has_per_signal_pnl %}
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(74, 222, 128, 0.3);">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <div class="space-y-3 text-sm">
+                {% if performance.price_at_signal %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">Price at Signal</span>
+                    <span class="text-white font-semibold">${{ "%.2f"|format(performance.price_at_signal) }}</span>
+                </div>
+                {% endif %}
+                {% if performance.price_1h %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1H Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1h) }}</span>
+                        {% set pct_1h = ((performance.price_1h - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1h >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1h) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_4h %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">4H Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_4h) }}</span>
+                        {% set pct_4h = ((performance.price_4h - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_4h >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_4h) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_1d %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1D Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1d) }}</span>
+                        {% set pct_1d = ((performance.price_1d - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1d >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1d) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_1w %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1W Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1w) }}</span>
+                        {% set pct_1w = ((performance.price_1w - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1w >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1w) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.gain_loss_pct is not none %}
+                <div class="flex items-center justify-between pt-2 border-t border-gray-700">
+                    <span class="text-gray-400 font-semibold">P&L</span>
+                    <span class="font-bold text-lg {{ 'text-green-400' if performance.gain_loss_pct >= 0 else 'text-red-400' }}">
+                        {{ "%+.2f"|format(performance.gain_loss_pct) }}%
+                    </span>
+                </div>
+                {% endif %}
+                {% if not performance.price_1h and not performance.price_1d %}
+                <p class="text-gray-500 text-xs text-center py-2">Tracking in progress — prices will update as time windows elapse.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% elif perf_access.has_per_signal_pnl and not performance %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <p class="text-gray-500 text-sm text-center py-4">No performance data tracked for this signal yet.</p>
+        </div>
+        {% elif not perf_access.has_per_signal_pnl %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-4 text-center">
+                <p class="text-gray-500 text-sm mb-2">Signal P&L tracking available on Pro+</p>
+                <a href="/pricing" class="text-orange-400 hover:underline text-sm">Upgrade to unlock</a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Market Data -->
         {% set market = signal.get('market_data', {}) %}
         {% if market %}
@@ -281,6 +369,44 @@
                     <span class="text-sm text-gray-400">Market Cap</span>
                     <span class="text-xs text-gray-300">${{ "%.1f"|format(data.market_cap / 1e9) }}B</span>
                 </div>
+                {% endif %}
+                {% if market_context.has_extended_market %}
+                {% if data.get('volume') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Volume</span>
+                    <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.volume) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('fifty_two_week_high') and data.get('fifty_two_week_low') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">52W Range</span>
+                    <span class="text-xs text-gray-300">${{ "%.2f"|format(data.fifty_two_week_low) }} – ${{ "%.2f"|format(data.fifty_two_week_high) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('pe_ratio') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">P/E Ratio</span>
+                    <span class="text-xs text-gray-300">{{ "%.1f"|format(data.pe_ratio) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('beta') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Beta</span>
+                    <span class="text-xs text-gray-300">{{ "%.2f"|format(data.beta) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('sector') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Sector</span>
+                    <span class="text-xs text-gray-300">{{ data.sector }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('industry') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Industry</span>
+                    <span class="text-xs text-gray-300">{{ data.industry }}</span>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
             {% endfor %}

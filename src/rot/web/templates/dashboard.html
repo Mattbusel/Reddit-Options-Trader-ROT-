@@ -15,7 +15,7 @@
 {% endif %}
 
 <!-- Stats Bar -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
         <div class="text-3xl font-bold text-white">{{ summary.get('total_signals', 0) }}</div>
@@ -41,6 +41,17 @@
             <span class="text-yellow-400">{{ summary.get('mixed_count', 0) }}</span>
         </div>
         <div class="text-xs text-gray-500 mt-1">Bull / Bear / Mix</div>
+    </div>
+    <!-- Signal Accuracy Tracker -->
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate ({{ perf_access.accuracy_days }}d)</div>
+        {% if accuracy.total_tracked > 0 %}
+        <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
+        <div class="text-xs text-gray-500 mt-1">{{ accuracy.total_tracked }} tracked | {{ accuracy.winners or 0 }}W / {{ accuracy.losers or 0 }}L</div>
+        {% else %}
+        <div class="text-3xl font-bold text-gray-600">&mdash;</div>
+        <div class="text-xs text-gray-500 mt-1">Tracking signals...</div>
+        {% endif %}
     </div>
 </div>
 
@@ -359,11 +370,38 @@
             <input type="number" name="min_confidence" value="{{ filter_confidence }}" placeholder="0" min="0" max="100" step="5"
                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
         </div>
+        {% if filter_access.has_date_range %}
+        <!-- Date Range (premium+) -->
+        <div class="min-w-[120px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Date Range</label>
+            <select name="date_range" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All Time</option>
+                <option value="24h" {{ 'selected' if filter_date_range == '24h' }}>Last 24h</option>
+                <option value="7d" {{ 'selected' if filter_date_range == '7d' }}>Last 7d</option>
+                <option value="30d" {{ 'selected' if filter_date_range == '30d' }}>Last 30d</option>
+            </select>
+        </div>
+        {% endif %}
+        {% if filter_access.has_saved_presets and filter_presets|length > 0 %}
+        <!-- Saved Presets (ultra) -->
+        <div class="min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Preset</label>
+            <select onchange="loadPreset(this.value)" class="w-full bg-gray-800 border border-amber-700/50 rounded-lg px-3 py-2 text-sm text-amber-400 focus:border-amber-500 focus:outline-none transition appearance-none">
+                <option value="">Select preset...</option>
+                {% for p in filter_presets %}
+                <option value="{{ loop.index0 }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <!-- Buttons -->
         <div class="flex space-x-2">
             <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">Filter</button>
             {% if has_filters %}
             <a href="/dashboard" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition">Clear</a>
+            {% endif %}
+            {% if filter_access.has_saved_presets %}
+            <button type="button" onclick="saveCurrentPreset()" class="px-4 py-2 rounded-lg bg-amber-900/40 hover:bg-amber-900/60 text-amber-400 border border-amber-700/50 text-sm transition" title="Save current filter as preset">Save</button>
             {% endif %}
         </div>
     </form>
@@ -400,6 +438,16 @@
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center space-x-3 flex-wrap gap-y-2">
                         <span class="text-xl font-bold text-white tracking-tight">{{ s.ticker }}</span>
+                        {% if market_context.has_price_badge and s.market_data is mapping %}
+                        {% set md = s.market_data.get(s.ticker, {}) if s.market_data is mapping else {} %}
+                        {% if md.get('last_close') %}
+                        <span class="text-xs text-gray-400">${{ "%.2f"|format(md.last_close) }}
+                            {% if md.get('pct_1d') is not none %}
+                            <span class="{{ 'text-green-400' if md.pct_1d >= 0 else 'text-red-400' }}">{{ "%.1f"|format(md.pct_1d * 100) }}%</span>
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                        {% endif %}
                         <span class="badge border {{ stance_bg(s.stance) }} {{ stance_color(s.stance) }}">{{ s.stance }}</span>
                         <span class="badge bg-gray-700/70 text-gray-300">{{ s.event_type }}</span>
                         {% if s.strategy and s.strategy != 'none' %}
@@ -493,6 +541,104 @@
             </div>
         </div>
 
+        <!-- Signal Leaderboard -->
+        {% if lb_access.has_leaderboard %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-sm font-semibold text-white">&#127942; Leaderboard</h2>
+                {% if lb_access.has_historical %}
+                <select onchange="window.location.href='/dashboard?lb_hours='+this.value" class="bg-gray-800 border border-gray-700 text-gray-400 rounded px-2 py-0.5 text-xs">
+                    <option value="24" {{ 'selected' if lb_hours == 24 }}>24h</option>
+                    <option value="168" {{ 'selected' if lb_hours == 168 }}>7d</option>
+                    <option value="720" {{ 'selected' if lb_hours == 720 }}>30d</option>
+                    {% if lb_access.has_custom_range %}
+                    <option value="2160" {{ 'selected' if lb_hours == 2160 }}>90d</option>
+                    {% endif %}
+                </select>
+                {% endif %}
+            </div>
+            <div class="space-y-1.5">
+                {% for item in leaderboard %}
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-2.5 hover:border-gray-600 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-gray-500 w-4">{{ loop.index }}</span>
+                            <a href="/dashboard?ticker={{ item.ticker }}" class="font-bold text-white text-sm hover:text-blue-400 transition">{{ item.ticker }}</a>
+                        </div>
+                        <span class="text-xs text-gray-400">{{ item.signal_count }} signals</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1 text-xs">
+                        <span class="text-gray-500">conf: {{ "%.0f"|format((item.avg_confidence or 0) * 100) }}%</span>
+                        {% if lb_access.has_performance_column and item.win_rate is not none %}
+                        <span class="{{ 'text-green-400' if item.win_rate >= 50 else 'text-red-400' }}">{{ "%.0f"|format(item.win_rate) }}% WR</span>
+                        {% else %}
+                        <span class="text-gray-500">{{ item.stances }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-xs">No data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sector Heatmap -->
+        {% if heatmap_access.has_heatmap and heatmap_data %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128293; Sector Heatmap</h2>
+            <div class="grid grid-cols-2 gap-1.5">
+                {% for sector in heatmap_data %}
+                {% set total = (sector.bullish_count or 0) + (sector.bearish_count or 0) + (sector.mixed_count or 0) %}
+                {% set bull_ratio = (sector.bullish_count or 0) / total if total > 0 else 0.5 %}
+                {% if heatmap_access.has_drill_down %}
+                <a href="/dashboard?ticker=&event_type=&stance=&min_confidence=" title="{{ sector.tickers }}"
+                {% else %}
+                <div title="{{ sector.sector }}: {{ total }} signals"
+                {% endif %}
+                   class="rounded-lg p-2 text-center transition hover:opacity-80"
+                   style="background: rgba({{ (248 * (1 - bull_ratio) + 74 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 222 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 128 * bull_ratio)|int }}, {{ (0.2 + (sector.signal_count or 1) * 0.08)|min(0.7) }});">
+                    <div class="text-xs font-semibold text-white truncate">{{ sector.sector or 'Unknown' }}</div>
+                    <div class="text-xs text-gray-300">{{ total }} sigs</div>
+                {% if heatmap_access.has_drill_down %}
+                </a>
+                {% else %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% elif heatmap_access.has_heatmap %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128293; Sector Heatmap</h2>
+            <p class="text-gray-500 text-xs">No sector data available yet. Sectors populate as signals are enriched with market data.</p>
+        </div>
+        {% endif %}
+
+        <!-- Correlation View -->
+        {% if corr_access.has_correlation and correlations %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128279; Correlated Tickers</h2>
+            <div class="space-y-1.5">
+                {% for pair in correlations[:8] %}
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-2 flex items-center justify-between">
+                    <div class="text-sm">
+                        <span class="text-white font-bold">{{ pair.ticker_a }}</span>
+                        <span class="text-gray-500 mx-1">&harr;</span>
+                        <span class="text-white font-bold">{{ pair.ticker_b }}</span>
+                    </div>
+                    <div class="text-xs">
+                        <span class="text-blue-400">{{ pair.co_occurrences }}x</span>
+                        {% if corr_access.has_strength_scores %}
+                        <span class="text-gray-500 ml-1">{{ "%.0f"|format((pair.avg_joint_confidence or 0) * 100) }}%</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- API Info -->
         <div class="mt-8 bg-gray-800/30 border border-gray-700 rounded-lg p-4">
             <h3 class="text-sm font-semibold text-white mb-2">API Endpoints</h3>
@@ -500,6 +646,9 @@
                 <p>GET /api/v1/signals</p>
                 <p>GET /api/v1/tickers/trending</p>
                 <p>GET /api/v1/signals/export</p>
+                <p>GET /api/v1/leaderboard</p>
+                <p>GET /api/v1/correlations</p>
+                <p>GET /api/v1/performance/accuracy</p>
                 <p>WS /api/v1/signals/live</p>
                 <p>GET /api/v1/health</p>
             </div>
@@ -578,6 +727,23 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 .signal-new {
     animation: signal-flash 2s ease-out;
 }
+/* Toast notification */
+.toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: rgba(31,31,51,0.95);
+    border: 1px solid rgba(74,222,128,0.5);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: #e0e0e0;
+    font-size: 14px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s;
+    animation-fill-mode: forwards;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 </style>
 <script>
 (function() {
@@ -700,5 +866,62 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
     // Start polling after initial page load
     setTimeout(pollSignals, POLL_INTERVAL);
 })();
+
+// ── Toast Notifications (pro+) ──
+{% if tier != 'free' %}
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+{% endif %}
+
+// ── Filter Presets (ultra) ──
+{% if filter_access.has_saved_presets %}
+const filterPresets = {{ filter_presets|tojson|safe }};
+
+function loadPreset(index) {
+    if (index === '') return;
+    const preset = filterPresets[parseInt(index)];
+    if (!preset) return;
+    const params = new URLSearchParams();
+    if (preset.ticker) params.set('ticker', preset.ticker);
+    if (preset.stance) params.set('stance', preset.stance);
+    if (preset.event_type) params.set('event_type', preset.event_type);
+    if (preset.min_confidence) params.set('min_confidence', preset.min_confidence);
+    if (preset.date_range) params.set('date_range', preset.date_range);
+    window.location.href = '/dashboard?' + params.toString();
+}
+
+async function saveCurrentPreset() {
+    const name = prompt('Preset name:');
+    if (!name) return;
+    const form = document.getElementById('filter-form');
+    const fd = new FormData(form);
+    try {
+        const resp = await fetch('/api/v1/auth/filter-presets', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                ticker: fd.get('ticker') || '',
+                stance: fd.get('stance') || '',
+                event_type: fd.get('event_type') || '',
+                min_confidence: fd.get('min_confidence') || '',
+                date_range: fd.get('date_range') || '',
+            })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('Preset saved: ' + name);
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(data.detail || 'Error saving preset');
+        }
+    } catch(e) { console.error('Preset error:', e); }
+}
+{% endif %}
 </script>
 {% endblock %}

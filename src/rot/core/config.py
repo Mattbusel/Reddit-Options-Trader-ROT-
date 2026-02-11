@@ -37,6 +37,8 @@ class MarketConfig(BaseSettings):
     cache_ttl_s: int = 3600
     symbol_cache_ttl_s: int = 604800
     min_market_cap: float = 1e8  # $100M minimum
+    price_check_interval_s: int = 300  # 5 minutes
+    price_check_batch_size: int = 50
 
 
 class TrendConfig(BaseSettings):
@@ -109,6 +111,17 @@ class RSSConfig(BaseSettings):
     )
 
 
+class EmailConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_EMAIL_")
+
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    from_address: str = "alerts@rot.app"
+    enabled: bool = False
+
+
 class AuthConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_AUTH_")
 
@@ -158,6 +171,7 @@ class Settings(BaseSettings):
     auth: AuthConfig = Field(default_factory=AuthConfig)
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
+    email: EmailConfig = Field(default_factory=EmailConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

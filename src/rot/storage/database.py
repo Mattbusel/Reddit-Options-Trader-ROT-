@@ -53,6 +53,20 @@ CREATE TABLE IF NOT EXISTS signal_performance (
 );
 
 CREATE INDEX IF NOT EXISTS idx_perf_signal ON signal_performance(signal_id);
+CREATE INDEX IF NOT EXISTS idx_perf_ticker ON signal_performance(ticker);
+
+CREATE TABLE IF NOT EXISTS email_alert_settings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id),
+    enabled INTEGER NOT NULL DEFAULT 0,
+    digest_enabled INTEGER NOT NULL DEFAULT 1,
+    realtime_enabled INTEGER NOT NULL DEFAULT 0,
+    min_confidence REAL NOT NULL DEFAULT 0.6,
+    tickers TEXT NOT NULL DEFAULT '[]',
+    stances TEXT NOT NULL DEFAULT '[]',
+    event_types TEXT NOT NULL DEFAULT '[]',
+    last_digest_at REAL NOT NULL DEFAULT 0,
+    webhook_url TEXT NOT NULL DEFAULT ''
+);
 
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -95,6 +109,8 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subs
 # Columns to add to existing tables (migration-safe)
 _MIGRATIONS = [
     ("users", "password_hash", "TEXT NOT NULL DEFAULT ''"),
+    ("signal_performance", "created_at", "REAL NOT NULL DEFAULT 0"),
+    ("signals", "sector", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -151,13 +167,21 @@ class Database:
         first_evidence = evidence[0] if evidence else {}
         meta = event_dict.get("meta", {})
 
+        # Extract sector from market data if available
+        market = meta.get("market", {})
+        sector = ""
+        if isinstance(market, dict) and ticker in market:
+            ticker_market = market[ticker]
+            if isinstance(ticker_market, dict):
+                sector = ticker_market.get("sector", "")
+
         await self.db.execute(
             """INSERT INTO signals
                (id, run_id, created_at, ticker, event_type, stance, time_horizon,
                 confidence, trend_score, quality_score, strategy,
                 subreddit, post_title, post_url,
-                market_data, reasoning, trade_idea, event_data)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                market_data, reasoning, trade_idea, event_data, sector)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 signal_id,
                 signal_data.get("run_id", ""),
@@ -173,10 +197,11 @@ class Database:
                 first_evidence.get("subreddit", ""),
                 first_evidence.get("excerpt", ""),
                 first_evidence.get("permalink", ""),
-                json.dumps(meta.get("market", {})),
+                json.dumps(market),
                 json.dumps(reasoning_dict),
                 json.dumps(idea_dict),
                 json.dumps(event_dict),
+                sector,
             ),
         )
         await self.db.commit()
@@ -190,6 +215,8 @@ class Database:
         stance: Optional[str] = None,
         min_confidence: Optional[float] = None,
         event_type: Optional[str] = None,
+        date_from: Optional[float] = None,
+        date_to: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         conditions = []
         params: list = []
@@ -206,6 +233,12 @@ class Database:
         if event_type:
             conditions.append("event_type = ?")
             params.append(event_type)
+        if date_from is not None:
+            conditions.append("created_at >= ?")
+            params.append(date_from)
+        if date_to is not None:
+            conditions.append("created_at <= ?")
+            params.append(date_to)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         query = f"SELECT * FROM signals {where} ORDER BY created_at DESC LIMIT ? OFFSET ?"
@@ -451,6 +484,510 @@ class Database:
         ) as cursor:
             row = await cursor.fetchone()
             return _row_to_dict(row) if row else None
+
+
+    # ── Signal Performance (Price Tracking) ──
+
+    async def insert_signal_performance(
+        self, signal_id: str, ticker: str, price_at_signal: float
+    ) -> None:
+        """Record initial price when a signal is first created."""
+        now = time.time()
+        await self.db.execute(
+            """INSERT INTO signal_performance
+               (signal_id, ticker, price_at_signal, created_at, checked_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (signal_id, ticker, price_at_signal, now, now),
+        )
+        await self.db.commit()
+
+    async def get_unchecked_performances(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Find performance records that still need price updates."""
+        query = """
+            SELECT sp.*, s.created_at as signal_created_at
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE sp.price_1h IS NULL OR sp.price_4h IS NULL
+                  OR sp.price_1d IS NULL OR sp.price_1w IS NULL
+            ORDER BY sp.created_at ASC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (limit,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                # Use signal_created_at for age calculation
+                if d.get("signal_created_at"):
+                    d["created_at"] = d["signal_created_at"]
+                results.append(d)
+            return results
+
+    async def update_performance_prices(
+        self, perf_id: int, updates: Dict[str, Any]
+    ) -> None:
+        """Update price columns for a performance record."""
+        set_clauses = []
+        params = []
+        for col in ("price_1h", "price_4h", "price_1d", "price_1w",
+                     "max_gain_pct", "max_loss_pct", "checked_at"):
+            if col in updates:
+                set_clauses.append(f"{col} = ?")
+                params.append(updates[col])
+        if not set_clauses:
+            return
+        params.append(perf_id)
+        query = f"UPDATE signal_performance SET {', '.join(set_clauses)} WHERE id = ?"
+        await self.db.execute(query, params)
+        await self.db.commit()
+
+    async def get_performance_for_signal(
+        self, signal_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get performance record for a specific signal."""
+        async with self.db.execute(
+            "SELECT * FROM signal_performance WHERE signal_id = ?", (signal_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return _row_to_dict(row) if row else None
+
+    async def get_aggregate_accuracy(
+        self, days: int = 7, ticker: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get aggregate win/loss stats for signal performance."""
+        cutoff = time.time() - (days * 86400)
+        conditions = ["sp.created_at > ?"]
+        params: list = [cutoff]
+
+        if ticker:
+            conditions.append("sp.ticker = ?")
+            params.append(ticker.upper())
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""
+            SELECT
+                COUNT(*) as total_tracked,
+                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN sp.max_gain_pct <= 0 THEN 1 ELSE 0 END) as losers,
+                AVG(sp.max_gain_pct) as avg_gain_pct,
+                AVG(sp.max_loss_pct) as avg_loss_pct,
+                AVG(CASE WHEN sp.price_1d IS NOT NULL
+                    THEN (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    ELSE NULL END) as avg_1d_return_pct
+            FROM signal_performance sp
+            {where}
+            AND sp.price_at_signal > 0
+            AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
+                 OR sp.price_1d IS NOT NULL)
+        """
+        async with self.db.execute(query, params) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return {"total_tracked": 0, "winners": 0, "losers": 0,
+                        "win_rate": 0, "avg_gain_pct": 0, "avg_loss_pct": 0}
+            d = _row_to_dict(row)
+            total = d.get("total_tracked", 0) or 0
+            winners = d.get("winners", 0) or 0
+            d["win_rate"] = (winners / total * 100) if total > 0 else 0
+            return d
+
+    async def get_performance_history(
+        self, days: int = 30, ticker: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get per-signal performance records."""
+        cutoff = time.time() - (days * 86400)
+        conditions = ["sp.created_at > ?"]
+        params: list = [cutoff]
+
+        if ticker:
+            conditions.append("sp.ticker = ?")
+            params.append(ticker.upper())
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""
+            SELECT sp.*, s.stance, s.confidence, s.strategy
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            {where}
+            AND sp.price_at_signal > 0
+            ORDER BY sp.created_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_performance_csv_data(
+        self, days: int = 365, ticker: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get detailed performance data for CSV export."""
+        cutoff = time.time() - (days * 86400)
+        conditions = ["sp.created_at > ?"]
+        params: list = [cutoff]
+
+        if ticker:
+            conditions.append("sp.ticker = ?")
+            params.append(ticker.upper())
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""
+            SELECT sp.*, s.ticker, s.stance, s.confidence, s.strategy,
+                   s.event_type, s.subreddit, s.post_title
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            {where}
+            AND sp.price_at_signal > 0
+            ORDER BY sp.created_at DESC
+        """
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_accuracy_over_time(
+        self, days: int = 30, interval: str = "daily"
+    ) -> List[Dict[str, Any]]:
+        """Get time-bucketed accuracy for performance charts."""
+        cutoff = time.time() - (days * 86400)
+        bucket_s = 86400 if interval == "daily" else 3600
+        query = """
+            SELECT
+                CAST(sp.created_at / ? AS INTEGER) * ? as time_bucket,
+                COUNT(*) as total,
+                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                AVG(sp.max_gain_pct) as avg_gain_pct,
+                AVG(sp.max_loss_pct) as avg_loss_pct
+            FROM signal_performance sp
+            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+                  AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
+            GROUP BY time_bucket
+            ORDER BY time_bucket ASC
+        """
+        async with self.db.execute(query, (bucket_s, bucket_s, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_strategy_pnl(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Get P&L breakdown by strategy."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.strategy,
+                COUNT(*) as total,
+                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                AVG(sp.max_gain_pct) as avg_gain_pct,
+                AVG(sp.max_loss_pct) as avg_loss_pct,
+                AVG(CASE WHEN sp.price_1d IS NOT NULL
+                    THEN (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    ELSE NULL END) as avg_1d_return_pct
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+                  AND s.strategy != 'none'
+            GROUP BY s.strategy
+            ORDER BY total DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_performance_by_ticker(
+        self, days: int = 30, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Get performance breakdown by ticker."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                sp.ticker,
+                COUNT(*) as total_signals,
+                SUM(CASE WHEN sp.max_gain_pct > 0 THEN 1 ELSE 0 END) as winners,
+                AVG(sp.max_gain_pct) as avg_gain_pct,
+                AVG(sp.max_loss_pct) as avg_loss_pct
+            FROM signal_performance sp
+            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+            GROUP BY sp.ticker
+            ORDER BY total_signals DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    # ── Signal Count Badge ──
+
+    async def get_signals_since(self, timestamp: float) -> int:
+        """Count signals created after the given timestamp."""
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM signals WHERE created_at > ?", (timestamp,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def update_last_visit(self, user_id: str) -> None:
+        """Update the user's last_visit_at timestamp in settings."""
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return
+        settings = user.get("settings", {})
+        if not isinstance(settings, dict):
+            settings = {}
+        settings["last_visit_at"] = time.time()
+        await self.update_user_settings(user_id, settings)
+
+    # ── Sector Heatmap ──
+
+    async def get_sector_heatmap_data(self, hours: int = 24) -> List[Dict[str, Any]]:
+        """Get sector-level signal aggregation for heatmap."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                sector,
+                COUNT(*) as signal_count,
+                AVG(confidence) as avg_confidence,
+                SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
+                SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
+                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
+                GROUP_CONCAT(DISTINCT ticker) as tickers
+            FROM signals
+            WHERE created_at > ? AND sector != '' AND ticker != 'UNKNOWN'
+            GROUP BY sector
+            ORDER BY signal_count DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_sector_drill_down(
+        self, sector: str, hours: int = 24
+    ) -> List[Dict[str, Any]]:
+        """Get ticker-level data within a sector."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                ticker,
+                COUNT(*) as signal_count,
+                AVG(confidence) as avg_confidence,
+                MAX(trend_score) as max_trend_score,
+                GROUP_CONCAT(DISTINCT stance) as stances
+            FROM signals
+            WHERE created_at > ? AND sector = ? AND ticker != 'UNKNOWN'
+            GROUP BY ticker
+            ORDER BY signal_count DESC
+            LIMIT 20
+        """
+        async with self.db.execute(query, (cutoff, sector)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    # ── Leaderboard ──
+
+    async def get_leaderboard(
+        self, hours: int = 24, limit: int = 20, sort_by: str = "signal_count"
+    ) -> List[Dict[str, Any]]:
+        """Get ticker leaderboard ranked by various metrics."""
+        cutoff = time.time() - (hours * 3600)
+        valid_sorts = {"signal_count", "avg_confidence", "max_trend_score"}
+        order = sort_by if sort_by in valid_sorts else "signal_count"
+        query = f"""
+            SELECT
+                ticker,
+                COUNT(*) as signal_count,
+                AVG(confidence) as avg_confidence,
+                MAX(trend_score) as max_trend_score,
+                GROUP_CONCAT(DISTINCT stance) as stances,
+                GROUP_CONCAT(DISTINCT strategy) as strategies,
+                MAX(created_at) as latest_at
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            GROUP BY ticker
+            ORDER BY {order} DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_leaderboard_with_performance(
+        self, hours: int = 24, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Get leaderboard with win rate from performance data."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                s.ticker,
+                COUNT(DISTINCT s.id) as signal_count,
+                AVG(s.confidence) as avg_confidence,
+                MAX(s.trend_score) as max_trend_score,
+                GROUP_CONCAT(DISTINCT s.stance) as stances,
+                COUNT(CASE WHEN sp.max_gain_pct > 0 THEN 1 END) as perf_winners,
+                COUNT(CASE WHEN sp.price_at_signal IS NOT NULL THEN 1 END) as perf_tracked
+            FROM signals s
+            LEFT JOIN signal_performance sp ON s.id = sp.signal_id
+            WHERE s.created_at > ? AND s.ticker != 'UNKNOWN'
+            GROUP BY s.ticker
+            ORDER BY signal_count DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, limit)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                tracked = d.get("perf_tracked", 0) or 0
+                winners = d.get("perf_winners", 0) or 0
+                d["win_rate"] = (winners / tracked * 100) if tracked > 0 else None
+                results.append(d)
+            return results
+
+    # ── Correlation View ──
+
+    async def get_co_occurring_tickers(
+        self, hours: int = 24, min_co_occurrence: int = 2
+    ) -> List[Dict[str, Any]]:
+        """Find tickers that appear in signals within the same run/batch."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                a.ticker as ticker_a,
+                b.ticker as ticker_b,
+                COUNT(*) as co_occurrences,
+                AVG(a.confidence + b.confidence) / 2 as avg_joint_confidence
+            FROM signals a
+            JOIN signals b ON a.run_id = b.run_id AND a.ticker < b.ticker
+            WHERE a.created_at > ?
+                  AND a.ticker != 'UNKNOWN' AND b.ticker != 'UNKNOWN'
+            GROUP BY a.ticker, b.ticker
+            HAVING co_occurrences >= ?
+            ORDER BY co_occurrences DESC
+            LIMIT 50
+        """
+        async with self.db.execute(query, (cutoff, min_co_occurrence)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    # ── Email Alert Settings ──
+
+    async def upsert_email_alert_settings(
+        self, user_id: str, settings: Dict[str, Any]
+    ) -> None:
+        """Create or update email alert settings for a user."""
+        existing = await self.get_email_alert_settings(user_id)
+        if existing:
+            set_clauses = []
+            params = []
+            for col in ("enabled", "digest_enabled", "realtime_enabled",
+                         "min_confidence", "tickers", "stances", "event_types",
+                         "webhook_url"):
+                if col in settings:
+                    set_clauses.append(f"{col} = ?")
+                    val = settings[col]
+                    if isinstance(val, (list, dict)):
+                        val = json.dumps(val)
+                    params.append(val)
+            if set_clauses:
+                params.append(user_id)
+                query = f"UPDATE email_alert_settings SET {', '.join(set_clauses)} WHERE user_id = ?"
+                await self.db.execute(query, params)
+                await self.db.commit()
+        else:
+            tickers = json.dumps(settings.get("tickers", []))
+            stances = json.dumps(settings.get("stances", []))
+            event_types = json.dumps(settings.get("event_types", []))
+            await self.db.execute(
+                """INSERT INTO email_alert_settings
+                   (user_id, enabled, digest_enabled, realtime_enabled,
+                    min_confidence, tickers, stances, event_types, webhook_url)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user_id,
+                    settings.get("enabled", 0),
+                    settings.get("digest_enabled", 1),
+                    settings.get("realtime_enabled", 0),
+                    settings.get("min_confidence", 0.6),
+                    tickers, stances, event_types,
+                    settings.get("webhook_url", ""),
+                ),
+            )
+            await self.db.commit()
+
+    async def get_email_alert_settings(
+        self, user_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get email alert settings for a user."""
+        async with self.db.execute(
+            "SELECT * FROM email_alert_settings WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            for key in ("tickers", "stances", "event_types"):
+                if key in d and isinstance(d[key], str):
+                    try:
+                        d[key] = json.loads(d[key])
+                    except (json.JSONDecodeError, TypeError):
+                        d[key] = []
+            return d
+
+    async def get_users_for_digest(self) -> List[Dict[str, Any]]:
+        """Get users who need a daily digest email."""
+        cutoff = time.time() - 86400  # users not emailed in last 24h
+        query = """
+            SELECT u.id, u.email, u.tier, eas.*
+            FROM email_alert_settings eas
+            JOIN users u ON eas.user_id = u.id
+            WHERE eas.enabled = 1 AND eas.digest_enabled = 1
+                  AND eas.last_digest_at < ?
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_users_for_realtime_alert(
+        self, ticker: str, stance: str, confidence: float, event_type: str
+    ) -> List[Dict[str, Any]]:
+        """Get users whose realtime alert filters match a signal."""
+        query = """
+            SELECT u.id, u.email, u.tier, eas.*
+            FROM email_alert_settings eas
+            JOIN users u ON eas.user_id = u.id
+            WHERE eas.enabled = 1 AND eas.realtime_enabled = 1
+                  AND ? >= eas.min_confidence
+                  AND u.tier IN ('pro', 'premium', 'ultra')
+        """
+        async with self.db.execute(query, (confidence,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = dict(row)
+                # Parse JSON filter fields
+                for key in ("tickers", "stances", "event_types"):
+                    if key in d and isinstance(d[key], str):
+                        try:
+                            d[key] = json.loads(d[key])
+                        except (json.JSONDecodeError, TypeError):
+                            d[key] = []
+                # Check filter match
+                filter_tickers = d.get("tickers", [])
+                filter_stances = d.get("stances", [])
+                filter_events = d.get("event_types", [])
+
+                if filter_tickers and ticker.upper() not in filter_tickers:
+                    continue
+                if filter_stances and stance not in filter_stances:
+                    continue
+                if filter_events and event_type not in filter_events:
+                    continue
+                results.append(d)
+            return results
+
+    async def update_digest_sent(self, user_id: str) -> None:
+        """Mark that a digest was sent to the user."""
+        await self.db.execute(
+            "UPDATE email_alert_settings SET last_digest_at = ? WHERE user_id = ?",
+            (time.time(), user_id),
+        )
+        await self.db.commit()
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:

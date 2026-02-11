@@ -101,7 +101,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
     # Dashboard routes (HTML)
-    from rot.web.routes import dashboard
+    from rot.web.routes import dashboard, performance, backtest
     app.include_router(dashboard.router, tags=["dashboard"])
+    app.include_router(performance.router, tags=["performance"])
+    app.include_router(backtest.router, tags=["backtest"])
 
     return app

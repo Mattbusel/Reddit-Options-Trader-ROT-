@@ -69,6 +69,79 @@ def gate_chart_access(tier: str) -> dict:
     }
 
 
+def gate_filter_access(tier: str) -> dict:
+    """Return filter feature access flags based on tier."""
+    return {
+        "has_date_range": tier in ("premium", "ultra"),
+        "has_confidence_range": True,  # all tiers have min_confidence
+        "has_saved_presets": tier == "ultra",
+        "max_presets": 10 if tier == "ultra" else 0,
+    }
+
+
+def gate_performance_access(tier: str) -> dict:
+    """Return performance/accuracy feature access flags based on tier."""
+    return {
+        "has_aggregate_accuracy": True,  # all tiers
+        "has_per_signal_pnl": tier in ("pro", "premium", "ultra"),
+        "has_roi_history_chart": tier in ("premium", "ultra"),
+        "has_performance_export": tier == "ultra",
+        "has_performance_dashboard": tier in ("premium", "ultra"),
+        "has_strategy_pnl": tier == "ultra",
+        "accuracy_days": 7 if tier == "free" else 30 if tier == "pro" else 90 if tier == "premium" else 365,
+    }
+
+
+def gate_email_access(tier: str) -> dict:
+    """Return email alert feature access flags based on tier."""
+    return {
+        "has_daily_digest": True,  # all tiers
+        "has_realtime_email": tier in ("pro", "premium", "ultra"),
+        "has_custom_filters": tier in ("premium", "ultra"),
+        "has_webhook": tier == "ultra",
+    }
+
+
+def gate_heatmap_access(tier: str) -> dict:
+    """Return sector heatmap feature access flags based on tier."""
+    return {
+        "has_heatmap": tier in ("pro", "premium", "ultra"),
+        "has_drill_down": tier in ("premium", "ultra"),
+        "has_historical_replay": tier == "ultra",
+    }
+
+
+def gate_leaderboard_access(tier: str) -> dict:
+    """Return leaderboard feature access flags based on tier."""
+    return {
+        "has_leaderboard": True,  # all tiers
+        "leaderboard_limit": 5 if tier == "free" else 20,
+        "has_sorting": tier in ("pro", "premium", "ultra"),
+        "has_historical": tier in ("premium", "ultra"),
+        "has_performance_column": tier in ("premium", "ultra"),
+        "has_custom_range": tier == "ultra",
+        "has_leaderboard_export": tier == "ultra",
+    }
+
+
+def gate_market_context(tier: str) -> dict:
+    """Return market context card feature access flags based on tier."""
+    return {
+        "has_price_badge": tier in ("pro", "premium", "ultra"),
+        "has_extended_market": tier in ("premium", "ultra"),
+        "has_options_chain": tier == "ultra",
+    }
+
+
+def gate_correlation_access(tier: str) -> dict:
+    """Return correlation view feature access flags based on tier."""
+    return {
+        "has_correlation": tier in ("pro", "premium", "ultra"),
+        "has_strength_scores": tier in ("premium", "ultra"),
+        "has_matrix_export": tier == "ultra",
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

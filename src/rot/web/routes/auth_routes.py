@@ -229,3 +229,126 @@ async def get_watchlist(request: Request):
     watchlist = current_settings.get("watchlist", [])
     limit = _WATCHLIST_LIMITS.get(user["tier"], 3)
     return {"watchlist": watchlist, "limit": limit, "tier": user["tier"]}
+
+
+# ── Saved Filter Presets (ultra only) ──
+
+class FilterPresetRequest(BaseModel):
+    name: str
+    ticker: str = ""
+    stance: str = ""
+    event_type: str = ""
+    min_confidence: str = ""
+    date_range: str = ""
+
+
+@router.post("/filter-presets")
+async def save_filter_preset(body: FilterPresetRequest, request: Request):
+    """Save a filter preset (ultra only)."""
+    user = await require_user(request)
+    if user["tier"] != "ultra":
+        raise HTTPException(status_code=403, detail="Saved presets require Ultra tier")
+
+    db = request.app.state.db
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+
+    presets = current_settings.get("filter_presets", [])
+    if len(presets) >= 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 presets allowed")
+
+    presets.append({
+        "name": body.name[:50],
+        "ticker": body.ticker.upper().strip(),
+        "stance": body.stance.strip(),
+        "event_type": body.event_type.strip(),
+        "min_confidence": body.min_confidence.strip(),
+        "date_range": body.date_range.strip(),
+    })
+    current_settings["filter_presets"] = presets
+    await db.update_user_settings(user["id"], current_settings)
+    return {"ok": True, "presets": presets}
+
+
+@router.delete("/filter-presets/{index}")
+async def delete_filter_preset(index: int, request: Request):
+    """Delete a saved filter preset by index (ultra only)."""
+    user = await require_user(request)
+    if user["tier"] != "ultra":
+        raise HTTPException(status_code=403, detail="Saved presets require Ultra tier")
+
+    db = request.app.state.db
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+
+    presets = current_settings.get("filter_presets", [])
+    if 0 <= index < len(presets):
+        presets.pop(index)
+        current_settings["filter_presets"] = presets
+        await db.update_user_settings(user["id"], current_settings)
+
+    return {"ok": True, "presets": presets}
+
+
+@router.get("/filter-presets")
+async def get_filter_presets(request: Request):
+    """Get saved filter presets (ultra only)."""
+    user = await require_user(request)
+    if user["tier"] != "ultra":
+        return {"presets": [], "tier": user["tier"]}
+
+    current_settings = user.get("settings", {})
+    if not isinstance(current_settings, dict):
+        current_settings = {}
+    return {"presets": current_settings.get("filter_presets", []), "tier": user["tier"]}
+
+
+# ── Email Alert Settings ──
+
+class EmailAlertSettingsRequest(BaseModel):
+    enabled: int = 0
+    digest_enabled: int = 1
+    realtime_enabled: int = 0
+    min_confidence: float = 0.6
+    tickers: list = []
+    stances: list = []
+    event_types: list = []
+    webhook_url: str = ""
+
+
+@router.get("/email-alerts")
+async def get_email_alerts(request: Request):
+    """Get email alert settings."""
+    user = await require_user(request)
+    db = request.app.state.db
+    settings = await db.get_email_alert_settings(user["id"])
+    return {"settings": settings or {}, "tier": user["tier"]}
+
+
+@router.put("/email-alerts")
+async def update_email_alerts(body: EmailAlertSettingsRequest, request: Request):
+    """Update email alert settings."""
+    user = await require_user(request)
+    tier = user["tier"]
+
+    # Enforce tier limitations
+    settings_dict = body.model_dump()
+    if tier == "free":
+        settings_dict["realtime_enabled"] = 0
+        settings_dict["tickers"] = []
+        settings_dict["stances"] = []
+        settings_dict["event_types"] = []
+        settings_dict["webhook_url"] = ""
+    elif tier == "pro":
+        settings_dict["tickers"] = []
+        settings_dict["stances"] = []
+        settings_dict["event_types"] = []
+        settings_dict["webhook_url"] = ""
+    elif tier == "premium":
+        settings_dict["webhook_url"] = ""
+
+    db = request.app.state.db
+    await db.upsert_email_alert_settings(user["id"], settings_dict)
+    return {"ok": True, "message": "Email alert settings updated"}

@@ -22,6 +22,7 @@ from rot.market.trade_builder import TradeBuilder
 from rot.app.runner import PipelineRunner
 from rot.web.app import create_app
 from rot.alerts.dispatcher import AlertDispatcher
+from rot.market.price_checker import PriceChecker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -125,9 +126,12 @@ async def _async_signal_handler(
     signal_data: Dict[str, Any],
     app,
     dispatcher: AlertDispatcher | None,
+    price_checker: PriceChecker | None = None,
 ):
     """Handle a signal asynchronously: store in DB, broadcast via WebSocket, dispatch alerts."""
     from rot.web.routes.websocket import broadcast_signal
+
+    signal_id = None
 
     # Store in database
     try:
@@ -136,6 +140,22 @@ async def _async_signal_handler(
         log.info("Signal stored: %s", signal_id)
     except Exception as e:
         log.error("Failed to store signal: %s", e)
+
+    # Record initial price for performance tracking
+    if signal_id and price_checker:
+        try:
+            event = signal_data.get("event")
+            if hasattr(event, "entities"):
+                entities = event.entities
+            elif isinstance(event, dict):
+                entities = event.get("entities", [])
+            else:
+                entities = []
+            ticker = entities[0] if entities else None
+            if ticker and ticker != "UNKNOWN":
+                await price_checker.record_initial_price(signal_id, ticker)
+        except Exception as e:
+            log.error("Price recording failed: %s", e)
 
     # Broadcast via WebSocket
     try:
@@ -151,22 +171,66 @@ async def _async_signal_handler(
             log.error("Alert dispatch failed: %s", e)
 
 
+async def _price_check_loop(price_checker: PriceChecker, interval_s: int, stop_event: threading.Event):
+    """Background task that periodically checks prices for signal performance tracking."""
+    log.info("Price check loop starting (interval=%ds)", interval_s)
+    while not stop_event.is_set():
+        try:
+            updated = await price_checker.check_pending_prices()
+            if updated > 0:
+                log.info("Price check cycle: updated %d records", updated)
+        except Exception as e:
+            log.error("Price check error: %s", e, exc_info=True)
+
+        # Sleep using asyncio but check stop_event
+        for _ in range(interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Price check loop stopped")
+
+
 async def _run_server(cfg: Settings):
     """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
     # Create FastAPI app
     app = create_app(cfg)
+
+    # Create email alerter if configured
+    email_alerter = None
+    if cfg.email.enabled and cfg.email.smtp_host:
+        from rot.alerts.email import EmailAlerter
+        email_alerter = EmailAlerter(
+            smtp_host=cfg.email.smtp_host,
+            smtp_port=cfg.email.smtp_port,
+            smtp_user=cfg.email.smtp_user,
+            smtp_password=cfg.email.smtp_password,
+            from_address=cfg.email.from_address,
+        )
+        log.info("Email alerter: ACTIVE (smtp=%s)", cfg.email.smtp_host)
+    else:
+        log.info("Email alerter: DISABLED (set ROT_EMAIL_* to enable)")
 
     # Create alert dispatcher
     dispatcher = AlertDispatcher(
         discord_webhook_url=cfg.alert.discord_webhook_url,
         min_confidence=cfg.alert.min_confidence,
         dashboard_url=f"http://{cfg.web.host}:{cfg.web.port}",
+        db=app.state.db,
+        email_alerter=email_alerter,
     )
 
     if dispatcher.has_channels:
-        log.info("Discord alerting: ACTIVE (min_confidence=%.2f)", cfg.alert.min_confidence)
+        log.info("Alert dispatching: ACTIVE (min_confidence=%.2f)", cfg.alert.min_confidence)
     else:
-        log.info("Discord alerting: DISABLED (set ROT_ALERT_DISCORD_WEBHOOK_URL to enable)")
+        log.info("Alert dispatching: DISABLED (no channels configured)")
+
+    # Create price checker for performance tracking
+    price_checker = PriceChecker(
+        db=app.state.db,
+        batch_size=cfg.market.price_check_batch_size,
+    )
+    log.info("Price checker: ACTIVE (interval=%ds, batch=%d)",
+             cfg.market.price_check_interval_s, cfg.market.price_check_batch_size)
 
     # Capture the RUNNING event loop — uvicorn.Server.serve() will use this same loop
     loop = asyncio.get_running_loop()
@@ -175,7 +239,7 @@ async def _run_server(cfg: Settings):
     def on_signal(signal_data: Dict[str, Any]):
         try:
             asyncio.run_coroutine_threadsafe(
-                _async_signal_handler(signal_data, app, dispatcher),
+                _async_signal_handler(signal_data, app, dispatcher, price_checker),
                 loop,
             )
         except Exception as e:
@@ -194,6 +258,11 @@ async def _run_server(cfg: Settings):
     )
     pipeline_thread.start()
 
+    # Start price check background task
+    price_check_task = asyncio.create_task(
+        _price_check_loop(price_checker, cfg.market.price_check_interval_s, stop_event)
+    )
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -210,6 +279,7 @@ async def _run_server(cfg: Settings):
         await server.serve()
     finally:
         stop_event.set()
+        price_check_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 

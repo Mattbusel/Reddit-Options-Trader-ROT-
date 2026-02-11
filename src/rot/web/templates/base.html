@@ -51,7 +51,16 @@
                 <span class="text-sm text-gray-500">Reddit Options Trader</span>
             </a>
             <div class="flex items-center space-x-4 text-sm">
-                <a href="/dashboard" class="text-gray-400 hover:text-white transition">Signals</a>
+                <a href="/dashboard" class="text-gray-400 hover:text-white transition relative" id="nav-signals">
+                    Signals
+                    <span id="signal-badge" class="hidden ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold absolute -top-2 -right-4"></span>
+                </a>
+                {% if user and user.tier in ('premium', 'ultra') %}
+                <a href="/performance" class="text-gray-400 hover:text-white transition">Performance</a>
+                {% endif %}
+                {% if user and user.tier == 'ultra' %}
+                <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
+                {% endif %}
                 <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
                 {% if user %}
                 <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
@@ -168,6 +177,26 @@
         }
 
         connectWS();
+
+        // Signal count badge - check for new signals periodically
+        {% if user %}
+        async function updateSignalBadge() {
+            try {
+                const resp = await fetch('/api/v1/signals/new-count');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const badge = document.getElementById('signal-badge');
+                    if (badge && data.count > 0) {
+                        badge.textContent = data.count > 99 ? '99+' : data.count;
+                        badge.classList.remove('hidden');
+                    }
+                }
+            } catch(e) {}
+        }
+        // Check on load, then every 60s
+        updateSignalBadge();
+        setInterval(updateSignalBadge, 60000);
+        {% endif %}
     </script>
 </body>
 </html>

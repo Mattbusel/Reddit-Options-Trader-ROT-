@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Dashboard - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-white">Performance Dashboard</h1>
+    <p class="text-sm text-gray-500 mt-1">Signal accuracy and P&L tracking over the last {{ perf_access.accuracy_days }} days</p>
+</div>
+
+<!-- Summary Stats -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tracked Signals</div>
+        <div class="text-3xl font-bold text-white">{{ accuracy.total_tracked or 0 }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate</div>
+        <div class="text-3xl font-bold {{ 'text-green-400' if (accuracy.win_rate or 0) >= 50 else 'text-red-400' }}">{{ "%.1f"|format(accuracy.win_rate or 0) }}%</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Winners</div>
+        <div class="text-3xl font-bold text-green-400">{{ accuracy.winners or 0 }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Gain</div>
+        <div class="text-3xl font-bold text-green-400">{{ "%.1f"|format(accuracy.avg_gain_pct or 0) }}%</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Loss</div>
+        <div class="text-3xl font-bold text-red-400">{{ "%.1f"|format(accuracy.avg_loss_pct or 0) }}%</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Accuracy Over Time -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Accuracy Over Time</h2>
+        <div style="height: 300px;">
+            <canvas id="accuracyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Win/Loss Donut -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Win / Loss Ratio</h2>
+        <div style="height: 300px;">
+            <canvas id="winLossChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% if strategy_pnl %}
+<!-- Strategy P&L (Ultra) -->
+<div class="chart-container mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-white">Strategy P&L Breakdown</h2>
+        <span class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-400 border border-amber-700">Ultra</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                    <th class="text-left py-3 px-4">Strategy</th>
+                    <th class="text-right py-3 px-4">Signals</th>
+                    <th class="text-right py-3 px-4">Winners</th>
+                    <th class="text-right py-3 px-4">Win Rate</th>
+                    <th class="text-right py-3 px-4">Avg Gain</th>
+                    <th class="text-right py-3 px-4">Avg Loss</th>
+                    <th class="text-right py-3 px-4">Avg 1D Return</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in strategy_pnl %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                    <td class="py-3 px-4 font-semibold text-white">{{ s.strategy }}</td>
+                    <td class="py-3 px-4 text-right text-gray-300">{{ s.total }}</td>
+                    <td class="py-3 px-4 text-right text-green-400">{{ s.winners or 0 }}</td>
+                    <td class="py-3 px-4 text-right {{ 'text-green-400' if (s.winners or 0) / (s.total or 1) * 100 >= 50 else 'text-red-400' }}">
+                        {{ "%.0f"|format((s.winners or 0) / (s.total or 1) * 100) }}%
+                    </td>
+                    <td class="py-3 px-4 text-right text-green-400">{{ "%.2f"|format(s.avg_gain_pct or 0) }}%</td>
+                    <td class="py-3 px-4 text-right text-red-400">{{ "%.2f"|format(s.avg_loss_pct or 0) }}%</td>
+                    <td class="py-3 px-4 text-right {{ 'text-green-400' if (s.avg_1d_return_pct or 0) >= 0 else 'text-red-400' }}">
+                        {{ "%.2f"|format(s.avg_1d_return_pct or 0) }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Top Performers -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Performance by Ticker</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                    <th class="text-left py-3 px-4">#</th>
+                    <th class="text-left py-3 px-4">Ticker</th>
+                    <th class="text-right py-3 px-4">Signals</th>
+                    <th class="text-right py-3 px-4">Winners</th>
+                    <th class="text-right py-3 px-4">Win Rate</th>
+                    <th class="text-right py-3 px-4">Avg Gain</th>
+                    <th class="text-right py-3 px-4">Avg Loss</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in performers %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                    <td class="py-3 px-4 text-gray-500">{{ loop.index }}</td>
+                    <td class="py-3 px-4 font-bold text-white">
+                        <a href="/dashboard?ticker={{ p.ticker }}" class="hover:text-blue-400 transition">{{ p.ticker }}</a>
+                    </td>
+                    <td class="py-3 px-4 text-right text-gray-300">{{ p.total_signals }}</td>
+                    <td class="py-3 px-4 text-right text-green-400">{{ p.winners or 0 }}</td>
+                    <td class="py-3 px-4 text-right">
+                        {% set wr = (p.winners or 0) / (p.total_signals or 1) * 100 %}
+                        <span class="{{ 'text-green-400' if wr >= 50 else 'text-red-400' }}">{{ "%.0f"|format(wr) }}%</span>
+                    </td>
+                    <td class="py-3 px-4 text-right text-green-400">{{ "%.2f"|format(p.avg_gain_pct or 0) }}%</td>
+                    <td class="py-3 px-4 text-right text-red-400">{{ "%.2f"|format(p.avg_loss_pct or 0) }}%</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="py-8 text-center text-gray-500">No performance data tracked yet. Signals will be tracked automatically.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if perf_access.has_performance_export %}
+<div class="flex justify-end mb-8">
+    <a href="/api/v1/signals/export?limit=1000" class="px-4 py-2 rounded-lg bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
+        Export Performance CSV
+    </a>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
+    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+    // Accuracy Over Time Chart
+    const chartData = {{ accuracy_chart|tojson|safe }};
+    const labels = chartData.map(d => {
+        const dt = new Date(d.time_bucket * 1000);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const winRates = chartData.map(d => d.total > 0 ? (d.winners / d.total * 100) : 0);
+
+    new Chart(document.getElementById('accuracyChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Win Rate %',
+                data: winRates,
+                borderColor: 'rgba(74,222,128,1)',
+                backgroundColor: 'rgba(74,222,128,0.1)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointBackgroundColor: 'rgba(74,222,128,1)',
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: darkTooltip },
+            scales: {
+                y: { min: 0, max: 100, ticks: { color: '#9ca3af', callback: v => v + '%' }, grid: darkGrid },
+                x: { ticks: { color: '#9ca3af', maxRotation: 45 }, grid: { display: false } }
+            }
+        }
+    });
+
+    // Win/Loss Donut
+    const winners = {{ accuracy.winners or 0 }};
+    const losers = {{ accuracy.losers or 0 }};
+    new Chart(document.getElementById('winLossChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Winners', 'Losers'],
+            datasets: [{
+                data: [winners, losers],
+                backgroundColor: ['rgba(74,222,128,0.7)', 'rgba(248,113,113,0.7)'],
+                borderColor: ['rgba(74,222,128,1)', 'rgba(248,113,113,1)'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#9ca3af', font: { size: 12 } } },
+                tooltip: darkTooltip
+            },
+            cutout: '60%'
+        }
+    });
+})();
+</script>
+{% endblock %}
