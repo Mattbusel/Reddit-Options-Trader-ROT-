@@ -61,6 +61,7 @@
                 {% if user and user.tier == 'ultra' %}
                 <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
                 {% endif %}
+                <a href="/wall-of-shame" class="text-gray-400 hover:text-white transition">Wall of Shame</a>
                 <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
                 {% if user %}
                 <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>

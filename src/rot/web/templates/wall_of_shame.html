@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Wall of Shame - Financial Institution Raids{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent">Wall of Shame</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Every major financial institution raided, seized, or busted since 1980</p>
+        <p class="text-gray-600 text-sm mt-1">FBI raids, DOJ indictments, SEC enforcement, FDIC seizures &mdash; the complete rap sheet</p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ total_raids }}</div>
+            <div class="text-xs text-gray-500 mt-1">Institutions Raided</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-orange-400">{{ format_usd(total_penalties) }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Penalties</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ total_executives }}</div>
+            <div class="text-xs text-gray-500 mt-1">Executives Charged</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-purple-400">{{ destroyed }}</div>
+            <div class="text-xs text-gray-500 mt-1">Firms Destroyed</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ still_operating }}</div>
+            <div class="text-xs text-gray-500 mt-1">Still Operating</div>
+        </div>
+    </div>
+
+    <!-- Decade Timeline -->
+    <div class="stat-card rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Raids by Decade</h2>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {% for decade, data in decades.items() %}
+            <div class="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+                <div class="text-sm font-bold text-white">{{ decade }}</div>
+                <div class="text-2xl font-bold text-red-400 mt-1">{{ data.count }}</div>
+                <div class="text-xs text-gray-500">{{ format_usd(data.amount) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Leaderboard -->
+    <div class="space-y-3">
+        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+            <span>Leaderboard</span>
+            <span class="text-xs text-gray-500 font-normal">(ranked by total penalties)</span>
+        </h2>
+
+        {% for raid in raids %}
+        <div class="signal-card rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index * 30 }}ms">
+            <div class="flex items-start justify-between gap-4">
+                <!-- Rank + Info -->
+                <div class="flex items-start gap-4 flex-1 min-w-0">
+                    <!-- Rank Badge -->
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+                        {% if loop.index <= 3 %}
+                            bg-gradient-to-br from-red-600 to-orange-600 text-white
+                        {% elif loop.index <= 10 %}
+                            bg-gray-700 text-orange-400
+                        {% else %}
+                            bg-gray-800 text-gray-400
+                        {% endif %}
+                    ">
+                        #{{ loop.index }}
+                    </div>
+
+                    <!-- Details -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-white font-semibold text-lg">{{ raid.institution }}</h3>
+                            {% if raid.ticker %}
+                            <span class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 font-mono">${{ raid.ticker }}</span>
+                            {% endif %}
+                            {% if not raid.still_operating %}
+                            <span class="text-xs px-2 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800/50">DEFUNCT</span>
+                            {% endif %}
+                        </div>
+
+                        <p class="text-gray-400 text-sm mt-1 leading-relaxed">{{ raid.description }}</p>
+
+                        <div class="flex items-center gap-3 mt-2 flex-wrap">
+                            <!-- Action Type Badge -->
+                            <span class="text-xs px-2 py-0.5 rounded border {{ action_color(raid.action_type) }}">
+                                {{ action_emoji(raid.action_type) }} {{ raid.action_type|upper }}
+                            </span>
+                            <!-- Agency -->
+                            <span class="text-xs text-gray-500">{{ raid.agency }}</span>
+                            <!-- Year -->
+                            <span class="text-xs text-gray-500">{{ raid.year }}</span>
+                            <!-- Executives -->
+                            {% if raid.executives_charged > 0 %}
+                            <span class="text-xs text-orange-400">{{ raid.executives_charged }} exec{{ 's' if raid.executives_charged > 1 else '' }} charged</span>
+                            {% else %}
+                            <span class="text-xs text-gray-600">0 execs charged</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Penalty Amount -->
+                <div class="flex-shrink-0 text-right">
+                    <div class="text-xl font-bold {% if raid.amount >= 10_000_000_000 %}text-red-400{% elif raid.amount >= 1_000_000_000 %}text-orange-400{% elif raid.amount > 0 %}text-yellow-400{% else %}text-gray-600{% endif %}">
+                        {{ format_usd(raid.amount) }}
+                    </div>
+                    <div class="text-xs text-gray-600 mt-0.5">
+                        {% if raid.amount >= 1_000_000_000 %}penalty{% elif raid.amount > 0 %}fine{% else %}no $ penalty{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Footer Note -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Data sourced from DOJ, SEC, FBI, FDIC, SIGTARP, Better Markets, and Violation Tracker.</p>
+        <p>Penalty amounts reflect total enforcement actions, settlements, and estimated losses. Some figures are cumulative across multiple actions.</p>
+        <p class="text-gray-700 mt-2">Not financial advice. This is a historical record of government enforcement actions.</p>
+    </div>
+
+</div>
+{% endblock %}
