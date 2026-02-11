@@ -114,13 +114,19 @@ class RSSConfig(BaseSettings):
 class EmailConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_EMAIL_")
 
+    # Resend HTTP API (recommended for cloud providers like Railway)
+    resend_api_key: str = ""  # Set this to use Resend instead of SMTP
+
+    # SMTP settings (fallback, for local dev or self-hosted)
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    from_address: str = "alerts@rot.app"
-    enabled: bool = False
     use_ssl: bool = False  # True = SMTP_SSL (port 465), False = STARTTLS (port 587)
+
+    # Shared settings
+    from_address: str = "ROT Alerts <alerts@rot.app>"
+    enabled: bool = False
 
 
 class AuthConfig(BaseSettings):
