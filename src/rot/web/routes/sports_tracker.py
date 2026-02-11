@@ -30,8 +30,8 @@ SPORTS_FEEDS = [
         "icon": "\U0001F3C8",  # football
     },
     {
-        "url": "https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJqaPU244mlTDK1i&size=30&tags=fs/nfl",
-        "label": "Fox Sports NFL",
+        "url": "https://www.cbssports.com/rss/headlines/nfl/",
+        "label": "CBS NFL",
         "league": "NFL",
         "icon": "\U0001F3C8",
     },
@@ -43,8 +43,8 @@ SPORTS_FEEDS = [
         "icon": "\U0001F3C0",  # basketball
     },
     {
-        "url": "https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJqaPU244mlTDK1i&size=30&tags=fs/nba",
-        "label": "Fox Sports NBA",
+        "url": "https://www.cbssports.com/rss/headlines/nba/",
+        "label": "CBS NBA",
         "league": "NBA",
         "icon": "\U0001F3C0",
     },
@@ -55,12 +55,24 @@ SPORTS_FEEDS = [
         "league": "MLB",
         "icon": "\u26BE",  # baseball
     },
+    {
+        "url": "https://www.cbssports.com/rss/headlines/mlb/",
+        "label": "CBS MLB",
+        "league": "MLB",
+        "icon": "\u26BE",
+    },
     # ── NHL ──
     {
         "url": "https://www.espn.com/espn/rss/nhl/news",
         "label": "ESPN NHL",
         "league": "NHL",
         "icon": "\U0001F3D2",  # ice hockey
+    },
+    {
+        "url": "https://www.cbssports.com/rss/headlines/nhl/",
+        "label": "CBS NHL",
+        "league": "NHL",
+        "icon": "\U0001F3D2",
     },
     # ── Soccer / MLS ──
     {
@@ -75,6 +87,12 @@ SPORTS_FEEDS = [
         "label": "CBS Sports Headlines",
         "league": "Multi",
         "icon": "\U0001F3C6",  # trophy
+    },
+    {
+        "url": "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
+        "label": "NY Times Sports",
+        "league": "Multi",
+        "icon": "\U0001F4F0",  # newspaper
     },
 ]
 
@@ -231,7 +249,6 @@ class SportsNewsCache:
         self.last_fetch: float = 0
         self.ttl_s = ttl_s
         self._lock = asyncio.Lock()
-        self._seen: set = set()
 
     async def get_items(self, league: str = "all", category: str = "all") -> List[NewsItem]:
         """Get cached news items, refreshing if stale."""
@@ -264,13 +281,23 @@ class SportsNewsCache:
                     continue
                 new_items.extend(result)
 
-            # Sort by published time (newest first)
-            new_items.sort(key=lambda x: x.published, reverse=True)
+            # Per-refresh dedup: remove duplicate item_ids within this fetch
+            seen_ids: set = set()
+            deduped = []
+            for item in new_items:
+                if item.item_id not in seen_ids:
+                    seen_ids.add(item.item_id)
+                    deduped.append(item)
 
-            # Keep last 200 items max
-            self.items = new_items[:200]
+            # Only replace cache if we got results; keep stale items on total failure
+            if deduped:
+                deduped.sort(key=lambda x: x.published, reverse=True)
+                self.items = deduped[:200]
+                log.info("Sports tracker: cached %d items", len(self.items))
+            else:
+                log.warning("Sports tracker: all feeds failed or empty, keeping %d stale items", len(self.items))
+
             self.last_fetch = time.time()
-            log.info("Sports tracker: cached %d items", len(self.items))
 
     async def _fetch_feed(self, feed: dict) -> List[NewsItem]:
         """Fetch and parse a single RSS feed."""
@@ -285,7 +312,7 @@ class SportsNewsCache:
                 resp.raise_for_status()
                 raw = resp.text
         except Exception as e:
-            log.debug("Sports feed %s failed: %s", feed["label"], e)
+            log.warning("Sports feed %s failed: %s", feed["label"], e)
             return []
 
         parsed = feedparser.parse(raw)
@@ -320,15 +347,8 @@ class SportsNewsCache:
             else:
                 published = time.time()
 
-            # Generate unique ID
+            # Generate unique ID for per-refresh dedup
             item_id = hashlib.md5(f"{title}:{link}".encode()).hexdigest()[:12]
-            if item_id in self._seen:
-                continue
-            self._seen.add(item_id)
-
-            # Prevent unbounded growth of seen set
-            if len(self._seen) > 5000:
-                self._seen.clear()
 
             # Classify
             classification = _classify_news(title, summary)
