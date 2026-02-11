@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Sports Tracker - Betting News Intel{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Sports Tracker</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Injuries, trades, suspensions &amp; lineup changes &mdash; before the lines move</p>
+        <p class="text-gray-600 text-sm mt-1">Live feed from ESPN, Fox Sports, CBS Sports &mdash; auto-refreshes every 5 minutes</p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-400">{{ total_items }}</div>
+            <div class="text-xs text-gray-500 mt-1">News Items</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ injury_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Injury Reports</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-300">{{ trade_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Trades &amp; Signings</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-orange-400">{{ high_urgency }}</div>
+            <div class="text-xs text-gray-500 mt-1">High Urgency</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="stat-card rounded-xl p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- League Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">League:</span>
+                <a href="/sports-tracker?league=all&category={{ selected_category }}"
+                   class="px-3 py-1 rounded-full text-xs font-medium transition
+                   {% if selected_league == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                    All
+                </a>
+                {% for lg in all_leagues %}
+                <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}"
+                   class="px-3 py-1 rounded-full text-xs font-medium transition
+                   {% if selected_league == lg %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                    {{ lg }}
+                </a>
+                {% endfor %}
+            </div>
+
+            <div class="hidden md:block w-px h-6 bg-gray-700"></div>
+
+            <!-- Category Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Type:</span>
+                <a href="/sports-tracker?league={{ selected_league }}&category=all"
+                   class="px-3 py-1 rounded-full text-xs font-medium transition
+                   {% if selected_category == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                    All
+                </a>
+                {% for cat in all_categories %}
+                <a href="/sports-tracker?league={{ selected_league }}&category={{ cat }}"
+                   class="px-3 py-1 rounded-full text-xs font-medium transition
+                   {% if selected_category == cat %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                    {{ category_emoji(cat) }} {{ cat|capitalize }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- League Breakdown -->
+    {% if league_counts %}
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        {% for lg, count in league_counts.items() %}
+        <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}"
+           class="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50 hover:border-gray-500/50 transition">
+            <div class="text-sm font-bold text-white">{{ lg }}</div>
+            <div class="text-2xl font-bold text-blue-400 mt-1">{{ count }}</div>
+            <div class="text-xs text-gray-500">stories</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- News Feed -->
+    <div class="space-y-3">
+        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+            <span>Live Feed</span>
+            <span class="w-2 h-2 rounded-full bg-green-500 pulse"></span>
+            <span class="text-xs text-gray-500 font-normal">
+                {% if selected_league != 'all' %}{{ selected_league }}{% endif %}
+                {% if selected_category != 'all' %}{{ selected_category }}{% endif %}
+                {% if selected_league == 'all' and selected_category == 'all' %}all leagues{% endif %}
+            </span>
+        </h2>
+
+        {% if items %}
+            {% for item in items %}
+            <div class="signal-card rounded-xl p-4 fade-in" style="animation-delay: {{ loop.index * 20 }}ms">
+                <div class="flex items-start justify-between gap-4">
+                    <!-- Icon + Content -->
+                    <div class="flex items-start gap-3 flex-1 min-w-0">
+                        <!-- League Icon -->
+                        <div class="flex-shrink-0 text-2xl mt-0.5">{{ item.icon }}</div>
+
+                        <!-- Details -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <!-- Urgency Dot -->
+                                {% if item.urgency == 'high' %}
+                                <span class="w-2 h-2 rounded-full bg-red-500 pulse flex-shrink-0" title="High urgency - may move lines"></span>
+                                {% elif item.urgency == 'medium' %}
+                                <span class="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" title="Medium urgency"></span>
+                                {% endif %}
+
+                                <!-- Title -->
+                                <a href="{{ item.link }}" target="_blank" rel="noopener"
+                                   class="text-white font-semibold hover:text-blue-400 transition leading-tight">
+                                    {{ item.title }}
+                                </a>
+                            </div>
+
+                            {% if item.summary %}
+                            <p class="text-gray-400 text-sm mt-1 leading-relaxed line-clamp-2">{{ item.summary[:200] }}</p>
+                            {% endif %}
+
+                            <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                <!-- League Badge -->
+                                <span class="text-xs px-2 py-0.5 rounded border {{ league_color(item.league) }}">
+                                    {{ item.league }}
+                                </span>
+
+                                <!-- Category Badges -->
+                                {% for cat in item.categories %}
+                                <span class="text-xs px-2 py-0.5 rounded border {{ category_color(cat) }}">
+                                    {{ category_emoji(cat) }} {{ cat|upper }}
+                                </span>
+                                {% endfor %}
+
+                                <!-- Source -->
+                                <span class="text-xs text-gray-600">{{ item.source }}</span>
+
+                                <!-- Time -->
+                                <span class="text-xs {{ urgency_color(item.urgency) }}">{{ time_ago(item.published) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Urgency Indicator -->
+                    <div class="flex-shrink-0 text-right">
+                        {% if item.urgency == 'high' %}
+                        <div class="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded border border-red-800/50">
+                            LINE MOVER
+                        </div>
+                        {% elif item.urgency == 'medium' %}
+                        <div class="text-xs font-bold text-yellow-400 bg-yellow-900/30 px-2 py-1 rounded border border-yellow-800/50">
+                            WATCH
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-12 text-gray-500">
+                <div class="text-4xl mb-3">&#127941;</div>
+                <p class="text-lg">No sports news found</p>
+                <p class="text-sm mt-1">
+                    {% if selected_league != 'all' or selected_category != 'all' %}
+                    Try changing your filters or check back soon.
+                    {% else %}
+                    News feeds are loading &mdash; check back in a minute.
+                    {% endif %}
+                </p>
+                <a href="/sports-tracker" class="inline-block mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition">
+                    Reset Filters
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer Note -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Aggregated from ESPN, Fox Sports, CBS Sports, and other major sports outlets.</p>
+        <p>News items are classified automatically. Urgency tags indicate potential line-moving impact.</p>
+        <p class="text-gray-700 mt-2">Not gambling advice. Always verify injury reports with official team sources before placing bets.</p>
+    </div>
+
+</div>
+
+<style>
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
