@@ -141,8 +141,10 @@ class StockTwitsConfig(BaseSettings):
     poll_interval_s: int = 180  # 3 minutes
 
 
-class TwitterConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
+class TwitterIngestConfig(BaseSettings):
+    """Config for reading/ingesting tweets (API v2 Bearer Token)."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_INGEST_")
 
     enabled: bool = False
     bearer_token: str = ""
@@ -154,6 +156,21 @@ class TwitterConfig(BaseSettings):
     )
     poll_interval_s: int = 180
     max_results: int = 20
+
+
+class TwitterPosterConfig(BaseSettings):
+    """Config for posting signals to X/Twitter (OAuth 1.0a)."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
+
+    api_key: str = ""           # Consumer / API key
+    api_secret: str = ""        # Consumer / API secret
+    access_token: str = ""      # User access token (for the ROT account)
+    access_secret: str = ""     # User access token secret
+    enabled: bool = False
+    interval_s: int = 10800     # 3 hours
+    min_confidence: float = 0.5  # Lowered to get posts flowing
+    dashboard_url: str = "https://web-production-71423.up.railway.app"
 
 
 class EmailConfig(BaseSettings):
@@ -194,19 +211,6 @@ class StripeConfig(BaseSettings):
     cancel_url: str = "/pricing"
 
 
-class TwitterConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
-
-    api_key: str = ""           # Consumer / API key
-    api_secret: str = ""        # Consumer / API secret
-    access_token: str = ""      # User access token (for the ROT account)
-    access_secret: str = ""     # User access token secret
-    enabled: bool = False
-    interval_s: int = 10800     # 3 hours
-    min_confidence: float = 0.5  # Lowered to get posts flowing
-    dashboard_url: str = "https://web-production-71423.up.railway.app"
-
-
 class TierConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_TIER_")
 
@@ -234,12 +238,12 @@ class Settings(BaseSettings):
     web: WebConfig = Field(default_factory=WebConfig)
     rss: RSSConfig = Field(default_factory=RSSConfig)
     stocktwits: StockTwitsConfig = Field(default_factory=StockTwitsConfig)
-    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
+    twitter_ingest: TwitterIngestConfig = Field(default_factory=TwitterIngestConfig)
+    twitter: TwitterPosterConfig = Field(default_factory=TwitterPosterConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
-    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Broker Integration - ROT{% endblock %}
+{% block meta_description %}Connect your brokerage account to ROT for one-click trade execution. Supports Robinhood, Webull, and Tastytrade.{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <nav class="text-sm text-gray-400 mb-4">
+            <a href="/dashboard" class="hover:text-white">Dashboard</a> &rarr;
+            <span class="text-gray-300">Broker Integration</span>
+        </nav>
+        <h1 class="text-3xl font-bold text-white mb-2">One-Click Trade Execution</h1>
+        <p class="text-gray-400">Connect your broker to execute ROT signal trade ideas with a single click. Pro tier required.</p>
+    </div>
+
+    <!-- How it works -->
+    <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 rounded-xl p-6 border border-indigo-700/50 mb-8">
+        <h2 class="text-xl font-semibold text-white mb-4">How It Works</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+            <div class="text-center">
+                <div class="text-3xl mb-2">1</div>
+                <p class="text-gray-300">Connect your broker below</p>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl mb-2">2</div>
+                <p class="text-gray-300">Browse signals on the dashboard</p>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl mb-2">3</div>
+                <p class="text-gray-300">Click "Execute" on any trade idea</p>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl mb-2">4</div>
+                <p class="text-gray-300">Review & confirm the order</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Broker Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {% for broker_id, broker in supported_brokers.items() %}
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 hover:border-indigo-500/50 transition">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">{{ broker.icon }}</span>
+                    <h3 class="text-lg font-semibold text-white">{{ broker.name }}</h3>
+                </div>
+                {% if broker_id in connected_brokers %}
+                    <span class="px-2 py-1 bg-green-900/50 text-green-400 rounded-full text-xs">Connected</span>
+                {% endif %}
+            </div>
+
+            <div class="space-y-2 text-sm text-gray-400 mb-4">
+                <p>Auth: <span class="text-gray-300">{{ broker.auth_type | upper }}</span></p>
+                <p>Options: <span class="text-gray-300">{{ "Yes" if broker.supports_options else "No" }}</span></p>
+                <p>Paper trading: <span class="text-gray-300">{{ "Yes" if broker.supports_paper else "No" }}</span></p>
+            </div>
+
+            {% if user and user.tier in ['pro', 'premium', 'ultra'] %}
+                {% if broker_id in connected_brokers %}
+                    <button onclick="disconnectBroker('{{ broker_id }}')"
+                            class="w-full px-4 py-2 bg-red-900/50 hover:bg-red-800/50 text-red-400 rounded-lg text-sm transition">
+                        Disconnect
+                    </button>
+                {% else %}
+                    <button onclick="connectBroker('{{ broker_id }}')"
+                            class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition">
+                        Connect {{ broker.name }}
+                    </button>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-2">
+                    <span class="text-gray-500 text-sm">Requires Pro tier</span>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Safety Notice -->
+    <div class="bg-amber-900/20 rounded-xl p-6 border border-amber-700/50 mb-8">
+        <h3 class="text-lg font-semibold text-amber-400 mb-2">Safety First</h3>
+        <ul class="space-y-2 text-sm text-gray-300">
+            <li>All orders default to <strong>paper trade</strong> mode. You must explicitly enable live trading.</li>
+            <li>Every order shows a preview with legs, costs, and max loss <strong>before</strong> execution.</li>
+            <li>ROT signals are informational. Always review trades before confirming.</li>
+            <li>Your broker credentials are encrypted and never stored in plaintext.</li>
+        </ul>
+    </div>
+
+    <!-- Execution Preview Example -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+        <h2 class="text-xl font-semibold text-white mb-4">What Execution Looks Like</h2>
+        <div class="bg-gray-900 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-lg font-semibold text-white">$TSLA Bull Call Spread</span>
+                <span class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs">BULLISH 72%</span>
+            </div>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between text-gray-400">
+                    <span>BUY 1x TSLA $250 Call (Mar 21)</span>
+                    <span class="text-green-400">$8.50</span>
+                </div>
+                <div class="flex justify-between text-gray-400">
+                    <span>SELL 1x TSLA $260 Call (Mar 21)</span>
+                    <span class="text-red-400">-$5.20</span>
+                </div>
+                <div class="border-t border-gray-700 pt-2 flex justify-between">
+                    <span class="text-gray-300">Net Debit (Max Loss)</span>
+                    <span class="text-white font-semibold">$3.30 / contract</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-300">Max Profit</span>
+                    <span class="text-green-400 font-semibold">$6.70 / contract</span>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-3">
+                <button class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm opacity-50 cursor-not-allowed">
+                    Paper Trade
+                </button>
+                <button class="flex-1 px-4 py-2 bg-gray-700 text-gray-400 rounded-lg text-sm opacity-50 cursor-not-allowed">
+                    Live Trade (Connect Broker)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function connectBroker(brokerId) {
+    try {
+        const resp = await fetch('/api/v1/brokers/connect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({broker: brokerId, credentials: {}})
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.detail || 'Connection failed');
+        }
+    } catch (e) {
+        alert('Connection error: ' + e.message);
+    }
+}
+
+async function disconnectBroker(brokerId) {
+    if (!confirm('Disconnect this broker?')) return;
+    try {
+        const resp = await fetch('/api/v1/brokers/disconnect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({broker: brokerId})
+        });
+        const data = await resp.json();
+        if (data.ok) location.reload();
+    } catch (e) {
+        alert('Disconnect error: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

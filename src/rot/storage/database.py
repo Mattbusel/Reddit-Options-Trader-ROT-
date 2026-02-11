@@ -118,6 +118,27 @@ CREATE TABLE IF NOT EXISTS x_posts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_x_posts_posted ON x_posts(posted_at DESC);
+
+CREATE TABLE IF NOT EXISTS referral_clicks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ref_code TEXT NOT NULL,
+    ip_address TEXT NOT NULL DEFAULT '',
+    clicked_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_referral_clicks_code ON referral_clicks(ref_code);
+
+CREATE TABLE IF NOT EXISTS referral_conversions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ref_code TEXT NOT NULL,
+    referred_user_id TEXT NOT NULL,
+    converted_at REAL NOT NULL,
+    tier TEXT NOT NULL DEFAULT 'free',
+    commission_amount REAL NOT NULL DEFAULT 0.0,
+    paid_out INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_referral_conv_code ON referral_conversions(ref_code);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -1386,6 +1407,57 @@ class Database:
             """
 
         async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    # ── Referral / Affiliate Program ──
+
+    async def record_referral_click(self, ref_code: str, ip_address: str = "") -> None:
+        """Record a referral link click."""
+        await self.db.execute(
+            "INSERT INTO referral_clicks (ref_code, ip_address, clicked_at) VALUES (?, ?, ?)",
+            (ref_code, ip_address, time.time()),
+        )
+        await self.db.commit()
+
+    async def count_referrals(self, ref_code: str) -> int:
+        """Count total referral link clicks."""
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM referral_clicks WHERE ref_code = ?", (ref_code,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def record_referral_conversion(
+        self, ref_code: str, referred_user_id: str, tier: str = "free", commission: float = 0.0
+    ) -> None:
+        """Record when a referred user signs up or upgrades."""
+        await self.db.execute(
+            """INSERT INTO referral_conversions
+               (ref_code, referred_user_id, converted_at, tier, commission_amount)
+               VALUES (?, ?, ?, ?, ?)""",
+            (ref_code, referred_user_id, time.time(), tier, commission),
+        )
+        await self.db.commit()
+
+    async def count_referral_conversions(self, ref_code: str) -> int:
+        """Count total conversions for a referral code."""
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM referral_conversions WHERE ref_code = ?", (ref_code,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def get_recent_referrals(self, ref_code: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get recent referral conversions for dashboard display."""
+        query = """
+            SELECT ref_code, converted_at, tier, commission_amount, paid_out
+            FROM referral_conversions
+            WHERE ref_code = ?
+            ORDER BY converted_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (ref_code, limit)) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
 

@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Affiliate Program - ROT{% endblock %}
+{% block meta_description %}Earn {{ commission_rate }}% recurring commissions by referring traders to ROT. Get embeddable widgets, unique referral links, and a real-time dashboard.{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <nav class="text-sm text-gray-400 mb-4">
+            <a href="/dashboard" class="hover:text-white">Dashboard</a> &rarr;
+            <span class="text-gray-300">Affiliate Program</span>
+        </nav>
+        <h1 class="text-3xl font-bold text-white mb-2">Affiliate Program</h1>
+        <p class="text-gray-400">Earn {{ commission_rate }}% recurring commissions for every trader you refer. Perfect for FinTwit creators, YouTubers, and finance bloggers.</p>
+    </div>
+
+    {% if affiliate_info %}
+    <!-- Affiliate Dashboard -->
+    <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-6 border border-green-700/50 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-white">Your Affiliate Dashboard</h2>
+            <span class="px-3 py-1 bg-green-900/50 text-green-400 rounded-full text-sm">Active</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-white" id="stat-clicks">-</p>
+                <p class="text-xs text-gray-400">Total Clicks</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-green-400" id="stat-conversions">-</p>
+                <p class="text-xs text-gray-400">Conversions</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-indigo-400" id="stat-earned">$0</p>
+                <p class="text-xs text-gray-400">Total Earned</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-amber-400" id="stat-pending">$0</p>
+                <p class="text-xs text-gray-400">Pending Payout</p>
+            </div>
+        </div>
+
+        <!-- Referral Link -->
+        <div class="bg-gray-900 rounded-lg p-4 mb-4">
+            <p class="text-sm text-gray-400 mb-2">Your Referral Link</p>
+            <div class="flex gap-2">
+                <input type="text" readonly value="{{ dashboard_url }}/ref/{{ affiliate_info.ref_code }}"
+                       class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" id="ref-link">
+                <button onclick="copyRefLink()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition">
+                    Copy
+                </button>
+            </div>
+        </div>
+
+        <!-- Widget Code -->
+        <div class="mb-4">
+            <button onclick="showWidget()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition">
+                Get Embeddable Widget Code
+            </button>
+        </div>
+
+        <div id="widget-section" class="hidden bg-gray-900 rounded-lg p-4">
+            <p class="text-sm text-gray-400 mb-2">Embed this on your website or blog:</p>
+            <pre id="widget-code" class="text-xs text-green-400 font-mono overflow-x-auto bg-gray-800 rounded p-3 mb-2">Loading...</pre>
+            <button onclick="copyWidgetCode()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition">
+                Copy Widget Code
+            </button>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Not yet registered — Program overview -->
+    <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 rounded-xl p-8 border border-indigo-700/50 mb-8 text-center">
+        <h2 class="text-2xl font-bold text-white mb-4">Start Earning Today</h2>
+        <p class="text-gray-400 mb-6 max-w-2xl mx-auto">
+            Share your unique referral link with your audience. You earn {{ commission_rate }}% of every subscription payment — recurring, for as long as they stay subscribed.
+        </p>
+        {% if user %}
+            <button onclick="registerAffiliate()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-semibold transition">
+                Join Affiliate Program
+            </button>
+        {% else %}
+            <a href="/dashboard" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-semibold transition inline-block">
+                Sign Up to Get Started
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Program Details -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-3xl mb-3">{{ commission_rate }}%</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Recurring Commission</h3>
+            <p class="text-gray-400 text-sm">Earn {{ commission_rate }}% of every subscription payment. Pro ($9.99/mo) = $2.00/mo per referral. Premium ($29.99/mo) = $6.00/mo.</p>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-3xl mb-3">{{ reward_days }}d</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Free Pro for Both</h3>
+            <p class="text-gray-400 text-sm">When someone signs up through your link, both you and your referral get {{ reward_days }} days of free Pro access. Everyone wins.</p>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-3xl mb-3">&#60;/&#62;</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Embeddable Widgets</h3>
+            <p class="text-gray-400 text-sm">Drop a live signal widget on your website or blog. Shows real ROT signals with your affiliate link built in.</p>
+        </div>
+    </div>
+
+    <!-- Who it's for -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-xl font-semibold text-white mb-4">Perfect For</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-xl mb-2">&#x1F3AC;</p>
+                <p class="text-gray-300">Finance YouTubers</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-xl mb-2">&#x1F426;</p>
+                <p class="text-gray-300">FinTwit Creators</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-xl mb-2">&#x270D;&#xFE0F;</p>
+                <p class="text-gray-300">Finance Bloggers</p>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg p-4 text-center">
+                <p class="text-xl mb-2">&#x1F4AC;</p>
+                <p class="text-gray-300">Discord Communities</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+        <h2 class="text-xl font-semibold text-white mb-4">FAQ</h2>
+        <div class="space-y-4">
+            <div>
+                <h4 class="text-white font-medium mb-1">When do I get paid?</h4>
+                <p class="text-gray-400 text-sm">Payouts are processed monthly via PayPal or Stripe. Minimum payout threshold is $25.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-medium mb-1">How long does the cookie last?</h4>
+                <p class="text-gray-400 text-sm">Referral attribution lasts 90 days from the initial click.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-medium mb-1">Can I promote on social media?</h4>
+                <p class="text-gray-400 text-sm">Absolutely. Share your referral link anywhere — Twitter, YouTube, Discord, blogs, newsletters.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-medium mb-1">Is there a limit to how many people I can refer?</h4>
+                <p class="text-gray-400 text-sm">No limit. The more you refer, the more you earn. Top affiliates earn $500+/month.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function registerAffiliate() {
+    try {
+        const resp = await fetch('/api/v1/affiliates/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await resp.json();
+        if (data.ok) location.reload();
+        else alert(data.detail || 'Registration failed');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function copyRefLink() {
+    const input = document.getElementById('ref-link');
+    navigator.clipboard.writeText(input.value).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+}
+
+async function showWidget() {
+    const section = document.getElementById('widget-section');
+    section.classList.toggle('hidden');
+    if (!section.classList.contains('hidden')) {
+        try {
+            const resp = await fetch('/api/v1/affiliates/widget');
+            const data = await resp.json();
+            if (data.ok) {
+                document.getElementById('widget-code').textContent = data.widget_html;
+            }
+        } catch (e) {
+            document.getElementById('widget-code').textContent = 'Error loading widget code';
+        }
+    }
+}
+
+function copyWidgetCode() {
+    const code = document.getElementById('widget-code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy Widget Code', 2000);
+    });
+}
+
+// Load stats if affiliate
+{% if affiliate_info %}
+(async function() {
+    try {
+        const resp = await fetch('/api/v1/affiliates/dashboard');
+        const data = await resp.json();
+        if (data.ok) {
+            document.getElementById('stat-clicks').textContent = data.total_clicks || 0;
+            document.getElementById('stat-conversions').textContent = data.total_conversions || 0;
+            document.getElementById('stat-earned').textContent = '$' + (data.total_earned || 0).toFixed(2);
+            document.getElementById('stat-pending').textContent = '$' + (data.pending_payout || 0).toFixed(2);
+        }
+    } catch(e) {}
+})();
+{% endif %}
+</script>
+{% endblock %}

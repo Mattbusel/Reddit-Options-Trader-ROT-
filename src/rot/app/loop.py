@@ -58,17 +58,17 @@ def loop() -> None:
         sources.append(stocktwits_ingestor)
         print(f"📊 StockTwits: ACTIVE ({len(cfg.stocktwits.symbols)} symbols)")
 
-    twitter_active = cfg.twitter.enabled and bool(cfg.twitter.bearer_token)
+    twitter_active = cfg.twitter_ingest.enabled and bool(cfg.twitter_ingest.bearer_token)
     if twitter_active:
         twitter_ingestor = TwitterIngestor(
-            bearer_token=cfg.twitter.bearer_token,
-            cashtags=cfg.twitter.cashtags,
-            accounts=cfg.twitter.accounts,
+            bearer_token=cfg.twitter_ingest.bearer_token,
+            cashtags=cfg.twitter_ingest.cashtags,
+            accounts=cfg.twitter_ingest.accounts,
             state_path=f"{cfg.storage_root}/seen_twitter.json",
-            max_results=cfg.twitter.max_results,
+            max_results=cfg.twitter_ingest.max_results,
         )
         sources.append(twitter_ingestor)
-        print(f"🐦 Twitter/X: ACTIVE ({len(cfg.twitter.cashtags)} cashtags, {len(cfg.twitter.accounts)} accounts)")
+        print(f"🐦 Twitter/X ingest: ACTIVE ({len(cfg.twitter_ingest.cashtags)} cashtags, {len(cfg.twitter_ingest.accounts)} accounts)")
 
     ingestor = MultiSourceIngestor(sources) if len(sources) > 1 else sources[0]
 
