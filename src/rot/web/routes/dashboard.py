@@ -75,6 +75,7 @@ def _tier_badge_class(tier: str) -> str:
         "pro": "bg-blue-900/50 text-blue-400 border border-blue-700",
         "premium": "bg-purple-900/50 text-purple-400 border border-purple-700",
         "ultra": "bg-amber-900/50 text-amber-400 border border-amber-700",
+        "enterprise": "bg-emerald-900/50 text-emerald-400 border border-emerald-700",
     }.get(tier, "bg-gray-700 text-gray-400 border border-gray-600")
 
 
@@ -369,7 +370,7 @@ async def _signal_detail_inner(request: Request, signal_id: str):
     if not isinstance(user_settings, dict):
         user_settings = {}
     has_byok = bool(
-        tier in ("pro", "premium", "ultra")
+        tier in ("pro", "premium", "ultra", "enterprise")
         and user_settings.get("llm_api_key")
     )
     reasoning = gated.get("reasoning", {})

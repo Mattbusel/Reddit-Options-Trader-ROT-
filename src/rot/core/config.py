@@ -207,6 +207,7 @@ class StripeConfig(BaseSettings):
     pro_price_id: str = ""
     premium_price_id: str = ""
     ultra_price_id: str = ""
+    enterprise_price_id: str = ""
     success_url: str = "/dashboard?upgraded=1"
     cancel_url: str = "/pricing"
 
@@ -220,6 +221,18 @@ class TierConfig(BaseSettings):
     pro_api_limit_day: int = 5000
     premium_api_limit_day: int = 25000
     ultra_api_limit_day: int = 50000
+    enterprise_api_limit_day: int = 500000
+
+
+class SponsoredConfig(BaseSettings):
+    """Config for sponsored signal analysis (enterprise feature)."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_SPONSORED_")
+
+    enabled: bool = False
+    max_pending_per_user: int = 10
+    auto_analyze: bool = True
+    label_text: str = "Sponsored Analysis"
 
 
 class Settings(BaseSettings):
@@ -244,6 +257,7 @@ class Settings(BaseSettings):
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
+    sponsored: SponsoredConfig = Field(default_factory=SponsoredConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

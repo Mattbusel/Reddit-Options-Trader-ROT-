@@ -100,11 +100,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_routes.router, prefix="/api/v1", tags=["auth"])
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
-    # TradingView, broker, and affiliate routes (mixed HTML + API)
-    from rot.web.routes import tradingview, brokers, affiliates
+    # TradingView, broker, affiliate, and enterprise routes (mixed HTML + API)
+    from rot.web.routes import tradingview, brokers, affiliates, enterprise
     app.include_router(tradingview.router, tags=["tradingview"])
     app.include_router(brokers.router, tags=["brokers"])
     app.include_router(affiliates.router, tags=["affiliates"])
+    app.include_router(enterprise.router, tags=["enterprise"])
 
     # Dashboard routes (HTML)
     from rot.web.routes import (

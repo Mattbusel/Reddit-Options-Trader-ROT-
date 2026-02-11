@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing - ROT | Free, Pro, Premium & Ultra Plans{% endblock %}
-{% block meta_description %}Choose your ROT plan. Free tier with delayed signals, or upgrade for real-time alerts, performance tracking, AI analysis, and custom webhooks.{% endblock %}
+{% block title %}Pricing - ROT | Free, Pro, Premium, Ultra & Enterprise Plans{% endblock %}
+{% block meta_description %}Choose your ROT plan. Free tier with delayed signals, or upgrade for real-time alerts, performance tracking, AI analysis, and custom webhooks. Enterprise data licensing available.{% endblock %}
 {% block og_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
-{% block og_description %}Free, Pro ($9.99), Premium ($29.99), and Ultra ($49.99) plans for real-time Reddit options intelligence.{% endblock %}
+{% block og_description %}Free, Pro ($9.99), Premium ($29.99), Ultra ($49.99), and Enterprise ($499) plans for real-time Reddit options intelligence.{% endblock %}
 {% block twitter_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
 
 {% block structured_data %}
@@ -29,6 +29,13 @@
         "name": "ROT Ultra Plan",
         "description": "Full platform access with live badges, custom time ranges, chart export, and early feature access",
         "offers": {"@type": "Offer", "price": "49.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "ROT Enterprise Plan",
+        "description": "Full data licensing, sponsored signal analysis, 500K API calls/day, bulk CSV/JSON exports for quant funds and researchers",
+        "offers": {"@type": "Offer", "price": "499.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
@@ -223,6 +230,55 @@
     </div>
 </div>
 
+<!-- Enterprise -->
+<div class="max-w-4xl mx-auto mt-8">
+    <div class="signal-card rounded-xl p-8 relative" style="border-color: rgba(16, 185, 129, 0.5); border-width: 2px;">
+        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white text-xs font-bold px-5 py-1 rounded-full tracking-widest">ENTERPRISE</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-emerald-400">Enterprise</h2>
+                <div class="text-4xl font-bold text-white mt-2">$499<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <p class="text-gray-400 text-sm mt-2">For quant funds, researchers &amp; data providers</p>
+                <p class="text-emerald-400/60 text-xs mt-1">Custom volume pricing available &mdash; contact us for $999+/yr annual deals</p>
+            </div>
+            <div>
+                <ul class="space-y-3 text-sm text-gray-300">
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Everything in Ultra</span></li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>500,000 API calls/day</span></li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Data Licensing &mdash; bulk CSV/JSON exports</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Full historical signal + accuracy datasets</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Sponsored Signals &mdash; priority IR analysis</span>
+                    </li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Enterprise dashboard &amp; usage analytics</span></li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Dedicated support &amp; onboarding</span></li>
+                </ul>
+            </div>
+            <div class="flex flex-col items-center justify-center gap-3">
+                {% if tier == 'enterprise' %}
+                <div class="w-full text-center py-3 px-6 rounded-lg bg-emerald-900/30 text-emerald-400 border border-emerald-700 text-sm font-semibold">Current Plan</div>
+                <a href="/enterprise" class="text-emerald-400 hover:text-emerald-300 text-sm hover:underline transition">Go to Enterprise Dashboard &rarr;</a>
+                {% elif stripe_enabled and user %}
+                <button onclick="checkout('enterprise')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Upgrade to Enterprise</button>
+                <a href="/enterprise" class="text-gray-400 hover:text-emerald-400 text-sm hover:underline transition">Learn more &rarr;</a>
+                {% elif not user %}
+                <a href="/register" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Sign Up</a>
+                <a href="/enterprise" class="text-gray-400 hover:text-emerald-400 text-sm hover:underline transition">Learn more &rarr;</a>
+                {% else %}
+                <a href="/enterprise" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Learn More</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart Feature Comparison -->
 <div class="max-w-4xl mx-auto mt-12">
     <h3 class="text-xl font-semibold text-white text-center mb-6">Visualization Features by Plan</h3>
@@ -235,11 +291,13 @@
                     <th class="text-center py-3 px-4 text-blue-400 font-semibold">Pro</th>
                     <th class="text-center py-3 px-4 text-purple-400 font-semibold">Premium</th>
                     <th class="text-center py-3 px-4 text-amber-400 font-semibold">Ultra</th>
+                    <th class="text-center py-3 px-4 text-emerald-400 font-semibold">Enterprise</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Stance distribution chart</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
@@ -251,11 +309,13 @@
                     <td class="py-3 px-4 text-center text-green-400">24h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Signal volume timeline</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">24h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                 </tr>
@@ -265,12 +325,14 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Custom time range</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
@@ -279,6 +341,7 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Live indicator badge</td>
@@ -286,6 +349,23 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Data licensing (bulk export)</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Sponsored signal analysis</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
                 </tr>
             </tbody>
         </table>

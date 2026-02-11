@@ -100,7 +100,7 @@ async def connect_broker(body: BrokerConnectRequest, request: Request):
     """Store broker connection credentials for a user (pro+ only)."""
     user = await require_user(request)
     tier = user.get("tier", "free")
-    if tier not in ("pro", "premium", "ultra"):
+    if tier not in ("pro", "premium", "ultra", "enterprise"):
         raise HTTPException(status_code=403, detail="Broker integration requires Pro tier or above")
 
     if body.broker not in SUPPORTED_BROKERS:
@@ -157,7 +157,7 @@ async def preview_order(body: OrderPreviewRequest, request: Request):
     """
     user = await require_user(request)
     tier = user.get("tier", "free")
-    if tier not in ("pro", "premium", "ultra"):
+    if tier not in ("pro", "premium", "ultra", "enterprise"):
         raise HTTPException(status_code=403, detail="Broker integration requires Pro tier or above")
 
     # Check broker is connected
@@ -215,7 +215,7 @@ async def execute_order(body: OrderExecuteRequest, request: Request):
     """
     user = await require_user(request)
     tier = user.get("tier", "free")
-    if tier not in ("pro", "premium", "ultra"):
+    if tier not in ("pro", "premium", "ultra", "enterprise"):
         raise HTTPException(status_code=403, detail="Broker integration requires Pro tier or above")
 
     settings = user.get("settings", {})

@@ -146,7 +146,7 @@ async def create_api_key(request: Request):
 async def update_llm_settings(body: LLMSettingsRequest, request: Request):
     """Update BYOK LLM settings (paid tiers only)."""
     user = await require_user(request)
-    if user["tier"] not in ("pro", "premium", "ultra"):
+    if user["tier"] not in ("pro", "premium", "ultra", "enterprise"):
         raise HTTPException(status_code=403, detail="BYOK LLM requires a paid tier")
 
     db = request.app.state.db

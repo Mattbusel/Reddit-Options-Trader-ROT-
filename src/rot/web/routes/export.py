@@ -25,7 +25,7 @@ async def export_signals(
     event_type: Optional[str] = None,
 ):
     """Export signals as CSV. Requires Pro tier or higher."""
-    user = await require_tier("pro", "premium", "ultra")(request)
+    user = await require_tier("pro", "premium", "ultra", "enterprise")(request)
 
     db = request.app.state.db
     signals = await db.get_signals(
@@ -48,7 +48,7 @@ async def export_signals(
     ]
 
     # Premium/Ultra get extra columns
-    if user["tier"] in ("premium", "ultra"):
+    if user["tier"] in ("premium", "ultra", "enterprise"):
         headers.extend(["catalyst_window", "risk_notes", "trade_legs", "max_loss"])
 
     writer.writerow(headers)
@@ -77,7 +77,7 @@ async def export_signals(
             created_dt,
         ]
 
-        if user["tier"] in ("premium", "ultra"):
+        if user["tier"] in ("premium", "ultra", "enterprise"):
             legs = idea.get("legs", [])
             legs_str = "; ".join(
                 f"{l.get('side','').upper()} {l.get('kind','').upper()} "
@@ -111,7 +111,7 @@ async def export_performance(
     ticker: Optional[str] = None,
 ):
     """Export signal performance data as CSV. Requires Ultra tier."""
-    user = await require_tier("ultra")(request)
+    user = await require_tier("ultra", "enterprise")(request)
 
     db = request.app.state.db
     records = await db.get_performance_csv_data(days=days, ticker=ticker)

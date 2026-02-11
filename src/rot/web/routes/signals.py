@@ -46,7 +46,7 @@ async def list_signals(
         limit = min(limit, settings.tier_limits.free_page_limit)
 
     # Date range filtering only for premium+
-    if tier not in ("premium", "ultra"):
+    if tier not in ("premium", "ultra", "enterprise"):
         date_from = None
         date_to = None
 
@@ -156,7 +156,7 @@ async def performance_history(
     limit: int = Query(50, ge=1, le=200),
 ):
     """Get per-signal performance history (pro+)."""
-    user = await require_tier("pro", "premium", "ultra")(request)
+    user = await require_tier("pro", "premium", "ultra", "enterprise")(request)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -170,7 +170,7 @@ async def accuracy_chart_data(
     days: int = Query(30, ge=1, le=365),
 ):
     """Get time-series accuracy data for Chart.js (premium+)."""
-    user = await require_tier("premium", "ultra")(request)
+    user = await require_tier("premium", "ultra", "enterprise")(request)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -184,7 +184,7 @@ async def strategy_pnl(
     days: int = Query(30, ge=1, le=365),
 ):
     """Get strategy-level P&L breakdown (ultra)."""
-    user = await require_tier("ultra")(request)
+    user = await require_tier("ultra", "enterprise")(request)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -226,7 +226,7 @@ async def correlations(
     hours: int = Query(24, ge=1, le=168),
 ):
     """Get co-occurring ticker pairs (pro+)."""
-    user = await require_tier("pro", "premium", "ultra")(request)
+    user = await require_tier("pro", "premium", "ultra", "enterprise")(request)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -241,7 +241,7 @@ async def sector_detail(
     hours: int = Query(24, ge=1, le=168),
 ):
     """Get ticker drill-down for a sector (premium+)."""
-    user = await require_tier("premium", "ultra")(request)
+    user = await require_tier("premium", "ultra", "enterprise")(request)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -254,7 +254,7 @@ async def byok_reason_signal(request: Request, signal_id: str):
     """Re-analyze a signal using the user's BYOK LLM key (pro+ only)."""
     user = await require_user(request)
     tier = user.get("tier", "free")
-    if tier not in ("pro", "premium", "ultra"):
+    if tier not in ("pro", "premium", "ultra", "enterprise"):
         raise HTTPException(status_code=403, detail="BYOK reasoning requires a paid tier")
 
     # Get user's LLM settings

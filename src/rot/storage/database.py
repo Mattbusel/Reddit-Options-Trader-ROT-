@@ -139,6 +139,38 @@ CREATE TABLE IF NOT EXISTS referral_conversions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_referral_conv_code ON referral_conversions(ref_code);
+
+CREATE TABLE IF NOT EXISTS sponsored_signals (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    company_name TEXT NOT NULL DEFAULT '',
+    ticker TEXT NOT NULL DEFAULT '',
+    press_url TEXT NOT NULL DEFAULT '',
+    press_content TEXT NOT NULL DEFAULT '',
+    priority INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    signal_id TEXT DEFAULT NULL,
+    created_at REAL NOT NULL,
+    analyzed_at REAL DEFAULT NULL,
+    notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_sponsored_user ON sponsored_signals(user_id);
+CREATE INDEX IF NOT EXISTS idx_sponsored_status ON sponsored_signals(status);
+CREATE INDEX IF NOT EXISTS idx_sponsored_created ON sponsored_signals(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS data_exports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    export_type TEXT NOT NULL DEFAULT 'signals',
+    format TEXT NOT NULL DEFAULT 'csv',
+    requested_at REAL NOT NULL,
+    completed_at REAL DEFAULT NULL,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    filters TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_data_exports_user ON data_exports(user_id);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -146,6 +178,8 @@ _MIGRATIONS = [
     ("users", "password_hash", "TEXT NOT NULL DEFAULT ''"),
     ("signal_performance", "created_at", "REAL NOT NULL DEFAULT 0"),
     ("signals", "sector", "TEXT NOT NULL DEFAULT ''"),
+    ("signals", "sponsored", "INTEGER NOT NULL DEFAULT 0"),
+    ("signals", "sponsored_by", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -1142,7 +1176,7 @@ class Database:
             JOIN users u ON eas.user_id = u.id
             WHERE eas.enabled = 1 AND eas.realtime_enabled = 1
                   AND ? >= eas.min_confidence
-                  AND u.tier IN ('pro', 'premium', 'ultra')
+                  AND u.tier IN ('pro', 'premium', 'ultra', 'enterprise')
         """
         async with self.db.execute(query, (confidence,)) as cursor:
             rows = await cursor.fetchall()
@@ -1460,6 +1494,136 @@ class Database:
         async with self.db.execute(query, (ref_code, limit)) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+    # ── Sponsored Signals (Enterprise) ──
+
+    async def create_sponsored_signal(self, user_id: str, data: Dict[str, Any]) -> str:
+        """Create a sponsored signal submission."""
+        sid = str(uuid.uuid4())[:12]
+        now = time.time()
+        await self.db.execute(
+            """INSERT INTO sponsored_signals
+               (id, user_id, company_name, ticker, press_url, press_content,
+                priority, status, created_at, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                sid, user_id,
+                data.get("company_name", ""),
+                data.get("ticker", "").upper(),
+                data.get("press_url", ""),
+                data.get("press_content", ""),
+                data.get("priority", 0),
+                "pending",
+                now,
+                data.get("notes", ""),
+            ),
+        )
+        await self.db.commit()
+        return sid
+
+    async def get_sponsored_signals(
+        self, user_id: Optional[str] = None, status: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get sponsored signal submissions, optionally filtered."""
+        conditions: List[str] = []
+        params: list = []
+        if user_id:
+            conditions.append("user_id = ?")
+            params.append(user_id)
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        query = f"SELECT * FROM sponsored_signals {where} ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def update_sponsored_signal_status(
+        self, sponsored_id: str, status: str, signal_id: Optional[str] = None
+    ) -> None:
+        """Update status of a sponsored signal (pending -> analyzing -> completed)."""
+        if signal_id:
+            await self.db.execute(
+                "UPDATE sponsored_signals SET status = ?, signal_id = ?, analyzed_at = ? WHERE id = ?",
+                (status, signal_id, time.time(), sponsored_id),
+            )
+        else:
+            await self.db.execute(
+                "UPDATE sponsored_signals SET status = ? WHERE id = ?",
+                (status, sponsored_id),
+            )
+        await self.db.commit()
+
+    async def get_pending_sponsored_count(self, user_id: str) -> int:
+        """Count pending sponsored signals for a user."""
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM sponsored_signals WHERE user_id = ? AND status = 'pending'",
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    # ── Data Export Tracking (Enterprise) ──
+
+    async def record_data_export(
+        self, user_id: str, export_type: str, fmt: str, row_count: int, filters: Dict[str, Any]
+    ) -> int:
+        """Record a data export request."""
+        now = time.time()
+        await self.db.execute(
+            """INSERT INTO data_exports
+               (user_id, export_type, format, requested_at, completed_at, row_count, filters)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, export_type, fmt, now, now, row_count, json.dumps(filters)),
+        )
+        await self.db.commit()
+        async with self.db.execute("SELECT last_insert_rowid()") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def get_data_exports(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get data export history for a user."""
+        async with self.db.execute(
+            "SELECT * FROM data_exports WHERE user_id = ? ORDER BY requested_at DESC LIMIT ?",
+            (user_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_full_signal_export(
+        self, ticker: Optional[str] = None,
+        date_from: Optional[float] = None,
+        date_to: Optional[float] = None,
+        limit: int = 100000,
+    ) -> List[Dict[str, Any]]:
+        """Get full signal data for enterprise data licensing export."""
+        conditions = ["s.ticker != 'UNKNOWN'"]
+        params: list = []
+        if ticker:
+            conditions.append("s.ticker = ?")
+            params.append(ticker.upper())
+        if date_from:
+            conditions.append("s.created_at >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("s.created_at <= ?")
+            params.append(date_to)
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""
+            SELECT s.*, sp.price_at_signal, sp.price_1h, sp.price_4h,
+                   sp.price_1d, sp.price_1w, sp.max_gain_pct, sp.max_loss_pct
+            FROM signals s
+            LEFT JOIN signal_performance sp ON s.id = sp.signal_id
+            {where}
+            ORDER BY s.created_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:
