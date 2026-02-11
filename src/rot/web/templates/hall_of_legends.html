@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Hall of Legends - Greatest Trades in History{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-500 bg-clip-text text-transparent">Hall of Legends</span>
+        </h1>
+        <p class="text-gray-400 text-lg">The trades that changed everything</p>
+        <p class="text-gray-600 text-sm mt-1">The greatest bets, shorts, and plays in market history</p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ legends|length }}</div>
+            <div class="text-xs text-gray-500 mt-1">Legendary Trades</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ format_usd(total_profit) }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Profit</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-400">{{ total_traders }}</div>
+            <div class="text-xs text-gray-500 mt-1">Traders Featured</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-amber-400">{{ five_star }}</div>
+            <div class="text-xs text-gray-500 mt-1">5-Star Legends</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-emerald-400">{{ still_active }}</div>
+            <div class="text-xs text-gray-500 mt-1">Still Active</div>
+        </div>
+    </div>
+
+    <!-- Decade Breakdown -->
+    <div class="grid grid-cols-2 md:grid-cols-{{ decades|length }} gap-3 mb-6">
+        {% for decade, data in decades.items() %}
+        <div class="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+            <div class="text-sm font-bold text-white">{{ decade }}</div>
+            <div class="text-xl font-bold text-yellow-400 mt-1">{{ data.count }}</div>
+            <div class="text-xs text-gray-500">trades</div>
+            <div class="text-xs text-green-400 mt-1">{{ format_usd(data.profit) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Strategy Breakdown -->
+    <div class="flex flex-wrap gap-3 mb-6 justify-center">
+        {% for st, count in strategy_counts.items() %}
+        <div class="px-4 py-2 rounded-lg border {{ strategy_color(st) }} text-sm">
+            {{ strategy_emoji(st) }} {{ st|capitalize }}: <span class="font-bold">{{ count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="space-y-3">
+        <h2 class="text-xl font-semibold text-white">Ranked by Profit</h2>
+
+        {% for legend in legends %}
+        <div class="signal-card rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index * 30 }}ms">
+            <div class="flex items-start gap-4">
+                <!-- Rank Badge -->
+                <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold
+                    {% if loop.index <= 3 %}bg-gradient-to-br from-yellow-600 to-amber-600 text-white
+                    {% elif loop.index <= 10 %}bg-amber-800/60 text-amber-300
+                    {% else %}bg-gray-800 text-gray-400{% endif %}">
+                    #{{ loop.index }}
+                </div>
+
+                <!-- Details -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="text-lg font-bold text-white">{{ legend.trader }}</span>
+                        {% if legend.still_active %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-700/50">ACTIVE</span>
+                        {% else %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-500 border border-gray-700/50">RETIRED</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-sm font-semibold text-amber-400 mb-1">{{ legend.trade_name }} ({{ legend.year }})</div>
+
+                    <p class="text-sm text-gray-400 leading-relaxed mb-2">{{ legend.description }}</p>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <!-- Strategy Badge -->
+                        <span class="text-xs px-2 py-0.5 rounded border {{ strategy_color(legend.strategy_type) }}">
+                            {{ strategy_emoji(legend.strategy_type) }} {{ legend.strategy_type|upper }}
+                        </span>
+
+                        <!-- Instrument -->
+                        <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700/50">
+                            {{ legend.instrument }}
+                        </span>
+
+                        <!-- Stars -->
+                        <span class="text-xs text-yellow-400">
+                            {% for i in range(legend.rating) %}&#11088;{% endfor %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Profit -->
+                <div class="flex-shrink-0 text-right">
+                    <div class="text-xl font-bold text-green-400">{{ format_usd(legend.profit) }}</div>
+                    <div class="text-xs text-gray-500">profit</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Profit figures are estimates from public sources and may not reflect exact final numbers.</p>
+        <p>Past performance of legendary traders does not predict future results. This is not financial advice.</p>
+    </div>
+
+</div>
+{% endblock %}

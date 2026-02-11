@@ -61,8 +61,23 @@
                 {% if user and user.tier == 'ultra' %}
                 <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
                 {% endif %}
-                <a href="/sports-tracker" class="text-gray-400 hover:text-white transition">Sports Tracker</a>
-                <a href="/wall-of-shame" class="text-gray-400 hover:text-white transition">Wall of Shame</a>
+                <a href="/sports-tracker" class="text-gray-400 hover:text-white transition">Sports</a>
+                <!-- More Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Explore <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/hall-of-legends" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Hall of Legends</a>
+                            <a href="/wall-of-shame" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Wall of Shame</a>
+                            <a href="/ceo-rap-sheet" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128373; CEO Rap Sheet</a>
+                            <a href="/glossary" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128218; Glossary of Degens</a>
+                            <div class="border-t border-gray-700 my-1"></div>
+                            <a href="/sports-tracker" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127944; Sports Tracker</a>
+                        </div>
+                    </div>
+                </div>
                 <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
                 {% if user %}
                 <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>

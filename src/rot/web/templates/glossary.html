@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Glossary of Degens - WSB Trading Dictionary{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 bg-clip-text text-transparent">Glossary of Degens</span>
+        </h1>
+        <p class="text-gray-400 text-lg">If you don't know what diamond hands means, you're ngmi</p>
+        <p class="text-gray-600 text-sm mt-1">{{ total_terms }} terms every trader needs to know</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-orange-400">{{ total_terms }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Terms</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ max_degen_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Max Degen (5/5)</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-purple-400">{{ "%.1f"|format(avg_degen) }}</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Degen Rating</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ all_letters|length }}</div>
+            <div class="text-xs text-gray-500 mt-1">Letters Covered</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="stat-card rounded-xl p-4 mb-6 space-y-3">
+        <!-- Letter Navigation -->
+        <div class="flex items-center gap-1 flex-wrap">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider mr-2">Letter:</span>
+            <a href="/glossary?letter=all&category={{ selected_category }}"
+               class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition
+               {% if selected_letter == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All
+            </a>
+            {% for lt in all_letters %}
+            <a href="/glossary?letter={{ lt }}&category={{ selected_category }}"
+               class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition
+               {% if selected_letter == lt %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ lt }}
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Category Filter -->
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider mr-2">Type:</span>
+            <a href="/glossary?letter={{ selected_letter }}&category=all"
+               class="px-3 py-1 rounded-full text-xs font-medium transition
+               {% if selected_category == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All
+            </a>
+            {% for cat in all_categories %}
+            <a href="/glossary?letter={{ selected_letter }}&category={{ cat }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition
+               {% if selected_category == cat %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ category_emoji(cat) }} {{ cat|capitalize }} ({{ category_counts.get(cat, 0) }})
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Terms Grid -->
+    {% if terms %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for term in terms %}
+        <div class="signal-card rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index * 20 }}ms">
+            <!-- Term Header -->
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-bold text-white">{{ term.term }}</span>
+                    <span class="text-xs px-2 py-0.5 rounded border {{ category_color(term.category) }}">
+                        {{ category_emoji(term.category) }} {{ term.category|upper }}
+                    </span>
+                </div>
+                <div class="text-sm" title="Degen Rating: {{ term.degen_rating }}/5">
+                    {{ degen_skulls(term.degen_rating) }}
+                </div>
+            </div>
+
+            <!-- Definition -->
+            <p class="text-sm text-gray-300 leading-relaxed mb-3">{{ term.definition }}</p>
+
+            <!-- Example -->
+            <div class="bg-gray-900/60 rounded-lg p-3 border border-gray-700/50">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-5 h-5 rounded-full bg-orange-600 flex items-center justify-center text-xs text-white font-bold">u</span>
+                    <span class="text-xs text-orange-400">u/anonymous_degen</span>
+                    <span class="text-xs text-gray-600">&middot; r/wallstreetbets</span>
+                </div>
+                <p class="text-xs text-gray-400 italic">"{{ term.example }}"</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-500">
+        <div class="text-4xl mb-3">&#128218;</div>
+        <p class="text-lg">No terms found</p>
+        <p class="text-sm mt-1">Try changing your filters.</p>
+        <a href="/glossary" class="inline-block mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg transition">
+            Reset Filters
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Definitions reflect how these terms are used on Reddit trading communities.</p>
+        <p>This is educational content, not financial advice. But you already knew that, you beautiful degen.</p>
+    </div>
+
+</div>
+{% endblock %}
