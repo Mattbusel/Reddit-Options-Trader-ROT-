@@ -1782,55 +1782,135 @@ class Database:
         """Find tickers that fire signals within N hours of the given ticker."""
         cutoff = time.time() - (days * 86400)
         window_s = window_hours * 3600
-        query = """
-            SELECT s2.ticker AS ticker,
-                   COUNT(*) AS co_fires,
-                   SUM(CASE WHEN s1.stance = s2.stance THEN 1 ELSE 0 END) AS same_stance,
-                   ROUND(AVG(s2.confidence), 3) AS avg_confidence
-            FROM signals s1
-            JOIN signals s2 ON s1.ticker != s2.ticker
-                AND ABS(s1.created_at - s2.created_at) < ?
-            WHERE s1.ticker = ?
-              AND s1.created_at > ?
-              AND s2.created_at > ?
-              AND s2.ticker != 'UNKNOWN'
-            GROUP BY s2.ticker
-            HAVING co_fires >= 3
-            ORDER BY co_fires DESC
-            LIMIT 20
+
+        # Fetch signals for the target ticker
+        q1 = """
+            SELECT id, ticker, stance, confidence, created_at
+            FROM signals WHERE ticker = ? AND created_at > ?
+            ORDER BY created_at DESC LIMIT 500
         """
-        async with self.db.execute(query, (window_s, ticker, cutoff, cutoff)) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+        async with self.db.execute(q1, (ticker, cutoff)) as cursor:
+            target_rows = await cursor.fetchall()
+            target_signals = [dict(r) for r in target_rows]
+
+        if not target_signals:
+            return []
+
+        # Fetch all other signals in the time range
+        q2 = """
+            SELECT id, ticker, stance, confidence, created_at
+            FROM signals WHERE ticker != ? AND ticker != 'UNKNOWN' AND created_at > ?
+            ORDER BY created_at DESC LIMIT 2000
+        """
+        async with self.db.execute(q2, (ticker, cutoff)) as cursor:
+            other_rows = await cursor.fetchall()
+            other_signals = [dict(r) for r in other_rows]
+
+        if not other_signals:
+            return []
+
+        # Count co-fires in Python (much faster than SQL self-join)
+        from collections import defaultdict
+        ticker_stats: Dict[str, dict] = defaultdict(
+            lambda: {"co_fires": 0, "same_stance": 0, "conf_sum": 0.0}
+        )
+
+        for ts in target_signals:
+            for os_ in other_signals:
+                if abs(ts["created_at"] - os_["created_at"]) < window_s:
+                    st = ticker_stats[os_["ticker"]]
+                    st["co_fires"] += 1
+                    if ts["stance"] == os_["stance"]:
+                        st["same_stance"] += 1
+                    st["conf_sum"] += os_["confidence"]
+
+        results = []
+        for t, st in ticker_stats.items():
+            if st["co_fires"] >= 3:
+                results.append({
+                    "ticker": t,
+                    "co_fires": st["co_fires"],
+                    "same_stance": st["same_stance"],
+                    "avg_confidence": round(st["conf_sum"] / st["co_fires"], 3),
+                })
+
+        results.sort(key=lambda x: x["co_fires"], reverse=True)
+        return results[:20]
 
     async def get_correlation_matrix(
         self, days: int = 30, min_co: int = 3, limit: int = 20,
     ) -> List[Dict[str, Any]]:
-        """Get top correlated ticker pairs globally."""
-        cutoff = time.time() - (days * 86400)
-        query = """
-            SELECT
-                CASE WHEN s1.ticker < s2.ticker THEN s1.ticker ELSE s2.ticker END AS ticker_a,
-                CASE WHEN s1.ticker < s2.ticker THEN s2.ticker ELSE s1.ticker END AS ticker_b,
-                COUNT(*) AS co_fires,
-                SUM(CASE WHEN s1.stance = s2.stance THEN 1 ELSE 0 END) AS same_stance,
-                ROUND(AVG(s1.confidence + s2.confidence) / 2, 3) AS avg_confidence
-            FROM signals s1
-            JOIN signals s2 ON s1.id < s2.id
-                AND s1.ticker != s2.ticker
-                AND ABS(s1.created_at - s2.created_at) < 14400
-            WHERE s1.created_at > ?
-              AND s2.created_at > ?
-              AND s1.ticker != 'UNKNOWN'
-              AND s2.ticker != 'UNKNOWN'
-            GROUP BY ticker_a, ticker_b
-            HAVING co_fires >= ?
-            ORDER BY co_fires DESC
-            LIMIT ?
+        """Get top correlated ticker pairs globally.
+
+        Uses a two-step approach to avoid O(n²) self-join:
+        1. Bucket signals into 4-hour time windows
+        2. Count co-occurrences within the same window
         """
-        async with self.db.execute(query, (cutoff, cutoff, min_co, limit)) as cursor:
+        cutoff = time.time() - (days * 86400)
+        window_s = 14400  # 4 hours
+
+        # Step 1: Fetch recent signals (id, ticker, stance, confidence, created_at)
+        fetch_q = """
+            SELECT id, ticker, stance, confidence, created_at
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            ORDER BY created_at DESC
+            LIMIT 2000
+        """
+        async with self.db.execute(fetch_q, (cutoff,)) as cursor:
             rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            signals = [dict(r) for r in rows]
+
+        if not signals:
+            return []
+
+        # Step 2: Bucket by time window and count co-fires in Python
+        from collections import defaultdict
+        pair_stats: Dict[tuple, dict] = defaultdict(
+            lambda: {"co_fires": 0, "same_stance": 0, "conf_sum": 0.0}
+        )
+
+        # Group signals by time bucket
+        buckets: Dict[int, list] = defaultdict(list)
+        for s in signals:
+            bucket_id = int(s["created_at"] // window_s)
+            buckets[bucket_id].append(s)
+            # Also add to adjacent bucket to catch cross-boundary pairs
+            buckets[bucket_id + 1].append(s)
+
+        seen_pairs: Dict[tuple, set] = defaultdict(set)
+        for _bucket_id, bucket_signals in buckets.items():
+            for i, a in enumerate(bucket_signals):
+                for b in bucket_signals[i + 1:]:
+                    if a["ticker"] == b["ticker"] or a["id"] == b["id"]:
+                        continue
+                    if abs(a["created_at"] - b["created_at"]) >= window_s:
+                        continue
+                    pair_key = (min(a["ticker"], b["ticker"]), max(a["ticker"], b["ticker"]))
+                    signal_pair = (a["id"], b["id"]) if a["id"] < b["id"] else (b["id"], a["id"])
+                    if signal_pair in seen_pairs[pair_key]:
+                        continue
+                    seen_pairs[pair_key].add(signal_pair)
+                    ps = pair_stats[pair_key]
+                    ps["co_fires"] += 1
+                    if a["stance"] == b["stance"]:
+                        ps["same_stance"] += 1
+                    ps["conf_sum"] += (a["confidence"] + b["confidence"]) / 2
+
+        # Step 3: Filter and sort
+        results = []
+        for (ta, tb), ps in pair_stats.items():
+            if ps["co_fires"] >= min_co:
+                results.append({
+                    "ticker_a": ta,
+                    "ticker_b": tb,
+                    "co_fires": ps["co_fires"],
+                    "same_stance": ps["same_stance"],
+                    "avg_confidence": round(ps["conf_sum"] / ps["co_fires"], 3),
+                })
+
+        results.sort(key=lambda x: x["co_fires"], reverse=True)
+        return results[:limit]
 
     # ── Unusual Activity Detection ──
 

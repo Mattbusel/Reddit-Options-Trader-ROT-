@@ -39,7 +39,7 @@
                 <div class="absolute top-3 right-3 text-orange-400 text-xs font-bold">EARNED</div>
                 {% endif %}
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="text-3xl {% if not b.earned %}grayscale{% endif %}">{{ b.icon }}</div>
+                    <div class="text-3xl {% if not b.earned %}grayscale{% endif %}">{{ b.icon|safe }}</div>
                     <div>
                         <div class="text-white font-semibold">{{ b.name }}</div>
                         <div class="text-gray-400 text-xs">{{ b.description }}</div>
