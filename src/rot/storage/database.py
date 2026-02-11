@@ -1008,7 +1008,9 @@ def _row_to_dict(row: Any) -> Dict[str, Any]:
     for key in ("market_data", "reasoning", "trade_idea", "event_data", "settings"):
         if key in d and isinstance(d[key], str):
             try:
-                d[key] = json.loads(d[key])
+                parsed = json.loads(d[key])
+                # Ensure these fields are always dicts (protect against corrupt JSON like "0.5")
+                d[key] = parsed if isinstance(parsed, dict) else {}
             except (json.JSONDecodeError, TypeError):
-                pass
+                d[key] = {}
     return d
