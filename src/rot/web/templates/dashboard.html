@@ -597,7 +597,8 @@
                 <div title="{{ sector.sector }}: {{ total }} signals"
                 {% endif %}
                    class="rounded-lg p-2 text-center transition hover:opacity-80"
-                   style="background: rgba({{ (248 * (1 - bull_ratio) + 74 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 222 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 128 * bull_ratio)|int }}, {{ (0.2 + (sector.signal_count or 1) * 0.08)|min(0.7) }});">
+                   {% set alpha = 0.2 + (sector.signal_count or 1) * 0.08 %}
+                   style="background: rgba({{ (248 * (1 - bull_ratio) + 74 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 222 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 128 * bull_ratio)|int }}, {{ [alpha, 0.7]|min }});">
                     <div class="text-xs font-semibold text-white truncate">{{ sector.sector or 'Unknown' }}</div>
                     <div class="text-xs text-gray-300">{{ total }} sigs</div>
                 {% if heatmap_access.has_drill_down %}
