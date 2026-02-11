@@ -8,3 +8,4 @@ healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
+numReplicas = 1
