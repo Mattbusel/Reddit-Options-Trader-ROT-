@@ -149,6 +149,19 @@ class StripeConfig(BaseSettings):
     cancel_url: str = "/pricing"
 
 
+class TwitterConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
+
+    api_key: str = ""           # Consumer / API key
+    api_secret: str = ""        # Consumer / API secret
+    access_token: str = ""      # User access token (for the ROT account)
+    access_secret: str = ""     # User access token secret
+    enabled: bool = False
+    interval_s: int = 10800     # 3 hours
+    min_confidence: float = 0.7  # Higher bar for public posts
+    dashboard_url: str = "https://web-production-71423.up.railway.app"
+
+
 class TierConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_TIER_")
 
@@ -179,6 +192,7 @@ class Settings(BaseSettings):
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
+    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

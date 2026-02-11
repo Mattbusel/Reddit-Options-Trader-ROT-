@@ -272,6 +272,51 @@ async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
     log.info("Digest email loop stopped")
 
 
+async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
+                           dashboard_url: str, stop_event: threading.Event):
+    """Background task that posts top signals to X/Twitter every N seconds."""
+    from rot.alerts.twitter import format_tweet
+
+    log.info("X posting loop starting (interval=%ds, min_confidence=%.2f)", interval_s, min_confidence)
+
+    # Wait 120s on startup to let signals accumulate
+    for _ in range(120):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            signal = await db.get_top_signal_for_x_post(min_confidence=min_confidence)
+            if signal:
+                tweet_text = format_tweet(signal, dashboard_url=dashboard_url)
+                tweet_id = await x_poster.post_tweet(tweet_text)
+                if tweet_id:
+                    await db.record_x_post(
+                        signal_id=signal["id"],
+                        ticker=signal["ticker"],
+                        tweet_id=tweet_id,
+                        tweet_text=tweet_text,
+                    )
+                    log.info(
+                        "X post: %s (%s, %.0f%% confidence, tweet_id=%s)",
+                        signal["ticker"], signal["stance"],
+                        signal["confidence"] * 100, tweet_id,
+                    )
+                else:
+                    log.warning("X post failed for %s (API error)", signal.get("ticker", "?"))
+            else:
+                log.debug("X post: no qualifying signal found this cycle")
+        except Exception as e:
+            log.error("X posting loop error: %s", e, exc_info=True)
+
+        for _ in range(interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("X posting loop stopped")
+
+
 async def _run_server(cfg: Settings):
     """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
     # Create FastAPI app
@@ -372,6 +417,33 @@ async def _run_server(cfg: Settings):
     else:
         log.info("Digest email loop: DISABLED (no email alerter configured)")
 
+    # Start X/Twitter posting background task
+    x_post_task = None
+    if cfg.twitter.enabled:
+        from rot.alerts.twitter import XPoster
+        x_poster = XPoster(
+            api_key=cfg.twitter.api_key,
+            api_secret=cfg.twitter.api_secret,
+            access_token=cfg.twitter.access_token,
+            access_secret=cfg.twitter.access_secret,
+        )
+        if x_poster.is_configured:
+            x_post_task = asyncio.create_task(
+                _x_posting_loop(
+                    db=app.state.db,
+                    x_poster=x_poster,
+                    interval_s=cfg.twitter.interval_s,
+                    min_confidence=cfg.twitter.min_confidence,
+                    dashboard_url=cfg.twitter.dashboard_url,
+                    stop_event=stop_event,
+                )
+            )
+            log.info("X posting loop: ACTIVE (interval=%ds)", cfg.twitter.interval_s)
+        else:
+            log.warning("X posting: ENABLED but credentials missing")
+    else:
+        log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -391,6 +463,8 @@ async def _run_server(cfg: Settings):
         price_check_task.cancel()
         if digest_task:
             digest_task.cancel()
+        if x_post_task:
+            x_post_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 
