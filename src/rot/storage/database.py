@@ -55,19 +55,6 @@ CREATE TABLE IF NOT EXISTS signal_performance (
 CREATE INDEX IF NOT EXISTS idx_perf_signal ON signal_performance(signal_id);
 CREATE INDEX IF NOT EXISTS idx_perf_ticker ON signal_performance(ticker);
 
-CREATE TABLE IF NOT EXISTS email_alert_settings (
-    user_id TEXT PRIMARY KEY REFERENCES users(id),
-    enabled INTEGER NOT NULL DEFAULT 0,
-    digest_enabled INTEGER NOT NULL DEFAULT 1,
-    realtime_enabled INTEGER NOT NULL DEFAULT 0,
-    min_confidence REAL NOT NULL DEFAULT 0.6,
-    tickers TEXT NOT NULL DEFAULT '[]',
-    stances TEXT NOT NULL DEFAULT '[]',
-    event_types TEXT NOT NULL DEFAULT '[]',
-    last_digest_at REAL NOT NULL DEFAULT 0,
-    webhook_url TEXT NOT NULL DEFAULT ''
-);
-
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
@@ -104,6 +91,19 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
+
+CREATE TABLE IF NOT EXISTS email_alert_settings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id),
+    enabled INTEGER NOT NULL DEFAULT 0,
+    digest_enabled INTEGER NOT NULL DEFAULT 1,
+    realtime_enabled INTEGER NOT NULL DEFAULT 0,
+    min_confidence REAL NOT NULL DEFAULT 0.6,
+    tickers TEXT NOT NULL DEFAULT '[]',
+    stances TEXT NOT NULL DEFAULT '[]',
+    event_types TEXT NOT NULL DEFAULT '[]',
+    last_digest_at REAL NOT NULL DEFAULT 0,
+    webhook_url TEXT NOT NULL DEFAULT ''
+);
 """
 
 # Columns to add to existing tables (migration-safe)

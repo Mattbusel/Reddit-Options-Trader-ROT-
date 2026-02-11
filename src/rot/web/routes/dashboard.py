@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
+
+log = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -91,6 +94,19 @@ def _base_context(request: Request, user: dict | None) -> dict:
 @router.get("/", response_class=HTMLResponse)
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    try:
+        return await _dashboard_inner(request)
+    except Exception as e:
+        log.exception("Dashboard route failed: %s", e)
+        return HTMLResponse(
+            f"<h1>Something went wrong</h1><p>The dashboard encountered an error. "
+            f"Please try <a href='/logout'>logging out</a> and back in, or "
+            f"<a href='/dashboard'>refresh</a>.</p><pre>{type(e).__name__}: {e}</pre>",
+            status_code=500,
+        )
+
+
+async def _dashboard_inner(request: Request):
     user = await get_current_user_optional(request)
     tier = (user or {}).get("tier", "free")
     settings = request.app.state.settings
@@ -149,51 +165,68 @@ async def dashboard(request: Request):
         page_limit=settings.tier_limits.free_page_limit,
     )
 
-    # Accuracy tracker data
+    # Accuracy tracker data (graceful degradation)
     perf_access = gate_performance_access(tier)
-    accuracy = await db.get_aggregate_accuracy(days=perf_access["accuracy_days"])
+    accuracy = {"total_tracked": 0, "winners": 0, "losers": 0, "win_rate": 0}
+    try:
+        accuracy = await db.get_aggregate_accuracy(days=perf_access["accuracy_days"])
+    except Exception as e:
+        log.warning("Failed to load accuracy data: %s", e)
 
-    # Leaderboard data
+    # Leaderboard data (graceful degradation)
     lb_access = gate_leaderboard_access(tier)
     leaderboard_hours = 24
+    leaderboard = []
     q_lb_hours = request.query_params.get("lb_hours", "")
     if q_lb_hours and lb_access["has_historical"]:
         try:
             leaderboard_hours = int(q_lb_hours)
         except ValueError:
             pass
-    if lb_access["has_performance_column"]:
-        leaderboard = await db.get_leaderboard_with_performance(
-            hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
-        )
-    else:
-        leaderboard = await db.get_leaderboard(
-            hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
-        )
+    try:
+        if lb_access["has_performance_column"]:
+            leaderboard = await db.get_leaderboard_with_performance(
+                hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
+            )
+        else:
+            leaderboard = await db.get_leaderboard(
+                hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
+            )
+    except Exception as e:
+        log.warning("Failed to load leaderboard: %s", e)
 
-    # Sector heatmap data (pro+)
+    # Sector heatmap data (pro+, graceful degradation)
     heatmap_access = gate_heatmap_access(tier)
     heatmap_data = None
-    if heatmap_access["has_heatmap"]:
-        heatmap_data = await db.get_sector_heatmap_data(
-            hours=chart_access["chart_hours"] or 24
-        )
+    try:
+        if heatmap_access["has_heatmap"]:
+            heatmap_data = await db.get_sector_heatmap_data(
+                hours=chart_access["chart_hours"] or 24
+            )
+    except Exception as e:
+        log.warning("Failed to load heatmap data: %s", e)
 
-    # Correlation data (pro+)
+    # Correlation data (pro+, graceful degradation)
     corr_access = gate_correlation_access(tier)
     correlations = None
-    if corr_access["has_correlation"]:
-        correlations = await db.get_co_occurring_tickers(hours=24, min_co_occurrence=2)
+    try:
+        if corr_access["has_correlation"]:
+            correlations = await db.get_co_occurring_tickers(hours=24, min_co_occurrence=2)
+    except Exception as e:
+        log.warning("Failed to load correlation data: %s", e)
 
-    # Signal count badge
+    # Signal count badge (graceful degradation)
     new_signal_count = 0
     if user:
-        user_settings = user.get("settings", {})
-        last_visit = user_settings.get("last_visit_at", 0) if isinstance(user_settings, dict) else 0
-        if last_visit:
-            new_signal_count = await db.get_signals_since(last_visit)
-        # Update last visit timestamp
-        await db.update_last_visit(user["id"])
+        try:
+            user_settings = user.get("settings", {})
+            last_visit = user_settings.get("last_visit_at", 0) if isinstance(user_settings, dict) else 0
+            if last_visit:
+                new_signal_count = await db.get_signals_since(last_visit)
+            # Update last visit timestamp
+            await db.update_last_visit(user["id"])
+        except Exception as e:
+            log.warning("Failed to update signal count badge: %s", e)
 
     # Saved filter presets (ultra only)
     filter_presets = []
