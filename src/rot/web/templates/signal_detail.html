@@ -427,6 +427,41 @@
                 </div>
                 {% endif %}
                 {% endif %}
+                {% if data.get('atm_iv') %}
+                <div class="mt-3 pt-3 border-t border-gray-800">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Options Chain</div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">ATM IV</span>
+                        <span class="text-sm font-semibold {% if data.atm_iv > 0.5 %}text-red-400{% elif data.atm_iv > 0.3 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                            {{ "%.1f"|format(data.atm_iv * 100) }}%
+                        </span>
+                    </div>
+                    {% if data.get('pc_ratio') is not none %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Put/Call OI</span>
+                        <span class="text-xs {% if data.pc_ratio > 1.5 %}text-red-400{% elif data.pc_ratio < 0.5 %}text-green-400{% else %}text-gray-300{% endif %}">
+                            {{ "%.2f"|format(data.pc_ratio) }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if data.get('call_oi') is not none and data.get('put_oi') is not none %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Call OI</span>
+                        <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.call_oi) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Put OI</span>
+                        <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.put_oi) }}</span>
+                    </div>
+                    {% endif %}
+                    {% if data.get('options_expiry') %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Nearest Expiry</span>
+                        <span class="text-xs text-gray-300">{{ data.options_expiry }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

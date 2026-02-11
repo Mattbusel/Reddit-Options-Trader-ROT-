@@ -78,9 +78,17 @@ def _quiet_yfinance():
 class MarketEnricher:
     """Lightweight yfinance market metadata enrichment with caching."""
 
-    def __init__(self, cache_path: str = "storage/market_cache.json", ttl_s: int = 3600) -> None:
+    def __init__(
+        self,
+        cache_path: str = "storage/market_cache.json",
+        ttl_s: int = 3600,
+        options_ttl_s: int = 1800,
+        enable_options_chain: bool = True,
+    ) -> None:
         self.cache_path = Path(cache_path)
         self.ttl_s = ttl_s
+        self.options_ttl_s = options_ttl_s
+        self.enable_options_chain = enable_options_chain
         self._cache: Dict[str, Any] = {}
         self._load_cache()
 
@@ -109,9 +117,18 @@ class MarketEnricher:
         ts = entry.get("ts")
         if not isinstance(ts, (int, float)):
             return None
-        if (time.time() - ts) <= self.ttl_s:
+        age = time.time() - ts
+        if age <= self.ttl_s:
             data = entry.get("data")
             if isinstance(data, dict):
+                # If options data is stale (past options_ttl_s), strip it
+                # so it gets re-fetched while reusing other cached data
+                if age > self.options_ttl_s and self.enable_options_chain:
+                    data = {k: v for k, v in data.items()
+                            if k not in ("atm_iv", "atm_call_iv", "atm_put_iv",
+                                         "call_oi", "put_oi", "pc_ratio",
+                                         "atm_call_oi", "atm_put_oi", "options_expiry")}
+                    return None  # Force full re-fetch for simplicity
                 return data
         return None
 
@@ -156,7 +173,87 @@ class MarketEnricher:
             except Exception:
                 pass
 
+            # Options chain data: IV, open interest, put/call ratio
+            if self.enable_options_chain:
+                options_data = self._fetch_options_metrics(t, out.get("last_close"))
+                out.update(options_data)
+
         return out
+
+    def _fetch_options_metrics(self, ticker: Any, current_price: Optional[float]) -> Dict[str, Any]:
+        """Fetch implied volatility and open interest from nearest options chain."""
+        metrics: Dict[str, Any] = {}
+        if not current_price or current_price <= 0:
+            return metrics
+        try:
+            expiries = ticker.options
+            if not expiries:
+                return metrics
+
+            # Use nearest expiration
+            nearest_expiry = expiries[0]
+            chain = ticker.option_chain(nearest_expiry)
+            calls, puts = chain.calls, chain.puts
+
+            if calls is None or puts is None or calls.empty or puts.empty:
+                return metrics
+
+            metrics["options_expiry"] = nearest_expiry
+
+            # ATM IV: find strikes closest to current price, average call + put IV
+            call_strikes = calls["strike"].values
+            put_strikes = puts["strike"].values
+
+            # Find nearest ATM call
+            if len(call_strikes) > 0 and "impliedVolatility" in calls.columns:
+                atm_idx = abs(call_strikes - current_price).argmin()
+                call_iv = calls.iloc[atm_idx]["impliedVolatility"]
+                if call_iv and call_iv > 0:
+                    metrics["atm_call_iv"] = float(call_iv)
+
+            # Find nearest ATM put
+            if len(put_strikes) > 0 and "impliedVolatility" in puts.columns:
+                atm_idx = abs(put_strikes - current_price).argmin()
+                put_iv = puts.iloc[atm_idx]["impliedVolatility"]
+                if put_iv and put_iv > 0:
+                    metrics["atm_put_iv"] = float(put_iv)
+
+            # Combined ATM IV
+            c_iv = metrics.get("atm_call_iv")
+            p_iv = metrics.get("atm_put_iv")
+            if c_iv and p_iv:
+                metrics["atm_iv"] = (c_iv + p_iv) / 2
+            elif c_iv:
+                metrics["atm_iv"] = c_iv
+            elif p_iv:
+                metrics["atm_iv"] = p_iv
+
+            # Open interest totals
+            if "openInterest" in calls.columns:
+                call_oi = int(calls["openInterest"].fillna(0).sum())
+                metrics["call_oi"] = call_oi
+            if "openInterest" in puts.columns:
+                put_oi = int(puts["openInterest"].fillna(0).sum())
+                metrics["put_oi"] = put_oi
+
+            # Put/call OI ratio
+            if metrics.get("call_oi") and metrics["call_oi"] > 0:
+                metrics["pc_ratio"] = round(metrics.get("put_oi", 0) / metrics["call_oi"], 2)
+
+            # ATM OI cluster: aggregate OI within 5% of current price
+            lower = current_price * 0.95
+            upper = current_price * 1.05
+            if "openInterest" in calls.columns:
+                atm_calls = calls[(calls["strike"] >= lower) & (calls["strike"] <= upper)]
+                metrics["atm_call_oi"] = int(atm_calls["openInterest"].fillna(0).sum())
+            if "openInterest" in puts.columns:
+                atm_puts = puts[(puts["strike"] >= lower) & (puts["strike"] <= upper)]
+                metrics["atm_put_oi"] = int(atm_puts["openInterest"].fillna(0).sum())
+
+        except Exception:
+            pass
+
+        return metrics
 
     def get_symbol(self, raw: str) -> Optional[str]:
         s = raw.upper().strip()

@@ -26,6 +26,8 @@ Guidelines:
 - For earnings_rumor: note if pre/post earnings, estimate catalyst window
 - recommended_structures should be specific: "bull call spread 5-10% OTM, 2-3 weeks out"
   not just "debit_spread"
+- If IV data is provided and high (>50%), favor credit/premium-selling strategies
+- If put/call OI ratio is extreme (>2.0 = heavy put buying, <0.5 = heavy call buying), note unusual positioning
 - Always include at least one invalidation and one risk note
 - If evidence is too thin to form a thesis, set confidence < 0.3 and strategy to "none"
 
@@ -79,7 +81,19 @@ def format_event_prompt(
                 cap = data.get("market_cap")
                 pct_str = f"{pct:+.2%}" if pct is not None else "N/A"
                 cap_str = f"${cap:,.0f}" if cap else "N/A"
-                lines.append(f"  {sym}: price={price}, 1d_change={pct_str}, market_cap={cap_str}")
+                line = f"  {sym}: price={price}, 1d_change={pct_str}, market_cap={cap_str}"
+                # Append options chain data if available
+                iv = data.get("atm_iv")
+                if iv is not None:
+                    line += f", ATM_IV={iv:.1%}"
+                pc = data.get("pc_ratio")
+                if pc is not None:
+                    line += f", put/call_OI={pc:.2f}"
+                c_oi = data.get("call_oi")
+                p_oi = data.get("put_oi")
+                if c_oi is not None and p_oi is not None:
+                    line += f", call_OI={c_oi:,}, put_OI={p_oi:,}"
+                lines.append(line)
         market_context = "\n".join(lines) if lines else "No market data available"
     else:
         market_context = "No market data available"

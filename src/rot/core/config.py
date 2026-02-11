@@ -39,6 +39,8 @@ class MarketConfig(BaseSettings):
     min_market_cap: float = 1e8  # $100M minimum
     price_check_interval_s: int = 300  # 5 minutes
     price_check_batch_size: int = 50
+    enable_options_chain: bool = True
+    options_cache_ttl_s: int = 1800  # 30 min (shorter than price cache)
 
 
 class TrendConfig(BaseSettings):
@@ -111,6 +113,32 @@ class RSSConfig(BaseSettings):
     )
 
 
+class StockTwitsConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_STOCKTWITS_")
+
+    enabled: bool = False
+    symbols: List[str] = Field(
+        default_factory=lambda: ["TSLA", "AAPL", "NVDA", "SPY", "QQQ", "AMD", "AMZN", "MSFT"]
+    )
+    trending_enabled: bool = True
+    poll_interval_s: int = 180  # 3 minutes
+
+
+class TwitterConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
+
+    enabled: bool = False
+    bearer_token: str = ""
+    cashtags: List[str] = Field(
+        default_factory=lambda: ["TSLA", "AAPL", "NVDA", "SPY", "QQQ"]
+    )
+    accounts: List[str] = Field(
+        default_factory=lambda: ["unusual_whales", "zerohedge", "DeItaone"]
+    )
+    poll_interval_s: int = 180
+    max_results: int = 20
+
+
 class EmailConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_EMAIL_")
 
@@ -168,6 +196,8 @@ class Settings(BaseSettings):
     alert: AlertConfig = Field(default_factory=AlertConfig)
     web: WebConfig = Field(default_factory=WebConfig)
     rss: RSSConfig = Field(default_factory=RSSConfig)
+    stocktwits: StockTwitsConfig = Field(default_factory=StockTwitsConfig)
+    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)

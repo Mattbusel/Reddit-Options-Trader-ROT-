@@ -17,6 +17,9 @@ class TrendEngine:
         rss_bypass: bool = False,
         rss_max_age_s: int = 3600,
         rss_synthetic_score: float = 0.5,
+        stocktwits_bypass: bool = False,
+        twitter_bypass: bool = False,
+        social_synthetic_score: float = 0.4,
     ) -> None:
         self.store = store
         self.window_s = window_s
@@ -25,6 +28,9 @@ class TrendEngine:
         self.rss_bypass = rss_bypass
         self.rss_max_age_s = rss_max_age_s
         self.rss_synthetic_score = rss_synthetic_score
+        self.stocktwits_bypass = stocktwits_bypass
+        self.twitter_bypass = twitter_bypass
+        self.social_synthetic_score = social_synthetic_score
 
     def detect(self, snapshots: List[ThreadSnapshot]) -> List[TrendCandidate]:
         out: List[TrendCandidate] = []
@@ -52,6 +58,42 @@ class TrendEngine:
                         )
                     )
                 # Record in store for logging, but skip rate-of-change logic
+                self.store.update(key, snap)
+                continue
+
+            # StockTwits bypass: similar to RSS, promote fresh items directly
+            if self.stocktwits_bypass and snap.post.flair == "stocktwits":
+                age = now - snap.post.created_utc
+                if age <= self.rss_max_age_s:
+                    freshness = max(0.0, 1.0 - age / self.rss_max_age_s)
+                    out.append(
+                        TrendCandidate(
+                            key=key,
+                            window_s=self.window_s,
+                            features={"source": 1.0, "freshness": freshness},
+                            trend_score=self.social_synthetic_score,
+                            reason="stocktwits_bypass",
+                            snapshot=snap,
+                        )
+                    )
+                self.store.update(key, snap)
+                continue
+
+            # Twitter bypass: promote fresh tweets directly
+            if self.twitter_bypass and snap.post.flair == "twitter":
+                age = now - snap.post.created_utc
+                if age <= self.rss_max_age_s:
+                    freshness = max(0.0, 1.0 - age / self.rss_max_age_s)
+                    out.append(
+                        TrendCandidate(
+                            key=key,
+                            window_s=self.window_s,
+                            features={"source": 1.0, "freshness": freshness},
+                            trend_score=self.social_synthetic_score,
+                            reason="twitter_bypass",
+                            snapshot=snap,
+                        )
+                    )
                 self.store.update(key, snap)
                 continue
 
