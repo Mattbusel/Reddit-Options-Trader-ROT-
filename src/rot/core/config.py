@@ -175,7 +175,7 @@ class TwitterConfig(BaseSettings):
     access_secret: str = ""     # User access token secret
     enabled: bool = False
     interval_s: int = 10800     # 3 hours
-    min_confidence: float = 0.7  # Higher bar for public posts
+    min_confidence: float = 0.5  # Lowered to get posts flowing
     dashboard_url: str = "https://web-production-71423.up.railway.app"
 
 
