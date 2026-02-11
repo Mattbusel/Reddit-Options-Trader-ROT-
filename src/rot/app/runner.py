@@ -43,13 +43,37 @@ class PipelineRunner:
         self.symbol_validator = symbol_validator or SymbolValidator()
         self.top_n = top_n
         self.on_signal = on_signal
+        self._emitted_keys: set = set()  # (post_url, ticker) dedup
 
     def _emit_signal(self, signal_data: Dict[str, Any]) -> None:
-        if self.on_signal:
-            try:
-                self.on_signal(signal_data)
-            except Exception:
-                pass
+        if not self.on_signal:
+            return
+
+        # Extract dedup key from event dataclass
+        event = signal_data.get("event")
+        if event is None:
+            return
+
+        entities = event.entities if hasattr(event, "entities") else []
+        ticker = entities[0] if entities else "UNKNOWN"
+
+        evidence = event.evidence if hasattr(event, "evidence") else []
+        post_url = evidence[0].permalink if evidence else ""
+
+        dedup_key = (post_url, ticker)
+        if dedup_key in self._emitted_keys:
+            return  # Already emitted this signal
+
+        self._emitted_keys.add(dedup_key)
+
+        # Prevent unbounded memory growth
+        if len(self._emitted_keys) > 10_000:
+            self._emitted_keys.clear()
+
+        try:
+            self.on_signal(signal_data)
+        except Exception:
+            pass
 
     def run_once(self) -> dict:
         run_id = f"run_{int(time.time())}"

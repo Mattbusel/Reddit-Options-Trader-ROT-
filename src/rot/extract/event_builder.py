@@ -58,6 +58,8 @@ _BARE_TICKER_BLOCKLIST = {
     "WHOLE", "WORLD", "WORSE", "WORST", "WORTH",
     "WOULD", "WRONG", "MONEY", "SHARE", "CRASH",
     "SHORT", "CALLS", "MIGHT", "EARLY",
+    # Government / institutional words (not tickers)
+    "FILED", "AWARD", "GRANT", "PHASE", "TRIAL", "AGENT", "CLAIM",
     # Junk patterns (repeated letters, all same char)
     "GOOOO", "GOOO", "AAAA", "BBBB",
 }
@@ -66,9 +68,9 @@ _BARE_TICKER_BLOCKLIST = {
 _EVENT_KEYWORDS: list[Tuple[str, EventType]] = [
     (r"\b(?:earnings|er|revenue|eps|guidance|beat|miss|report(?:ing)?)\b", "earnings_rumor"),
     (r"\b(?:squeeze|short\s*interest|gamma|si%|days\s*to\s*cover)\b", "squeeze_chatter"),
-    (r"\b(?:fda|sec|antitrust|regulator|lawsuit|ruling|ban|tariff)\b", "regulatory"),
-    (r"\b(?:launch|release|product|patent|partner|merger|acquisition|deal)\b", "product_news"),
-    (r"\b(?:cpi|gdp|fomc|rate\s*cut|rate\s*hike|inflation|recession|macro)\b", "macro"),
+    (r"\b(?:fda|sec|antitrust|regulator|lawsuit|ruling|ban|tariff|compliance|enforcement|clearance|approv(?:al|ed))\b", "regulatory"),
+    (r"\b(?:launch|release|product|patent|partner|merger|acquisition|deal|contract(?:s)?|award(?:ed)?|grant(?:ed)?|procurement)\b", "product_news"),
+    (r"\b(?:cpi|gdp|fomc|rate\s*cut|rate\s*hike|inflation|recession|macro|federal\s*reserve|monetary\s*policy|treasury|fiscal)\b", "macro"),
 ]
 
 # Sentiment keywords for basic stance detection

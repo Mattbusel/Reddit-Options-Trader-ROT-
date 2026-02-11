@@ -133,10 +133,12 @@ async def _async_signal_handler(
 
     signal_id = None
 
-    # Store in database
+    # Store in database (dedup check inside — returns None for duplicates)
     try:
         db = app.state.db
         signal_id = await db.insert_signal(signal_data)
+        if not signal_id:
+            return  # Duplicate signal, skip broadcast + alerts
         log.info("Signal stored: %s", signal_id)
     except Exception as e:
         log.error("Failed to store signal: %s", e)

@@ -107,6 +107,23 @@ class RSSConfig(BaseSettings):
                 url="https://seekingalpha.com/market_currents.xml",
                 label="seekingalpha-currents",
             ),
+            # ── Institutional / Government feeds ──
+            RSSFeedEntry(
+                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+                label="fda-press-releases",
+            ),
+            RSSFeedEntry(
+                url="https://www.federalreserve.gov/feeds/press_all.xml",
+                label="fed-press-releases",
+            ),
+            RSSFeedEntry(
+                url="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=8-K&dateb=&owner=include&count=20&search_text=&action=getcompany&output=atom",
+                label="sec-8k-filings",
+            ),
+            RSSFeedEntry(
+                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945",
+                label="dod-contracts",
+            ),
         ]
     )
 

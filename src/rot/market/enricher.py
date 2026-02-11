@@ -37,6 +37,9 @@ NON_EQUITY_TOKENS = {
     # Regulatory / macro acronyms
     "CPI", "GDP", "FOMC", "FED", "SEC", "DOJ", "FDA", "IRS",
     "NATO", "BRICS", "PLA", "IRA",
+    # Government agencies (not tickers)
+    "DOD", "DOE", "HHS", "NIH", "CDC", "EPA", "DHS", "DOT", "HUD",
+    "USDA", "FEMA", "OSHA", "NSF", "NASA", "DARPA", "USPTO", "WIPO",
     # People / titles
     "CEO", "CFO", "COO", "CTO", "CPO", "CSO",
     # Sector words

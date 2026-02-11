@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_signals_ticker ON signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_confidence ON signals(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_stance ON signals(stance);
+CREATE INDEX IF NOT EXISTS idx_signals_dedup ON signals(post_url, ticker, created_at);
 
 CREATE TABLE IF NOT EXISTS signal_performance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,7 +160,7 @@ class Database:
 
     # ── Signal CRUD ──
 
-    async def insert_signal(self, signal_data: Dict[str, Any]) -> str:
+    async def insert_signal(self, signal_data: Dict[str, Any]) -> Optional[str]:
         signal_id = str(uuid.uuid4())[:12]
         now = time.time()
 
@@ -177,6 +178,17 @@ class Database:
         evidence = event_dict.get("evidence", [{}])
         first_evidence = evidence[0] if evidence else {}
         meta = event_dict.get("meta", {})
+
+        # Dedup: skip if signal for same (post_url, ticker) exists in last 24h
+        post_url = first_evidence.get("permalink", "")
+        if post_url and ticker != "UNKNOWN":
+            cutoff = now - 86400
+            async with self.db.execute(
+                "SELECT id FROM signals WHERE post_url = ? AND ticker = ? AND created_at > ? LIMIT 1",
+                (post_url, ticker, cutoff),
+            ) as cursor:
+                if await cursor.fetchone():
+                    return None  # Duplicate, skip
 
         # Extract sector from market data if available
         market = meta.get("market", {})
