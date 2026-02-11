@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
+import logging
 import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from rot.web.auth import get_current_user_optional, require_tier
+from rot.web.auth import get_current_user_optional, require_user, require_tier
 from rot.web.rate_limit import check_rate_limit
 from rot.web.tier_gate import (
     gate_signal,
@@ -15,6 +17,8 @@ from rot.web.tier_gate import (
     gate_correlation_access,
     gate_heatmap_access,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -243,3 +247,130 @@ async def sector_detail(
     db = request.app.state.db
     data = await db.get_sector_drill_down(sector, hours=hours)
     return {"sector": sector, "tickers": data, "hours": hours}
+
+
+@router.post("/signals/{signal_id}/reason")
+async def byok_reason_signal(request: Request, signal_id: str):
+    """Re-analyze a signal using the user's BYOK LLM key (pro+ only)."""
+    user = await require_user(request)
+    tier = user.get("tier", "free")
+    if tier not in ("pro", "premium", "ultra"):
+        raise HTTPException(status_code=403, detail="BYOK reasoning requires a paid tier")
+
+    # Get user's LLM settings
+    settings = user.get("settings", {})
+    if not isinstance(settings, dict):
+        settings = {}
+    api_key = settings.get("llm_api_key", "")
+    provider = settings.get("llm_provider", "openai")
+    model = settings.get("llm_model", "gpt-4o-mini")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="No LLM API key configured. Go to Account → LLM Settings to add your key.",
+        )
+
+    # Get the signal
+    db = request.app.state.db
+    signal = await db.get_signal(signal_id)
+    if not signal:
+        raise HTTPException(status_code=404, detail="Signal not found")
+
+    # Build a Reasoner with the user's key
+    from rot.reasoner.reasoner import Reasoner
+    from rot.reasoner.prompts import SYSTEM_PROMPT, format_event_prompt
+    from rot.reasoner.parser import parse_reasoning_response
+    from rot.reasoner.llm_client import LLMClient
+
+    try:
+        client = LLMClient(
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            max_tokens=1024,
+            temperature=0.3,
+        )
+        if not client.available:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not initialize {provider} client. Check your API key and that the required package is installed.",
+            )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"LLM client init failed: {e}")
+
+    # Reconstruct the prompt from stored signal data
+    event_data = signal.get("event_data", {})
+    market_data = signal.get("market_data", {})
+    reasoning_old = signal.get("reasoning", {})
+
+    ticker = signal.get("ticker", "UNKNOWN")
+    subreddit = signal.get("subreddit", "unknown")
+    post_title = signal.get("post_title", "")
+
+    # Extract metadata from event_data
+    meta = event_data.get("meta", {}) if isinstance(event_data, dict) else {}
+    features = meta.get("features", {}) if isinstance(meta, dict) else {}
+
+    user_prompt = format_event_prompt(
+        entities=[ticker],
+        subreddit=subreddit,
+        title=post_title,
+        body_excerpt="",
+        score=int(meta.get("score", 0)),
+        num_comments=int(meta.get("num_comments", 0)),
+        upvote_ratio=meta.get("upvote_ratio"),
+        author=meta.get("author", "unknown"),
+        flair=meta.get("flair"),
+        is_crosspost=bool(meta.get("is_crosspost", False)),
+        trend_score=float(signal.get("trend_score", 0)),
+        score_rate=float(features.get("score_rate", 0)),
+        comment_rate=float(features.get("comment_rate", 0)),
+        market_data=market_data if market_data else None,
+    )
+
+    # Call the LLM
+    try:
+        raw_response = client.complete(SYSTEM_PROMPT, user_prompt)
+        reasoning_packet = parse_reasoning_response(raw_response, [ticker])
+    except Exception as e:
+        log.warning("BYOK reasoning failed for signal %s: %s", signal_id, e)
+        raise HTTPException(status_code=500, detail=f"LLM reasoning failed: {e}")
+
+    # Convert to dict for storage
+    new_reasoning = {
+        "thesis": reasoning_packet.thesis,
+        "catalyst_window": reasoning_packet.catalyst_window,
+        "market_expectation": reasoning_packet.market_expectation,
+        "invalidations": list(reasoning_packet.invalidations),
+        "recommended_structures": list(reasoning_packet.recommended_structures),
+        "risk_notes": list(reasoning_packet.risk_notes),
+        "byok": True,
+        "byok_provider": provider,
+        "byok_model": model,
+    }
+
+    # Update the signal's reasoning in the database
+    await db.update_signal_reasoning(signal_id, new_reasoning)
+
+    # Also update confidence/stance/event_type if the LLM provided them
+    raw = reasoning_packet.raw or {}
+    updates = {}
+    if raw.get("confidence") is not None:
+        try:
+            updates["confidence"] = max(0.0, min(1.0, float(raw["confidence"])))
+        except (ValueError, TypeError):
+            pass
+    if raw.get("stance") in ("bullish", "bearish", "mixed", "unknown"):
+        updates["stance"] = raw["stance"]
+    if raw.get("event_type"):
+        updates["event_type"] = raw["event_type"]
+
+    if updates:
+        await db.update_signal_fields(signal_id, updates)
+
+    return {
+        "ok": True,
+        "reasoning": new_reasoning,
+        "message": f"Signal re-analyzed with {provider}/{model}",
+    }

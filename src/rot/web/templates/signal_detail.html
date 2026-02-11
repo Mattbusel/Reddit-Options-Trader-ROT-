@@ -75,10 +75,29 @@
         {% set reasoning = signal.get('reasoning', {}) %}
         {% if reasoning %}
         <div class="signal-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-5 flex items-center space-x-2">
-                <span>&#129504;</span>
-                <span>Analysis</span>
-            </h3>
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                    <span>&#129504;</span>
+                    <span>Analysis</span>
+                    {% if reasoning.get('byok') %}
+                    <span class="text-xs bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-0.5 rounded ml-2">AI-Analyzed ({{ reasoning.get('byok_provider', 'LLM') }}/{{ reasoning.get('byok_model', '') }})</span>
+                    {% elif is_stub_reasoning %}
+                    <span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded ml-2">Template</span>
+                    {% endif %}
+                </h3>
+                {% if has_byok and not reasoning.get('_locked') %}
+                <button id="byok-btn" onclick="reanalyzeSignal('{{ signal.id }}')"
+                        class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
+                    <span>&#10024;</span>
+                    <span>{{ 'Re-analyze' if reasoning.get('byok') else 'Analyze' }} with AI</span>
+                </button>
+                {% elif not has_byok and user and user.tier in ['pro', 'premium', 'ultra'] %}
+                <a href="/account" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition">
+                    Add API key to enable AI
+                </a>
+                {% endif %}
+            </div>
+            <div id="byok-status" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
 
             {% if reasoning.get('_locked') %}
             <!-- Locked reasoning for free tier -->
@@ -440,4 +459,43 @@
         </div>
     </div>
 </div>
+
+{% if has_byok %}
+<script>
+async function reanalyzeSignal(signalId) {
+    const btn = document.getElementById('byok-btn');
+    const status = document.getElementById('byok-status');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">&#9889; Analyzing...</span>';
+    status.className = 'mb-4 rounded-lg p-3 text-sm bg-blue-900/30 border border-blue-700/50 text-blue-300';
+    status.textContent = 'Sending to your LLM provider... this may take a few seconds.';
+    status.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`/api/v1/signals/${signalId}/reason`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        });
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+            status.className = 'mb-4 rounded-lg p-3 text-sm bg-green-900/30 border border-green-700/50 text-green-300';
+            status.textContent = data.message + ' — Reloading...';
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            status.className = 'mb-4 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+            status.textContent = data.detail || 'Re-analysis failed. Check your API key in Account settings.';
+            btn.disabled = false;
+            btn.innerHTML = '<span>&#10024;</span><span>Retry</span>';
+        }
+    } catch (e) {
+        status.className = 'mb-4 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+        status.textContent = 'Network error: ' + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<span>&#10024;</span><span>Retry</span>';
+    }
+}
+</script>
+{% endif %}
 {% endblock %}

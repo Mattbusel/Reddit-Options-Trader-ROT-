@@ -253,6 +253,27 @@ class Database:
             row = await cursor.fetchone()
             return _row_to_dict(row) if row else None
 
+    async def update_signal_reasoning(self, signal_id: str, reasoning: Dict[str, Any]) -> None:
+        """Update a signal's reasoning JSON (used by BYOK re-analysis)."""
+        await self.db.execute(
+            "UPDATE signals SET reasoning = ? WHERE id = ?",
+            (json.dumps(reasoning), signal_id),
+        )
+        await self.db.commit()
+
+    async def update_signal_fields(self, signal_id: str, fields: Dict[str, Any]) -> None:
+        """Update arbitrary columns on a signal row."""
+        if not fields:
+            return
+        allowed = {"confidence", "stance", "event_type", "strategy", "time_horizon"}
+        safe_fields = {k: v for k, v in fields.items() if k in allowed}
+        if not safe_fields:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in safe_fields)
+        params = list(safe_fields.values()) + [signal_id]
+        await self.db.execute(f"UPDATE signals SET {set_clause} WHERE id = ?", params)
+        await self.db.commit()
+
     async def get_trending_tickers(self, hours: int = 24, limit: int = 20) -> List[Dict[str, Any]]:
         cutoff = time.time() - (hours * 3600)
         query = """

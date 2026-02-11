@@ -311,6 +311,17 @@ async def _signal_detail_inner(request: Request, signal_id: str):
     except Exception as e:
         log.warning("Failed to load performance for signal %s: %s", signal_id, e)
 
+    # Check if user has BYOK LLM configured
+    user_settings = user.get("settings", {}) if user else {}
+    if not isinstance(user_settings, dict):
+        user_settings = {}
+    has_byok = bool(
+        tier in ("pro", "premium", "ultra")
+        and user_settings.get("llm_api_key")
+    )
+    reasoning = gated.get("reasoning", {})
+    is_stub = isinstance(reasoning, dict) and reasoning.get("raw", {}).get("stub")
+
     ctx = _base_context(request, user)
     ctx.update({
         "signal": gated,
@@ -318,6 +329,8 @@ async def _signal_detail_inner(request: Request, signal_id: str):
         "performance": performance,
         "perf_access": perf_access,
         "market_context": gate_market_context(tier),
+        "has_byok": has_byok,
+        "is_stub_reasoning": is_stub,
     })
 
     templates = request.app.state.templates
