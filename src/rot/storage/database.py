@@ -530,7 +530,7 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             WHERE sp.price_1h IS NULL OR sp.price_4h IS NULL
                   OR sp.price_1d IS NULL OR sp.price_1w IS NULL
-            ORDER BY sp.created_at ASC
+            ORDER BY s.created_at ASC
             LIMIT ?
         """
         async with self.db.execute(query, (limit,)) as cursor:
@@ -572,12 +572,56 @@ class Database:
             row = await cursor.fetchone()
             return _row_to_dict(row) if row else None
 
+    async def recalculate_stance_aware_gains(self) -> int:
+        """One-time recalculation of max_gain_pct/max_loss_pct with stance awareness.
+
+        Fixes old records that were calculated without considering signal stance.
+        """
+        query = """
+            SELECT sp.id, sp.price_at_signal, sp.price_1h, sp.price_4h,
+                   sp.price_1d, sp.price_1w, s.stance
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE sp.price_at_signal > 0
+              AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
+                   OR sp.price_1d IS NOT NULL OR sp.price_1w IS NOT NULL)
+        """
+        updated = 0
+        async with self.db.execute(query) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                d = dict(row)
+                price_at = d["price_at_signal"]
+                stance = d.get("stance", "bullish")
+                tracked = []
+                for key in ("price_1h", "price_4h", "price_1d", "price_1w"):
+                    if d.get(key) is not None:
+                        tracked.append(d[key])
+                if not tracked:
+                    continue
+                raw_pcts = [(p / price_at - 1.0) * 100 for p in tracked]
+                if stance == "bearish":
+                    pcts = [-pct for pct in raw_pcts]
+                else:
+                    pcts = raw_pcts
+                new_gain = max(pcts)
+                new_loss = min(pcts)
+                await self.db.execute(
+                    "UPDATE signal_performance SET max_gain_pct = ?, max_loss_pct = ? WHERE id = ?",
+                    (new_gain, new_loss, d["id"]),
+                )
+                updated += 1
+        if updated > 0:
+            await self.db.commit()
+            log.info("Recalculated stance-aware gains for %d performance records", updated)
+        return updated
+
     async def get_aggregate_accuracy(
         self, days: int = 7, ticker: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get aggregate win/loss stats for signal performance."""
         cutoff = time.time() - (days * 86400)
-        conditions = ["sp.created_at > ?"]
+        conditions = ["s.created_at > ?"]
         params: list = [cutoff]
 
         if ticker:
@@ -589,33 +633,21 @@ class Database:
             SELECT
                 COUNT(*) as total_tracked,
                 SUM(CASE
-                    WHEN s.stance = 'bearish' AND sp.price_1d IS NOT NULL
-                        THEN CASE WHEN sp.price_1d < sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN s.stance = 'bearish' AND sp.price_4h IS NOT NULL
-                        THEN CASE WHEN sp.price_4h < sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN s.stance = 'bearish' AND sp.price_1h IS NOT NULL
-                        THEN CASE WHEN sp.price_1h < sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_1d IS NOT NULL
-                        THEN CASE WHEN sp.price_1d > sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_4h IS NOT NULL
-                        THEN CASE WHEN sp.price_4h > sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_1h IS NOT NULL
-                        THEN CASE WHEN sp.price_1h > sp.price_at_signal THEN 1 ELSE 0 END
-                    ELSE 0 END) as winners,
+                    WHEN (s.stance = 'bearish' AND sp.price_1d IS NOT NULL AND sp.price_1d < sp.price_at_signal)
+                         OR (s.stance = 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NOT NULL AND sp.price_4h < sp.price_at_signal)
+                         OR (s.stance = 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NULL AND sp.price_1h IS NOT NULL AND sp.price_1h < sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NOT NULL AND sp.price_1d > sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NOT NULL AND sp.price_4h > sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NULL AND sp.price_1h IS NOT NULL AND sp.price_1h > sp.price_at_signal)
+                    THEN 1 ELSE 0 END) as winners,
                 SUM(CASE
-                    WHEN s.stance = 'bearish' AND sp.price_1d IS NOT NULL
-                        THEN CASE WHEN sp.price_1d >= sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN s.stance = 'bearish' AND sp.price_4h IS NOT NULL
-                        THEN CASE WHEN sp.price_4h >= sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN s.stance = 'bearish' AND sp.price_1h IS NOT NULL
-                        THEN CASE WHEN sp.price_1h >= sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_1d IS NOT NULL
-                        THEN CASE WHEN sp.price_1d <= sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_4h IS NOT NULL
-                        THEN CASE WHEN sp.price_4h <= sp.price_at_signal THEN 1 ELSE 0 END
-                    WHEN sp.price_1h IS NOT NULL
-                        THEN CASE WHEN sp.price_1h <= sp.price_at_signal THEN 1 ELSE 0 END
-                    ELSE 1 END) as losers,
+                    WHEN (s.stance = 'bearish' AND sp.price_1d IS NOT NULL AND sp.price_1d >= sp.price_at_signal)
+                         OR (s.stance = 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NOT NULL AND sp.price_4h >= sp.price_at_signal)
+                         OR (s.stance = 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NULL AND sp.price_1h IS NOT NULL AND sp.price_1h >= sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NOT NULL AND sp.price_1d <= sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NOT NULL AND sp.price_4h <= sp.price_at_signal)
+                         OR (COALESCE(s.stance, 'unknown') != 'bearish' AND sp.price_1d IS NULL AND sp.price_4h IS NULL AND sp.price_1h IS NOT NULL AND sp.price_1h <= sp.price_at_signal)
+                    THEN 1 ELSE 0 END) as losers,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
@@ -647,7 +679,7 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get per-signal performance records."""
         cutoff = time.time() - (days * 86400)
-        conditions = ["sp.created_at > ?"]
+        conditions = ["s.created_at > ?"]
         params: list = [cutoff]
 
         if ticker:
@@ -661,7 +693,7 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             {where}
             AND sp.price_at_signal > 0
-            ORDER BY sp.created_at DESC
+            ORDER BY s.created_at DESC
             LIMIT ?
         """
         params.append(limit)
@@ -674,7 +706,7 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get detailed performance data for CSV export."""
         cutoff = time.time() - (days * 86400)
-        conditions = ["sp.created_at > ?"]
+        conditions = ["s.created_at > ?"]
         params: list = [cutoff]
 
         if ticker:
@@ -689,7 +721,7 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             {where}
             AND sp.price_at_signal > 0
-            ORDER BY sp.created_at DESC
+            ORDER BY s.created_at DESC
         """
         async with self.db.execute(query, params) as cursor:
             rows = await cursor.fetchall()
@@ -703,7 +735,7 @@ class Database:
         bucket_s = 86400 if interval == "daily" else 3600
         query = """
             SELECT
-                CAST(sp.created_at / ? AS INTEGER) * ? as time_bucket,
+                CAST(s.created_at / ? AS INTEGER) * ? as time_bucket,
                 COUNT(*) as total,
                 SUM(CASE
                     WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
@@ -716,7 +748,7 @@ class Database:
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
-            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
                   AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
             GROUP BY time_bucket
             ORDER BY time_bucket ASC
@@ -749,7 +781,7 @@ class Database:
                     ELSE NULL END) as avg_1d_return_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
-            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
                   AND s.strategy != 'none'
             GROUP BY s.strategy
             ORDER BY total DESC
@@ -778,7 +810,7 @@ class Database:
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
-            WHERE sp.created_at > ? AND sp.price_at_signal > 0
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
             GROUP BY sp.ticker
             ORDER BY total_signals DESC
             LIMIT ?

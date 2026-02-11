@@ -232,6 +232,14 @@ async def _run_server(cfg: Settings):
     log.info("Price checker: ACTIVE (interval=%ds, batch=%d)",
              cfg.market.price_check_interval_s, cfg.market.price_check_batch_size)
 
+    # One-time recalculation of stance-aware gains for old records
+    try:
+        recalc_count = await app.state.db.recalculate_stance_aware_gains()
+        if recalc_count > 0:
+            log.info("Startup: recalculated %d performance records", recalc_count)
+    except Exception as e:
+        log.warning("Startup recalculation failed: %s", e)
+
     # Capture the RUNNING event loop — uvicorn.Server.serve() will use this same loop
     loop = asyncio.get_running_loop()
 
