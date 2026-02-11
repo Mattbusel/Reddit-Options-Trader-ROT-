@@ -108,6 +108,9 @@
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No trade legs</span></li>
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No WebSocket feed</span></li>
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No CSV export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Paper trading ($10K virtual)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Badges &amp; streaks</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Embeddable widgets</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'free' %}
@@ -142,6 +145,14 @@
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>WebSocket live feed</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>CSV export</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>BYOK AI reasoning</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Correlation engine (30d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Unusual activity feed (24h)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'pro' %}
@@ -177,6 +188,14 @@
             </li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 5)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority support</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Correlation engine (90d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Unusual activity (48h + detail)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'premium' %}
@@ -215,6 +234,14 @@
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 20)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority Discord channel</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Early access to features</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Correlation engine (365d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Unusual activity (7d + history)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'ultra' %}
@@ -281,7 +308,7 @@
 
 <!-- Chart Feature Comparison -->
 <div class="max-w-4xl mx-auto mt-12">
-    <h3 class="text-xl font-semibold text-white text-center mb-6">Visualization Features by Plan</h3>
+    <h3 class="text-xl font-semibold text-white text-center mb-6">Features by Plan</h3>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -366,6 +393,46 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Embeddable widgets</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Paper trading</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Achievement badges &amp; streaks</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Correlation engine</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">30d</td>
+                    <td class="py-3 px-4 text-center text-green-400">90d</td>
+                    <td class="py-3 px-4 text-center text-green-400">365d</td>
+                    <td class="py-3 px-4 text-center text-green-400">365d</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Unusual activity feed</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">24h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-3 px-4 text-center text-green-400">7d</td>
+                    <td class="py-3 px-4 text-center text-green-400">30d</td>
                 </tr>
             </tbody>
         </table>
