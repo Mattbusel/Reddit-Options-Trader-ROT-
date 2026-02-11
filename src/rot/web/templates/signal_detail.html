@@ -305,11 +305,11 @@
                     </div>
                 </div>
                 {% endif %}
-                {% if performance.gain_loss_pct is not none %}
+                {% if performance.get('max_gain_pct') is not none %}
                 <div class="flex items-center justify-between pt-2 border-t border-gray-700">
-                    <span class="text-gray-400 font-semibold">P&L</span>
-                    <span class="font-bold text-lg {{ 'text-green-400' if performance.gain_loss_pct >= 0 else 'text-red-400' }}">
-                        {{ "%+.2f"|format(performance.gain_loss_pct) }}%
+                    <span class="text-gray-400 font-semibold">Max Gain</span>
+                    <span class="font-bold text-lg {{ 'text-green-400' if (performance.get('max_gain_pct') or 0) >= 0 else 'text-red-400' }}">
+                        {{ "%+.2f"|format(performance.get('max_gain_pct', 0)) }}%
                     </span>
                 </div>
                 {% endif %}
