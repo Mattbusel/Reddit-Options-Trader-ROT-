@@ -197,13 +197,15 @@
     const darkGrid = { color: 'rgba(75,85,99,0.2)' };
 
     // ── Quadrant Bubble Chart ──
+    const BUBBLE_RADIUS = 8;  // Fixed bubble size in pixels
+
     function makeBubbles(stance, color, borderColor) {
         return {
             label: stance.charAt(0).toUpperCase() + stance.slice(1),
             data: chartData.filter(d => d.dominant_stance === stance).map(d => ({
-                x: (d.avg_confidence || 0) * 100,
-                y: d.max_trend_score || 0,
-                r: Math.max(Math.sqrt(d.signal_count) * 6, 5),
+                x: Math.min(Math.max((d.avg_confidence || 0) * 100, 0), 100),
+                y: Math.max(d.max_trend_score || 0, 0),
+                r: BUBBLE_RADIUS,
                 ticker: d.ticker
             })),
             backgroundColor: color,
@@ -211,6 +213,10 @@
             borderWidth: 2
         };
     }
+
+    // Calculate the Y-axis max from data so bubbles stay within bounds
+    const allTrendScores = chartData.map(d => d.max_trend_score || 0);
+    const yMax = allTrendScores.length > 0 ? Math.ceil(Math.max(...allTrendScores) * 1.15 * 1000) / 1000 : 1;
 
     const quadrantChart = new Chart(document.getElementById('quadrantChart').getContext('2d'), {
         type: 'bubble',
@@ -223,6 +229,8 @@
         },
         options: {
             responsive: true, maintainAspectRatio: false,
+            layout: { padding: { top: BUBBLE_RADIUS, right: BUBBLE_RADIUS, bottom: BUBBLE_RADIUS, left: BUBBLE_RADIUS } },
+            clip: true,
             onClick: (e, items) => {
                 if (items.length > 0) {
                     const ds = items[0].datasetIndex;
@@ -239,7 +247,7 @@
             },
             scales: {
                 x: { title: { display: true, text: 'Confidence (%)', color: '#9ca3af' }, min: 0, max: 100, ticks: { color: '#9ca3af' }, grid: darkGrid },
-                y: { title: { display: true, text: 'Trend Score', color: '#9ca3af' }, min: 0, ticks: { color: '#9ca3af' }, grid: darkGrid }
+                y: { title: { display: true, text: 'Trend Score', color: '#9ca3af' }, min: 0, max: yMax, ticks: { color: '#9ca3af' }, grid: darkGrid }
             }
         }
     });
