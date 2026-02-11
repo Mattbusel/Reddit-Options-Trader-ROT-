@@ -190,6 +190,57 @@ async def _price_check_loop(price_checker: PriceChecker, interval_s: int, stop_e
     log.info("Price check loop stopped")
 
 
+async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
+    """Background task that sends daily digest emails to subscribed users."""
+    DIGEST_INTERVAL = 3600  # Check every hour if digests need sending
+    log.info("Digest email loop starting (check interval=%ds)", DIGEST_INTERVAL)
+    while not stop_event.is_set():
+        try:
+            users = await db.get_users_for_digest()
+            if users:
+                # Get recent signals for digest (last 24h)
+                import time
+                cutoff = time.time() - 86400
+                async with db.db.execute(
+                    """SELECT id, ticker, stance, confidence, event_type, strategy,
+                              created_at, post_title, subreddit
+                       FROM signals WHERE created_at > ?
+                       ORDER BY confidence DESC LIMIT 25""",
+                    (cutoff,),
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    recent_signals = [dict(r) for r in rows]
+
+                if recent_signals:
+                    summary = {
+                        "total_signals": len(recent_signals),
+                        "top_tickers": list(set(s.get("ticker", "") for s in recent_signals[:10])),
+                        "avg_confidence": sum(s.get("confidence", 0) for s in recent_signals) / len(recent_signals),
+                    }
+
+                    sent = 0
+                    for u in users:
+                        email = u.get("email", "")
+                        if email:
+                            try:
+                                ok = await email_alerter.send_daily_digest(email, recent_signals, summary)
+                                if ok:
+                                    await db.update_digest_sent(u["id"])
+                                    sent += 1
+                            except Exception as e:
+                                log.error("Digest to %s failed: %s", email, e)
+                    if sent > 0:
+                        log.info("Daily digest: sent to %d users", sent)
+        except Exception as e:
+            log.error("Digest email loop error: %s", e, exc_info=True)
+
+        for _ in range(DIGEST_INTERVAL):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Digest email loop stopped")
+
+
 async def _run_server(cfg: Settings):
     """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
     # Create FastAPI app
@@ -271,6 +322,16 @@ async def _run_server(cfg: Settings):
         _price_check_loop(price_checker, cfg.market.price_check_interval_s, stop_event)
     )
 
+    # Start daily digest email background task
+    digest_task = None
+    if email_alerter and email_alerter.is_configured:
+        digest_task = asyncio.create_task(
+            _digest_email_loop(app.state.db, email_alerter, stop_event)
+        )
+        log.info("Digest email loop: ACTIVE")
+    else:
+        log.info("Digest email loop: DISABLED (no email alerter configured)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -288,6 +349,8 @@ async def _run_server(cfg: Settings):
     finally:
         stop_event.set()
         price_check_task.cancel()
+        if digest_task:
+            digest_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 
