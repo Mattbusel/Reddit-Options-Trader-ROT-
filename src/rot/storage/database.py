@@ -1006,11 +1006,15 @@ def _row_to_dict(row: Any) -> Dict[str, Any]:
         return {}
     d = dict(row)
     for key in ("market_data", "reasoning", "trade_idea", "event_data", "settings"):
-        if key in d and isinstance(d[key], str):
-            try:
-                parsed = json.loads(d[key])
-                # Ensure these fields are always dicts (protect against corrupt JSON like "0.5")
-                d[key] = parsed if isinstance(parsed, dict) else {}
-            except (json.JSONDecodeError, TypeError):
+        if key in d:
+            val = d[key]
+            if isinstance(val, str):
+                try:
+                    parsed = json.loads(val)
+                    d[key] = parsed if isinstance(parsed, dict) else {}
+                except (json.JSONDecodeError, TypeError):
+                    d[key] = {}
+            elif not isinstance(val, dict):
+                # Raw non-string, non-dict value (e.g. float, int, None) — reset to empty dict
                 d[key] = {}
     return d

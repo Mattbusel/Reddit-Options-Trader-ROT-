@@ -276,6 +276,21 @@ async def _dashboard_inner(request: Request):
 
 @router.get("/dashboard/signal/{signal_id}", response_class=HTMLResponse)
 async def signal_detail(request: Request, signal_id: str):
+    try:
+        return await _signal_detail_inner(request, signal_id)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        log.exception("Signal detail route failed: %s", e)
+        return HTMLResponse(
+            f"<h1>Something went wrong</h1><p>Error loading signal. "
+            f"<a href='/dashboard'>Back to dashboard</a>.</p>"
+            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            status_code=500,
+        )
+
+
+async def _signal_detail_inner(request: Request, signal_id: str):
     user = await get_current_user_optional(request)
     tier = (user or {}).get("tier", "free")
     settings = request.app.state.settings
@@ -287,11 +302,14 @@ async def signal_detail(request: Request, signal_id: str):
 
     gated = gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
 
-    # Get performance data for this signal
+    # Get performance data for this signal (graceful degradation)
     perf_access = gate_performance_access(tier)
     performance = None
-    if perf_access["has_per_signal_pnl"]:
-        performance = await db.get_performance_for_signal(signal_id)
+    try:
+        if perf_access["has_per_signal_pnl"]:
+            performance = await db.get_performance_for_signal(signal_id)
+    except Exception as e:
+        log.warning("Failed to load performance for signal %s: %s", signal_id, e)
 
     ctx = _base_context(request, user)
     ctx.update({

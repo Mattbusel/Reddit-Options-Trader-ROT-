@@ -541,48 +541,6 @@
             </div>
         </div>
 
-        <!-- Signal Leaderboard -->
-        {% if lb_access.has_leaderboard %}
-        <div>
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-sm font-semibold text-white">&#127942; Leaderboard</h2>
-                {% if lb_access.has_historical %}
-                <select onchange="window.location.href='/dashboard?lb_hours='+this.value" class="bg-gray-800 border border-gray-700 text-gray-400 rounded px-2 py-0.5 text-xs">
-                    <option value="24" {{ 'selected' if lb_hours == 24 }}>24h</option>
-                    <option value="168" {{ 'selected' if lb_hours == 168 }}>7d</option>
-                    <option value="720" {{ 'selected' if lb_hours == 720 }}>30d</option>
-                    {% if lb_access.has_custom_range %}
-                    <option value="2160" {{ 'selected' if lb_hours == 2160 }}>90d</option>
-                    {% endif %}
-                </select>
-                {% endif %}
-            </div>
-            <div class="space-y-1.5">
-                {% for item in leaderboard %}
-                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-2.5 hover:border-gray-600 transition">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs text-gray-500 w-4">{{ loop.index }}</span>
-                            <a href="/dashboard?ticker={{ item.ticker }}" class="font-bold text-white text-sm hover:text-blue-400 transition">{{ item.ticker }}</a>
-                        </div>
-                        <span class="text-xs text-gray-400">{{ item.signal_count }} signals</span>
-                    </div>
-                    <div class="flex items-center justify-between mt-1 text-xs">
-                        <span class="text-gray-500">conf: {{ "%.0f"|format((item.avg_confidence or 0) * 100) }}%</span>
-                        {% if lb_access.has_performance_column and item.win_rate is not none %}
-                        <span class="{{ 'text-green-400' if item.win_rate >= 50 else 'text-red-400' }}">{{ "%.0f"|format(item.win_rate) }}% WR</span>
-                        {% else %}
-                        <span class="text-gray-500">{{ item.stances }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-gray-500 text-xs">No data yet.</p>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
         <!-- Sector Heatmap -->
         {% if heatmap_access.has_heatmap and heatmap_data %}
         <div>
