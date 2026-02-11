@@ -101,9 +101,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
     # Dashboard routes (HTML)
-    from rot.web.routes import dashboard, performance, backtest
+    from rot.web.routes import (
+        dashboard, performance, backtest, raid_tracker, sports_tracker,
+        hall_of_legends, glossary, ceo_rap_sheet,
+        sentiment, ticker_dive, weekly_wrap, replay, seo,
+    )
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(performance.router, tags=["performance"])
     app.include_router(backtest.router, tags=["backtest"])
+    app.include_router(raid_tracker.router, tags=["raid-tracker"])
+    app.include_router(sports_tracker.router, tags=["sports-tracker"])
+    app.include_router(hall_of_legends.router, tags=["hall-of-legends"])
+    app.include_router(glossary.router, tags=["glossary"])
+    app.include_router(ceo_rap_sheet.router, tags=["ceo-rap-sheet"])
+    app.include_router(sentiment.router, tags=["sentiment"])
+    app.include_router(ticker_dive.router, tags=["ticker-dive"])
+    app.include_router(weekly_wrap.router, tags=["weekly-wrap"])
+    app.include_router(replay.router, tags=["replay"])
+    app.include_router(seo.router, tags=["seo"])
 
     return app

@@ -1,6 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}{{ signal.ticker }} Signal - ROT{% endblock %}
+{% block title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block meta_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal detected on r/{{ signal.subreddit|default('reddit') }} with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. {{ signal.event_type|default('other')|replace('_',' ')|title }} analysis by ROT.{% endblock %}
+{% block og_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block og_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal: {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. AI-powered Reddit options analysis.{% endblock %}
+{% block twitter_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block twitter_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence from Reddit.{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": "{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal",
+    "datePublished": "{{ signal.created_at }}",
+    "description": "{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal detected on r/{{ signal.subreddit|default('reddit') }} with {{ '%.0f'|format((signal.confidence|default(0)) * 100) }}% confidence",
+    "author": {"@type": "Organization", "name": "ROT"},
+    "publisher": {"@type": "Organization", "name": "ROT - Reddit Options Trader"}
+}
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/dashboard" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Signals</span></a>
+            <meta itemprop="position" content="2" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">{{ signal.ticker }} Signal</span>
+            <meta itemprop="position" content="3" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="mb-6">

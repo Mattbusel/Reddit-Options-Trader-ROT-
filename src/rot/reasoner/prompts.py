@@ -20,8 +20,19 @@ You must output valid JSON matching this exact schema:
 }
 
 Guidelines:
-- confidence should reflect evidence quality: single unverified Reddit post = 0.2-0.4,
-  DD post with data = 0.4-0.6, multiple corroborating sources = 0.6-0.8
+- Confidence calibration (follow this strictly):
+  0.10-0.25: Single Reddit post, purely speculative, no data ("trust me bro", YOLO posts)
+  0.25-0.40: Post with some reasoning but unverified or anecdotal claims
+  0.40-0.55: DD post with actual numbers (SI%, earnings dates, revenue) from a single source
+  0.55-0.70: Multiple corroborating Reddit posts OR DD with verifiable data + market data confirmation
+  0.70-0.85: Strong multi-source evidence with clear, confirmed catalyst and market alignment
+  0.85-1.00: Reserved for near-certain events (confirmed M&A, published regulatory ruling)
+- Hard caps:
+  NEVER set confidence > 0.70 for squeeze_chatter (by nature speculative)
+  NEVER set confidence > 0.85 unless the event is officially confirmed by a primary source
+- Subreddit credibility adjustments:
+  r/wallstreetbets, r/shortsqueeze, r/pennystocks: discount confidence by 0.05-0.10 (higher noise)
+  r/options, r/thetagang, r/investing, r/valueinvesting: no discount (higher signal quality)
 - For squeeze_chatter: note short interest data if mentioned, flag if purely speculative
 - For earnings_rumor: note if pre/post earnings, estimate catalyst window
 - recommended_structures should be specific: "bull call spread 5-10% OTM, 2-3 weeks out"
@@ -34,10 +45,18 @@ Guidelines:
 Output ONLY the JSON object, no markdown fencing, no explanation.\
 """
 
+_SUBREDDIT_TIERS = {
+    "wallstreetbets": "low", "wallstreetbetsogs": "low",
+    "shortsqueeze": "low", "pennystocks": "low",
+    "stocks": "medium", "stockmarket": "medium",
+    "options": "high", "thetagang": "high",
+    "investing": "high", "valueinvesting": "high",
+}
+
 EVENT_TEMPLATE = """\
 ## Reddit Signal
 Ticker(s): {entities}
-Subreddit: r/{subreddit}
+Subreddit: r/{subreddit} (credibility: {subreddit_tier})
 Post title: "{title}"
 Body excerpt: "{body_excerpt}"
 Post score: {score} | Comments: {num_comments} | Upvote ratio: {upvote_ratio}
@@ -98,9 +117,12 @@ def format_event_prompt(
     else:
         market_context = "No market data available"
 
+    subreddit_tier = _SUBREDDIT_TIERS.get(subreddit.lower(), "medium")
+
     return EVENT_TEMPLATE.format(
         entities=", ".join(entities) if entities else "None extracted",
         subreddit=subreddit,
+        subreddit_tier=subreddit_tier,
         title=title[:200],
         body_excerpt=body_excerpt[:500],
         score=score,

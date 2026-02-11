@@ -133,10 +133,12 @@ async def _async_signal_handler(
 
     signal_id = None
 
-    # Store in database
+    # Store in database (dedup check inside — returns None for duplicates)
     try:
         db = app.state.db
         signal_id = await db.insert_signal(signal_data)
+        if not signal_id:
+            return  # Duplicate signal, skip broadcast + alerts
         log.info("Signal stored: %s", signal_id)
     except Exception as e:
         log.error("Failed to store signal: %s", e)
@@ -174,6 +176,13 @@ async def _async_signal_handler(
 async def _price_check_loop(price_checker: PriceChecker, interval_s: int, stop_event: threading.Event):
     """Background task that periodically checks prices for signal performance tracking."""
     log.info("Price check loop starting (interval=%ds)", interval_s)
+
+    # Wait 30s on startup for DB to fully initialize
+    for _ in range(30):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
     while not stop_event.is_set():
         try:
             updated = await price_checker.check_pending_prices()
@@ -190,6 +199,142 @@ async def _price_check_loop(price_checker: PriceChecker, interval_s: int, stop_e
     log.info("Price check loop stopped")
 
 
+async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
+    """Background task that sends daily digest emails to subscribed users."""
+    DIGEST_INTERVAL = 3600  # Check every hour if digests need sending
+    log.info("Digest email loop starting (check interval=%ds)", DIGEST_INTERVAL)
+
+    # Wait 60s on startup before first check to let server fully initialize
+    for _ in range(60):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            users = await db.get_users_for_digest()
+            if users:
+                # Get recent signals for digest (last 24h)
+                cutoff = time.time() - 86400
+
+                # First: get total counts for the summary (all signals, not deduped)
+                async with db.db.execute(
+                    """SELECT COUNT(*) as total,
+                              SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                              SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                              AVG(confidence) as avg_conf
+                       FROM signals WHERE created_at > ?""",
+                    (cutoff,),
+                ) as cursor:
+                    counts = dict(await cursor.fetchone())
+
+                # Second: get deduplicated signals (one per ticker, best confidence)
+                # with performance data for price movement info
+                async with db.db.execute(
+                    """SELECT s.id, s.ticker, s.stance, s.confidence, s.event_type,
+                              s.strategy, s.created_at, s.post_title, s.subreddit,
+                              s.time_horizon,
+                              sp.price_at_signal, sp.price_1h, sp.price_4h, sp.price_1d
+                       FROM signals s
+                       LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+                       WHERE s.created_at > ?
+                       GROUP BY s.ticker
+                       HAVING s.confidence = MAX(s.confidence)
+                       ORDER BY s.confidence DESC
+                       LIMIT 15""",
+                    (cutoff,),
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    recent_signals = [dict(r) for r in rows]
+
+                if recent_signals:
+                    summary = {
+                        "total_signals": counts.get("total", 0) or 0,
+                        "bullish_count": counts.get("bullish", 0) or 0,
+                        "bearish_count": counts.get("bearish", 0) or 0,
+                        "avg_confidence": counts.get("avg_conf", 0) or 0,
+                        "unique_tickers": len(recent_signals),
+                    }
+
+                    sent = 0
+                    for u in users:
+                        email_addr = u.get("email", "")
+                        if email_addr:
+                            try:
+                                ok = await email_alerter.send_daily_digest(email_addr, recent_signals, summary)
+                                if ok:
+                                    await db.update_digest_sent(u["id"])
+                                    sent += 1
+                            except Exception as e:
+                                log.error("Digest to %s failed: %s", email_addr, e)
+                    if sent > 0:
+                        log.info("Daily digest: sent to %d users", sent)
+                else:
+                    log.debug("Digest: no recent signals to send")
+        except Exception as e:
+            log.error("Digest email loop error: %s", e, exc_info=True)
+
+        for _ in range(DIGEST_INTERVAL):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Digest email loop stopped")
+
+
+async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
+                           dashboard_url: str, stop_event: threading.Event):
+    """Background task that posts top signals to X/Twitter every N seconds."""
+    from rot.alerts.twitter import format_tweet
+
+    log.info("X posting loop starting (interval=%ds, min_confidence=%.2f)", interval_s, min_confidence)
+
+    # Wait 120s on startup to let signals accumulate
+    for _ in range(120):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    log.info("X posting loop: first check starting after startup delay")
+
+    while not stop_event.is_set():
+        try:
+            signal = await db.get_top_signal_for_x_post(min_confidence=min_confidence)
+            if signal:
+                tweet_text = format_tweet(signal, dashboard_url=dashboard_url)
+                tweet_id = await x_poster.post_tweet(tweet_text)
+                if tweet_id:
+                    await db.record_x_post(
+                        signal_id=signal["id"],
+                        ticker=signal["ticker"],
+                        tweet_id=tweet_id,
+                        tweet_text=tweet_text,
+                    )
+                    log.info(
+                        "X post: %s (%s, %.0f%% confidence, tweet_id=%s)",
+                        signal["ticker"], signal["stance"],
+                        signal["confidence"] * 100, tweet_id,
+                    )
+                    # After successful post, wait the full interval before next post
+                    wait_time = interval_s
+                else:
+                    log.warning("X post failed for %s (API error)", signal.get("ticker", "?"))
+                    # Retry sooner on API failure
+                    wait_time = min(900, interval_s)
+            else:
+                log.info("X post: no qualifying signal (checked last 6h, min_confidence=%.2f)", min_confidence)
+                # Retry sooner (15 min) when no signal found instead of waiting full 3h
+                wait_time = min(900, interval_s)
+        except Exception as e:
+            log.error("X posting loop error: %s", e, exc_info=True)
+            wait_time = min(900, interval_s)
+
+        for _ in range(wait_time):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("X posting loop stopped")
+
+
 async def _run_server(cfg: Settings):
     """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
     # Create FastAPI app
@@ -197,7 +342,7 @@ async def _run_server(cfg: Settings):
 
     # Create email alerter if configured
     email_alerter = None
-    if cfg.email.enabled and cfg.email.smtp_host:
+    if cfg.email.enabled and (cfg.email.resend_api_key or cfg.email.smtp_host):
         from rot.alerts.email import EmailAlerter
         email_alerter = EmailAlerter(
             smtp_host=cfg.email.smtp_host,
@@ -205,10 +350,19 @@ async def _run_server(cfg: Settings):
             smtp_user=cfg.email.smtp_user,
             smtp_password=cfg.email.smtp_password,
             from_address=cfg.email.from_address,
+            use_ssl=cfg.email.use_ssl,
+            resend_api_key=cfg.email.resend_api_key,
         )
-        log.info("Email alerter: ACTIVE (smtp=%s)", cfg.email.smtp_host)
+        if cfg.email.resend_api_key:
+            log.info("Email alerter: ACTIVE (backend=Resend HTTP API, from=%s)", cfg.email.from_address)
+        else:
+            ssl_mode = "SSL" if cfg.email.use_ssl or cfg.email.smtp_port == 465 else "STARTTLS"
+            log.info("Email alerter: ACTIVE (backend=SMTP %s:%d mode=%s)", cfg.email.smtp_host, cfg.email.smtp_port, ssl_mode)
     else:
-        log.info("Email alerter: DISABLED (set ROT_EMAIL_* to enable)")
+        log.info("Email alerter: DISABLED (set ROT_EMAIL_ENABLED=true + ROT_EMAIL_RESEND_API_KEY)")
+
+    # Store email alerter on app state so routes can send emails (e.g. password reset)
+    app.state.email_alerter = email_alerter
 
     # Create alert dispatcher
     dispatcher = AlertDispatcher(
@@ -271,6 +425,43 @@ async def _run_server(cfg: Settings):
         _price_check_loop(price_checker, cfg.market.price_check_interval_s, stop_event)
     )
 
+    # Start daily digest email background task
+    digest_task = None
+    if email_alerter and email_alerter.is_configured:
+        digest_task = asyncio.create_task(
+            _digest_email_loop(app.state.db, email_alerter, stop_event)
+        )
+        log.info("Digest email loop: ACTIVE")
+    else:
+        log.info("Digest email loop: DISABLED (no email alerter configured)")
+
+    # Start X/Twitter posting background task
+    x_post_task = None
+    if cfg.twitter.enabled:
+        from rot.alerts.twitter import XPoster
+        x_poster = XPoster(
+            api_key=cfg.twitter.api_key,
+            api_secret=cfg.twitter.api_secret,
+            access_token=cfg.twitter.access_token,
+            access_secret=cfg.twitter.access_secret,
+        )
+        if x_poster.is_configured:
+            x_post_task = asyncio.create_task(
+                _x_posting_loop(
+                    db=app.state.db,
+                    x_poster=x_poster,
+                    interval_s=cfg.twitter.interval_s,
+                    min_confidence=cfg.twitter.min_confidence,
+                    dashboard_url=cfg.twitter.dashboard_url,
+                    stop_event=stop_event,
+                )
+            )
+            log.info("X posting loop: ACTIVE (interval=%ds)", cfg.twitter.interval_s)
+        else:
+            log.warning("X posting: ENABLED but credentials missing")
+    else:
+        log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -288,6 +479,10 @@ async def _run_server(cfg: Settings):
     finally:
         stop_event.set()
         price_check_task.cancel()
+        if digest_task:
+            digest_task.cancel()
+        if x_post_task:
+            x_post_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 

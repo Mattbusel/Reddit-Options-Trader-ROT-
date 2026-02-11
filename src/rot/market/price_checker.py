@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import yfinance as yf
 
 from rot.market.enricher import _quiet_yfinance
@@ -24,17 +25,57 @@ class PriceChecker:
         self.db = db
         self.batch_size = batch_size
 
-    def _get_current_price(self, ticker: str) -> Optional[float]:
-        """Fetch the current/last price for a ticker via yfinance."""
+    def _get_current_price(self, ticker: str, retries: int = 3) -> Optional[float]:
+        """Fetch the current/last price for a ticker via yfinance with retry."""
+        for attempt in range(retries):
+            try:
+                with _quiet_yfinance():
+                    t = yf.Ticker(ticker)
+                    hist = t.history(period="1d", interval="1d")
+                    if hist is not None and len(hist) > 0:
+                        return float(hist["Close"].iloc[-1])
+            except Exception as e:
+                if attempt < retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    log.debug("Price fetch retry %d/%d for %s in %ds: %s",
+                              attempt + 1, retries, ticker, wait, e)
+                    time.sleep(wait)
+                else:
+                    log.warning("Price fetch failed for %s after %d attempts: %s",
+                                ticker, retries, e)
+        return None
+
+    def _get_prices_batch(self, tickers: List[str]) -> Dict[str, Optional[float]]:
+        """Fetch current prices for multiple tickers in one yfinance call."""
+        if not tickers:
+            return {}
+
+        results: Dict[str, Optional[float]] = {}
+
         try:
             with _quiet_yfinance():
-                t = yf.Ticker(ticker)
-                hist = t.history(period="1d", interval="1d")
-                if hist is not None and len(hist) > 0:
-                    return float(hist["Close"].iloc[-1])
+                data = yf.download(
+                    tickers, period="1d", interval="1d",
+                    group_by="ticker", progress=False, threads=True,
+                )
+                for t in tickers:
+                    try:
+                        if len(tickers) == 1:
+                            close = data["Close"].iloc[-1]
+                        else:
+                            close = data[t]["Close"].iloc[-1]
+                        results[t] = float(close) if not pd.isna(close) else None
+                    except (KeyError, IndexError):
+                        results[t] = None
+            log.info("Batch price fetch: got %d/%d prices",
+                     sum(1 for v in results.values() if v is not None), len(tickers))
         except Exception as e:
-            log.debug("Price fetch failed for %s: %s", ticker, e)
-        return None
+            log.warning("Batch price fetch failed, falling back to individual: %s", e)
+            # Fall back to individual fetches
+            for t in tickers:
+                results[t] = self._get_current_price(t)
+
+        return results
 
     async def record_initial_price(self, signal_id: str, ticker: str) -> None:
         """Record the initial price when a signal is first created."""
@@ -55,14 +96,18 @@ class PriceChecker:
     async def check_pending_prices(self) -> int:
         """Check and update prices for signals that need tracking.
 
-        Returns the number of records updated.
+        Uses batch fetching to minimize API calls. Returns the number
+        of records updated.
         """
         pending = await self.db.get_unchecked_performances(limit=self.batch_size)
         if not pending:
             return 0
 
-        updated = 0
         now = time.time()
+
+        # First pass: identify which tickers actually need price checks
+        tickers_needed: set[str] = set()
+        actionable: list[dict] = []
 
         for perf in pending:
             ticker = perf.get("ticker", "")
@@ -74,28 +119,43 @@ class PriceChecker:
                 continue
 
             age_s = now - signal_created
-            updates: Dict[str, Any] = {}
-
-            # Determine which time windows need checking
             needs_1h = perf.get("price_1h") is None and age_s >= 3600
             needs_4h = perf.get("price_4h") is None and age_s >= 14400
             needs_1d = perf.get("price_1d") is None and age_s >= 86400
             needs_1w = perf.get("price_1w") is None and age_s >= 604800
 
-            if not (needs_1h or needs_4h or needs_1d or needs_1w):
-                continue
+            if needs_1h or needs_4h or needs_1d or needs_1w:
+                tickers_needed.add(ticker)
+                actionable.append(perf)
 
-            current_price = self._get_current_price(ticker)
+        if not tickers_needed:
+            return 0
+
+        # Batch fetch all needed prices in one API call
+        prices = self._get_prices_batch(list(tickers_needed))
+
+        # Second pass: apply prices to records
+        updated = 0
+        for perf in actionable:
+            ticker = perf.get("ticker", "")
+            signal_created = perf.get("created_at", 0) or perf.get("checked_at", 0)
+            price_at_signal = perf.get("price_at_signal")
+            perf_id = perf.get("id")
+
+            current_price = prices.get(ticker)
             if current_price is None:
                 continue
 
-            if needs_1h and perf.get("price_1h") is None:
+            age_s = now - signal_created
+            updates: Dict[str, Any] = {}
+
+            if perf.get("price_1h") is None and age_s >= 3600:
                 updates["price_1h"] = current_price
-            if needs_4h and perf.get("price_4h") is None:
+            if perf.get("price_4h") is None and age_s >= 14400:
                 updates["price_4h"] = current_price
-            if needs_1d and perf.get("price_1d") is None:
+            if perf.get("price_1d") is None and age_s >= 86400:
                 updates["price_1d"] = current_price
-            if needs_1w and perf.get("price_1w") is None:
+            if perf.get("price_1w") is None and age_s >= 604800:
                 updates["price_1w"] = current_price
 
             # Compute stance-aware gain/loss across all tracked prices
@@ -129,6 +189,7 @@ class PriceChecker:
                     log.error("Failed to update performance for %s: %s", ticker, e)
 
         if updated > 0:
-            log.info("Price check: updated %d/%d records", updated, len(pending))
+            log.info("Price check: updated %d/%d records (%d unique tickers)",
+                     updated, len(pending), len(tickers_needed))
 
         return updated

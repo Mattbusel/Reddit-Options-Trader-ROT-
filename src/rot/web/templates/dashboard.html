@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - ROT{% endblock %}
+{% block title %}Dashboard - ROT | Live Reddit Options Signals{% endblock %}
+{% block meta_description %}Track real-time options trading signals from Reddit. AI-powered analysis with confidence scoring, sentiment tracking, and trade ideas for options traders.{% endblock %}
+{% block og_title %}ROT Dashboard - Live Reddit Options Signals{% endblock %}
+{% block og_description %}Real-time AI-powered options signal intelligence from Reddit. Track sentiment, analyze trades, and spot opportunities.{% endblock %}
+{% block twitter_title %}ROT Dashboard - Live Reddit Options Signals{% endblock %}
+{% block twitter_description %}Real-time AI-powered options signal intelligence from Reddit.{% endblock %}
 
 {% block content %}
 <!-- Free Tier Banner -->
@@ -45,12 +50,12 @@
     <!-- Signal Accuracy Tracker -->
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate ({{ perf_access.accuracy_days }}d)</div>
-        {% if accuracy.total_tracked > 0 %}
-        <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
-        <div class="text-xs text-gray-500 mt-1">{{ accuracy.total_tracked }} tracked | {{ accuracy.winners or 0 }}W / {{ accuracy.losers or 0 }}L</div>
+        {% if (accuracy.winners or 0) > 0 or (accuracy.losers or 0) > 0 %}
+        <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-yellow-400' if accuracy.win_rate >= 30 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
+        <div class="text-xs text-gray-500 mt-1">{{ accuracy.winners or 0 }}W / {{ accuracy.losers or 0 }}L{% if accuracy.neutral %} / {{ accuracy.neutral }}N{% endif %}</div>
         {% else %}
         <div class="text-3xl font-bold text-gray-600">&mdash;</div>
-        <div class="text-xs text-gray-500 mt-1">Tracking signals...</div>
+        <div class="text-xs text-gray-500 mt-1">Awaiting price movement...</div>
         {% endif %}
     </div>
 </div>

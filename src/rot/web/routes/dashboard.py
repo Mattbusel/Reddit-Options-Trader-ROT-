@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from jose import JWTError, jwt
 
 from rot.web.auth import (
     create_access_token,
@@ -92,6 +94,25 @@ def _base_context(request: Request, user: dict | None) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
+async def landing_or_dashboard(request: Request):
+    """Serve landing page for logged-out users, dashboard for logged-in."""
+    try:
+        user = await get_current_user_optional(request)
+        if user:
+            return await _dashboard_inner(request)
+        return await _landing_page(request)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        log.exception("Landing/dashboard route failed: %s", e)
+        return HTMLResponse(
+            f"<h1>Something went wrong</h1><p>The page encountered an error. "
+            f"Please try <a href='/dashboard'>refresh</a>.</p>"
+            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            status_code=500,
+        )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     try:
@@ -274,6 +295,38 @@ async def _dashboard_inner(request: Request):
     return templates.TemplateResponse("dashboard.html", ctx)
 
 
+async def _landing_page(request: Request):
+    """Render the marketing landing page for logged-out visitors."""
+    db = request.app.state.db
+
+    # Gather stats for the landing page (graceful degradation)
+    stats = {"total_signals": 0, "active_tickers": 0, "win_rate": None}
+    try:
+        summary = await db.get_performance_summary(days=90)
+        stats["total_signals"] = summary.get("total_signals", 0) or 0
+    except Exception:
+        pass
+    try:
+        trending = await db.get_trending_tickers(hours=24, limit=100)
+        stats["active_tickers"] = len(trending)
+    except Exception:
+        pass
+    try:
+        accuracy = await db.get_aggregate_accuracy(days=30)
+        winners = accuracy.get("winners", 0) or 0
+        losers = accuracy.get("losers", 0) or 0
+        decided = winners + losers
+        if decided > 0:
+            stats["win_rate"] = (winners / decided) * 100
+    except Exception:
+        pass
+
+    ctx = _base_context(request, None)
+    ctx["stats"] = stats
+    templates = request.app.state.templates
+    return templates.TemplateResponse("landing.html", ctx)
+
+
 @router.get("/dashboard/signal/{signal_id}", response_class=HTMLResponse)
 async def signal_detail(request: Request, signal_id: str):
     try:
@@ -346,6 +399,7 @@ async def login_page(request: Request):
         return RedirectResponse(url="/dashboard", status_code=302)
     ctx = _base_context(request, None)
     ctx["error"] = request.query_params.get("error", "")
+    ctx["success"] = request.query_params.get("success", "")
     templates = request.app.state.templates
     return templates.TemplateResponse("login.html", ctx)
 
@@ -434,6 +488,152 @@ async def logout_page():
     response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie("rot_session")
     return response
+
+
+# ── Forgot / Reset Password ──
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    user = await get_current_user_optional(request)
+    if user:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    ctx = _base_context(request, None)
+    ctx["error"] = ""
+    ctx["success"] = ""
+    templates = request.app.state.templates
+    return templates.TemplateResponse("forgot_password.html", ctx)
+
+
+@router.post("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_form(request: Request, email: str = Form(...)):
+    templates = request.app.state.templates
+    db = request.app.state.db
+    settings = request.app.state.settings
+    email_alerter = getattr(request.app.state, "email_alerter", None)
+
+    ctx = _base_context(request, None)
+
+    # Look up user
+    user = await db.get_user_by_email(email.lower().strip())
+    if not user:
+        ctx["error"] = "No account found with that email address."
+        ctx["success"] = ""
+        return templates.TemplateResponse("forgot_password.html", ctx)
+
+    # Check email alerter is configured
+    if not email_alerter or not email_alerter.is_configured:
+        ctx["error"] = "Password reset emails are not configured. Please contact support."
+        ctx["success"] = ""
+        return templates.TemplateResponse("forgot_password.html", ctx)
+
+    # Generate a signed reset token (JWT with 1-hour expiry)
+    secret = settings.auth.jwt_secret or settings.web.secret_key
+    reset_payload = {
+        "sub": user["id"],
+        "email": user["email"],
+        "purpose": "password_reset",
+        "exp": time.time() + 3600,  # 1 hour
+    }
+    reset_token = jwt.encode(reset_payload, secret, algorithm=settings.auth.jwt_algorithm)
+
+    # Build reset URL
+    host = request.headers.get("host", "localhost:8000")
+    scheme = request.headers.get("x-forwarded-proto", "https" if "railway" in host else "http")
+    reset_url = f"{scheme}://{host}/reset-password?token={reset_token}"
+
+    # Send the email
+    from rot.alerts.email_templates import render_password_reset
+    html = render_password_reset(reset_url)
+    try:
+        success = email_alerter._send_email(user["email"], "ROT - Password Reset", html)
+        if not success:
+            log.error("Password reset email failed to send to %s", user["email"])
+            ctx["error"] = "Failed to send reset email. Please try again later."
+            ctx["success"] = ""
+            return templates.TemplateResponse("forgot_password.html", ctx)
+        log.info("Password reset email sent to %s", user["email"])
+    except Exception as e:
+        log.error("Failed to send reset email to %s: %s", user["email"], e)
+        ctx["error"] = "Failed to send reset email. Please try again later."
+        ctx["success"] = ""
+        return templates.TemplateResponse("forgot_password.html", ctx)
+
+    ctx["error"] = ""
+    ctx["success"] = f"Password reset email sent to {user['email']}. Check your inbox."
+    return templates.TemplateResponse("forgot_password.html", ctx)
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request):
+    token = request.query_params.get("token", "")
+    settings = request.app.state.settings
+    templates = request.app.state.templates
+    ctx = _base_context(request, None)
+    ctx["error"] = ""
+    ctx["token"] = token
+
+    # Validate the token upfront
+    if not token:
+        ctx["error"] = "Invalid or missing reset link."
+        return templates.TemplateResponse("reset_password.html", ctx)
+
+    secret = settings.auth.jwt_secret or settings.web.secret_key
+    try:
+        payload = jwt.decode(token, secret, algorithms=[settings.auth.jwt_algorithm])
+        if payload.get("purpose") != "password_reset":
+            ctx["error"] = "Invalid reset link."
+    except JWTError:
+        ctx["error"] = "Reset link has expired or is invalid. Please request a new one."
+
+    return templates.TemplateResponse("reset_password.html", ctx)
+
+
+@router.post("/reset-password", response_class=HTMLResponse)
+async def reset_password_form(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    templates = request.app.state.templates
+    settings = request.app.state.settings
+    db = request.app.state.db
+    ctx = _base_context(request, None)
+    ctx["token"] = token
+
+    # Validate passwords match
+    if password != confirm_password:
+        ctx["error"] = "Passwords do not match."
+        return templates.TemplateResponse("reset_password.html", ctx)
+
+    if len(password) < 8:
+        ctx["error"] = "Password must be at least 8 characters."
+        return templates.TemplateResponse("reset_password.html", ctx)
+
+    # Validate and decode the reset token
+    secret = settings.auth.jwt_secret or settings.web.secret_key
+    try:
+        payload = jwt.decode(token, secret, algorithms=[settings.auth.jwt_algorithm])
+        if payload.get("purpose") != "password_reset":
+            ctx["error"] = "Invalid reset link."
+            return templates.TemplateResponse("reset_password.html", ctx)
+    except JWTError:
+        ctx["error"] = "Reset link has expired or is invalid. Please request a new one."
+        return templates.TemplateResponse("reset_password.html", ctx)
+
+    # Verify user still exists
+    user = await db.get_user_by_id(payload["sub"])
+    if not user:
+        ctx["error"] = "Account not found."
+        return templates.TemplateResponse("reset_password.html", ctx)
+
+    # Update the password
+    pw_hash = hash_password(password)
+    await db.update_user_password(user["id"], pw_hash)
+    log.info("Password reset completed for user %s (%s)", user["id"], user["email"])
+
+    # Redirect to login with success message
+    return RedirectResponse(url="/login?success=Password+reset+successful.+Please+sign+in.", status_code=302)
 
 
 @router.get("/pricing", response_class=HTMLResponse)

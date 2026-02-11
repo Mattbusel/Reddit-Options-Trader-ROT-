@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}CEO Rap Sheet - Corporate Leader Scandal Tracker | ROT{% endblock %}
+{% block meta_description %}Corporate executive scandals they hope you forgot. {{ total_ceos }} CEOs tracked for fraud, insider trading, and regulatory violations with outcomes, fines totaling {{ format_usd(total_fines) }}, and shame scores.{% endblock %}
+{% block og_title %}CEO Rap Sheet - Corporate Scandal Tracker | ROT{% endblock %}
+{% block og_description %}{{ total_ceos }} corporate executives tracked for fraud, insider trading, and SEC violations. {{ convicted }} convicted, {{ format_usd(total_fines) }} in fines.{% endblock %}
+{% block twitter_title %}CEO Rap Sheet - {{ total_ceos }} Corporate Scandals Tracked{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">CEO Rap Sheet</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- CTA Banner -->
+    {% if not user %}
+    <div class="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-700/40 rounded-xl px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+        <p class="text-sm text-gray-300">Track live trading signals from Reddit &mdash; powered by AI analysis.</p>
+        <a href="/register" class="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition whitespace-nowrap">Sign Up Free</a>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-red-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">CEO Rap Sheet</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Over {{ format_usd(total_fines) }} in fines have been levied against corporate executives for fraud, insider trading, and regulatory violations. This tracker covers {{ total_ceos }} executives with outcomes ranging from conviction to acquittal.</p>
+        <p class="text-gray-600 text-sm mt-2">{{ total_ceos }} executives tracked &mdash; ranked by shame score</p>
+        <!-- Share Buttons -->
+        <div class="mt-4 flex justify-center">
+            {% include "components/share_buttons.html" %}
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ total_ceos }}</div>
+            <div class="text-xs text-gray-500 mt-1">CEOs Tracked</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ format_usd(total_fines) }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Fines</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-orange-400">{{ convicted }}</div>
+            <div class="text-xs text-gray-500 mt-1">Convicted</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-gray-400">{{ no_charges }}</div>
+            <div class="text-xs text-gray-500 mt-1">Never Charged</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ still_active }}</div>
+            <div class="text-xs text-gray-500 mt-1">Still Active</div>
+        </div>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="stat-card rounded-xl p-4 mb-6">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Category:</span>
+            <a href="/ceo-rap-sheet?category=all"
+               class="px-3 py-1 rounded-full text-xs font-medium transition
+               {% if selected_category == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All ({{ total_ceos }})
+            </a>
+            {% for cat in all_categories %}
+            <a href="/ceo-rap-sheet?category={{ cat }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition
+               {% if selected_category == cat %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ category_emoji(cat) }} {{ cat|replace('_', ' ')|capitalize }} ({{ category_counts.get(cat, 0) }})
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- CEO List -->
+    <div class="space-y-3">
+        {% for ceo in ceos %}
+        <div class="signal-card rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index * 30 }}ms">
+            <div class="flex items-start gap-4">
+                <!-- Shame Score Badge -->
+                <div class="flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center text-xs font-bold
+                    {% if ceo.shame_score >= 9 %}bg-gradient-to-br from-red-700 to-red-900 text-white
+                    {% elif ceo.shame_score >= 7 %}bg-red-800/60 text-red-300
+                    {% elif ceo.shame_score >= 5 %}bg-orange-800/60 text-orange-300
+                    {% else %}bg-gray-800 text-gray-400{% endif %}">
+                    <span class="text-lg">{{ ceo.shame_score }}</span>
+                    <span class="text-[8px] opacity-60">/10</span>
+                </div>
+
+                <!-- Details -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="text-lg font-bold text-white">{{ ceo.name }}</span>
+                        {% if ceo.still_active %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-yellow-900/40 text-yellow-400 border border-yellow-700/50">STILL ACTIVE</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                        <span class="font-semibold">{{ ceo.company }}</span>
+                        {% if ceo.ticker %}
+                        <a href="/ticker/{{ ceo.ticker }}" class="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700 hover:text-white transition">{{ ceo.ticker }}</a>
+                        {% endif %}
+                        <span class="text-gray-600">&middot;</span>
+                        <span>{{ ceo.year }}</span>
+                    </div>
+
+                    <p class="text-sm text-gray-400 leading-relaxed mb-2">{{ ceo.description }}</p>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <!-- Category Badge -->
+                        <span class="text-xs px-2 py-0.5 rounded border {{ category_color(ceo.category) }}">
+                            {{ category_emoji(ceo.category) }} {{ ceo.category|replace('_', ' ')|upper }}
+                        </span>
+
+                        <!-- Outcome Badge -->
+                        <span class="text-xs px-2 py-0.5 rounded border {{ outcome_color(ceo.outcome) }}">
+                            {{ outcome_emoji(ceo.outcome) }} {{ ceo.outcome|replace('_', ' ')|upper }}
+                        </span>
+
+                        <!-- Fine -->
+                        {% if ceo.fine_amount > 0 %}
+                        <span class="text-xs text-green-400">Fine: {{ format_usd(ceo.fine_amount) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Side: Fine Amount Large -->
+                {% if ceo.fine_amount > 0 %}
+                <div class="flex-shrink-0 text-right hidden md:block">
+                    <div class="text-xl font-bold text-red-400">{{ format_usd(ceo.fine_amount) }}</div>
+                    <div class="text-xs text-gray-500">personal fine</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Internal Links -->
+    <div class="border-t border-gray-800 pt-8 mt-8">
+        <h3 class="text-lg font-semibold text-white mb-4">Related Content</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition">
+                <div class="text-lg mb-1">&#127942;</div>
+                <div class="text-sm font-semibold text-white">Hall of Legends</div>
+                <p class="text-xs text-gray-400 mt-1">The good guys &mdash; greatest trades in history</p>
+            </a>
+            <a href="/glossary" class="signal-card rounded-xl p-4 block hover:border-blue-700 transition">
+                <div class="text-lg mb-1">&#128218;</div>
+                <div class="text-sm font-semibold text-white">Glossary of Degens</div>
+                <p class="text-xs text-gray-400 mt-1">Learn the lingo &mdash; 75 trading terms explained</p>
+            </a>
+            <a href="/register" class="signal-card rounded-xl p-4 block hover:border-orange-700 transition">
+                <div class="text-lg mb-1">&#128200;</div>
+                <div class="text-sm font-semibold text-white">Track Live Signals</div>
+                <p class="text-xs text-gray-400 mt-1">AI-powered Reddit signal intelligence &mdash; sign up free</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
+        <p>Information compiled from public court records, SEC filings, and reporting.</p>
+        <p>Shame scores are editorial assessments based on impact, accountability, and public trust violations.</p>
+        <p class="text-gray-700 mt-2">Not legal advice. Individuals are innocent until proven guilty.</p>
+    </div>
+
+    <!-- Bottom CTA -->
+    {% if not user %}
+    <div class="text-center py-8 border-t border-gray-800">
+        <p class="text-gray-400 mb-4">Want to see what Reddit is saying about stocks right now?</p>
+        <a href="/register" class="px-8 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold transition">Start Tracking Signals</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

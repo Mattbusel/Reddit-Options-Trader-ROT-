@@ -109,6 +109,23 @@ class RSSConfig(BaseSettings):
                 url="https://seekingalpha.com/market_currents.xml",
                 label="seekingalpha-currents",
             ),
+            # ── Institutional / Government feeds ──
+            RSSFeedEntry(
+                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+                label="fda-press-releases",
+            ),
+            RSSFeedEntry(
+                url="https://www.federalreserve.gov/feeds/press_all.xml",
+                label="fed-press-releases",
+            ),
+            RSSFeedEntry(
+                url="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=8-K&dateb=&owner=include&count=20&search_text=&action=getcompany&output=atom",
+                label="sec-8k-filings",
+            ),
+            RSSFeedEntry(
+                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945",
+                label="dod-contracts",
+            ),
         ]
     )
 
@@ -142,11 +159,18 @@ class TwitterConfig(BaseSettings):
 class EmailConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_EMAIL_")
 
+    # Resend HTTP API (recommended for cloud providers like Railway)
+    resend_api_key: str = ""  # Set this to use Resend instead of SMTP
+
+    # SMTP settings (fallback, for local dev or self-hosted)
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    from_address: str = "alerts@rot.app"
+    use_ssl: bool = False  # True = SMTP_SSL (port 465), False = STARTTLS (port 587)
+
+    # Shared settings
+    from_address: str = "ROT Alerts <alerts@rot.app>"
     enabled: bool = False
 
 
@@ -168,6 +192,19 @@ class StripeConfig(BaseSettings):
     ultra_price_id: str = ""
     success_url: str = "/dashboard?upgraded=1"
     cancel_url: str = "/pricing"
+
+
+class TwitterConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ROT_TWITTER_")
+
+    api_key: str = ""           # Consumer / API key
+    api_secret: str = ""        # Consumer / API secret
+    access_token: str = ""      # User access token (for the ROT account)
+    access_secret: str = ""     # User access token secret
+    enabled: bool = False
+    interval_s: int = 10800     # 3 hours
+    min_confidence: float = 0.5  # Lowered to get posts flowing
+    dashboard_url: str = "https://web-production-71423.up.railway.app"
 
 
 class TierConfig(BaseSettings):
@@ -202,6 +239,7 @@ class Settings(BaseSettings):
     stripe: StripeConfig = Field(default_factory=StripeConfig)
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
+    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

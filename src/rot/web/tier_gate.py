@@ -142,6 +142,50 @@ def gate_correlation_access(tier: str) -> dict:
     }
 
 
+def gate_sentiment_access(tier: str) -> dict:
+    """Return sentiment heatmap feature access flags based on tier."""
+    return {
+        "max_tickers": 10 if tier == "free" else 50,
+        "max_hours": 24 if tier == "free" else 168 if tier == "pro" else 720 if tier == "premium" else 2160,
+        "has_drill_down": tier in ("pro", "premium", "ultra"),
+        "has_sector_group": tier in ("premium", "ultra"),
+        "has_export": tier in ("premium", "ultra"),
+    }
+
+
+def gate_ticker_dive_access(tier: str) -> dict:
+    """Return ticker deep dive feature access flags based on tier."""
+    return {
+        "max_signals": 5 if tier == "free" else 50 if tier == "pro" else 100 if tier == "premium" else 9999,
+        "has_chart": tier in ("pro", "premium", "ultra"),
+        "has_performance": tier in ("premium", "ultra"),
+        "has_sector_compare": tier in ("premium", "ultra"),
+        "has_correlation": tier == "ultra",
+        "has_export": tier == "ultra",
+    }
+
+
+def gate_weekly_wrap_access(tier: str) -> dict:
+    """Return weekly wrap feature access flags based on tier."""
+    return {
+        "max_weeks_back": 0 if tier == "free" else 4 if tier == "pro" else 12 if tier == "premium" else 52,
+        "has_charts": tier in ("pro", "premium", "ultra"),
+        "has_strategy_breakdown": tier in ("premium", "ultra"),
+        "has_export": tier == "ultra",
+    }
+
+
+def gate_replay_access(tier: str) -> dict:
+    """Return signal replay feature access flags based on tier."""
+    return {
+        "has_access": tier in ("pro", "premium", "ultra"),
+        "max_hours": 0 if tier == "free" else 24 if tier == "pro" else 168 if tier == "premium" else 720,
+        "has_price_overlay": tier in ("premium", "ultra"),
+        "has_export": tier == "ultra",
+        "has_step_controls": tier == "ultra",
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

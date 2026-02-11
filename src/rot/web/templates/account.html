@@ -131,19 +131,6 @@
                     </label>
                 </div>
 
-                <!-- Real-time Email (pro+) -->
-                <div class="flex items-center justify-between {{ 'opacity-50' if tier == 'free' else '' }}">
-                    <div>
-                        <label class="text-sm text-white font-semibold">Real-time Alerts</label>
-                        <p class="text-xs text-gray-500">Get emailed immediately when a signal is generated</p>
-                        {% if tier == 'free' %}<span class="text-xs text-orange-400">Pro+ required</span>{% endif %}
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="ea-realtime" class="sr-only peer" {{ 'disabled' if tier == 'free' else '' }}>
-                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                    </label>
-                </div>
-
                 <!-- Min Confidence (pro+) -->
                 <div class="{{ 'opacity-50' if tier == 'free' else '' }}">
                     <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">Min Confidence</label>
@@ -275,11 +262,9 @@ async function loadEmailAlertSettings() {
         const s = data.settings || {};
 
         const digest = document.getElementById('ea-digest');
-        const realtime = document.getElementById('ea-realtime');
         const minConf = document.getElementById('ea-min-confidence');
 
         if (digest) digest.checked = s.digest_enabled !== 0;
-        if (realtime) realtime.checked = !!s.realtime_enabled;
         if (minConf) minConf.value = String(s.min_confidence || 0.6);
 
         const tickers = document.getElementById('ea-tickers');
@@ -300,13 +285,12 @@ async function loadEmailAlertSettings() {
 
 async function saveEmailAlertSettings() {
     const digest = document.getElementById('ea-digest');
-    const realtime = document.getElementById('ea-realtime');
     const minConf = document.getElementById('ea-min-confidence');
 
     const body = {
         enabled: 1,
         digest_enabled: digest && digest.checked ? 1 : 0,
-        realtime_enabled: realtime && realtime.checked ? 1 : 0,
+        realtime_enabled: 0,
         min_confidence: minConf ? parseFloat(minConf.value) : 0.6,
         tickers: [],
         stances: [],
