@@ -1,6 +1,6 @@
 """Email alert system for ROT signal notifications.
 
-Sends real-time signal alerts and daily digest emails.
+Sends daily digest emails and password reset emails.
 Requires configuration via ROT_EMAIL_* environment variables.
 
 Supports two sending backends:
@@ -14,7 +14,6 @@ The Resend backend is preferred when both are configured.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -23,7 +22,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from rot.alerts.email_templates import render_signal_alert, render_daily_digest
+from rot.alerts.email_templates import render_daily_digest
 
 log = logging.getLogger(__name__)
 
@@ -147,16 +146,6 @@ class EmailAlerter:
         return await loop.run_in_executor(
             None, self._send_email_sync, to_email, subject, html_body
         )
-
-    async def send_signal_alert(
-        self, to_email: str, signal_data: Dict[str, Any]
-    ) -> bool:
-        """Send a real-time signal alert email."""
-        html = render_signal_alert(signal_data)
-        ticker = signal_data.get("ticker", "UNKNOWN")
-        stance = signal_data.get("stance", "unknown")
-        subject = f"ROT Signal: {ticker} ({stance.upper()})"
-        return await self._send_email_async(to_email, subject, html)
 
     async def send_daily_digest(
         self,

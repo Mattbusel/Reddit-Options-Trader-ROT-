@@ -207,11 +207,32 @@ async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
             if users:
                 # Get recent signals for digest (last 24h)
                 cutoff = time.time() - 86400
+
+                # First: get total counts for the summary (all signals, not deduped)
                 async with db.db.execute(
-                    """SELECT id, ticker, stance, confidence, event_type, strategy,
-                              created_at, post_title, subreddit
-                       FROM signals WHERE created_at > ?
-                       ORDER BY confidence DESC LIMIT 25""",
+                    """SELECT COUNT(*) as total,
+                              SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                              SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                              AVG(confidence) as avg_conf
+                       FROM signals WHERE created_at > ?""",
+                    (cutoff,),
+                ) as cursor:
+                    counts = dict(await cursor.fetchone())
+
+                # Second: get deduplicated signals (one per ticker, best confidence)
+                # with performance data for price movement info
+                async with db.db.execute(
+                    """SELECT s.id, s.ticker, s.stance, s.confidence, s.event_type,
+                              s.strategy, s.created_at, s.post_title, s.subreddit,
+                              s.time_horizon,
+                              sp.price_at_signal, sp.price_1h, sp.price_4h, sp.price_1d
+                       FROM signals s
+                       LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+                       WHERE s.created_at > ?
+                       GROUP BY s.ticker
+                       HAVING s.confidence = MAX(s.confidence)
+                       ORDER BY s.confidence DESC
+                       LIMIT 15""",
                     (cutoff,),
                 ) as cursor:
                     rows = await cursor.fetchall()
@@ -219,9 +240,11 @@ async def _digest_email_loop(db, email_alerter, stop_event: threading.Event):
 
                 if recent_signals:
                     summary = {
-                        "total_signals": len(recent_signals),
-                        "top_tickers": list(set(s.get("ticker", "") for s in recent_signals[:10])),
-                        "avg_confidence": sum(s.get("confidence", 0) for s in recent_signals) / len(recent_signals),
+                        "total_signals": counts.get("total", 0) or 0,
+                        "bullish_count": counts.get("bullish", 0) or 0,
+                        "bearish_count": counts.get("bearish", 0) or 0,
+                        "avg_confidence": counts.get("avg_conf", 0) or 0,
+                        "unique_tickers": len(recent_signals),
                     }
 
                     sent = 0
