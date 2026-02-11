@@ -97,11 +97,14 @@ async def dashboard(request: Request):
     try:
         return await _dashboard_inner(request)
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
         log.exception("Dashboard route failed: %s", e)
         return HTMLResponse(
             f"<h1>Something went wrong</h1><p>The dashboard encountered an error. "
             f"Please try <a href='/logout'>logging out</a> and back in, or "
-            f"<a href='/dashboard'>refresh</a>.</p><pre>{type(e).__name__}: {e}</pre>",
+            f"<a href='/dashboard'>refresh</a>.</p>"
+            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
             status_code=500,
         )
 
@@ -250,7 +253,7 @@ async def _dashboard_inner(request: Request):
         "filter_confidence": q_confidence or "",
         "filter_date_range": q_date_range or "",
         "has_filters": bool(q_ticker or q_stance or q_event or q_confidence or q_date_range),
-        "watchlist": (user or {}).get("settings", {}).get("watchlist", []) if user else [],
+        "watchlist": (user.get("settings") if user and isinstance(user.get("settings"), dict) else {}).get("watchlist", []),
         "watchlist_limit": {"free": 3, "pro": 20, "premium": 50, "ultra": 999}.get(tier, 3),
         "filter_access": filter_access,
         "perf_access": perf_access,
