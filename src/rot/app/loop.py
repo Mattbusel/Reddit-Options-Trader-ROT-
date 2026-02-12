@@ -37,7 +37,11 @@ def loop() -> None:
     rss_active = cfg.rss.enabled and bool(cfg.rss.feeds)
     if rss_active:
         feed_configs = [
-            RSSFeedConfig(url=f.url, label=f.label, poll_interval_s=cfg.rss.poll_interval_s)
+            RSSFeedConfig(
+                url=f.url,
+                label=f.label,
+                poll_interval_s=f.poll_interval_s if f.poll_interval_s is not None else cfg.rss.poll_interval_s,
+            )
             for f in cfg.rss.feeds
             if f.url
         ]

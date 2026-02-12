@@ -15,6 +15,21 @@ from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.market.enricher import MarketEnricher
 from rot.market.symbol_validator import SymbolValidator
+from rot.core.types import ReasoningPacket, TradeIdea
+
+
+# Sources that are informational-only: no LLM reasoning, no trade ideas,
+# no confidence scoring. Government contracts and regulatory press releases
+# aren't tradeable signals — just news items.
+_INFORMATIONAL_ONLY_SOURCES = {
+    # Department of Defense
+    "dod-contracts", "dod-releases", "dod-news",
+    # FDA / Pharma regulatory
+    "fda-press-releases", "fda-drugs", "fda-safety-alerts",
+    "fda-recalls", "fda-oncology",
+    # Pharma industry news
+    "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
+}
 
 
 class PipelineRunner:
@@ -195,7 +210,45 @@ class PipelineRunner:
         # 4) reason + ideas
         idea_count = 0
         stub_count = 0
+        info_count = 0
         for e in scored:
+            # Informational-only sources (DoD, FDA, pharma): skip LLM reasoning
+            # and trade ideas. These are news items, not tradeable signals.
+            source = ""
+            if e.evidence:
+                source = (e.evidence[0].subreddit or "").lower()
+            if source in _INFORMATIONAL_ONLY_SOURCES:
+                info_count += 1
+                info_packet = ReasoningPacket(
+                    thesis=f"Informational: {e.evidence[0].excerpt[:150] if e.evidence else 'government/regulatory news'}",
+                    catalyst_window="N/A",
+                    market_expectation="informational only",
+                    invalidations=[],
+                    recommended_structures=[],
+                    risk_notes=["This is a government/regulatory news item, not a trade signal"],
+                    raw={"informational": True, "source": source},
+                )
+                no_trade = TradeIdea(
+                    underlying=e.entities[0] if e.entities else "N/A",
+                    strategy="none",
+                    legs=[],
+                    max_loss=0.0,
+                    thesis=info_packet.thesis,
+                    time_stop="N/A",
+                    quality_score=0.0,
+                    do_not_trade_reasons=["informational_source"],
+                )
+                # Override confidence to 0 — this is not a tradeable signal
+                e = dataclasses.replace(e, confidence=0.0)
+                self.log.write("events_informational", {"run_id": run_id, "event": e, "source": source})
+                self._emit_signal({
+                    "run_id": run_id,
+                    "event": e,
+                    "reasoning": info_packet,
+                    "trade_idea": no_trade,
+                })
+                continue
+
             packet = self.reasoner.reason(e)
             self.log.write("reasoning", {"run_id": run_id, "event": e, "packet": packet})
 
@@ -232,6 +285,7 @@ class PipelineRunner:
             "ticker_candidate_count": ticker_candidate_count,
             "events": len(scored),
             "stubs_skipped": stub_count,
+            "informational_only": info_count,
             "trade_ideas": idea_count,
             "top_signals": len(top_all),
             "top_ticker_signals": len(top_ticker_pairs),

@@ -75,6 +75,10 @@ class RSSIngestor:
     Deduplication: reuses SeenStore. Since RSS items have static score=0 and
     num_comments=0, is_changed() returns True only on first encounter, giving
     exact-once semantics with zero changes to SeenStore.
+
+    Per-feed throttling: each feed has its own ``poll_interval_s``.
+    On every ``poll()`` call, feeds whose interval has not elapsed are
+    silently skipped — no network request, no log spam.
     """
 
     def __init__(
@@ -87,6 +91,7 @@ class RSSIngestor:
         self.feeds = feeds
         self.max_entries_per_feed = max_entries_per_feed
         self.seen = SeenStore(path=state_path, max_age_s=max_age_s)
+        self._last_poll: dict[str, float] = {}  # label → epoch of last poll
 
     def poll(self) -> List[ThreadSnapshot]:
         now = int(time.time())
@@ -95,6 +100,12 @@ class RSSIngestor:
         self.seen.load()
 
         for feed_cfg in self.feeds:
+            # Per-feed throttle: skip if interval hasn't elapsed
+            last = self._last_poll.get(feed_cfg.label, 0.0)
+            if (now - last) < feed_cfg.poll_interval_s:
+                continue
+            self._last_poll[feed_cfg.label] = now
+
             try:
                 parsed = feedparser.parse(feed_cfg.url)
             except Exception as e:

@@ -74,6 +74,7 @@ class RSSFeedEntry(BaseSettings):
 
     url: str = ""
     label: str = ""
+    poll_interval_s: Optional[int] = None  # None → use global RSSConfig.poll_interval_s
 
 
 class RSSConfig(BaseSettings):
@@ -111,18 +112,55 @@ class RSSConfig(BaseSettings):
                 label="seekingalpha-currents",
             ),
             # ── Institutional / Government feeds ──
+            # Department of Defense (ContentType: 400=contracts, 9=releases, 1=news)
+            # Polled every 30 min — these publish daily/weekly, not in real time.
+            RSSFeedEntry(
+                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=400&Site=945&max=20",
+                label="dod-contracts",
+                poll_interval_s=1800,
+            ),
+            RSSFeedEntry(
+                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=9&Site=945&max=20",
+                label="dod-releases",
+                poll_interval_s=1800,
+            ),
+            RSSFeedEntry(
+                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945&max=20",
+                label="dod-news",
+                poll_interval_s=1800,
+            ),
+            # FDA / Pharma regulatory — polled every 30 min (low frequency publishers)
             RSSFeedEntry(
                 url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
                 label="fda-press-releases",
+                poll_interval_s=1800,
             ),
+            RSSFeedEntry(
+                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/drugs/rss.xml",
+                label="fda-drugs",
+                poll_interval_s=1800,
+            ),
+            RSSFeedEntry(
+                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/medwatch-safety-alerts/rss.xml",
+                label="fda-safety-alerts",
+                poll_interval_s=1800,
+            ),
+            RSSFeedEntry(
+                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/recalls/rss.xml",
+                label="fda-recalls",
+                poll_interval_s=1800,
+            ),
+            # Federal Reserve
             RSSFeedEntry(
                 url="https://www.federalreserve.gov/feeds/press_all.xml",
                 label="fed-press-releases",
             ),
             # SEC 8-K feed removed — consistently returns 403
+            # Pharma industry news — polled every 15 min
             RSSFeedEntry(
-                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945",
-                label="dod-contracts",
+                url="https://www.biopharmadive.com/feeds/news/",
+                label="biopharma-dive",
+                poll_interval_s=900,
             ),
         ]
     )
