@@ -457,6 +457,9 @@ class Database:
 
     async def get_performance_summary(self, days: int = 30) -> Dict[str, Any]:
         cutoff = time.time() - (days * 86400)
+        now = time.time()
+        cutoff_24h = now - 86400
+        cutoff_7d = now - 7 * 86400
         query = """
             SELECT
                 COUNT(*) as total_signals,
@@ -464,15 +467,42 @@ class Database:
                 SUM(CASE WHEN strategy != 'none' THEN 1 ELSE 0 END) as tradeable_signals,
                 SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
                 SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
-                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count
+                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
+                SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as signals_today,
+                SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as signals_7d,
+                SUM(CASE WHEN confidence >= 0.5 THEN 1 ELSE 0 END) as high_conf_count,
+                SUM(CASE WHEN strategy = 'debit_spread' THEN 1
+                         WHEN strategy = 'credit_spread' THEN 1
+                         WHEN strategy = 'long_call' OR strategy = 'long_put' THEN 1
+                         ELSE 0 END) as _strat_dummy,
+                COUNT(DISTINCT ticker) as unique_tickers,
+                COUNT(DISTINCT subreddit) as unique_sources
             FROM signals
             WHERE created_at > ?
         """
-        async with self.db.execute(query, (cutoff,)) as cursor:
+        async with self.db.execute(query, (cutoff_24h, cutoff_7d, cutoff)) as cursor:
             row = await cursor.fetchone()
             if not row:
                 return {"total_signals": 0}
-            return _row_to_dict(row)
+            d = _row_to_dict(row)
+            total = d.get("total_signals", 0) or 0
+            d["daily_avg"] = round(total / max(days, 1), 1)
+            return d
+
+    async def get_strategy_breakdown(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Get top strategies by count for the stat card."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT strategy, COUNT(*) as cnt
+            FROM signals
+            WHERE created_at > ? AND strategy != 'none' AND strategy != ''
+            GROUP BY strategy
+            ORDER BY cnt DESC
+            LIMIT 4
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(r) for r in rows]
 
     # ── Chart Data ──
 

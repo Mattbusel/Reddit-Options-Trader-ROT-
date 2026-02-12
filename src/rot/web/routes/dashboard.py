@@ -174,6 +174,11 @@ async def _dashboard_inner(request: Request):
     )
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
+    strategy_breakdown = []
+    try:
+        strategy_breakdown = await db.get_strategy_breakdown(days=30)
+    except Exception:
+        pass
 
     # Chart data — gated by tier
     chart_access = gate_chart_access(tier)
@@ -272,6 +277,7 @@ async def _dashboard_inner(request: Request):
         "signals": gated,
         "trending": trending,
         "summary": summary,
+        "strategy_breakdown": strategy_breakdown,
         "total_signals": len(signals),
         "chart_data": chart_data,
         "time_series": time_series,

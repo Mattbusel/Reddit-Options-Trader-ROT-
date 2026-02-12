@@ -24,17 +24,67 @@
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
         <div class="text-3xl font-bold text-white">{{ summary.get('total_signals', 0) }}</div>
-        <div class="text-xs text-gray-500 mt-1">Last 30 days</div>
+        <div class="text-xs text-gray-500 mt-1">~{{ summary.get('daily_avg', 0) }}/day avg</div>
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Today</span>
+                <span class="text-white font-semibold">{{ summary.get('signals_today', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Last 7d</span>
+                <span class="text-white font-semibold">{{ summary.get('signals_7d', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Tickers</span>
+                <span class="text-blue-400 font-semibold">{{ summary.get('unique_tickers', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Sources</span>
+                <span class="text-purple-400 font-semibold">{{ summary.get('unique_sources', 0) }}</span>
+            </div>
+        </div>
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tradeable</div>
         <div class="text-3xl font-bold text-green-400">{{ summary.get('tradeable_signals', 0) }}</div>
-        <div class="text-xs text-gray-500 mt-1">With strategy</div>
+        {% set total_s = summary.get('total_signals', 0) or 1 %}
+        {% set trade_pct = ((summary.get('tradeable_signals', 0) or 0) / total_s * 100)|round|int %}
+        <div class="text-xs text-gray-500 mt-1">{{ trade_pct }}% trade rate</div>
+        {% if strategy_breakdown %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Top Strategies</div>
+            {% for sb in strategy_breakdown %}
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">{{ sb.strategy|replace('_', ' ')|title }}</span>
+                <span class="text-blue-400 font-semibold">{{ sb.cnt }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
-        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format((summary.get('avg_confidence', 0) or 0) * 100) }}%</div>
+        {% set avg_conf = (summary.get('avg_confidence', 0) or 0) %}
+        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format(avg_conf * 100) }}%</div>
         <div class="text-xs text-gray-500 mt-1">Quality metric</div>
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Distribution</div>
+            {% set total_s = summary.get('total_signals', 0) or 1 %}
+            {% set high = summary.get('high_conf_count', 0) or 0 %}
+            {% set low = total_s - high %}
+            {% set high_pct = (high / total_s * 100)|round|int %}
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">&ge;50% conf</span>
+                <span class="text-green-400 font-semibold">{{ high }} <span class="text-gray-500">({{ high_pct }}%)</span></span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">&lt;50% conf</span>
+                <span class="text-yellow-400 font-semibold">{{ low }} <span class="text-gray-500">({{ 100 - high_pct }}%)</span></span>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2 mt-1 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-yellow-500 to-green-500" style="width: {{ [high_pct, 5]|max }}%"></div>
+            </div>
+        </div>
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Sentiment Split</div>
@@ -46,6 +96,32 @@
             <span class="text-yellow-400">{{ summary.get('mixed_count', 0) }}</span>
         </div>
         <div class="text-xs text-gray-500 mt-1">Bull / Bear / Mix</div>
+        {% set bull = summary.get('bullish_count', 0) or 0 %}
+        {% set bear = summary.get('bearish_count', 0) or 0 %}
+        {% set mix = summary.get('mixed_count', 0) or 0 %}
+        {% set stotal = bull + bear + mix or 1 %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
+            <div class="w-full flex rounded-full h-2.5 overflow-hidden">
+                <div class="bg-green-500 h-full" style="width: {{ (bull / stotal * 100)|round }}%"></div>
+                <div class="bg-red-500 h-full" style="width: {{ (bear / stotal * 100)|round }}%"></div>
+                <div class="bg-yellow-500 h-full" style="width: {{ (mix / stotal * 100)|round }}%"></div>
+            </div>
+            {% set net = bull - bear %}
+            <div class="flex justify-between text-[10px] mt-1">
+                <span class="text-gray-500">Net sentiment</span>
+                <span class="font-semibold {{ 'text-green-400' if net > 0 else 'text-red-400' if net < 0 else 'text-gray-400' }}">
+                    {{ '+' if net > 0 }}{{ net }} {{ 'bullish' if net > 0 else 'bearish' if net < 0 else 'neutral' }}
+                </span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Bull ratio</span>
+                <span class="text-green-400 font-semibold">{{ "%.0f"|format(bull / stotal * 100) }}%</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Bear ratio</span>
+                <span class="text-red-400 font-semibold">{{ "%.0f"|format(bear / stotal * 100) }}%</span>
+            </div>
+        </div>
     </div>
     <!-- Signal Accuracy Tracker -->
     <div class="stat-card rounded-lg p-5">
