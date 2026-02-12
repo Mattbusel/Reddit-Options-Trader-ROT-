@@ -195,10 +195,15 @@ async def _dashboard_inner(request: Request):
     # Accuracy tracker data (graceful degradation)
     perf_access = gate_performance_access(tier)
     accuracy = {"total_tracked": 0, "winners": 0, "losers": 0, "win_rate": 0}
+    accuracy_buckets = []
     try:
         accuracy = await db.get_aggregate_accuracy(days=perf_access["accuracy_days"])
     except Exception as e:
         log.warning("Failed to load accuracy data: %s", e)
+    try:
+        accuracy_buckets = await db.get_accuracy_by_confidence(days=perf_access["accuracy_days"])
+    except Exception as e:
+        log.warning("Failed to load accuracy buckets: %s", e)
 
     # Leaderboard data (graceful degradation)
     lb_access = gate_leaderboard_access(tier)
@@ -283,6 +288,7 @@ async def _dashboard_inner(request: Request):
         "filter_access": filter_access,
         "perf_access": perf_access,
         "accuracy": accuracy,
+        "accuracy_buckets": accuracy_buckets,
         "leaderboard": leaderboard,
         "lb_access": lb_access,
         "lb_hours": leaderboard_hours,

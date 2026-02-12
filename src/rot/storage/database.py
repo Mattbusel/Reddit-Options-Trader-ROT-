@@ -838,6 +838,60 @@ class Database:
             d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
             return d
 
+    async def get_accuracy_by_confidence(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Win rate broken down by confidence buckets: <30%, 30-50%, 50-70%, 70%+."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                CASE
+                    WHEN s.confidence < 0.3 THEN 'low'
+                    WHEN s.confidence < 0.5 THEN 'mid'
+                    WHEN s.confidence < 0.7 THEN 'high'
+                    ELSE 'very_high'
+                END as bucket,
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as losers
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at > ?
+            AND sp.price_at_signal > 0
+            AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            GROUP BY bucket
+            ORDER BY s.confidence ASC
+        """
+        labels = {"low": "<30%", "mid": "30-50%", "high": "50-70%", "very_high": "70%+"}
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                w = d.get("winners", 0) or 0
+                l = d.get("losers", 0) or 0
+                decided = w + l
+                d["win_rate"] = round(w / decided * 100) if decided > 0 else 0
+                d["label"] = labels.get(d.get("bucket", ""), "?")
+                results.append(d)
+            return results
+
     async def get_performance_history(
         self, days: int = 30, ticker: Optional[str] = None, limit: int = 50
     ) -> List[Dict[str, Any]]:

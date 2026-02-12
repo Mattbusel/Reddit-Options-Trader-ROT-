@@ -53,6 +53,24 @@
         {% if (accuracy.winners or 0) > 0 or (accuracy.losers or 0) > 0 %}
         <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-yellow-400' if accuracy.win_rate >= 30 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
         <div class="text-xs text-gray-500 mt-1">{{ accuracy.winners or 0 }}W / {{ accuracy.losers or 0 }}L{% if accuracy.neutral %} / {{ accuracy.neutral }}N{% endif %}</div>
+        {% if accuracy_buckets %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider">By Confidence</div>
+            {% for b in accuracy_buckets %}
+            {% set wr = b.win_rate or 0 %}
+            {% set decided = (b.winners or 0) + (b.losers or 0) %}
+            {% if decided > 0 %}
+            <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-gray-400 w-10 shrink-0">{{ b.label }}</span>
+                <div class="flex-1 bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div class="h-full rounded-full {{ 'bg-green-500' if wr >= 55 else 'bg-yellow-500' if wr >= 40 else 'bg-red-500' }}" style="width: {{ wr }}%"></div>
+                </div>
+                <span class="text-[10px] font-semibold w-8 text-right {{ 'text-green-400' if wr >= 55 else 'text-yellow-400' if wr >= 40 else 'text-red-400' }}">{{ wr }}%</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
         {% else %}
         <div class="text-3xl font-bold text-gray-600">&mdash;</div>
         <div class="text-xs text-gray-500 mt-1">Awaiting price movement...</div>
