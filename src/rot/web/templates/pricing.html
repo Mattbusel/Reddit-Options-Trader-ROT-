@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing - ROT | Free, Pro, Premium, Ultra & Enterprise Plans{% endblock %}
-{% block meta_description %}Choose your ROT plan. Free tier with delayed signals, or upgrade for real-time alerts, performance tracking, AI analysis, and custom webhooks. Enterprise data licensing available.{% endblock %}
-{% block og_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
-{% block og_description %}Free, Pro ($9.99), Premium ($29.99), Ultra ($49.99), and Enterprise ($499) plans for real-time Reddit options intelligence.{% endblock %}
-{% block twitter_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
+{% block title %}Pricing - ROT | Replace $638/mo in Trading Subscriptions{% endblock %}
+{% block meta_description %}Stop paying $254/mo for Trade Ideas, $177/mo for Benzinga Pro, $149/mo for BlackBoxStocks, and $58/mo for Unusual Whales. ROT replaces them all starting at $9.99/mo.{% endblock %}
+{% block og_title %}ROT Pricing - Replace $638/mo in Trading Subscriptions for $9.99{% endblock %}
+{% block og_description %}AI trade summaries, real-time news feed, congressional trading tracker, paper trading leaderboard, 15+ data sources, and full REST API. One platform replaces them all.{% endblock %}
+{% block twitter_title %}ROT Pricing - Replace $638/mo in Trading Subscriptions{% endblock %}
 
 {% block structured_data %}
 <script type="application/ld+json">
@@ -13,28 +13,28 @@
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Pro Plan",
-        "description": "Real-time Reddit options signals with full AI analysis, trade legs, WebSocket feed, and CSV export",
+        "description": "Real-time signals, AI trade summaries, news feed, congressional tracker, paper trading leaderboard, 1000 API calls/day, WebSocket feed",
         "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Premium Plan",
-        "description": "Extended signal charts, strategy breakdown, custom subreddits, and priority support",
+        "description": "Everything in Pro plus AI news summaries, full congress trade amounts, ticker filtering, accuracy charts, sector drill-downs, 5000 API calls/day",
         "offers": {"@type": "Offer", "price": "29.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Ultra Plan",
-        "description": "Full platform access with live badges, custom time ranges, chart export, and early feature access",
+        "description": "Everything in Premium plus 25000 API calls/day, strategy P&L, full export suite, custom time ranges, early feature access",
         "offers": {"@type": "Offer", "price": "49.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Enterprise Plan",
-        "description": "Full data licensing, sponsored signal analysis, 500K API calls/day, bulk CSV/JSON exports for quant funds and researchers",
+        "description": "Full data licensing, 100K API calls/day, sponsored signal analysis, bulk exports, dedicated support for quant funds and researchers",
         "offers": {"@type": "Offer", "price": "499.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
@@ -43,23 +43,23 @@
         "mainEntity": [
             {
                 "@type": "Question",
-                "name": "How much does ROT cost?",
-                "acceptedAnswer": {"@type": "Answer", "text": "ROT offers a free tier with delayed signals, plus paid plans: Pro at $9.99/mo, Premium at $29.99/mo, and Ultra at $49.99/mo. All paid plans include real-time signals and AI-powered analysis."}
+                "name": "How does ROT compare to Trade Ideas, Benzinga Pro, and Unusual Whales?",
+                "acceptedAnswer": {"@type": "Answer", "text": "ROT replaces Trade Ideas ($254/mo AI trade scanning), Benzinga Pro ($177/mo real-time news), BlackBoxStocks ($149/mo community alerts), and Unusual Whales ($58/mo congressional trading) - all for $9.99/mo. We aggregate 15+ financial data sources with AI analysis at a fraction of the cost."}
+            },
+            {
+                "@type": "Question",
+                "name": "What is included in the ROT Pro plan?",
+                "acceptedAnswer": {"@type": "Answer", "text": "Pro includes real-time signals from 15+ sources, AI trade summaries, news feed aggregation, congressional trading tracker, paper trading leaderboard, correlation engine, unusual activity detection, TradingView integration, WebSocket live feed, CSV export, and 1000 API calls/day with field selection and sorting."}
             },
             {
                 "@type": "Question",
                 "name": "What is BYOK (Bring Your Own Key)?",
-                "acceptedAnswer": {"@type": "Answer", "text": "BYOK means you provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI-powered signal reasoning. ROT handles the signal pipeline and infrastructure, you control your AI costs."}
+                "acceptedAnswer": {"@type": "Answer", "text": "BYOK means you provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI-powered signal reasoning. ROT handles the signal pipeline and infrastructure, you control your AI costs. Platform AI summaries are included for Premium+ at no extra cost."}
             },
             {
                 "@type": "Question",
-                "name": "What is included in the free tier?",
-                "acceptedAnswer": {"@type": "Answer", "text": "The free tier includes 15-minute delayed signals, 10 signals per page, 100 API calls per day, thesis preview, and basic stance charts. Full analysis, trade legs, and real-time features require a paid plan."}
-            },
-            {
-                "@type": "Question",
-                "name": "Can I upgrade or downgrade my plan?",
-                "acceptedAnswer": {"@type": "Answer", "text": "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately and billing is prorated."}
+                "name": "Does ROT offer an API?",
+                "acceptedAnswer": {"@type": "Answer", "text": "Yes. ROT has a full REST API with 19 endpoints covering signals, performance, correlations, news, congressional trades, leaderboards, and more. API access starts at Pro tier (1000 calls/day) with field selection, sorting, and filtering. Free tier is dashboard-only."}
             }
         ]
     }
@@ -84,33 +84,73 @@
 {% endblock %}
 
 {% block content %}
-<div class="text-center mb-12">
-    <h1 class="text-4xl font-bold text-white mb-3">Choose Your Plan</h1>
-    <p class="text-gray-400 text-lg">Real-time Reddit signal intelligence for options traders</p>
-    <p class="text-sm text-gray-500 mt-3">All paid plans use BYOK (Bring Your Own Key) for AI reasoning &mdash; you control your LLM costs</p>
+<!-- Hero -->
+<div class="text-center mb-6">
+    <h1 class="text-4xl font-bold text-white mb-3">Stop Paying $638/mo for Trading Tools</h1>
+    <p class="text-gray-400 text-lg max-w-2xl mx-auto">ROT replaces your entire trading software stack. AI trade summaries, real-time news, congressional trades, and 15+ data sources &mdash; one platform, one price.</p>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+<!-- Competitor Killer Banner -->
+<div class="max-w-5xl mx-auto mb-10">
+    <div class="bg-gradient-to-r from-red-900/30 via-gray-900 to-green-900/30 rounded-xl border border-gray-700 p-6">
+        <h2 class="text-center text-sm font-bold text-gray-400 uppercase tracking-widest mb-5">What You're Paying Now vs. ROT</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center">
+                <div class="text-red-400 line-through text-lg font-bold">$254/mo</div>
+                <div class="text-xs text-gray-500 mt-1">Trade Ideas</div>
+                <div class="text-xs text-gray-600">AI trade scanning</div>
+                <div class="mt-2 text-green-400 text-xs font-semibold">Replaced by AI Summaries</div>
+            </div>
+            <div class="text-center">
+                <div class="text-red-400 line-through text-lg font-bold">$177/mo</div>
+                <div class="text-xs text-gray-500 mt-1">Benzinga Pro</div>
+                <div class="text-xs text-gray-600">Real-time news</div>
+                <div class="mt-2 text-green-400 text-xs font-semibold">Replaced by News Feed</div>
+            </div>
+            <div class="text-center">
+                <div class="text-red-400 line-through text-lg font-bold">$149/mo</div>
+                <div class="text-xs text-gray-500 mt-1">BlackBoxStocks</div>
+                <div class="text-xs text-gray-600">Community alerts</div>
+                <div class="mt-2 text-green-400 text-xs font-semibold">Replaced by Leaderboard</div>
+            </div>
+            <div class="text-center">
+                <div class="text-red-400 line-through text-lg font-bold">$58/mo</div>
+                <div class="text-xs text-gray-500 mt-1">Unusual Whales</div>
+                <div class="text-xs text-gray-600">Congressional trades</div>
+                <div class="mt-2 text-green-400 text-xs font-semibold">Replaced by Congress Tracker</div>
+            </div>
+        </div>
+        <div class="text-center mt-6 pt-4 border-t border-gray-700">
+            <span class="text-red-400 line-through text-2xl font-bold">$638/mo</span>
+            <span class="text-gray-500 mx-3 text-lg">&rarr;</span>
+            <span class="text-green-400 text-3xl font-black">$9.99/mo</span>
+            <div class="text-green-400/70 text-xs mt-1 font-semibold">Save $7,536/year. Same data. One platform.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Plan Cards -->
+<div id="plans" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
     <!-- Free -->
     <div class="signal-card rounded-xl p-6 flex flex-col">
         <div class="mb-6">
             <h2 class="text-lg font-bold text-white">Free</h2>
             <div class="text-3xl font-bold text-white mt-2">$0<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+            <p class="text-xs text-gray-500 mt-1">Dashboard only. No API.</p>
         </div>
         <ul class="space-y-3 text-sm text-gray-300 flex-1">
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>15-minute delayed signals</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>10 signals per page</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>100 API calls/day</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Thesis preview only</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Basic stance bar chart</span></li>
-            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No signal map</span></li>
-            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No timeline charts</span></li>
-            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No trade legs</span></li>
-            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No WebSocket feed</span></li>
-            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No CSV export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>News feed (6h window, 15 items)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Leaderboard (top 10)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Paper trading ($10K virtual)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Badges &amp; streaks</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Embeddable widgets</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Basic stance chart</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No API access</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No AI summaries</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No Congress tracker</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No WebSocket feed</span></li>
+            <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No CSV export</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'free' %}
@@ -123,36 +163,39 @@
 
     <!-- Pro -->
     <div class="signal-card rounded-xl p-6 flex flex-col relative" style="border-color: rgba(59, 130, 246, 0.5);">
-        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1 rounded-full tracking-wide">POPULAR</div>
+        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1 rounded-full tracking-wide">MOST POPULAR</div>
         <div class="mb-6">
             <h2 class="text-lg font-bold text-blue-400">Pro</h2>
             <div class="text-3xl font-bold text-white mt-2">$9.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+            <p class="text-xs text-gray-500 mt-1">Replaces <span class="text-red-400 line-through">$638/mo</span> in tools</p>
         </div>
         <ul class="space-y-3 text-sm text-gray-300 flex-1">
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Real-time signals</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span class="font-semibold text-white">Real-time signals</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>100 signals per page</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>5,000 API calls/day</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Full analysis &amp; reasoning</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Trade legs visible</span></li>
             <li class="flex items-start space-x-2">
                 <span class="text-blue-400 mt-0.5">&#10003;</span>
-                <span class="text-blue-300">Signal map (24h quadrant)</span>
+                <span class="text-blue-300">1,000 API calls/day (50/min)</span>
             </li>
             <li class="flex items-start space-x-2">
                 <span class="text-blue-400 mt-0.5">&#10003;</span>
-                <span class="text-blue-300">Timeline volume chart (24h)</span>
+                <span class="text-blue-300">News feed (24h, source filter)</span>
             </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Congress trading tracker (14d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Leaderboard (top 25 + stats)</span>
+            </li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Full analysis &amp; trade legs</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Signal map (24h quadrant)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Correlation engine (30d)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Unusual activity feed (24h)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>WebSocket live feed</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>CSV export</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>BYOK AI reasoning</span></li>
-            <li class="flex items-start space-x-2">
-                <span class="text-blue-400 mt-0.5">&#10003;</span>
-                <span class="text-blue-300">Correlation engine (30d)</span>
-            </li>
-            <li class="flex items-start space-x-2">
-                <span class="text-blue-400 mt-0.5">&#10003;</span>
-                <span class="text-blue-300">Unusual activity feed (24h)</span>
-            </li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>CSV export + BYOK reasoning</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>TradingView integration</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>API: field selection, sorting, filters</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'pro' %}
@@ -160,7 +203,7 @@
             {% elif stripe_enabled and user %}
             <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Upgrade to Pro</button>
             {% elif not user %}
-            <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
+            <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up &mdash; Replace $638/mo</a>
             {% else %}
             <div class="w-full text-center py-2.5 px-4 rounded-lg bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
             {% endif %}
@@ -172,30 +215,39 @@
         <div class="mb-6">
             <h2 class="text-lg font-bold text-purple-400">Premium</h2>
             <div class="text-3xl font-bold text-white mt-2">$29.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+            <p class="text-xs text-gray-500 mt-1">Full analytics + AI summaries</p>
         </div>
         <ul class="space-y-3 text-sm text-gray-300 flex-1">
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Everything in Pro</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>200 signals per page</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>25,000 API calls/day</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Full trade leg details</span></li>
             <li class="flex items-start space-x-2">
                 <span class="text-purple-400 mt-0.5">&#10003;</span>
-                <span class="text-purple-300">Signal map &amp; timeline (48h)</span>
+                <span class="text-purple-300">5,000 API calls/day (200/min)</span>
             </li>
             <li class="flex items-start space-x-2">
                 <span class="text-purple-400 mt-0.5">&#10003;</span>
-                <span class="text-purple-300">Strategy breakdown chart</span>
-            </li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 5)</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority support</span></li>
-            <li class="flex items-start space-x-2">
-                <span class="text-purple-400 mt-0.5">&#10003;</span>
-                <span class="text-purple-300">Correlation engine (90d)</span>
+                <span class="text-purple-300">AI-generated trade summaries</span>
             </li>
             <li class="flex items-start space-x-2">
                 <span class="text-purple-400 mt-0.5">&#10003;</span>
-                <span class="text-purple-300">Unusual activity (48h + detail)</span>
+                <span class="text-purple-300">News feed (72h + AI summaries)</span>
             </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Congress tracker (30d + amounts + ticker filter)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Accuracy charts + calibration</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Sector rotation insights</span>
+            </li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Signal map &amp; timeline (48h)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Strategy breakdown chart</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Correlation engine (90d)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Unusual activity (48h + detail)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>API: date range filtering</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'premium' %}
@@ -215,10 +267,22 @@
         <div class="mb-6">
             <h2 class="text-lg font-bold text-amber-400">Ultra</h2>
             <div class="text-3xl font-bold text-white mt-2">$49.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+            <p class="text-xs text-gray-500 mt-1">Power users + full export</p>
         </div>
         <ul class="space-y-3 text-sm text-gray-300 flex-1">
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Everything in Premium</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>50,000 API calls/day</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">25,000 API calls/day (500/min)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Congress tracker (90d + export)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Strategy P&L breakdown</span>
+            </li>
             <li class="flex items-start space-x-2">
                 <span class="text-amber-400 mt-0.5">&#10003;</span>
                 <span class="text-amber-300">Live badge + real-time charts</span>
@@ -231,17 +295,10 @@
                 <span class="text-amber-400 mt-0.5">&#10003;</span>
                 <span class="text-amber-300">Chart export (PNG)</span>
             </li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 20)</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority Discord channel</span></li>
-            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Early access to features</span></li>
-            <li class="flex items-start space-x-2">
-                <span class="text-amber-400 mt-0.5">&#10003;</span>
-                <span class="text-amber-300">Correlation engine (365d)</span>
-            </li>
-            <li class="flex items-start space-x-2">
-                <span class="text-amber-400 mt-0.5">&#10003;</span>
-                <span class="text-amber-300">Unusual activity (7d + history)</span>
-            </li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Correlation engine (365d)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Unusual activity (7d + history)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Performance export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority Discord + early access</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'ultra' %}
@@ -266,12 +323,12 @@
                 <h2 class="text-2xl font-bold text-emerald-400">Enterprise</h2>
                 <div class="text-4xl font-bold text-white mt-2">$499<span class="text-sm text-gray-500 font-normal">/mo</span></div>
                 <p class="text-gray-400 text-sm mt-2">For quant funds, researchers &amp; data providers</p>
-                <p class="text-emerald-400/60 text-xs mt-1">Custom volume pricing available &mdash; <a href="mailto:mattbusel@gmail.com" class="text-emerald-400 hover:underline">contact us</a> for $999+/yr annual deals</p>
+                <p class="text-emerald-400/60 text-xs mt-1">Custom volume pricing &mdash; <a href="mailto:mattbusel@gmail.com" class="text-emerald-400 hover:underline">contact us</a></p>
             </div>
             <div>
                 <ul class="space-y-3 text-sm text-gray-300">
                     <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Everything in Ultra</span></li>
-                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>500,000 API calls/day</span></li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>100,000 API calls/day (2K/min)</span></li>
                     <li class="flex items-start space-x-2">
                         <span class="text-emerald-400 mt-0.5">&#10003;</span>
                         <span class="text-emerald-300">Data Licensing &mdash; bulk CSV/JSON exports</span>
@@ -306,9 +363,78 @@
     </div>
 </div>
 
-<!-- Chart Feature Comparison -->
-<div class="max-w-4xl mx-auto mt-12">
-    <h3 class="text-xl font-semibold text-white text-center mb-6">Features by Plan</h3>
+<!-- Head-to-Head Competitor Comparison -->
+<div class="max-w-5xl mx-auto mt-12">
+    <h3 class="text-xl font-semibold text-white text-center mb-2">Head-to-Head: ROT vs. The Competition</h3>
+    <p class="text-center text-gray-500 text-sm mb-6">Every feature they charge separately for, we include in one plan.</p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700">
+                    <th class="text-left py-3 px-4 text-gray-400 font-semibold">Feature</th>
+                    <th class="text-center py-3 px-4 text-red-400 font-semibold">Competitors</th>
+                    <th class="text-center py-3 px-4 text-green-400 font-semibold">ROT Pro $9.99</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                <tr class="bg-red-900/5">
+                    <td class="py-3 px-4 text-gray-300">AI trade scanning &amp; summaries</td>
+                    <td class="py-3 px-4 text-center"><span class="text-red-400 font-semibold">Trade Ideas $254/mo</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr class="bg-red-900/5">
+                    <td class="py-3 px-4 text-gray-300">Real-time news from 15+ sources</td>
+                    <td class="py-3 px-4 text-center"><span class="text-red-400 font-semibold">Benzinga Pro $177/mo</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr class="bg-red-900/5">
+                    <td class="py-3 px-4 text-gray-300">Community leaderboard &amp; alerts</td>
+                    <td class="py-3 px-4 text-center"><span class="text-red-400 font-semibold">BlackBoxStocks $149/mo</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr class="bg-red-900/5">
+                    <td class="py-3 px-4 text-gray-300">Congressional trading tracker</td>
+                    <td class="py-3 px-4 text-center"><span class="text-red-400 font-semibold">Unusual Whales $58/mo</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Unusual options activity</td>
+                    <td class="py-3 px-4 text-center"><span class="text-gray-400">Cheddar Flow $99/mo</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Ticker correlation engine</td>
+                    <td class="py-3 px-4 text-center"><span class="text-gray-400">Not widely available</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Paper trading w/ leaderboard</td>
+                    <td class="py-3 px-4 text-center"><span class="text-gray-400">ThinkorSwim (free w/ TD)</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">TradingView integration</td>
+                    <td class="py-3 px-4 text-center"><span class="text-gray-400">Varies</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; Included</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">REST API (19 endpoints)</td>
+                    <td class="py-3 px-4 text-center"><span class="text-gray-400">Usually extra or locked</span></td>
+                    <td class="py-3 px-4 text-center text-green-400 font-semibold">&#10003; 1,000 calls/day</td>
+                </tr>
+                <tr class="bg-green-900/10 border-t-2 border-green-700">
+                    <td class="py-3 px-4 text-white font-bold">TOTAL</td>
+                    <td class="py-3 px-4 text-center"><span class="text-red-400 font-bold text-lg">$638+/mo</span></td>
+                    <td class="py-3 px-4 text-center"><span class="text-green-400 font-black text-lg">$9.99/mo</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Feature Comparison Table (by tier) -->
+<div class="max-w-5xl mx-auto mt-12">
+    <h3 class="text-xl font-semibold text-white text-center mb-6">Full Feature Breakdown by Plan</h3>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -322,125 +448,191 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
+                <!-- API & Core -->
+                <tr class="bg-gray-800/30"><td colspan="6" class="py-2 px-4 text-xs text-gray-500 font-bold uppercase tracking-wider">API &amp; Core</td></tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Stance distribution chart</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">API calls/day</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">0</td>
+                    <td class="py-2.5 px-4 text-center text-blue-400">1,000</td>
+                    <td class="py-2.5 px-4 text-center text-purple-400">5,000</td>
+                    <td class="py-2.5 px-4 text-center text-amber-400">25,000</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400">100,000</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Signal map (quadrant bubble)</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">24h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-2.5 px-4 text-gray-300">Burst limit (per min)</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&mdash;</td>
+                    <td class="py-2.5 px-4 text-center text-blue-400">50</td>
+                    <td class="py-2.5 px-4 text-center text-purple-400">200</td>
+                    <td class="py-2.5 px-4 text-center text-amber-400">500</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400">2,000</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Signal volume timeline</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">24h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-2.5 px-4 text-gray-300">API field selection &amp; sorting</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Strategy breakdown chart</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">API date range filtering</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Custom time range</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Signal delay</td>
+                    <td class="py-2.5 px-4 text-center text-gray-400 text-xs">15 min</td>
+                    <td class="py-2.5 px-4 text-center text-green-400 text-xs">Real-time</td>
+                    <td class="py-2.5 px-4 text-center text-green-400 text-xs">Real-time</td>
+                    <td class="py-2.5 px-4 text-center text-green-400 text-xs">Real-time</td>
+                    <td class="py-2.5 px-4 text-center text-green-400 text-xs">Real-time</td>
+                </tr>
+                <!-- New Features -->
+                <tr class="bg-gray-800/30"><td colspan="6" class="py-2 px-4 text-xs text-gray-500 font-bold uppercase tracking-wider">Competitor-Killer Features</td></tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">AI trade summaries <span class="text-gray-600 text-xs">(kills Trade Ideas)</span></td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Chart export (PNG)</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">News feed <span class="text-gray-600 text-xs">(kills Benzinga Pro)</span></td>
+                    <td class="py-2.5 px-4 text-center text-gray-400 text-xs">6h / 15</td>
+                    <td class="py-2.5 px-4 text-center text-blue-400 text-xs">24h / 50</td>
+                    <td class="py-2.5 px-4 text-center text-purple-400 text-xs">72h / 100</td>
+                    <td class="py-2.5 px-4 text-center text-amber-400 text-xs">168h / 100</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400 text-xs">168h / 100</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Live indicator badge</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Congress tracker <span class="text-gray-600 text-xs">(kills Unusual Whales)</span></td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-blue-400 text-xs">14d</td>
+                    <td class="py-2.5 px-4 text-center text-purple-400 text-xs">30d + $</td>
+                    <td class="py-2.5 px-4 text-center text-amber-400 text-xs">90d + export</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400 text-xs">90d + export</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Data licensing (bulk export)</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Paper leaderboard <span class="text-gray-600 text-xs">(kills BlackBoxStocks)</span></td>
+                    <td class="py-2.5 px-4 text-center text-gray-400 text-xs">Top 10</td>
+                    <td class="py-2.5 px-4 text-center text-blue-400 text-xs">Top 25 + stats</td>
+                    <td class="py-2.5 px-4 text-center text-purple-400 text-xs">25 + history</td>
+                    <td class="py-2.5 px-4 text-center text-amber-400 text-xs">25 + history</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400 text-xs">25 + history</td>
+                </tr>
+                <!-- Analytics -->
+                <tr class="bg-gray-800/30"><td colspan="6" class="py-2 px-4 text-xs text-gray-500 font-bold uppercase tracking-wider">Analytics &amp; Visualization</td></tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">Signal map (quadrant)</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">24h</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">48h</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">48h</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">48h</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Sponsored signal analysis</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Correlation engine</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">30d</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">90d</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">365d</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">365d</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Embeddable widgets</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Unusual activity feed</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">24h</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">48h</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">7d</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">30d</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Paper trading</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Sector rotation &amp; calibration</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Achievement badges &amp; streaks</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
-                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-gray-300">Strategy P&L breakdown</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <!-- Integrations -->
+                <tr class="bg-gray-800/30"><td colspan="6" class="py-2 px-4 text-xs text-gray-500 font-bold uppercase tracking-wider">Integrations &amp; Export</td></tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">WebSocket live feed</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Correlation engine</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">30d</td>
-                    <td class="py-3 px-4 text-center text-green-400">90d</td>
-                    <td class="py-3 px-4 text-center text-green-400">365d</td>
-                    <td class="py-3 px-4 text-center text-green-400">365d</td>
+                    <td class="py-2.5 px-4 text-gray-300">TradingView Pine Script</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
-                    <td class="py-3 px-4 text-gray-300">Unusual activity feed</td>
-                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
-                    <td class="py-3 px-4 text-center text-green-400">24h</td>
-                    <td class="py-3 px-4 text-center text-green-400">48h</td>
-                    <td class="py-3 px-4 text-center text-green-400">7d</td>
-                    <td class="py-3 px-4 text-center text-green-400">30d</td>
+                    <td class="py-2.5 px-4 text-gray-300">CSV export</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
-                <tr class="bg-blue-900/10">
-                    <td class="py-3 px-4 text-gray-300">Signal data retention</td>
-                    <td class="py-3 px-4 text-center text-gray-400 text-xs">14 days</td>
-                    <td class="py-3 px-4 text-center text-blue-400 text-xs">14d + CSV</td>
-                    <td class="py-3 px-4 text-center text-purple-400 text-xs">14d + CSV + API</td>
-                    <td class="py-3 px-4 text-center text-amber-400 text-xs">14d + CSV + API</td>
-                    <td class="py-3 px-4 text-center text-emerald-400 text-xs">14d + CSV + API + Bulk</td>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">BYOK AI reasoning</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">Data licensing (bulk)</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-2.5 px-4 text-center text-emerald-400">&#10003;</td>
+                </tr>
+                <!-- Community -->
+                <tr class="bg-gray-800/30"><td colspan="6" class="py-2 px-4 text-xs text-gray-500 font-bold uppercase tracking-wider">Community &amp; Gamification</td></tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">Paper trading</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">Badges &amp; streaks</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-2.5 px-4 text-gray-300">Embeddable widgets</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-2.5 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
             </tbody>
         </table>
@@ -453,7 +645,7 @@
     <p class="text-gray-400 text-sm mb-3 leading-relaxed">
         ROT provides the infrastructure, signal pipeline, trend detection, and trade idea generation.
         For AI-powered reasoning (thesis synthesis, catalyst identification, risk analysis), you use your own
-        LLM API key from OpenAI, Anthropic, or DeepSeek.
+        LLM API key from OpenAI, Anthropic, or DeepSeek. Platform AI summaries (Premium+) are generated at our cost.
     </p>
     <p class="text-gray-400 text-sm leading-relaxed">
         This keeps subscription costs low and gives you full control over your AI spend.
@@ -461,47 +653,44 @@
     </p>
 </div>
 
-<!-- Data Retention Explainer -->
+<!-- Data Sources -->
 <div class="max-w-3xl mx-auto mt-8 signal-card rounded-xl p-6" style="border-color: rgba(59, 130, 246, 0.3);">
-    <h3 class="text-lg font-semibold text-white mb-3 flex items-center space-x-2">
-        <span>&#128451;</span>
-        <span>Why We Purge Old Data</span>
-    </h3>
+    <h3 class="text-lg font-semibold text-white mb-3">15+ Data Sources in One Feed</h3>
     <p class="text-gray-400 text-sm mb-3 leading-relaxed">
-        We automatically clean up signal data older than 14 days to keep our infrastructure lean.
-        This lets us charge <span class="text-white font-semibold">significantly less</span> than competitors who store data indefinitely &mdash;
-        savings we pass directly to you through lower monthly prices.
+        We aggregate signals from <span class="text-white font-semibold">Reddit</span> (WSB, r/options, r/stocks, r/investing, r/thetagang),
+        <span class="text-white font-semibold">financial news</span> (MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, Investing.com),
+        <span class="text-white font-semibold">government feeds</span> (FDA, DoD contracts, Federal Reserve),
+        and <span class="text-white font-semibold">social platforms</span> (StockTwits, X/Twitter).
     </p>
-    <p class="text-gray-400 text-sm mb-4 leading-relaxed">
-        Need to keep your data longer? Use <span class="text-blue-400 font-semibold">CSV export</span> (Pro+) to download signals anytime,
-        or connect via our <span class="text-blue-400 font-semibold">REST API</span> to automatically pull data into your own database, spreadsheets, or trading tools.
+    <p class="text-gray-400 text-sm leading-relaxed">
+        Every signal is scored, tracked with price snapshots (1h, 4h, 1d, 1w), and available through our
+        <a href="/api/v1/docs" class="text-blue-400 hover:text-blue-300 hover:underline transition">REST API</a> with 19 endpoints.
     </p>
-    <div class="flex items-center space-x-4">
-        {% if tier == 'free' %}
-        <a href="#plans" class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade for CSV Export</a>
-        {% endif %}
-        <a href="/account" class="text-blue-400 hover:text-blue-300 text-sm hover:underline transition">Set up API access &rarr;</a>
-    </div>
 </div>
 
 <!-- Why ROT -->
 <div class="max-w-5xl mx-auto mt-12">
-    <h3 class="text-xl font-semibold text-white text-center mb-6">Why Traders Choose ROT</h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <h3 class="text-xl font-semibold text-white text-center mb-6">Why Traders Switch to ROT</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="text-center signal-card rounded-xl p-5">
-            <div class="text-2xl mb-2">&#9889;</div>
-            <div class="text-white font-semibold mb-1">Speed</div>
-            <p class="text-gray-400 text-sm">Signals generated within seconds of Reddit posts trending</p>
+            <div class="text-2xl mb-2">&#128176;</div>
+            <div class="text-white font-semibold mb-1">Save $7,536/yr</div>
+            <p class="text-gray-400 text-xs">Replace Trade Ideas + Benzinga Pro + BlackBoxStocks + Unusual Whales</p>
         </div>
         <div class="text-center signal-card rounded-xl p-5">
-            <div class="text-2xl mb-2">&#127919;</div>
-            <div class="text-white font-semibold mb-1">Accuracy</div>
-            <p class="text-gray-400 text-sm">Multi-factor credibility scoring with subreddit weighting</p>
+            <div class="text-2xl mb-2">&#9889;</div>
+            <div class="text-white font-semibold mb-1">Real-Time</div>
+            <p class="text-gray-400 text-xs">Signals generated within seconds of market-moving posts</p>
+        </div>
+        <div class="text-center signal-card rounded-xl p-5">
+            <div class="text-2xl mb-2">&#128295;</div>
+            <div class="text-white font-semibold mb-1">Full API</div>
+            <p class="text-gray-400 text-xs">19 endpoints with field selection, sorting, filtering, and rate limit headers</p>
         </div>
         <div class="text-center signal-card rounded-xl p-5">
             <div class="text-2xl mb-2">&#128200;</div>
-            <div class="text-white font-semibold mb-1">Transparency</div>
-            <p class="text-gray-400 text-sm">Every signal tracked with 1h, 4h, 1d, 1w price snapshots</p>
+            <div class="text-white font-semibold mb-1">Transparent</div>
+            <p class="text-gray-400 text-xs">Every signal tracked with 1h, 4h, 1d, 1w price snapshots</p>
         </div>
     </div>
 </div>
@@ -509,21 +698,26 @@
 <!-- Explore Free Content -->
 <div class="max-w-5xl mx-auto mt-12 border-t border-gray-800 pt-8">
     <h3 class="text-lg font-semibold text-white text-center mb-4">Explore Free Content</h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition text-center">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="/news" class="signal-card rounded-xl p-4 block hover:border-green-700 transition text-center">
+            <div class="text-lg mb-1">&#128240;</div>
+            <div class="text-sm font-semibold text-white">News Feed</div>
+            <p class="text-xs text-gray-400 mt-1">Live market news</p>
+        </a>
+        <a href="/leaderboard" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition text-center">
             <div class="text-lg mb-1">&#127942;</div>
+            <div class="text-sm font-semibold text-white">Leaderboard</div>
+            <p class="text-xs text-gray-400 mt-1">Paper trading rankings</p>
+        </a>
+        <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-amber-700 transition text-center">
+            <div class="text-lg mb-1">&#128081;</div>
             <div class="text-sm font-semibold text-white">Hall of Legends</div>
-            <p class="text-xs text-gray-400 mt-1">Greatest trades in history</p>
+            <p class="text-xs text-gray-400 mt-1">Greatest trades ever</p>
         </a>
         <a href="/glossary" class="signal-card rounded-xl p-4 block hover:border-blue-700 transition text-center">
             <div class="text-lg mb-1">&#128218;</div>
-            <div class="text-sm font-semibold text-white">Glossary of Degens</div>
-            <p class="text-xs text-gray-400 mt-1">75 trading terms explained</p>
-        </a>
-        <a href="/ceo-rap-sheet" class="signal-card rounded-xl p-4 block hover:border-red-700 transition text-center">
-            <div class="text-lg mb-1">&#128373;</div>
-            <div class="text-sm font-semibold text-white">CEO Rap Sheet</div>
-            <p class="text-xs text-gray-400 mt-1">Corporate scandal tracker</p>
+            <div class="text-sm font-semibold text-white">Glossary</div>
+            <p class="text-xs text-gray-400 mt-1">75 terms explained</p>
         </a>
     </div>
 </div>
