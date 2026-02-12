@@ -2202,18 +2202,10 @@ class Database:
         return count
 
     async def purge_stub_signals(self) -> int:
-        """Delete signals that were generated with stub/fallback reasoning (no real LLM analysis)."""
-        query = """
-            DELETE FROM signals
-            WHERE json_extract(reasoning, '$.raw.stub') = 1
-               OR json_extract(reasoning, '$.raw.error') IS NOT NULL
-        """
-        async with self.db.execute(query) as cursor:
-            count = cursor.rowcount
-        await self.db.commit()
-        if count > 0:
-            log.info("Purge: deleted %d stub/fallback signals (no real LLM analysis)", count)
-        return count
+        """No-op: stub signals are now kept. The LLM is a BYOK summarizer,
+        not a quality gate. Signals without LLM reasoning still have valid
+        heuristic confidence from the credibility scorer."""
+        return 0
 
     async def purge_fake_ticker_signals(self) -> int:
         """Delete signals with fake tickers (economic indicators, jargon, etc.)."""
