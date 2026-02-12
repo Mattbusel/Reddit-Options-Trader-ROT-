@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import gate_congress_tracker_access
 
 log = logging.getLogger(__name__)
@@ -74,13 +75,22 @@ async def congress_tracker_page(request: Request, ticker: str = "", days: int = 
 
 @router.get("/api/v1/congress-trades", tags=["congress"])
 async def congress_trades_api(request: Request, days: int = 30, limit: int = 50, ticker: str = ""):
-    """JSON endpoint for congressional trades."""
+    """JSON endpoint for congressional trades. Requires paid subscription."""
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
     gate = gate_congress_tracker_access(tier)
 
     if not gate["has_access"]:
-        return {"error": "Pro subscription required", "trades": []}
+        return JSONResponse(
+            content={"error": "Pro subscription required", "trades": []},
+            status_code=403,
+            headers=rate_limit_headers(user),
+        )
 
     days = min(days, gate["max_days"])
     ticker_filter = ticker.upper() if ticker and gate["has_ticker_filter"] else None
@@ -92,4 +102,7 @@ async def congress_trades_api(request: Request, days: int = 30, limit: int = 50,
         for t in trades:
             t["amount_range"] = "hidden"
 
-    return {"trades": trades, "count": len(trades), "days": days}
+    return JSONResponse(
+        content={"trades": trades, "count": len(trades), "days": days},
+        headers=rate_limit_headers(user),
+    )

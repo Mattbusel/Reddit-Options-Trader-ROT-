@@ -14,6 +14,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import gate_correlation_access
 
 log = logging.getLogger(__name__)
@@ -63,13 +64,22 @@ async def correlation_matrix(
     days: int = Query(30, ge=1, le=365),
     limit: int = Query(20, ge=1, le=50),
 ):
-    """Top correlated ticker pairs across all signals."""
+    """Top correlated ticker pairs across all signals. Requires paid subscription."""
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
     access = gate_correlation_access(tier)
 
     if not access["has_correlation"]:
-        return {"pairs": [], "detail": "Upgrade to Pro for correlation data"}
+        return JSONResponse(
+            content={"pairs": [], "detail": "Upgrade to Pro for correlation data"},
+            status_code=403,
+            headers=rate_limit_headers(user),
+        )
 
     # Limit history range by tier
     if tier == "pro":
@@ -80,12 +90,10 @@ async def correlation_matrix(
     db = request.app.state.db
     pairs = await db.get_correlation_matrix(days=days, min_co=3, limit=limit)
 
-    return {
-        "pairs": pairs,
-        "count": len(pairs),
-        "days": days,
-        "tier": tier,
-    }
+    return JSONResponse(
+        content={"pairs": pairs, "count": len(pairs), "days": days, "tier": tier},
+        headers=rate_limit_headers(user),
+    )
 
 
 @router.get("/api/v1/correlations/{ticker}")
@@ -95,13 +103,22 @@ async def ticker_correlations(
     days: int = Query(90, ge=1, le=365),
     window_hours: int = Query(4, ge=1, le=24),
 ):
-    """Tickers that fire signals within N hours of the given ticker."""
+    """Tickers that fire signals within N hours of the given ticker. Requires paid subscription."""
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
     access = gate_correlation_access(tier)
 
     if not access["has_correlation"]:
-        return {"correlations": [], "detail": "Upgrade to Pro for correlation data"}
+        return JSONResponse(
+            content={"correlations": [], "detail": "Upgrade to Pro for correlation data"},
+            status_code=403,
+            headers=rate_limit_headers(user),
+        )
 
     # Limit history range by tier
     if tier == "pro":
@@ -124,10 +141,13 @@ async def ticker_correlations(
             c.pop("same_stance", None)
             c.pop("avg_confidence", None)
 
-    return {
-        "ticker": ticker,
-        "correlations": correlations,
-        "count": len(correlations),
-        "days": days,
-        "window_hours": window_hours,
-    }
+    return JSONResponse(
+        content={
+            "ticker": ticker,
+            "correlations": correlations,
+            "count": len(correlations),
+            "days": days,
+            "window_hours": window_hours,
+        },
+        headers=rate_limit_headers(user),
+    )

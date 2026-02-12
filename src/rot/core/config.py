@@ -244,11 +244,12 @@ class TierConfig(BaseSettings):
 
     free_signal_delay_s: int = 900  # 15 minutes
     free_page_limit: int = 10
-    free_api_limit_day: int = 100
-    pro_api_limit_day: int = 5000
-    premium_api_limit_day: int = 25000
-    ultra_api_limit_day: int = 50000
-    enterprise_api_limit_day: int = 500000
+    # API is a paid product — zero free calls
+    free_api_limit_day: int = 0       # blocked entirely
+    pro_api_limit_day: int = 1000     # 50/min burst
+    premium_api_limit_day: int = 5000  # 200/min burst
+    ultra_api_limit_day: int = 25000   # 500/min burst
+    enterprise_api_limit_day: int = 100000  # 2,000/min burst
 
 
 class SponsoredConfig(BaseSettings):

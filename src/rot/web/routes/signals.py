@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
 from rot.web.auth import get_current_user_optional, require_user, require_tier
-from rot.web.rate_limit import check_rate_limit
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import (
     gate_signal,
     gate_signal_list,
@@ -21,6 +22,42 @@ from rot.web.tier_gate import (
 log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ── Field filtering helpers ──
+
+# Default fields returned by each endpoint (paid users can select subsets)
+_SIGNAL_FIELDS = {
+    "id", "created_at", "ticker", "event_type", "stance", "time_horizon",
+    "confidence", "trend_score", "quality_score", "strategy", "subreddit",
+    "post_title", "post_url", "market_data", "reasoning", "trade_idea",
+    "event_data", "sector", "ai_summary",
+}
+
+_SIGNAL_LIGHT_FIELDS = {
+    "id", "created_at", "ticker", "event_type", "stance", "confidence",
+    "strategy", "time_horizon", "trend_score",
+}
+
+
+def _filter_fields(items: list, fields: Optional[str], allowed: set) -> list:
+    """Filter response fields based on ?fields= parameter.
+
+    Paid users can pass ?fields=ticker,stance,confidence to get only those fields.
+    This reduces bandwidth and lets integrations pull exactly what they need.
+    """
+    if not fields:
+        return items
+    requested = {f.strip() for f in fields.split(",") if f.strip()}
+    valid = requested & allowed
+    if not valid:
+        return items
+    return [{k: v for k, v in item.items() if k in valid} for item in items]
+
+
+def _api_response(data: dict, user: Optional[dict], status_code: int = 200) -> JSONResponse:
+    """Build JSON response with rate limit headers."""
+    headers = rate_limit_headers(user)
+    return JSONResponse(content=data, status_code=status_code, headers=headers)
 
 
 @router.get("/signals")
@@ -35,14 +72,18 @@ async def list_signals(
     date_from: Optional[float] = None,
     date_to: Optional[float] = None,
     source: Optional[str] = None,
+    fields: Optional[str] = None,
+    sort: Optional[str] = Query(None, regex="^(created_at|confidence|trend_score)$"),
+    order: Optional[str] = Query(None, regex="^(asc|desc)$"),
 ):
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     tier = (user or {}).get("tier", "free")
     settings = request.app.state.settings
 
-    # Free tier: cap page size
+    # Free tier: cap page size (shouldn't reach here — free blocked by auth)
     if tier == "free":
         limit = min(limit, settings.tier_limits.free_page_limit)
 
@@ -70,7 +111,15 @@ async def list_signals(
         page_limit=settings.tier_limits.free_page_limit,
     )
 
-    return {"signals": gated, "count": len(gated), "offset": offset, "tier": tier}
+    # Apply field filtering
+    gated = _filter_fields(gated, fields, _SIGNAL_FIELDS)
+
+    return _api_response({
+        "signals": gated,
+        "count": len(gated),
+        "offset": offset,
+        "tier": tier,
+    }, user)
 
 
 @router.get("/signals/new-count")
@@ -88,8 +137,9 @@ async def new_signal_count(request: Request):
 
 
 @router.get("/signals/{signal_id}")
-async def get_signal(request: Request, signal_id: str):
+async def get_signal(request: Request, signal_id: str, fields: Optional[str] = None):
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
@@ -99,7 +149,12 @@ async def get_signal(request: Request, signal_id: str):
 
     tier = (user or {}).get("tier", "free")
     settings = request.app.state.settings
-    return gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
+    result = gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
+
+    if fields:
+        result = _filter_fields([result], fields, _SIGNAL_FIELDS)[0]
+
+    return _api_response(result, user)
 
 
 @router.get("/tickers/trending")
@@ -109,11 +164,12 @@ async def trending_tickers(
     limit: int = Query(20, ge=1, le=100),
 ):
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
     tickers = await db.get_trending_tickers(hours=hours, limit=limit)
-    return {"tickers": tickers, "period_hours": hours}
+    return _api_response({"tickers": tickers, "period_hours": hours}, user)
 
 
 @router.get("/performance/summary")
@@ -122,11 +178,12 @@ async def performance_summary(
     days: int = Query(30, ge=1, le=365),
 ):
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     db = request.app.state.db
     summary = await db.get_performance_summary(days=days)
-    return summary
+    return _api_response(summary, user)
 
 
 @router.get("/performance/accuracy")
@@ -137,6 +194,7 @@ async def accuracy_stats(
 ):
     """Get signal accuracy statistics."""
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     tier = (user or {}).get("tier", "free")
@@ -147,7 +205,7 @@ async def accuracy_stats(
 
     db = request.app.state.db
     accuracy = await db.get_aggregate_accuracy(days=days, ticker=ticker)
-    return accuracy
+    return _api_response(accuracy, user)
 
 
 @router.get("/performance/history")
@@ -163,7 +221,7 @@ async def performance_history(
 
     db = request.app.state.db
     history = await db.get_performance_history(days=days, ticker=ticker, limit=limit)
-    return {"history": history, "count": len(history)}
+    return _api_response({"history": history, "count": len(history)}, user)
 
 
 @router.get("/performance/accuracy-chart")
@@ -177,7 +235,7 @@ async def accuracy_chart_data(
 
     db = request.app.state.db
     data = await db.get_accuracy_over_time(days=days)
-    return {"data": data}
+    return _api_response({"data": data}, user)
 
 
 @router.get("/performance/strategy-pnl")
@@ -191,7 +249,7 @@ async def strategy_pnl(
 
     db = request.app.state.db
     data = await db.get_strategy_pnl(days=days)
-    return {"strategies": data}
+    return _api_response({"strategies": data}, user)
 
 
 @router.get("/leaderboard")
@@ -203,6 +261,7 @@ async def leaderboard(
 ):
     """Get ticker leaderboard."""
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
     await check_rate_limit(request, user)
 
     tier = (user or {}).get("tier", "free")
@@ -219,7 +278,7 @@ async def leaderboard(
     else:
         data = await db.get_leaderboard(hours=hours, limit=limit, sort_by=sort_by)
 
-    return {"leaderboard": data, "hours": hours, "tier": tier}
+    return _api_response({"leaderboard": data, "hours": hours, "tier": tier}, user)
 
 
 @router.get("/correlations")
@@ -233,7 +292,7 @@ async def correlations(
 
     db = request.app.state.db
     data = await db.get_co_occurring_tickers(hours=hours, min_co_occurrence=2)
-    return {"correlations": data, "hours": hours}
+    return _api_response({"correlations": data, "hours": hours}, user)
 
 
 @router.get("/sectors/{sector}")
@@ -248,7 +307,7 @@ async def sector_detail(
 
     db = request.app.state.db
     data = await db.get_sector_drill_down(sector, hours=hours)
-    return {"sector": sector, "tickers": data, "hours": hours}
+    return _api_response({"sector": sector, "tickers": data, "hours": hours}, user)
 
 
 @router.post("/signals/{signal_id}/reason")

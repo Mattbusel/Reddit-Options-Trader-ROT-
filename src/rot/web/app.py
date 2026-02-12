@@ -142,10 +142,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(unusual_activity.router, tags=["unusual-activity"])
 
     # Competitor-killer routes: news feed, congress tracker, paper leaderboard
-    from rot.web.routes import news_feed, congress_tracker, paper_leaderboard
+    from rot.web.routes import news_feed, congress_tracker, paper_leaderboard, api_status
     app.include_router(news_feed.router, tags=["news"])
     app.include_router(congress_tracker.router, tags=["congress"])
     app.include_router(paper_leaderboard.router, tags=["leaderboard"])
+    app.include_router(api_status.router, tags=["api-status"])
 
     # Dashboard routes (HTML)
     from rot.web.routes import (

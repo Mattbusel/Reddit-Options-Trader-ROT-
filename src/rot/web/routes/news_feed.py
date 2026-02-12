@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import gate_news_feed_access
 
 log = logging.getLogger(__name__)
@@ -98,8 +99,13 @@ async def news_feed_page(request: Request, source: str = "all", hours: int = 0):
 
 @router.get("/api/v1/news", tags=["news"])
 async def news_feed_api(request: Request, source: str = "all", hours: int = 24, limit: int = 50):
-    """JSON news feed endpoint for API consumers."""
+    """JSON news feed endpoint for API consumers. Requires paid subscription."""
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
     gate = gate_news_feed_access(tier)
 
@@ -114,4 +120,8 @@ async def news_feed_api(request: Request, source: str = "all", hours: int = 24, 
         for item in items:
             item.pop("ai_summary", None)
 
-    return {"items": items, "count": len(items), "hours": hours}
+    headers = rate_limit_headers(user)
+    return JSONResponse(
+        content={"items": items, "count": len(items), "hours": hours},
+        headers=headers,
+    )

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import gate_paper_leaderboard_access
 
 log = logging.getLogger(__name__)
@@ -57,8 +58,13 @@ async def paper_leaderboard_page(request: Request):
 
 @router.get("/api/v1/paper-leaderboard", tags=["paper-trading"])
 async def paper_leaderboard_api(request: Request, limit: int = 25):
-    """JSON paper trading leaderboard."""
+    """JSON paper trading leaderboard. Requires paid subscription."""
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
     gate = gate_paper_leaderboard_access(tier)
 
@@ -78,4 +84,7 @@ async def paper_leaderboard_api(request: Request, limit: int = 25):
         leader["rank"] = i + 1
         leader.pop("user_id", None)
 
-    return {"leaders": leaders, "count": len(leaders)}
+    return JSONResponse(
+        content={"leaders": leaders, "count": len(leaders)},
+        headers=rate_limit_headers(user),
+    )

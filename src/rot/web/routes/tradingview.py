@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional, require_user
+from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 
 log = logging.getLogger(__name__)
 
@@ -51,25 +52,21 @@ async def tradingview_signals(
 ):
     """Return signals formatted for TradingView external data consumption.
 
-    Can be polled by Pine Script or external integrations.
+    Requires paid subscription. Can be polled by Pine Script or external integrations.
     Returns lightweight JSON optimized for charting overlays.
     """
+    from fastapi.responses import JSONResponse
+
     user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
     tier = (user or {}).get("tier", "free")
 
     db = request.app.state.db
     settings = request.app.state.settings
 
-    # Free tier: limited data + delay
-    if tier == "free":
-        limit = min(limit, 10)
-
     signals = await db.get_signals(limit=limit, ticker=ticker)
-
-    # Apply delay for free tier
-    if tier == "free":
-        cutoff = time.time() - settings.tier_limits.free_signal_delay_s
-        signals = [s for s in signals if s.get("created_at", 0) < cutoff]
 
     # Format for TradingView consumption
     tv_signals = []
@@ -86,12 +83,15 @@ async def tradingview_signals(
             "id": s.get("id", ""),
         })
 
-    return {
-        "signals": tv_signals,
-        "count": len(tv_signals),
-        "tier": tier,
-        "ts": int(time.time()),
-    }
+    return JSONResponse(
+        content={
+            "signals": tv_signals,
+            "count": len(tv_signals),
+            "tier": tier,
+            "ts": int(time.time()),
+        },
+        headers=rate_limit_headers(user),
+    )
 
 
 # ── TradingView alert webhook receiver ──
