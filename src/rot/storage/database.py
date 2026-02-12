@@ -220,6 +220,24 @@ CREATE TABLE IF NOT EXISTS win_rate_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_wr_snapshot_at ON win_rate_snapshots(snapshot_at DESC);
+
+CREATE TABLE IF NOT EXISTS congress_trades (
+    id TEXT PRIMARY KEY,
+    politician TEXT NOT NULL DEFAULT '',
+    party TEXT NOT NULL DEFAULT '',
+    chamber TEXT NOT NULL DEFAULT '',
+    ticker TEXT NOT NULL DEFAULT '',
+    trade_type TEXT NOT NULL DEFAULT '',
+    amount_range TEXT NOT NULL DEFAULT '',
+    filed_at REAL NOT NULL,
+    disclosure_date TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_congress_ticker ON congress_trades(ticker);
+CREATE INDEX IF NOT EXISTS idx_congress_filed ON congress_trades(filed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_congress_politician ON congress_trades(politician);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -237,6 +255,8 @@ _MIGRATIONS = [
     ("signals", "corroboration_count", "INTEGER NOT NULL DEFAULT 0"),
     ("signals", "corroboration_sources", "TEXT NOT NULL DEFAULT '[]'"),
     ("signals", "post_mortem", "TEXT NOT NULL DEFAULT ''"),
+    # Universal AI summary (platform-generated, not BYOK)
+    ("signals", "ai_summary", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -2896,6 +2916,179 @@ class Database:
             log.info("Purge: deleted %d old data_export records", count)
         return count
 
+    # ── News Feed ──
+
+    async def get_news_feed(
+        self, hours: int = 24, limit: int = 50, source: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get recent signals from RSS/news sources for the live news feed."""
+        cutoff = time.time() - (hours * 3600)
+        conditions = ["created_at > ?"]
+        params: list = [cutoff]
+
+        _NEWS_SUBS = (
+            "marketwatch", "investing-com", "yahoo-finance", "cnbc", "seekingalpha",
+            "reuters", "dod-contracts", "dod-releases", "dod-news",
+            "fda-press-releases", "fda-drugs", "fda-safety-alerts", "fda-recalls",
+            "fda-oncology", "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
+            "fed-press-releases", "stocktwits", "twitter",
+        )
+        if source and source in _NEWS_SUBS:
+            conditions.append("subreddit = ?")
+            params.append(source)
+        else:
+            placeholders = ",".join("?" for _ in _NEWS_SUBS)
+            conditions.append(f"subreddit IN ({placeholders})")
+            params.extend(_NEWS_SUBS)
+
+        where = " AND ".join(conditions)
+        query = f"""
+            SELECT id, created_at, ticker, event_type, stance, confidence,
+                   subreddit, post_title, post_url, sector, ai_summary
+            FROM signals
+            WHERE {where}
+            ORDER BY created_at DESC LIMIT ?
+        """
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    # ── AI Summary ──
+
+    async def get_signals_needing_ai_summary(self, limit: int = 30) -> List[Dict[str, Any]]:
+        """Find recent signals that have no ai_summary yet."""
+        cutoff = time.time() - 86400  # Only summarise signals from last 24h
+        async with self.db.execute(
+            """SELECT id, ticker, event_type, stance, confidence, post_title, subreddit,
+                      reasoning, trade_idea, market_data
+               FROM signals
+               WHERE ai_summary = '' AND created_at > ? AND ticker != 'UNKNOWN'
+               ORDER BY confidence DESC LIMIT ?""",
+            (cutoff, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def set_ai_summary(self, signal_id: str, summary: str) -> None:
+        """Store a platform-generated AI summary on a signal."""
+        await self.db.execute(
+            "UPDATE signals SET ai_summary = ? WHERE id = ?",
+            (summary[:500], signal_id),
+        )
+        await self.db.commit()
+
+    # ── Paper Trading Leaderboard ──
+
+    async def get_paper_trading_leaderboard(self, limit: int = 25) -> List[Dict[str, Any]]:
+        """Public leaderboard: top paper traders by total P&L."""
+        query = """
+            SELECT
+                pp.user_id,
+                COALESCE(SUBSTR(u.email, 1, INSTR(u.email, '@') - 1), 'anon') as username,
+                pp.balance,
+                pp.initial_balance,
+                pp.total_pnl,
+                pp.total_trades,
+                pp.winning_trades,
+                CASE WHEN pp.total_trades > 0
+                     THEN ROUND(pp.winning_trades * 100.0 / pp.total_trades, 1)
+                     ELSE 0 END as win_rate,
+                ROUND(pp.total_pnl / pp.initial_balance * 100, 1) as return_pct,
+                pp.last_trade_at
+            FROM paper_portfolios pp
+            JOIN users u ON pp.user_id = u.id
+            WHERE pp.total_trades >= 3
+            ORDER BY pp.total_pnl DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (limit,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    # ── Congressional Trading (placeholder queries) ──
+
+    async def get_congress_trades(
+        self, days: int = 30, limit: int = 100, ticker: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get congressional trades from the congress_trades table."""
+        cutoff = time.time() - (days * 86400)
+        conditions = ["filed_at > ?"]
+        params: list = [cutoff]
+        if ticker:
+            conditions.append("ticker = ?")
+            params.append(ticker.upper())
+        where = " AND ".join(conditions)
+        query = f"""
+            SELECT * FROM congress_trades
+            WHERE {where}
+            ORDER BY filed_at DESC LIMIT ?
+        """
+        params.append(limit)
+        try:
+            async with self.db.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+        except Exception:
+            return []
+
+    async def insert_congress_trade(self, trade: Dict[str, Any]) -> Optional[str]:
+        """Insert a congressional trade record."""
+        trade_id = str(uuid.uuid4())[:12]
+        now = time.time()
+        await self.db.execute(
+            """INSERT OR IGNORE INTO congress_trades
+               (id, politician, party, chamber, ticker, trade_type, amount_range,
+                filed_at, disclosure_date, source_url, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                trade_id,
+                trade.get("politician", ""),
+                trade.get("party", ""),
+                trade.get("chamber", ""),
+                trade.get("ticker", "").upper(),
+                trade.get("trade_type", ""),
+                trade.get("amount_range", ""),
+                trade.get("filed_at", now),
+                trade.get("disclosure_date", ""),
+                trade.get("source_url", ""),
+                now,
+            ),
+        )
+        await self.db.commit()
+        return trade_id
+
+    async def get_congress_summary(self, days: int = 30) -> Dict[str, Any]:
+        """Get summary stats for congressional trading."""
+        cutoff = time.time() - (days * 86400)
+        try:
+            async with self.db.execute(
+                """SELECT COUNT(*) as total_trades,
+                          COUNT(DISTINCT politician) as politicians,
+                          COUNT(DISTINCT ticker) as tickers,
+                          SUM(CASE WHEN trade_type = 'purchase' THEN 1 ELSE 0 END) as buys,
+                          SUM(CASE WHEN trade_type = 'sale' THEN 1 ELSE 0 END) as sells
+                   FROM congress_trades WHERE filed_at > ?""",
+                (cutoff,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else {}
+        except Exception:
+            return {}
+
+    async def purge_old_congress_trades(self, keep_days: int = 90) -> int:
+        """Delete congressional trades older than keep_days."""
+        cutoff = time.time() - (keep_days * 86400)
+        try:
+            async with self.db.execute(
+                "DELETE FROM congress_trades WHERE filed_at < ?", (cutoff,)
+            ) as cursor:
+                count = cursor.rowcount
+            await self.db.commit()
+            return count
+        except Exception:
+            return 0
+
     async def get_db_size_info(self) -> Dict[str, Any]:
         """Get database size diagnostics for monitoring."""
         info: Dict[str, Any] = {}
@@ -2911,7 +3104,8 @@ class Database:
 
             # Row counts for major tables
             for table in ("signals", "signal_performance", "users", "win_rate_snapshots",
-                          "api_usage", "x_posts", "paper_trades", "data_exports"):
+                          "api_usage", "x_posts", "paper_trades", "data_exports",
+                          "congress_trades"):
                 try:
                     async with self.db.execute(f"SELECT COUNT(*) FROM {table}") as c:
                         row = await c.fetchone()
@@ -3030,6 +3224,13 @@ class Database:
         except Exception as e:
             log.warning("Purge old data_exports failed: %s", e)
             results["old_data_exports"] = 0
+
+        # Clean up old congressional trades
+        try:
+            results["old_congress_trades"] = await self.purge_old_congress_trades(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old congress trades failed: %s", e)
+            results["old_congress_trades"] = 0
 
         # Reclaim disk space
         try:

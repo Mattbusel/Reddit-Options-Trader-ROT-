@@ -108,6 +108,7 @@
                     </button>
                     <div class="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div class="py-1">
+                            <a href="/news" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; News Feed <span class="text-xs text-green-400">Live</span></a>
                             <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
                             <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
                             <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
@@ -116,6 +117,7 @@
                             <a href="/accuracy-breakdown" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127919; Accuracy Breakdown {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             <a href="/confidence-calibration" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128201; Confidence Calibration {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             <a href="/sector-rotation" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128260; Sector Rotation {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <a href="/congress-tracker" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127963; Congress Tracker {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -143,6 +145,7 @@
                     <div class="absolute right-0 top-full mt-1 w-52 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div class="py-1">
                             <a href="/paper-trading" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128184; Paper Trading</a>
+                            <a href="/leaderboard" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Leaderboard <span class="text-xs text-green-400">New</span></a>
                             <a href="/correlations" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128279; Correlations</a>
                             <a href="/unusual-activity" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Unusual Activity</a>
                             <a href="/badges" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Badges & Streaks</a>

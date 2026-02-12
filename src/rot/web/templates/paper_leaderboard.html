@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Paper Trading Leaderboard - ROT{% endblock %}
+{% block meta_description %}Compete with other traders on ROT's paper trading leaderboard. $10K virtual portfolio, real signal data, real competition. Free to play.{% endblock %}
+{% block og_title %}ROT Paper Trading Leaderboard{% endblock %}
+{% block og_description %}BlackBoxStocks charges $149/mo for community features. ROT's paper trading competition is free. Prove your skills, climb the ranks.{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Paper Trading Leaderboard</h1>
+        <span class="px-2 py-1 rounded text-xs bg-green-900/50 text-green-400 border border-green-700">Free</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">Top paper traders ranked by total P&amp;L. Minimum 3 closed trades to qualify.</p>
+    <p class="text-xs text-gray-600 mt-1">BlackBoxStocks charges $149/mo for community features. Our competition is free.</p>
+</div>
+
+<!-- CTA for non-users -->
+{% if not user %}
+<div class="bg-orange-900/20 border border-orange-800/50 rounded-lg p-4 mb-6 flex items-center justify-between">
+    <p class="text-sm text-orange-300"><strong>Want to compete?</strong> Sign up for free and start paper trading with $10,000 in virtual money.</p>
+    <a href="/register" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-semibold transition whitespace-nowrap ml-4">Sign Up Free</a>
+</div>
+{% elif user %}
+<div class="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4 mb-6 flex items-center justify-between">
+    <p class="text-sm text-blue-300">Your portfolio: <strong>${{ "{:,.2f}".format(0) }}</strong> — <a href="/paper-trading" class="text-orange-400 hover:underline">Go to Paper Trading</a></p>
+    <a href="/paper-trading" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition whitespace-nowrap ml-4">Trade Now</a>
+</div>
+{% endif %}
+
+{% if leaders %}
+<!-- Podium (Top 3) -->
+{% if leaders|length >= 3 %}
+<div class="grid grid-cols-3 gap-4 mb-8">
+    <!-- Silver (2nd) -->
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-600 text-center transform translate-y-4">
+        <div class="text-3xl mb-2">&#129352;</div>
+        <div class="text-lg font-bold text-gray-300">{{ leaders[1].username }}</div>
+        <div class="text-2xl font-bold {{ 'text-green-400' if leaders[1].total_pnl >= 0 else 'text-red-400' }} mt-1">
+            {{ "+" if leaders[1].total_pnl >= 0 else "" }}${{ "{:,.0f}".format(leaders[1].total_pnl) }}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">{{ leaders[1].total_trades }} trades</div>
+    </div>
+    <!-- Gold (1st) -->
+    <div class="bg-gradient-to-b from-yellow-900/30 to-gray-800/60 rounded-xl p-5 border border-yellow-700/50 text-center">
+        <div class="text-4xl mb-2">&#127942;</div>
+        <div class="text-xl font-bold text-yellow-400">{{ leaders[0].username }}</div>
+        <div class="text-3xl font-bold {{ 'text-green-400' if leaders[0].total_pnl >= 0 else 'text-red-400' }} mt-1">
+            {{ "+" if leaders[0].total_pnl >= 0 else "" }}${{ "{:,.0f}".format(leaders[0].total_pnl) }}
+        </div>
+        <div class="text-xs text-gray-400 mt-1">{{ leaders[0].total_trades }} trades</div>
+    </div>
+    <!-- Bronze (3rd) -->
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-orange-900/50 text-center transform translate-y-4">
+        <div class="text-3xl mb-2">&#129353;</div>
+        <div class="text-lg font-bold text-orange-300">{{ leaders[2].username }}</div>
+        <div class="text-2xl font-bold {{ 'text-green-400' if leaders[2].total_pnl >= 0 else 'text-red-400' }} mt-1">
+            {{ "+" if leaders[2].total_pnl >= 0 else "" }}${{ "{:,.0f}".format(leaders[2].total_pnl) }}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">{{ leaders[2].total_trades }} trades</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Full Leaderboard Table -->
+<div class="chart-container">
+    <h2 class="text-lg font-semibold text-white mb-4">Full Rankings</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700 text-left">
+                    <th class="py-2 px-3 text-gray-400 font-semibold w-12">#</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Trader</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">P&amp;L</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Balance</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Trades</th>
+                    {% if gate.has_full_stats %}
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Return</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for leader in leaders %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition {% if leader.rank <= 3 %}bg-gray-800/20{% endif %}">
+                    <td class="py-2 px-3 text-gray-500 font-mono">
+                        {% if leader.rank == 1 %}&#127942;{% elif leader.rank == 2 %}&#129352;{% elif leader.rank == 3 %}&#129353;{% else %}{{ leader.rank }}{% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-white font-semibold">{{ leader.username }}</td>
+                    <td class="py-2 px-3 text-right font-bold {{ 'text-green-400' if leader.total_pnl >= 0 else 'text-red-400' }}">
+                        {{ "+" if leader.total_pnl >= 0 else "" }}${{ "{:,.2f}".format(leader.total_pnl) }}
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-300">${{ "{:,.0f}".format(leader.balance) }}</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ leader.total_trades }}</td>
+                    {% if gate.has_full_stats %}
+                    <td class="py-2 px-3 text-right">
+                        {% if leader.win_rate is not none %}
+                        <span class="{{ 'text-green-400' if leader.win_rate >= 50 else 'text-red-400' }}">{{ "%.1f"|format(leader.win_rate) }}%</span>
+                        {% else %}
+                        <span class="text-blue-400 text-xs">Pro</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-right">
+                        {% if leader.return_pct is not none %}
+                        <span class="{{ 'text-green-400' if leader.return_pct >= 0 else 'text-red-400' }}">{{ "%.1f"|format(leader.return_pct) }}%</span>
+                        {% else %}
+                        <span class="text-blue-400 text-xs">Pro</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not gate.has_full_stats %}
+    <div class="mt-4 p-3 bg-blue-900/20 border border-blue-800/50 rounded-lg text-center">
+        <p class="text-sm text-blue-300"><a href="/pricing" class="text-orange-400 hover:underline font-semibold">Upgrade to Pro</a> to see win rates, return percentages, and detailed stats.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="chart-container text-center py-16">
+    <div class="text-5xl mb-4">&#128176;</div>
+    <h2 class="text-xl font-semibold text-white mb-3">No Traders Yet</h2>
+    <p class="text-gray-400 max-w-md mx-auto mb-6">Be the first to compete! Start paper trading with $10,000 in virtual money and trade real ROT signals.</p>
+    <a href="/paper-trading" class="inline-block px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-semibold transition">Start Paper Trading</a>
+</div>
+{% endif %}
+
+<div class="text-center mt-8">
+    <a href="/paper-trading" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Paper Trading</a>
+    <span class="text-gray-700 mx-3">|</span>
+    <a href="/dashboard" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Dashboard</a>
+</div>
+{% endblock %}

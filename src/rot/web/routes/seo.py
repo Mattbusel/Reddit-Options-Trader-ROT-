@@ -19,6 +19,10 @@ _PUBLIC_PAGES = [
     "/ceo-rap-sheet",
     "/glossary",
     "/sports-tracker",
+    "/news",
+    "/leaderboard",
+    "/congress-tracker",
+    "/faq",
 ]
 
 
@@ -61,6 +65,10 @@ async def llms_txt(request: Request):
         "- /weekly-wrap: Auto-generated weekly market signal summary\n"
         "- /sports-tracker: Live sports betting intelligence from Reddit communities\n"
         "- /dashboard: Live signal feed with confidence scores, stance, and trade ideas\n"
+        "- /news: Real-time market news aggregator from MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, FDA, DoD, Fed\n"
+        "- /congress-tracker: Congressional stock trading tracker from SEC EFDS filings\n"
+        "- /leaderboard: Paper trading competition leaderboard with P&L rankings\n"
+        "- /faq: Frequently asked questions about ROT platform and trading signals\n"
         "\n"
         "## Data\n"
         "- Signals generated from: r/wallstreetbets, r/options, r/investing, r/stocks, r/thetagang, r/valueinvesting\n"

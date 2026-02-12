@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
-    """Background task: lightweight cleanup of api_usage, old signals, and blob compaction."""
+    """Background task: lightweight cleanup of api_usage, old signals, blob compaction, and AI summary backfill."""
     while True:
         await asyncio.sleep(interval_s)
         try:
@@ -32,6 +32,13 @@ async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
                          api_count, sig_count, blob_count)
         except Exception as e:
             log.error("DB cleanup error: %s", e)
+
+        # Backfill AI summaries for signals that don't have one
+        try:
+            from rot.reasoner.ai_summary import backfill_ai_summaries
+            await backfill_ai_summaries(db, limit=20)
+        except Exception as e:
+            log.debug("AI summary backfill: %s", e)
 
 
 @asynccontextmanager
@@ -133,6 +140,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(badges.router, tags=["badges"])
     app.include_router(correlations.router, tags=["correlations"])
     app.include_router(unusual_activity.router, tags=["unusual-activity"])
+
+    # Competitor-killer routes: news feed, congress tracker, paper leaderboard
+    from rot.web.routes import news_feed, congress_tracker, paper_leaderboard
+    app.include_router(news_feed.router, tags=["news"])
+    app.include_router(congress_tracker.router, tags=["congress"])
+    app.include_router(paper_leaderboard.router, tags=["leaderboard"])
 
     # Dashboard routes (HTML)
     from rot.web.routes import (

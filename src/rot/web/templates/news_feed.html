@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}News Feed - ROT | Real-Time Market Intelligence{% endblock %}
+{% block meta_description %}Real-time financial news aggregated from MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, FDA, DoD, Federal Reserve and more. Free market intelligence.{% endblock %}
+{% block og_title %}ROT News Feed - Real-Time Market Intelligence{% endblock %}
+{% block og_description %}Every news source Benzinga Pro charges $177/mo for. We aggregate them all. MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, FDA, DoD, Fed — one feed.{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">News Feed</h1>
+        <span class="px-2 py-1 rounded text-xs bg-green-900/50 text-green-400 border border-green-700">Live</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">Real-time market intelligence from {{ items|length }} sources. Updated every 5 minutes.</p>
+    <p class="text-xs text-gray-600 mt-1">Benzinga Pro charges $177/mo. We aggregate the same sources for free.</p>
+</div>
+
+<!-- Source filter bar -->
+<div class="flex flex-wrap gap-2 mb-6">
+    <a href="/news?source=all" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ 'bg-orange-600 text-white' if source == 'all' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">All Sources</a>
+    {% if gate.has_source_filter %}
+    <a href="/news?source=financial" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ 'bg-blue-600 text-white' if source == 'financial' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">Financial</a>
+    <a href="/news?source=regulatory" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ 'bg-purple-600 text-white' if source == 'regulatory' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">Regulatory</a>
+    <a href="/news?source=social" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ 'bg-green-600 text-white' if source == 'social' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">Social</a>
+    {% else %}
+    <span class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800/50 text-gray-600">Source Filter <span class="text-blue-400">Pro</span></span>
+    {% endif %}
+</div>
+
+<!-- Stats bar -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Stories</div>
+        <div class="text-2xl font-bold text-white">{{ items|length }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Time Window</div>
+        <div class="text-2xl font-bold text-white">{{ hours }}h</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sources</div>
+        <div class="text-2xl font-bold text-white">{{ items|map(attribute='subreddit')|unique|list|length }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Tickers</div>
+        <div class="text-2xl font-bold text-white">{{ items|map(attribute='ticker')|unique|list|length }}</div>
+    </div>
+</div>
+
+<!-- News items -->
+{% if items %}
+<div class="space-y-3">
+    {% for item in items %}
+    <div class="signal-card rounded-lg p-4 fade-in">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <!-- Source badge -->
+                    {% set badge_colors = {
+                        'DoD': 'bg-green-900/50 text-green-400 border-green-700',
+                        'FDA': 'bg-purple-900/50 text-purple-400 border-purple-700',
+                        'FED': 'bg-yellow-900/50 text-yellow-400 border-yellow-700',
+                        'MW': 'bg-blue-900/50 text-blue-400 border-blue-700',
+                        'CNBC': 'bg-blue-900/50 text-blue-400 border-blue-700',
+                        'SA': 'bg-orange-900/50 text-orange-400 border-orange-700',
+                        'YF': 'bg-indigo-900/50 text-indigo-400 border-indigo-700',
+                    } %}
+                    <span class="px-2 py-0.5 rounded text-xs border font-semibold {{ badge_colors.get(item.source_badge, 'bg-gray-800 text-gray-400 border-gray-600') }}">{{ item.source_badge }}</span>
+
+                    <!-- Ticker -->
+                    {% if item.ticker and item.ticker != 'UNKNOWN' %}
+                    <a href="/ticker/{{ item.ticker }}" class="text-white font-bold hover:text-orange-400 transition">${{ item.ticker }}</a>
+                    {% endif %}
+
+                    <!-- Stance -->
+                    {% if item.stance != 'unknown' %}
+                    <span class="text-xs {% if item.stance == 'bullish' %}text-green-400{% elif item.stance == 'bearish' %}text-red-400{% else %}text-yellow-400{% endif %}">{{ item.stance }}</span>
+                    {% endif %}
+
+                    <!-- Confidence -->
+                    {% if item.confidence and item.confidence > 0 %}
+                    <span class="text-xs text-gray-500">{{ "%.0f"|format(item.confidence * 100) }}%</span>
+                    {% endif %}
+
+                    <!-- Time -->
+                    <span class="text-xs text-gray-600" title="{{ item.created_at }}">{{ item.source_name }}</span>
+                </div>
+
+                <!-- Title -->
+                <p class="text-sm text-gray-200 leading-snug">
+                    {% if item.post_url %}
+                    <a href="/signals/{{ item.id }}" class="hover:text-white transition">{{ item.post_title[:200] }}</a>
+                    {% else %}
+                    {{ item.post_title[:200] }}
+                    {% endif %}
+                </p>
+
+                <!-- AI Summary (Premium+) -->
+                {% if item.ai_summary %}
+                <p class="text-xs text-blue-300/80 mt-1.5 italic">&#x1f916; {{ item.ai_summary }}</p>
+                {% elif gate.has_ai_summary == false and item.confidence and item.confidence > 0.5 %}
+                <p class="text-xs text-gray-600 mt-1.5">&#x1f916; AI summary <span class="text-purple-400">Premium</span></p>
+                {% endif %}
+            </div>
+
+            <!-- Event type badge -->
+            <div class="flex-shrink-0">
+                {% set event_colors = {
+                    'earnings_rumor': 'text-yellow-400',
+                    'product_news': 'text-blue-400',
+                    'regulatory': 'text-purple-400',
+                    'squeeze_chatter': 'text-red-400',
+                    'macro': 'text-cyan-400',
+                } %}
+                <span class="text-xs {{ event_colors.get(item.event_type, 'text-gray-500') }}">{{ item.event_type|replace('_', ' ')|title }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not gate.has_realtime %}
+<div class="mt-6 p-4 bg-blue-900/20 border border-blue-800/50 rounded-lg text-center">
+    <p class="text-sm text-blue-300">Showing last {{ hours }} hours ({{ items|length }} items). <a href="/pricing" class="text-orange-400 hover:underline font-semibold">Upgrade to Pro</a> for real-time feed, source filters, and 24h history.</p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="chart-container text-center py-12">
+    <div class="text-4xl mb-4">&#128240;</div>
+    <p class="text-gray-400">No news items in the last {{ hours }} hours. Check back soon.</p>
+</div>
+{% endif %}
+
+<div class="text-center mt-8">
+    <a href="/dashboard" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Dashboard</a>
+</div>
+{% endblock %}

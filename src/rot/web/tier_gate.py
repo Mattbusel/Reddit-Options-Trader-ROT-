@@ -234,6 +234,39 @@ def gate_unusual_activity(tier: str) -> dict:
     }
 
 
+def gate_news_feed_access(tier: str) -> dict:
+    """Return news feed feature access flags based on tier."""
+    return {
+        "has_access": True,  # Free users see delayed/limited feed — great acquisition funnel
+        "has_realtime": tier in _PAID_TIERS,  # Pro+ gets real-time
+        "has_source_filter": tier in _PAID_TIERS,  # Pro+ can filter by source
+        "has_ai_summary": tier in ("premium", "ultra", "enterprise"),  # Premium+ sees AI summaries
+        "max_hours": 6 if tier == "free" else 24 if tier == "pro" else 72 if tier == "premium" else 168,
+        "max_items": 15 if tier == "free" else 50 if tier == "pro" else 100,
+    }
+
+
+def gate_congress_tracker_access(tier: str) -> dict:
+    """Return congressional trading tracker access flags based on tier."""
+    return {
+        "has_access": tier in _PAID_TIERS,  # Pro+ feature
+        "has_amount_detail": tier in ("premium", "ultra", "enterprise"),  # Premium+ sees dollar ranges
+        "has_ticker_filter": tier in ("premium", "ultra", "enterprise"),
+        "has_export": tier in ("ultra", "enterprise"),
+        "max_days": 14 if tier == "pro" else 30 if tier == "premium" else 90 if tier in ("ultra", "enterprise") else 0,
+    }
+
+
+def gate_paper_leaderboard_access(tier: str) -> dict:
+    """Return paper trading leaderboard access flags based on tier."""
+    return {
+        "has_access": True,  # Public — drives registrations
+        "has_full_stats": tier in _PAID_TIERS,  # Pro+ sees win rate, return %
+        "has_trade_history": tier in ("premium", "ultra", "enterprise"),
+        "max_entries": 10 if tier == "free" else 25,
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

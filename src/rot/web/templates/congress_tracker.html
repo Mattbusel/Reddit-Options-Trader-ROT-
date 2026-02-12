@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Congressional Trading Tracker - ROT{% endblock %}
+{% block meta_description %}Track what Congress is buying and selling. Real-time congressional stock trading data from SEC filings. See politician trades before the market moves.{% endblock %}
+{% block og_title %}ROT - Congressional Trading Tracker{% endblock %}
+{% block og_description %}See what Congress is buying before you do. Unusual Whales charges $58/mo for this. We include it in Pro at $9.99/mo.{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Congressional Trading Tracker</h1>
+        <span class="px-2 py-1 rounded text-xs bg-blue-900/50 text-blue-400 border border-blue-700">Pro</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">Track what politicians are buying and selling. Data from SEC EFDS filings.</p>
+    <p class="text-xs text-gray-600 mt-1">Unusual Whales charges $58/mo for this. Included in your Pro plan.</p>
+</div>
+
+{% if locked %}
+<!-- Upsell for free users -->
+<div class="chart-container text-center py-16">
+    <div class="text-5xl mb-4">&#127963;</div>
+    <h2 class="text-2xl font-bold text-white mb-3">See What Congress Is Buying</h2>
+    <p class="text-gray-400 max-w-lg mx-auto mb-6">Congressional trading data from SEC filings. Track every stock trade made by US politicians — before the market catches on.</p>
+    <div class="flex items-center justify-center gap-3 mb-4">
+        <span class="line-through text-gray-500 text-lg">$58/mo</span>
+        <span class="text-gray-500">&rarr;</span>
+        <span class="text-green-400 font-bold text-lg">Included in Pro ($9.99/mo)</span>
+    </div>
+    <a href="/pricing" class="inline-block px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold transition text-lg">Upgrade to Pro</a>
+</div>
+{% else %}
+
+<!-- Summary Stats -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Trades ({{ days }}d)</div>
+        <div class="text-2xl font-bold text-white">{{ summary.get('total_trades', 0) }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Politicians</div>
+        <div class="text-2xl font-bold text-white">{{ summary.get('politicians', 0) }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Tickers</div>
+        <div class="text-2xl font-bold text-white">{{ summary.get('tickers', 0) }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Buys</div>
+        <div class="text-2xl font-bold text-green-400">{{ summary.get('buys', 0) }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sells</div>
+        <div class="text-2xl font-bold text-red-400">{{ summary.get('sells', 0) }}</div>
+    </div>
+</div>
+
+{% if gate.has_ticker_filter %}
+<!-- Ticker Filter -->
+<div class="mb-6">
+    <form method="get" action="/congress-tracker" class="flex gap-2">
+        <input type="text" name="ticker" value="{{ ticker_filter }}" placeholder="Filter by ticker (e.g. NVDA)" class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:border-orange-500 focus:outline-none w-48">
+        <input type="hidden" name="days" value="{{ days }}">
+        <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-semibold transition">Filter</button>
+        {% if ticker_filter %}
+        <a href="/congress-tracker" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition">Clear</a>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
+<!-- Trades Table -->
+{% if trades %}
+<div class="chart-container">
+    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+        <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-900">
+                <tr class="border-b border-gray-700 text-left">
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Politician</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Party</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Ticker</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Type</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Amount</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Disclosure</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trades %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                    <td class="py-2 px-3 text-white font-medium">{{ t.politician }}</td>
+                    <td class="py-2 px-3">
+                        {% if t.party == 'D' %}
+                        <span class="text-blue-400">Dem</span>
+                        {% elif t.party == 'R' %}
+                        <span class="text-red-400">Rep</span>
+                        {% else %}
+                        <span class="text-gray-400">{{ t.party or 'N/A' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3">
+                        <a href="/ticker/{{ t.ticker }}" class="text-orange-400 hover:text-orange-300 font-bold">${{ t.ticker }}</a>
+                    </td>
+                    <td class="py-2 px-3">
+                        {% if t.trade_type == 'purchase' %}
+                        <span class="text-green-400 font-semibold">BUY</span>
+                        {% elif t.trade_type == 'sale' %}
+                        <span class="text-red-400 font-semibold">SELL</span>
+                        {% else %}
+                        <span class="text-gray-400">{{ t.trade_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-300">
+                        {% if t.amount_range == 'Pro+' %}
+                        <span class="text-purple-400 text-xs">Premium</span>
+                        {% else %}
+                        {{ t.amount_range }}
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-gray-500 text-xs">{{ t.disclosure_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="chart-container text-center py-12">
+    <div class="text-4xl mb-4">&#128200;</div>
+    <p class="text-gray-400">No congressional trades recorded in the last {{ days }} days.</p>
+    <p class="text-gray-500 text-sm mt-2">Congressional trade data populates as new SEC EFDS filings are processed.</p>
+</div>
+{% endif %}
+
+{% endif %}
+
+<div class="text-center mt-8">
+    <a href="/dashboard" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Dashboard</a>
+</div>
+{% endblock %}
