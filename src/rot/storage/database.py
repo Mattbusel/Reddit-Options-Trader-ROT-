@@ -201,6 +201,22 @@ CREATE TABLE IF NOT EXISTS paper_trades (
 
 CREATE INDEX IF NOT EXISTS idx_paper_trades_user ON paper_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_paper_trades_status ON paper_trades(status);
+
+CREATE TABLE IF NOT EXISTS win_rate_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_at REAL NOT NULL,
+    period_start REAL NOT NULL,
+    period_end REAL NOT NULL,
+    winners INTEGER NOT NULL DEFAULT 0,
+    losers INTEGER NOT NULL DEFAULT 0,
+    neutral INTEGER NOT NULL DEFAULT 0,
+    total_tracked INTEGER NOT NULL DEFAULT 0,
+    avg_gain_pct REAL,
+    avg_loss_pct REAL,
+    avg_1d_return_pct REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wr_snapshot_at ON win_rate_snapshots(snapshot_at DESC);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -884,16 +900,30 @@ class Database:
         async with self.db.execute(query, params) as cursor:
             row = await cursor.fetchone()
             if not row:
-                return {"total_tracked": 0, "winners": 0, "losers": 0,
-                        "win_rate": 0, "avg_gain_pct": 0, "avg_loss_pct": 0,
-                        "neutral": 0}
-            d = _row_to_dict(row)
-            total = d.get("total_tracked", 0) or 0
-            winners = d.get("winners", 0) or 0
-            # Win rate based on decided signals only (exclude neutrals)
-            decided = winners + (d.get("losers", 0) or 0)
-            d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
-            return d
+                d = {"total_tracked": 0, "winners": 0, "losers": 0,
+                     "win_rate": 0, "avg_gain_pct": 0, "avg_loss_pct": 0,
+                     "neutral": 0}
+            else:
+                d = _row_to_dict(row)
+
+        # Merge in snapshot data (only for non-ticker-filtered queries)
+        if not ticker:
+            snap = await self.get_cumulative_win_rate(days=days)
+            snap_w = snap.get("winners", 0) or 0
+            snap_l = snap.get("losers", 0) or 0
+            snap_n = snap.get("neutral", 0) or 0
+            snap_total = snap.get("total_tracked", 0) or 0
+            if snap_total > 0:
+                d["winners"] = (d.get("winners", 0) or 0) + snap_w
+                d["losers"] = (d.get("losers", 0) or 0) + snap_l
+                d["neutral"] = (d.get("neutral", 0) or 0) + snap_n
+                d["total_tracked"] = (d.get("total_tracked", 0) or 0) + snap_total
+
+        winners = d.get("winners", 0) or 0
+        losers = d.get("losers", 0) or 0
+        decided = winners + losers
+        d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
+        return d
 
     async def get_accuracy_by_confidence(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate broken down by confidence buckets: <30%, 30-50%, 50-70%, 70%+."""
@@ -2112,6 +2142,146 @@ class Database:
 
         return unusual
 
+    # ── Win Rate Snapshots ──
+
+    async def snapshot_win_rate_before_purge(self, keep_days: int = 14) -> int:
+        """Snapshot win/loss counts for signals that are about to be purged.
+
+        Called BEFORE purge_old_signals so the resolved outcomes are preserved
+        permanently in the win_rate_snapshots table.
+        """
+        cutoff = time.time() - (keep_days * 86400)
+        # Only snapshot signals that will be deleted (older than cutoff)
+        # AND that have price data to evaluate
+        query = """
+            SELECT
+                COUNT(*) as total_tracked,
+                MIN(s.created_at) as period_start,
+                MAX(s.created_at) as period_end,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as losers,
+                SUM(CASE
+                    WHEN ABS(COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                         / sp.price_at_signal <= 0.005
+                    THEN 1 ELSE 0 END) as neutral,
+                AVG(sp.max_gain_pct) as avg_gain_pct,
+                AVG(sp.max_loss_pct) as avg_loss_pct,
+                AVG(CASE WHEN sp.price_1d IS NOT NULL
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END
+                    ELSE NULL END) as avg_1d_return_pct
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at < ?
+            AND sp.price_at_signal > 0
+            AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                 OR sp.max_gain_pct IS NOT NULL)
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return 0
+            d = _row_to_dict(row)
+
+        total = d.get("total_tracked", 0) or 0
+        if total == 0:
+            return 0
+
+        now = time.time()
+        await self.db.execute(
+            """INSERT INTO win_rate_snapshots
+               (snapshot_at, period_start, period_end, winners, losers, neutral,
+                total_tracked, avg_gain_pct, avg_loss_pct, avg_1d_return_pct)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                now,
+                d.get("period_start", 0) or 0,
+                d.get("period_end", 0) or 0,
+                d.get("winners", 0) or 0,
+                d.get("losers", 0) or 0,
+                d.get("neutral", 0) or 0,
+                total,
+                d.get("avg_gain_pct"),
+                d.get("avg_loss_pct"),
+                d.get("avg_1d_return_pct"),
+            ),
+        )
+        await self.db.commit()
+        log.info(
+            "Win-rate snapshot: %dW / %dL / %dN (total %d) from signals before %d days",
+            d.get("winners", 0) or 0,
+            d.get("losers", 0) or 0,
+            d.get("neutral", 0) or 0,
+            total,
+            keep_days,
+        )
+        return total
+
+    async def get_cumulative_win_rate(self, days: int = 30) -> Dict[str, Any]:
+        """Get cumulative win/loss from snapshots, optionally filtered by time range.
+
+        If days=0, returns all-time stats from snapshots.
+        """
+        if days > 0:
+            cutoff = time.time() - (days * 86400)
+            query = """
+                SELECT
+                    COALESCE(SUM(winners), 0) as winners,
+                    COALESCE(SUM(losers), 0) as losers,
+                    COALESCE(SUM(neutral), 0) as neutral,
+                    COALESCE(SUM(total_tracked), 0) as total_tracked,
+                    AVG(avg_gain_pct) as avg_gain_pct,
+                    AVG(avg_loss_pct) as avg_loss_pct,
+                    AVG(avg_1d_return_pct) as avg_1d_return_pct
+                FROM win_rate_snapshots
+                WHERE period_end > ?
+            """
+            params = (cutoff,)
+        else:
+            query = """
+                SELECT
+                    COALESCE(SUM(winners), 0) as winners,
+                    COALESCE(SUM(losers), 0) as losers,
+                    COALESCE(SUM(neutral), 0) as neutral,
+                    COALESCE(SUM(total_tracked), 0) as total_tracked,
+                    AVG(avg_gain_pct) as avg_gain_pct,
+                    AVG(avg_loss_pct) as avg_loss_pct,
+                    AVG(avg_1d_return_pct) as avg_1d_return_pct
+                FROM win_rate_snapshots
+            """
+            params = ()
+        async with self.db.execute(query, params) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return {"winners": 0, "losers": 0, "neutral": 0,
+                        "total_tracked": 0, "win_rate": 0}
+            d = _row_to_dict(row)
+            winners = d.get("winners", 0) or 0
+            losers = d.get("losers", 0) or 0
+            decided = winners + losers
+            d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
+            return d
+
     # ── Storage Cleanup / Purge ──
 
     async def purge_old_signals(self, keep_days: int = 90) -> int:
@@ -2255,6 +2425,12 @@ class Database:
         except Exception as e:
             log.warning("Purge duplicate signals failed: %s", e)
             results["duplicate_signals"] = 0
+        # Snapshot win/loss data BEFORE deleting old signals
+        try:
+            results["win_rate_snapshot"] = await self.snapshot_win_rate_before_purge(keep_days=14)
+        except Exception as e:
+            log.warning("Win-rate snapshot failed: %s", e)
+            results["win_rate_snapshot"] = 0
         try:
             results["old_signals"] = await self.purge_old_signals(keep_days=14)
         except Exception as e:

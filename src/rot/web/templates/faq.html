@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}FAQ - How ROT Tracks Win Rate | Signal Performance Methodology{% endblock %}
+{% block meta_description %}Learn how ROT (Reddit Options Trader) tracks signal win rates, evaluates performance, and preserves historical accuracy data. Transparent methodology explained.{% endblock %}
+{% block og_title %}FAQ - How ROT Tracks Win Rate{% endblock %}
+{% block og_description %}Transparent methodology: how Reddit options signals are tracked, scored, and evaluated for win rate accuracy.{% endblock %}
+{% block twitter_title %}FAQ - How ROT Tracks Win Rate{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{{ faq_schema|safe }}
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">FAQ</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- CTA Banner -->
+    {% if not user %}
+    <div class="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-700/40 rounded-xl px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+        <p class="text-sm text-gray-300">Track live trading signals from Reddit &mdash; powered by AI analysis.</p>
+        <a href="/register" class="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition whitespace-nowrap">Sign Up Free</a>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 bg-clip-text text-transparent">FAQ</span>
+        </h1>
+        <p class="text-gray-400 text-lg">How ROT tracks win rate, evaluates signal performance, and preserves historical accuracy.</p>
+        <p class="text-gray-600 text-sm mt-2">{{ faqs|length }} questions answered</p>
+        <div class="mt-4 flex justify-center">
+            {% include "components/share_buttons.html" %}
+        </div>
+    </div>
+
+    <!-- Methodology Overview Card -->
+    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/80 border border-gray-700/50 rounded-xl p-6 mb-4">
+        <h2 class="text-lg font-bold text-white mb-3">Win Rate Tracking at a Glance</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="text-center p-3 rounded-lg bg-gray-800/50 border border-gray-700/30">
+                <div class="text-2xl mb-1">&#128225;</div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Step 1</div>
+                <div class="text-sm text-gray-300 mt-1">Signal detected from Reddit post</div>
+            </div>
+            <div class="text-center p-3 rounded-lg bg-gray-800/50 border border-gray-700/30">
+                <div class="text-2xl mb-1">&#128200;</div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Step 2</div>
+                <div class="text-sm text-gray-300 mt-1">Price recorded at signal time</div>
+            </div>
+            <div class="text-center p-3 rounded-lg bg-gray-800/50 border border-gray-700/30">
+                <div class="text-2xl mb-1">&#9200;</div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Step 3</div>
+                <div class="text-sm text-gray-300 mt-1">Price checked at 1h, 4h, 1d, 1w</div>
+            </div>
+            <div class="text-center p-3 rounded-lg bg-gray-800/50 border border-gray-700/30">
+                <div class="text-2xl mb-1">&#9989;</div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Step 4</div>
+                <div class="text-sm text-gray-300 mt-1">Win/loss scored with 0.5% threshold</div>
+            </div>
+        </div>
+        <div class="mt-4 p-3 rounded-lg bg-green-900/20 border border-green-700/30">
+            <p class="text-sm text-green-400"><strong>Permanent record:</strong> Before signals are purged (every 14 days), win/loss counts are snapshotted and preserved forever. Your dashboard win rate reflects all-time performance, not just the current 14-day window.</p>
+        </div>
+    </div>
+
+    <!-- FAQ Accordion -->
+    <div class="space-y-3" id="faq-list">
+        {% for item in faqs %}
+        <div class="bg-gray-800/50 border border-gray-700/40 rounded-lg overflow-hidden">
+            <button
+                class="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-gray-700/30 transition"
+                onclick="toggleFAQ(this)"
+                aria-expanded="false"
+            >
+                <span class="text-sm font-semibold text-white pr-4">{{ item.q }}</span>
+                <svg class="w-4 h-4 text-gray-500 shrink-0 transform transition-transform duration-200 faq-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+            <div class="faq-answer hidden px-5 pb-4">
+                <div class="text-sm text-gray-400 leading-relaxed border-t border-gray-700/40 pt-3">
+                    {{ item.a|safe }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Expand/Collapse All -->
+    <div class="flex justify-center gap-3">
+        <button onclick="expandAll()" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
+            Expand All
+        </button>
+        <button onclick="collapseAll()" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
+            Collapse All
+        </button>
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="text-center mt-8 space-y-3">
+        <p class="text-gray-500 text-sm">Still have questions?</p>
+        <div class="flex justify-center gap-3">
+            <a href="/dashboard" class="px-5 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">View Live Dashboard</a>
+            <a href="/pricing" class="px-5 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold border border-gray-700 transition">See Plans</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleFAQ(btn) {
+    const answer = btn.nextElementSibling;
+    const chevron = btn.querySelector('.faq-chevron');
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+
+    btn.setAttribute('aria-expanded', !expanded);
+    answer.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
+}
+
+function expandAll() {
+    document.querySelectorAll('#faq-list button[aria-expanded="false"]').forEach(function(btn) {
+        toggleFAQ(btn);
+    });
+}
+
+function collapseAll() {
+    document.querySelectorAll('#faq-list button[aria-expanded="true"]').forEach(function(btn) {
+        toggleFAQ(btn);
+    });
+}
+</script>
+{% endblock %}
