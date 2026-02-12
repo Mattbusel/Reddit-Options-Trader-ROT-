@@ -2201,6 +2201,36 @@ class Database:
         log.info("Purge: deleted %d old closed paper trades", count)
         return count
 
+    async def purge_stub_signals(self) -> int:
+        """Delete signals that were generated with stub/fallback reasoning (no real LLM analysis)."""
+        query = """
+            DELETE FROM signals
+            WHERE json_extract(reasoning, '$.raw.stub') = 1
+               OR json_extract(reasoning, '$.raw.error') IS NOT NULL
+        """
+        async with self.db.execute(query) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        if count > 0:
+            log.info("Purge: deleted %d stub/fallback signals (no real LLM analysis)", count)
+        return count
+
+    async def purge_fake_ticker_signals(self) -> int:
+        """Delete signals with fake tickers (economic indicators, jargon, etc.)."""
+        fake_tickers = [
+            "JOLTS", "NFP", "PMI", "PCE", "PPI", "ADP", "ISM",
+            "GMV", "MAU", "DAU", "ARR", "MRR", "TAM", "SAM",
+            "URL", "GFC", "LSEG", "CAGR", "EBITDA", "EBIT",
+        ]
+        placeholders = ",".join("?" for _ in fake_tickers)
+        query = f"DELETE FROM signals WHERE ticker IN ({placeholders})"
+        async with self.db.execute(query, fake_tickers) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        if count > 0:
+            log.info("Purge: deleted %d signals with fake tickers %s", count, fake_tickers)
+        return count
+
     async def vacuum(self) -> None:
         """Run VACUUM to reclaim disk space after bulk deletes."""
         await self.db.execute("VACUUM")
@@ -2209,6 +2239,16 @@ class Database:
     async def run_full_cleanup(self) -> Dict[str, int]:
         """Run all purge methods and VACUUM. Returns summary."""
         results = {}
+        try:
+            results["stub_signals"] = await self.purge_stub_signals()
+        except Exception as e:
+            log.warning("Purge stub signals failed: %s", e)
+            results["stub_signals"] = 0
+        try:
+            results["fake_ticker_signals"] = await self.purge_fake_ticker_signals()
+        except Exception as e:
+            log.warning("Purge fake ticker signals failed: %s", e)
+            results["fake_ticker_signals"] = 0
         try:
             results["duplicate_signals"] = await self.purge_duplicate_signals()
         except Exception as e:

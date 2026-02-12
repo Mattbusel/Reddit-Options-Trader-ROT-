@@ -538,9 +538,22 @@ async def _run_server(cfg: Settings):
     # Immediate startup cleanup to reclaim space on Railway restarts
     try:
         startup_summary = await app.state.db.run_full_cleanup()
-        log.info("Startup cleanup: %s", startup_summary)
+        log.info("Startup cleanup (DB): %s", startup_summary)
     except Exception as e:
-        log.warning("Startup cleanup failed: %s", e)
+        log.warning("Startup cleanup (DB) failed: %s", e)
+
+    # Aggressive JSONL + JSON state file cleanup on startup
+    try:
+        jsonl_logger = JsonlLogger(root=cfg.storage_root)
+        rotation_results = jsonl_logger.rotate(max_age_days=3)
+        rotated = sum(rotation_results.values())
+        if rotated > 0:
+            log.info("Startup cleanup (JSONL): removed %d old entries", rotated)
+        evicted = cleanup_market_cache(cfg.storage_root, max_age_days=7)
+        if evicted > 0:
+            log.info("Startup cleanup (market cache): evicted %d stale entries", evicted)
+    except Exception as e:
+        log.warning("Startup cleanup (files) failed: %s", e)
 
     # Start storage cleanup background task (always active)
     cleanup_task = asyncio.create_task(
