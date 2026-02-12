@@ -280,15 +280,14 @@ def gate_sports_betting_access(tier: str) -> dict:
         "max_days": (
             2 if tier == "free"
             else 5 if tier == "pro"
-            else 7 if tier == "premium"
-            else 14 if tier == "ultra"
-            else 365  # enterprise
+            else 7  # 7-day cap for premium/ultra/enterprise — protects news feed & API value
         ),
         "max_items": (
             20 if tier == "free"
             else 50 if tier == "pro"
             else 100 if tier == "premium"
-            else 9999  # ultra/enterprise
+            else 200 if tier == "ultra"
+            else 500  # enterprise
         ),
         # Betting intel features
         "has_line_mover_scores": tier in _PAID_TIERS,
