@@ -123,7 +123,7 @@ class RSSConfig(BaseSettings):
                 label="sec-8k-filings",
             ),
             RSSFeedEntry(
-                url="https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945",
+                url="https://www.war.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945",
                 label="dod-contracts",
             ),
         ]

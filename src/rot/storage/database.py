@@ -353,7 +353,21 @@ class Database:
 
         # Source filter: supports group values and exact subreddit/label matches
         if source:
-            if source == "reddit":
+            if source == "defense":
+                # Defense/DoD: signals from DoD RSS feed OR defense-sector tickers
+                conditions.append(
+                    "(subreddit = 'dod-contracts'"
+                    " OR sector LIKE '%Aerospace%'"
+                    " OR ticker IN ('LMT','RTX','NOC','GD','BA','LHX','HII','LDOS','BAH','KTOS'))"
+                )
+            elif source == "pharma":
+                # Pharma/FDA: signals from FDA RSS feed OR healthcare-sector tickers
+                conditions.append(
+                    "(subreddit = 'fda-press-releases'"
+                    " OR sector = 'Healthcare'"
+                    " OR event_type = 'regulatory')"
+                )
+            elif source == "reddit":
                 conditions.append(
                     "subreddit IN ('wallstreetbets','options','stocks','investing',"
                     "'thetagang','stockmarket','smallstreetbets')"
@@ -361,7 +375,7 @@ class Database:
             elif source == "rss":
                 conditions.append("json_extract(event_data, '$.flair') = 'rss'")
             else:
-                # Exact match: dod-contracts, fda-press-releases, stocktwits, twitter, etc.
+                # Exact match: stocktwits, twitter, specific feed label, etc.
                 conditions.append("subreddit = ?")
                 params.append(source)
 
