@@ -252,16 +252,16 @@ class PipelineRunner:
             packet = self.reasoner.reason(e)
             self.log.write("reasoning", {"run_id": run_id, "event": e, "packet": packet})
 
-            # Quality gate: skip storing/emitting signals with no real LLM analysis
             raw = packet.raw or {}
-            if raw.get("stub"):
+            is_stub = bool(raw.get("stub"))
+            if is_stub:
                 stub_count += 1
-                continue
 
             # Merge LLM confidence back onto Event so the stored signal uses
             # the LLM-calibrated value instead of the heuristic pre-LLM value.
+            # Stubs keep the heuristic confidence from the credibility scorer.
             llm_confidence = raw.get("confidence")
-            if llm_confidence is not None and not raw.get("error"):
+            if llm_confidence is not None and not raw.get("error") and not is_stub:
                 e = dataclasses.replace(e, confidence=float(llm_confidence))
 
             ideas = self.trade_builder.build(packet, e)
