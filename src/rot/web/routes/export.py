@@ -17,12 +17,15 @@ router = APIRouter()
 @router.get("/signals/export")
 async def export_signals(
     request: Request,
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     ticker: Optional[str] = None,
     stance: Optional[str] = None,
     min_confidence: Optional[float] = None,
     event_type: Optional[str] = None,
+    source: Optional[str] = None,
+    date_from: Optional[float] = None,
+    date_to: Optional[float] = None,
 ):
     """Export signals as CSV. Requires Pro tier or higher."""
     user = await require_tier("pro", "premium", "ultra", "enterprise")(request)
@@ -35,6 +38,9 @@ async def export_signals(
         stance=stance,
         min_confidence=min_confidence,
         event_type=event_type,
+        source=source,
+        date_from=date_from,
+        date_to=date_to,
     )
 
     output = io.StringIO()

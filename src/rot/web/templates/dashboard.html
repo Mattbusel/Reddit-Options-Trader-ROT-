@@ -461,7 +461,7 @@
             </h2>
             <div class="flex space-x-2 text-xs">
                 {% if tier != 'free' %}
-                <a href="/api/v1/signals/export" class="px-3 py-1 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition">Export CSV</a>
+                <a href="#" onclick="exportFilteredCSV(); return false;" class="px-3 py-1 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition">Export CSV</a>
                 {% endif %}
             </div>
         </div>
@@ -929,5 +929,42 @@ async function saveCurrentPreset() {
     } catch(e) { console.error('Preset error:', e); }
 }
 {% endif %}
+
+// ── Filtered CSV Export ──
+function exportFilteredCSV() {
+    const form = document.getElementById('filter-form');
+    const fd = new FormData(form);
+    const params = new URLSearchParams();
+
+    const ticker = (fd.get('ticker') || '').trim();
+    if (ticker) params.set('ticker', ticker);
+
+    const stance = fd.get('stance') || '';
+    if (stance) params.set('stance', stance);
+
+    const eventType = fd.get('event_type') || '';
+    if (eventType) params.set('event_type', eventType);
+
+    const source = fd.get('source') || '';
+    if (source) params.set('source', source);
+
+    const minConf = fd.get('min_confidence') || '';
+    if (minConf) {
+        // Dashboard sends as percentage (0-100), export expects 0-1 float
+        params.set('min_confidence', (parseFloat(minConf) / 100).toFixed(2));
+    }
+
+    const dateRange = fd.get('date_range') || '';
+    if (dateRange) {
+        const now = Math.floor(Date.now() / 1000);
+        const rangeMap = {'24h': 86400, '7d': 604800, '30d': 2592000};
+        if (rangeMap[dateRange]) {
+            params.set('date_from', now - rangeMap[dateRange]);
+        }
+    }
+
+    const qs = params.toString();
+    window.location.href = '/api/v1/signals/export' + (qs ? '?' + qs : '');
+}
 </script>
 {% endblock %}
