@@ -1,6 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}{{ signal.ticker }} Signal - ROT{% endblock %}
+{% block title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block meta_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal detected on r/{{ signal.subreddit|default('reddit') }} with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. {{ signal.event_type|default('other')|replace('_',' ')|title }} analysis by ROT.{% endblock %}
+{% block og_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block og_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal: {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence. AI-powered Reddit options analysis.{% endblock %}
+{% block twitter_title %}{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal - ROT{% endblock %}
+{% block twitter_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence from Reddit.{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": "{{ signal.ticker }} {{ signal.stance|default('')|title }} Signal",
+    "datePublished": "{{ signal.created_at }}",
+    "description": "{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal detected on r/{{ signal.subreddit|default('reddit') }} with {{ '%.0f'|format((signal.confidence|default(0)) * 100) }}% confidence",
+    "author": {"@type": "Organization", "name": "ROT"},
+    "publisher": {"@type": "Organization", "name": "ROT - Reddit Options Trader"}
+}
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/dashboard" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Signals</span></a>
+            <meta itemprop="position" content="2" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">{{ signal.ticker }} Signal</span>
+            <meta itemprop="position" content="3" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="mb-6">
@@ -75,10 +115,29 @@
         {% set reasoning = signal.get('reasoning', {}) %}
         {% if reasoning %}
         <div class="signal-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-5 flex items-center space-x-2">
-                <span>&#129504;</span>
-                <span>Analysis</span>
-            </h3>
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                    <span>&#129504;</span>
+                    <span>Analysis</span>
+                    {% if reasoning.get('byok') %}
+                    <span class="text-xs bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-0.5 rounded ml-2">AI-Analyzed ({{ reasoning.get('byok_provider', 'LLM') }}/{{ reasoning.get('byok_model', '') }})</span>
+                    {% elif is_stub_reasoning %}
+                    <span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded ml-2">Template</span>
+                    {% endif %}
+                </h3>
+                {% if has_byok and not reasoning.get('_locked') %}
+                <button id="byok-btn" onclick="reanalyzeSignal('{{ signal.id }}')"
+                        class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
+                    <span>&#10024;</span>
+                    <span>{{ 'Re-analyze' if reasoning.get('byok') else 'Analyze' }} with AI</span>
+                </button>
+                {% elif not has_byok and user and user.tier in ['pro', 'premium', 'ultra'] %}
+                <a href="/account" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition">
+                    Add API key to enable AI
+                </a>
+                {% endif %}
+            </div>
+            <div id="byok-status" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
 
             {% if reasoning.get('_locked') %}
             <!-- Locked reasoning for free tier -->
@@ -251,6 +310,125 @@
 
     <!-- Sidebar -->
     <div class="space-y-6">
+        <!-- Paper Trade Card -->
+        {% if user %}
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(251, 191, 36, 0.3);">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128184;</span>
+                <span>Paper Trade</span>
+            </h3>
+            <p class="text-gray-400 text-xs mb-3">Practice trade this signal with virtual money. No real risk.</p>
+            <div class="mb-3">
+                <label class="text-xs text-gray-500 mb-1 block">Amount ($)</label>
+                <input type="number" id="paper-dollars" value="1000" min="10" step="100"
+                       class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm">
+            </div>
+            <button id="paper-trade-btn" onclick="executePaperTrade('{{ signal.id }}')"
+                    class="w-full px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition flex items-center justify-center space-x-2">
+                <span>&#128184;</span>
+                <span>Paper Trade {{ signal.ticker }}</span>
+            </button>
+            <div id="paper-trade-status" class="hidden mt-3 rounded-lg p-3 text-sm"></div>
+        </div>
+        {% else %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-3 flex items-center space-x-2">
+                <span>&#128184;</span>
+                <span>Paper Trade</span>
+            </h3>
+            <p class="text-gray-500 text-sm mb-3">Sign in to practice trade this signal with virtual money.</p>
+            <a href="/login" class="block text-center px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition">Sign In</a>
+        </div>
+        {% endif %}
+
+        <!-- Performance Tracking Card (pro+) -->
+        {% if performance and perf_access.has_per_signal_pnl %}
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(74, 222, 128, 0.3);">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <div class="space-y-3 text-sm">
+                {% if performance.price_at_signal %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">Price at Signal</span>
+                    <span class="text-white font-semibold">${{ "%.2f"|format(performance.price_at_signal) }}</span>
+                </div>
+                {% endif %}
+                {% if performance.price_1h %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1H Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1h) }}</span>
+                        {% set pct_1h = ((performance.price_1h - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1h >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1h) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_4h %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">4H Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_4h) }}</span>
+                        {% set pct_4h = ((performance.price_4h - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_4h >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_4h) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_1d %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1D Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1d) }}</span>
+                        {% set pct_1d = ((performance.price_1d - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1d >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1d) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.price_1w %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">1W Price</span>
+                    <div class="text-right">
+                        <span class="text-white">${{ "%.2f"|format(performance.price_1w) }}</span>
+                        {% set pct_1w = ((performance.price_1w - performance.price_at_signal) / performance.price_at_signal * 100) if performance.price_at_signal else 0 %}
+                        <span class="text-xs ml-1 {{ 'text-green-400' if pct_1w >= 0 else 'text-red-400' }}">{{ "%+.2f"|format(pct_1w) }}%</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance.get('max_gain_pct') is not none %}
+                <div class="flex items-center justify-between pt-2 border-t border-gray-700">
+                    <span class="text-gray-400 font-semibold">Max Gain</span>
+                    <span class="font-bold text-lg {{ 'text-green-400' if (performance.get('max_gain_pct') or 0) >= 0 else 'text-red-400' }}">
+                        {{ "%+.2f"|format(performance.get('max_gain_pct', 0)) }}%
+                    </span>
+                </div>
+                {% endif %}
+                {% if not performance.price_1h and not performance.price_1d %}
+                <p class="text-gray-500 text-xs text-center py-2">Tracking in progress — prices will update as time windows elapse.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% elif perf_access.has_per_signal_pnl and not performance %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <p class="text-gray-500 text-sm text-center py-4">No performance data tracked for this signal yet.</p>
+        </div>
+        {% elif not perf_access.has_per_signal_pnl %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128202;</span>
+                <span>Performance Tracking</span>
+            </h3>
+            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-4 text-center">
+                <p class="text-gray-500 text-sm mb-2">Signal P&L tracking available on Pro+</p>
+                <a href="/pricing" class="text-orange-400 hover:underline text-sm">Upgrade to unlock</a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Market Data -->
         {% set market = signal.get('market_data', {}) %}
         {% if market %}
@@ -282,6 +460,79 @@
                     <span class="text-xs text-gray-300">${{ "%.1f"|format(data.market_cap / 1e9) }}B</span>
                 </div>
                 {% endif %}
+                {% if market_context.has_extended_market %}
+                {% if data.get('volume') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Volume</span>
+                    <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.volume) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('fifty_two_week_high') and data.get('fifty_two_week_low') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">52W Range</span>
+                    <span class="text-xs text-gray-300">${{ "%.2f"|format(data.fifty_two_week_low) }} – ${{ "%.2f"|format(data.fifty_two_week_high) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('pe_ratio') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">P/E Ratio</span>
+                    <span class="text-xs text-gray-300">{{ "%.1f"|format(data.pe_ratio) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('beta') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Beta</span>
+                    <span class="text-xs text-gray-300">{{ "%.2f"|format(data.beta) }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('sector') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Sector</span>
+                    <span class="text-xs text-gray-300">{{ data.sector }}</span>
+                </div>
+                {% endif %}
+                {% if data.get('industry') %}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-400">Industry</span>
+                    <span class="text-xs text-gray-300">{{ data.industry }}</span>
+                </div>
+                {% endif %}
+                {% endif %}
+                {% if data.get('atm_iv') %}
+                <div class="mt-3 pt-3 border-t border-gray-800">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Options Chain</div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">ATM IV</span>
+                        <span class="text-sm font-semibold {% if data.atm_iv > 0.5 %}text-red-400{% elif data.atm_iv > 0.3 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                            {{ "%.1f"|format(data.atm_iv * 100) }}%
+                        </span>
+                    </div>
+                    {% if data.get('pc_ratio') is not none %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Put/Call OI</span>
+                        <span class="text-xs {% if data.pc_ratio > 1.5 %}text-red-400{% elif data.pc_ratio < 0.5 %}text-green-400{% else %}text-gray-300{% endif %}">
+                            {{ "%.2f"|format(data.pc_ratio) }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if data.get('call_oi') is not none and data.get('put_oi') is not none %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Call OI</span>
+                        <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.call_oi) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Put OI</span>
+                        <span class="text-xs text-gray-300">{{ "{:,.0f}".format(data.put_oi) }}</span>
+                    </div>
+                    {% endif %}
+                    {% if data.get('options_expiry') %}
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm text-gray-400">Nearest Expiry</span>
+                        <span class="text-xs text-gray-300">{{ data.options_expiry }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -311,7 +562,106 @@
                     <span class="text-gray-300">{{ signal.get('time_horizon', 'unknown') }}</span>
                 </div>
             </div>
+
+            <!-- Data Retention Notice -->
+            <div class="mt-4 pt-4 border-t border-gray-800">
+                <div class="flex items-center space-x-2 mb-1.5">
+                    <span class="text-gray-500 text-xs">&#128451;</span>
+                    <span class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Data Retention</span>
+                </div>
+                <p class="text-gray-500 text-xs leading-relaxed">
+                    This signal will be automatically purged after 14 days to keep infrastructure costs low.
+                    {% if tier == 'free' %}
+                    <a href="/pricing" class="text-orange-400 hover:text-orange-300 hover:underline">Upgrade to Pro</a> to export signals via CSV before they expire.
+                    {% else %}
+                    Use <a href="#" onclick="window.location='/dashboard'; return false;" class="text-blue-400 hover:text-blue-300 hover:underline">CSV export</a> or the <a href="/account" class="text-blue-400 hover:text-blue-300 hover:underline">API</a> to save this data permanently.
+                    {% endif %}
+                </p>
+            </div>
         </div>
     </div>
 </div>
+
+{% if has_byok %}
+<script>
+async function reanalyzeSignal(signalId) {
+    const btn = document.getElementById('byok-btn');
+    const status = document.getElementById('byok-status');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">&#9889; Analyzing...</span>';
+    status.className = 'mb-4 rounded-lg p-3 text-sm bg-blue-900/30 border border-blue-700/50 text-blue-300';
+    status.textContent = 'Sending to your LLM provider... this may take a few seconds.';
+    status.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`/api/v1/signals/${signalId}/reason`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        });
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+            status.className = 'mb-4 rounded-lg p-3 text-sm bg-green-900/30 border border-green-700/50 text-green-300';
+            status.textContent = data.message + ' — Reloading...';
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            status.className = 'mb-4 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+            status.textContent = data.detail || 'Re-analysis failed. Check your API key in Account settings.';
+            btn.disabled = false;
+            btn.innerHTML = '<span>&#10024;</span><span>Retry</span>';
+        }
+    } catch (e) {
+        status.className = 'mb-4 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+        status.textContent = 'Network error: ' + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<span>&#10024;</span><span>Retry</span>';
+    }
+}
+</script>
+{% endif %}
+
+{% if user %}
+<script>
+async function executePaperTrade(signalId) {
+    const btn = document.getElementById('paper-trade-btn');
+    const status = document.getElementById('paper-trade-status');
+    const dollars = parseFloat(document.getElementById('paper-dollars').value) || 1000;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">&#128184; Placing trade...</span>';
+    status.classList.remove('hidden');
+    status.className = 'mt-3 rounded-lg p-3 text-sm bg-blue-900/30 border border-blue-700/50 text-blue-300';
+    status.textContent = 'Executing paper trade...';
+
+    try {
+        const resp = await fetch('/api/v1/paper-trading/trade', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({signal_id: signalId, dollars: dollars}),
+        });
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+            status.className = 'mt-3 rounded-lg p-3 text-sm bg-green-900/30 border border-green-700/50 text-green-300';
+            const trade = data.trade;
+            status.innerHTML = '&#9989; Trade placed! ' + trade.quantity + ' shares of ' + trade.ticker +
+                ' at $' + parseFloat(trade.entry_price).toFixed(2) +
+                ' <a href="/paper-trading" class="underline ml-1">View Portfolio &rarr;</a>';
+            btn.innerHTML = '<span>&#9989;</span><span>Trade Placed</span>';
+        } else {
+            status.className = 'mt-3 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+            status.textContent = data.detail || 'Trade failed';
+            btn.disabled = false;
+            btn.innerHTML = '<span>&#128184;</span><span>Retry</span>';
+        }
+    } catch (e) {
+        status.className = 'mt-3 rounded-lg p-3 text-sm bg-red-900/30 border border-red-700/50 text-red-300';
+        status.textContent = 'Network error: ' + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<span>&#128184;</span><span>Retry</span>';
+    }
+}
+</script>
+{% endif %}
 {% endblock %}

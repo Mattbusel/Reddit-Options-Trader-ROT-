@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Badges &amp; Achievements - ROT{% endblock %}
+{% block meta_description %}Track your ROT achievements: login streaks, signal milestones, paper trading wins, and discovery badges.{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Badges &amp; Achievements</h1>
+            <p class="text-gray-400">{{ total_earned }} / {{ total_badges }} earned</p>
+        </div>
+        {% if user %}
+        <div class="text-right">
+            <div class="text-sm text-gray-400">Current Streak</div>
+            <div class="text-3xl font-bold text-orange-400">{{ stats.streak_count or 0 }} <span class="text-sm text-gray-500">days</span></div>
+            <div class="text-xs text-gray-500">Best: {{ stats.streak_best or 0 }} days</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not user %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#127942;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Earn Badges</h2>
+        <p class="text-gray-400 mb-4">Sign in to start earning achievement badges and track your streaks.</p>
+        <a href="/login" class="inline-block px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-semibold transition">Sign In</a>
+    </div>
+    {% else %}
+
+    {% set categories = ["Activity", "Streaks", "Paper Trading", "Discovery"] %}
+    {% for cat in categories %}
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">{{ cat }}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for b in badges if b.category == cat %}
+            <div class="bg-gray-800/60 rounded-xl p-5 border {% if b.earned %}border-orange-600/50{% else %}border-gray-700{% endif %} transition relative {% if not b.earned %}opacity-60{% endif %}">
+                {% if b.earned %}
+                <div class="absolute top-3 right-3 text-orange-400 text-xs font-bold">EARNED</div>
+                {% endif %}
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="text-3xl {% if not b.earned %}grayscale{% endif %}">{{ b.icon|safe }}</div>
+                    <div>
+                        <div class="text-white font-semibold">{{ b.name }}</div>
+                        <div class="text-gray-400 text-xs">{{ b.description }}</div>
+                    </div>
+                </div>
+                {% if not b.earned %}
+                <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div class="bg-orange-500 h-2 rounded-full transition-all" style="width: {{ b.pct }}%"></div>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">{{ b.progress }} / {{ b.target }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+</div>
+
+{% if user %}
+<script>
+// Check badges on page load to update streak
+fetch('/api/v1/badges/check').then(r => r.json()).catch(() => {});
+</script>
+{% endif %}
+{% endblock %}

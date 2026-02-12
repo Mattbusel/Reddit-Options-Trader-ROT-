@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Backtest - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Strategy Backtester</h1>
+            <p class="text-sm text-gray-500 mt-1">Replay historical signals against actual price outcomes</p>
+        </div>
+        <span class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-400 border border-amber-700">Ultra</span>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="chart-container mb-6">
+    <form method="get" action="/backtest" class="flex flex-wrap items-end gap-4">
+        <div>
+            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Lookback</label>
+            <select name="days" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
+                <option value="7" {{ 'selected' if filter_days == 7 else '' }}>7 days</option>
+                <option value="30" {{ 'selected' if filter_days == 30 else '' }}>30 days</option>
+                <option value="90" {{ 'selected' if filter_days == 90 else '' }}>90 days</option>
+                <option value="180" {{ 'selected' if filter_days == 180 else '' }}>180 days</option>
+                <option value="365" {{ 'selected' if filter_days == 365 else '' }}>1 year</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Strategy</label>
+            <select name="strategy" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
+                <option value="">All Strategies</option>
+                {% for s in strategies %}
+                <option value="{{ s }}" {{ 'selected' if filter_strategy == s else '' }}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Min Confidence</label>
+            <select name="min_confidence" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
+                <option value="">Any</option>
+                <option value="40" {{ 'selected' if filter_min_confidence == '40' else '' }}>40%+</option>
+                <option value="50" {{ 'selected' if filter_min_confidence == '50' else '' }}>50%+</option>
+                <option value="60" {{ 'selected' if filter_min_confidence == '60' else '' }}>60%+</option>
+                <option value="70" {{ 'selected' if filter_min_confidence == '70' else '' }}>70%+</option>
+                <option value="80" {{ 'selected' if filter_min_confidence == '80' else '' }}>80%+</option>
+            </select>
+        </div>
+        <button type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+            Run Backtest
+        </button>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Signals</div>
+        <div class="text-2xl font-bold text-white">{{ backtest_summary.total }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Win Rate</div>
+        <div class="text-2xl font-bold {{ 'text-green-400' if backtest_summary.win_rate >= 50 else 'text-red-400' }}">{{ backtest_summary.win_rate }}%</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Winners</div>
+        <div class="text-2xl font-bold text-green-400">{{ backtest_summary.winners }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Losers</div>
+        <div class="text-2xl font-bold text-red-400">{{ backtest_summary.losers }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Gain</div>
+        <div class="text-2xl font-bold text-green-400">{{ backtest_summary.avg_gain }}%</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Loss</div>
+        <div class="text-2xl font-bold text-red-400">{{ backtest_summary.avg_loss }}%</div>
+    </div>
+    <div class="stat-card rounded-lg p-4">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Cum. P&L</div>
+        <div class="text-2xl font-bold {{ 'text-green-400' if backtest_summary.cumulative_pnl >= 0 else 'text-red-400' }}">{{ "%+.1f"|format(backtest_summary.cumulative_pnl) }}%</div>
+    </div>
+</div>
+
+<!-- Equity Curve -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Equity Curve (Cumulative P&L)</h2>
+    <div style="height: 350px;">
+        <canvas id="equityChart"></canvas>
+    </div>
+</div>
+
+<!-- Signal History Table -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Signal Results</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                    <th class="text-left py-3 px-3">#</th>
+                    <th class="text-left py-3 px-3">Ticker</th>
+                    <th class="text-left py-3 px-3">Stance</th>
+                    <th class="text-right py-3 px-3">Conf</th>
+                    <th class="text-left py-3 px-3">Strategy</th>
+                    <th class="text-right py-3 px-3">Entry</th>
+                    <th class="text-right py-3 px-3">1D Price</th>
+                    <th class="text-right py-3 px-3">P&L</th>
+                    <th class="text-right py-3 px-3">Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                    <td class="py-3 px-3 text-gray-500">{{ loop.index }}</td>
+                    <td class="py-3 px-3 font-bold text-white">
+                        <a href="/dashboard/signal/{{ h.signal_id }}" class="hover:text-blue-400 transition">{{ h.ticker }}</a>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="{{ 'text-green-400' if h.stance == 'bullish' else 'text-red-400' if h.stance == 'bearish' else 'text-yellow-400' }}">{{ h.stance }}</span>
+                    </td>
+                    <td class="py-3 px-3 text-right text-gray-300">{{ "%.0f"|format((h.confidence or 0) * 100) }}%</td>
+                    <td class="py-3 px-3 text-gray-300">{{ h.strategy or 'none' }}</td>
+                    <td class="py-3 px-3 text-right text-white">${{ "%.2f"|format(h.price_at_signal or 0) }}</td>
+                    <td class="py-3 px-3 text-right text-gray-300">
+                        {% if h.price_1d %}${{ "%.2f"|format(h.price_1d) }}{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="py-3 px-3 text-right font-semibold {{ 'text-green-400' if (h.gain_loss_pct or 0) > 0 else 'text-red-400' }}">
+                        {% if h.gain_loss_pct is not none %}{{ "%+.2f"|format(h.gain_loss_pct) }}%{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="py-3 px-3 text-right">
+                        {% if h.gain_loss_pct is not none %}
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold {{ 'bg-green-900/40 text-green-400' if (h.gain_loss_pct or 0) > 0 else 'bg-red-900/40 text-red-400' }}">
+                            {{ 'WIN' if (h.gain_loss_pct or 0) > 0 else 'LOSS' }}
+                        </span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-700 text-gray-400">PENDING</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="py-8 text-center text-gray-500">No backtest data available yet. Signals need time to accumulate performance data.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(function() {
+    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
+    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+    // Equity Curve
+    const curveData = {{ json_dumps(equity_curve)|safe }};
+    const labels = curveData.map(d => {
+        if (!d.ts) return '';
+        const dt = new Date(d.ts * 1000);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const pnlValues = curveData.map(d => d.pnl);
+
+    // Determine line color based on final P&L
+    const finalPnl = pnlValues.length > 0 ? pnlValues[pnlValues.length - 1] : 0;
+    const lineColor = finalPnl >= 0 ? 'rgba(74,222,128,1)' : 'rgba(248,113,113,1)';
+    const fillColor = finalPnl >= 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
+
+    new Chart(document.getElementById('equityChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cumulative P&L %',
+                data: pnlValues,
+                borderColor: lineColor,
+                backgroundColor: fillColor,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2,
+                pointBackgroundColor: lineColor,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    ...darkTooltip,
+                    callbacks: {
+                        label: ctx => `P&L: ${ctx.parsed.y.toFixed(2)}%`,
+                        afterLabel: ctx => curveData[ctx.dataIndex] ? `Ticker: ${curveData[ctx.dataIndex].ticker}` : '',
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { color: '#9ca3af', callback: v => v + '%' },
+                    grid: darkGrid,
+                },
+                x: {
+                    ticks: { color: '#9ca3af', maxRotation: 45 },
+                    grid: { display: false },
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

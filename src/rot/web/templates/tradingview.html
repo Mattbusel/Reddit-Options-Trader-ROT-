@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}TradingView Integration - ROT{% endblock %}
+{% block meta_description %}Integrate ROT signals with TradingView using Pine Script indicators and alerts. Get real-time options signal overlays on your charts.{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <nav class="text-sm text-gray-400 mb-4">
+            <a href="/dashboard" class="hover:text-white">Dashboard</a> &rarr;
+            <span class="text-gray-300">TradingView</span>
+        </nav>
+        <h1 class="text-3xl font-bold text-white mb-2">TradingView Integration</h1>
+        <p class="text-gray-400">Overlay ROT signals directly on your TradingView charts. Copy the Pine Script below or use the JSON API.</p>
+    </div>
+
+    <!-- Setup Steps -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-2xl mb-3">1</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Get API Key</h3>
+            <p class="text-gray-400 text-sm">Go to Account settings and generate an API key. You'll need it for authenticated requests.</p>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-2xl mb-3">2</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Add Pine Script</h3>
+            <p class="text-gray-400 text-sm">Copy the indicator code below and paste it into TradingView's Pine Script editor.</p>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <div class="text-2xl mb-3">3</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Set Alerts</h3>
+            <p class="text-gray-400 text-sm">Configure TradingView alerts to fire when ROT signals match your criteria.</p>
+        </div>
+    </div>
+
+    <!-- Pine Script Code -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-white">Pine Script Indicator</h2>
+            <button onclick="copyPineScript()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition">
+                Copy Code
+            </button>
+        </div>
+        <p class="text-gray-400 text-sm mb-4">This indicator plots ROT signal markers on your chart. Bullish signals appear as green triangles below bars, bearish as red triangles above.</p>
+        <pre id="pine-script" class="bg-gray-900 rounded-lg p-4 overflow-x-auto text-sm font-mono text-green-400 leading-relaxed"><code>//@version=5
+indicator("ROT Signal Overlay", overlay=true, max_labels_count=500)
+
+// ── Configuration ──
+var string API_URL = "{{ base_url }}/signals"
+min_confidence = input.float(0.5, "Min Confidence", minval=0.1, maxval=1.0, step=0.05)
+show_bullish   = input.bool(true, "Show Bullish Signals")
+show_bearish   = input.bool(true, "Show Bearish Signals")
+show_mixed     = input.bool(false, "Show Mixed Signals")
+
+// ── Signal data (manual input from ROT API) ──
+// TradingView Pine Script cannot make HTTP requests directly.
+// Use TradingView Alerts + Webhooks to bridge the gap:
+//
+// Option A: Manual — Check ROT dashboard, add signals as notes
+// Option B: Webhook — Set up a TradingView alert that calls:
+//   POST {{ base_url }}/webhook
+//   with your API key in the payload
+//
+// For automated overlay, use the ROT JSON API endpoint:
+//   GET {{ base_url }}/signals?ticker=AAPL&limit=20
+// and a middleware script to convert to Pine-compatible format.
+
+// ── Visual Styling ──
+bullish_color = color.new(#4ade80, 0)
+bearish_color = color.new(#f87171, 0)
+mixed_color   = color.new(#facc15, 0)
+
+// ── Plot example signal markers ──
+// These are placeholders — in production, use external data or alerts
+// to trigger label creation based on ROT signal timestamps.
+
+// Example: Plot labels when conditions are met via alert
+if barstate.isrealtime
+    // This is where alert-driven labels would appear
+    // Configure alerts via the ROT webhook integration
+    label.new(na, na, "")  // placeholder
+
+// ── Alert Conditions ──
+// Set these up as TradingView alerts pointing to the ROT webhook
+alertcondition(true, "ROT Bullish Signal",
+    '{"ticker": "{{ticker}}", "action": "bullish", "confidence": {{close}}, "api_key": "YOUR_ROT_API_KEY"}')
+alertcondition(true, "ROT Bearish Signal",
+    '{"ticker": "{{ticker}}", "action": "bearish", "confidence": {{close}}, "api_key": "YOUR_ROT_API_KEY"}')</code></pre>
+    </div>
+
+    <!-- Webhook Setup -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-xl font-semibold text-white mb-4">Webhook Configuration</h2>
+        <p class="text-gray-400 text-sm mb-4">Configure TradingView alerts to send webhooks to ROT for signal tracking.</p>
+
+        <div class="bg-gray-900 rounded-lg p-4 mb-4">
+            <p class="text-sm text-gray-500 mb-1">Webhook URL</p>
+            <code class="text-indigo-400 text-sm">{{ base_url }}/webhook</code>
+        </div>
+
+        <div class="bg-gray-900 rounded-lg p-4">
+            <p class="text-sm text-gray-500 mb-1">Alert Message Template (JSON)</p>
+            <pre class="text-sm text-green-400 font-mono">{
+  "ticker": "{{'{{'}}ticker{{'}}'}}",
+  "action": "{{'{{'}}strategy.order.action{{'}}'}}",
+  "price": {{'{{'}}close{{'}}'}},
+  "confidence": 0.7,
+  "api_key": "YOUR_ROT_API_KEY"
+}</pre>
+        </div>
+    </div>
+
+    <!-- JSON API Reference -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-xl font-semibold text-white mb-4">JSON API Endpoint</h2>
+        <p class="text-gray-400 text-sm mb-4">Use this endpoint to fetch ROT signals programmatically for any integration.</p>
+
+        <div class="space-y-4">
+            <div class="bg-gray-900 rounded-lg p-4">
+                <p class="text-sm text-gray-500 mb-1">GET — All signals</p>
+                <code class="text-indigo-400 text-sm">{{ base_url }}/signals?limit=50</code>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4">
+                <p class="text-sm text-gray-500 mb-1">GET — Filtered by ticker</p>
+                <code class="text-indigo-400 text-sm">{{ base_url }}/signals?ticker=TSLA&limit=20</code>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4">
+                <p class="text-sm text-gray-500 mb-2">Response format</p>
+                <pre class="text-sm text-green-400 font-mono">{
+  "signals": [
+    {
+      "t": 1707500000,
+      "s": "TSLA",
+      "stance": "bullish",
+      "c": 0.72,
+      "type": "earnings_rumor",
+      "strategy": "debit_spread",
+      "horizon": "1w",
+      "id": "abc123"
+    }
+  ],
+  "count": 1,
+  "tier": "pro",
+  "ts": 1707500100
+}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier info -->
+    <div class="bg-indigo-900/30 rounded-xl p-6 border border-indigo-700/50">
+        <h3 class="text-lg font-semibold text-white mb-2">API Access by Tier</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+                <p class="text-gray-400">Free</p>
+                <p class="text-white">10 signals, 15min delay</p>
+            </div>
+            <div>
+                <p class="text-indigo-400">Pro</p>
+                <p class="text-white">Real-time, 5k API/day</p>
+            </div>
+            <div>
+                <p class="text-purple-400">Premium</p>
+                <p class="text-white">25k API/day + webhooks</p>
+            </div>
+            <div>
+                <p class="text-amber-400">Ultra</p>
+                <p class="text-white">50k API/day + priority</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyPineScript() {
+    const code = document.getElementById('pine-script').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        btn.classList.replace('bg-indigo-600', 'bg-green-600');
+        setTimeout(() => {
+            btn.textContent = 'Copy Code';
+            btn.classList.replace('bg-green-600', 'bg-indigo-600');
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{# Share buttons component — include with share_text and share_url variables #}
+<div class="flex items-center gap-2 flex-wrap">
+    <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Share:</span>
+    <a href="https://twitter.com/intent/tweet?text={{ share_text|urlencode }}&url={{ share_url|urlencode }}"
+       target="_blank" rel="noopener"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition"
+       title="Share on X/Twitter">
+        X
+    </a>
+    <a href="https://reddit.com/submit?url={{ share_url|urlencode }}&title={{ share_text|urlencode }}"
+       target="_blank" rel="noopener"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-orange-900/50 hover:text-orange-400 border border-gray-700 transition"
+       title="Share on Reddit">
+        Reddit
+    </a>
+    <a href="https://www.facebook.com/sharer/sharer.php?u={{ share_url|urlencode }}"
+       target="_blank" rel="noopener"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-blue-900/50 hover:text-blue-400 border border-gray-700 transition"
+       title="Share on Facebook">
+        Facebook
+    </a>
+    <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ share_url|urlencode }}"
+       target="_blank" rel="noopener"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-blue-900/50 hover:text-blue-300 border border-gray-700 transition"
+       title="Share on LinkedIn">
+        LinkedIn
+    </a>
+    <a href="https://wa.me/?text={{ share_text|urlencode }}%20{{ share_url|urlencode }}"
+       target="_blank" rel="noopener"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-green-900/50 hover:text-green-400 border border-gray-700 transition"
+       title="Share on WhatsApp">
+        WhatsApp
+    </a>
+    <button onclick="navigator.clipboard.writeText('{{ share_url }}').then(function(){this.textContent='Copied!'}.bind(this)).catch(function(){})"
+       class="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition cursor-pointer"
+       title="Copy link to clipboard">
+        Copy Link
+    </button>
+</div>

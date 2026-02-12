@@ -89,7 +89,7 @@ class ReasoningPacket:
     raw: Dict[str, Any] = field(default_factory=dict)
 
 
-Strategy = Literal["debit_spread", "calendar", "straddle", "strangle", "none"]
+Strategy = Literal["debit_spread", "credit_spread", "iron_condor", "calendar", "straddle", "strangle", "none"]
 
 
 @dataclass(frozen=True)

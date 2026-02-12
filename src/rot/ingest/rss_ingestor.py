@@ -75,16 +75,23 @@ class RSSIngestor:
     Deduplication: reuses SeenStore. Since RSS items have static score=0 and
     num_comments=0, is_changed() returns True only on first encounter, giving
     exact-once semantics with zero changes to SeenStore.
+
+    Per-feed throttling: each feed has its own ``poll_interval_s``.
+    On every ``poll()`` call, feeds whose interval has not elapsed are
+    silently skipped — no network request, no log spam.
     """
 
     def __init__(
         self,
         feeds: List[RSSFeedConfig],
         state_path: str = "storage/seen_rss.json",
-        max_age_s: int = 7 * 24 * 3600,
+        max_age_s: int = 2 * 24 * 3600,
+        max_entries_per_feed: int = 50,
     ) -> None:
         self.feeds = feeds
+        self.max_entries_per_feed = max_entries_per_feed
         self.seen = SeenStore(path=state_path, max_age_s=max_age_s)
+        self._last_poll: dict[str, float] = {}  # label → epoch of last poll
 
     def poll(self) -> List[ThreadSnapshot]:
         now = int(time.time())
@@ -93,6 +100,12 @@ class RSSIngestor:
         self.seen.load()
 
         for feed_cfg in self.feeds:
+            # Per-feed throttle: skip if interval hasn't elapsed
+            last = self._last_poll.get(feed_cfg.label, 0.0)
+            if (now - last) < feed_cfg.poll_interval_s:
+                continue
+            self._last_poll[feed_cfg.label] = now
+
             try:
                 parsed = feedparser.parse(feed_cfg.url)
             except Exception as e:
@@ -103,6 +116,20 @@ class RSSIngestor:
             status = getattr(parsed, "status", None)
             bozo = getattr(parsed, "bozo", False)
             n_entries = len(parsed.entries) if parsed.entries else 0
+
+            # Skip feeds returning HTTP errors (dead feeds)
+            if isinstance(status, int) and status in (403, 404, 410):
+                log.warning(
+                    "RSS feed %s returned HTTP %d — skipping (url=%s)",
+                    feed_cfg.label, status, feed_cfg.url,
+                )
+                continue
+            if isinstance(status, int) and status >= 500:
+                log.warning(
+                    "RSS feed %s returned HTTP %d — server error, skipping",
+                    feed_cfg.label, status,
+                )
+                continue
 
             if bozo:
                 bozo_exc = getattr(parsed, "bozo_exception", "unknown")
@@ -122,7 +149,10 @@ class RSSIngestor:
 
             feed_title = getattr(parsed.feed, "title", feed_cfg.label) or feed_cfg.label
 
-            for entry in parsed.entries:
+            # Cap entries per feed to prevent bloat (e.g. DoD returns 500+)
+            entries = parsed.entries[:self.max_entries_per_feed]
+
+            for entry in entries:
                 item_id = f"rss_{_item_id(entry, feed_cfg.url)}"
 
                 # Dedup: RSS score/comments never change, so is_changed

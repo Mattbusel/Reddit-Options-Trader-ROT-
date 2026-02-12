@@ -4,6 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ROT - Reddit Options Trader{% endblock %}</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block meta_description %}ROT - Reddit Options Trader. Real-time AI-powered signal intelligence from Reddit, with options trade ideas, performance tracking, and market analysis.{% endblock %}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{% block canonical_url %}{{ request.url }}{% endblock %}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}ROT - Reddit Options Trader{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Real-time AI-powered options signal intelligence from Reddit. Track sentiment, analyze trades, and beat the market.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="ROT - Reddit Options Trader">
+    <meta property="og:image" content="{% block og_image %}{{ request.base_url }}og-image.svg{% endblock %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}ROT - Reddit Options Trader{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Real-time AI-powered options signal intelligence from Reddit.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.base_url }}og-image.svg{% endblock %}">
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#0f0f23">
+
+    <!-- Structured Data (JSON-LD) -->
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "ROT - Reddit Options Trader",
+        "url": "{{ request.base_url }}",
+        "description": "Real-time AI-powered options signal intelligence from Reddit"
+    }
+    </script>
+    {% endblock %}
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -45,13 +84,65 @@
 <body class="min-h-screen">
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/dashboard" class="flex items-center space-x-2">
+            <a href="/" class="flex items-center space-x-2">
                 <span class="text-2xl">&#128293;</span>
                 <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ROT</span>
                 <span class="text-sm text-gray-500">Reddit Options Trader</span>
             </a>
             <div class="flex items-center space-x-4 text-sm">
-                <a href="/dashboard" class="text-gray-400 hover:text-white transition">Signals</a>
+                <a href="/dashboard" class="text-gray-400 hover:text-white transition relative" id="nav-signals">
+                    Signals
+                    <span id="signal-badge" class="hidden ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold absolute -top-2 -right-4"></span>
+                </a>
+                <a href="/sports-tracker" class="text-gray-400 hover:text-white transition">Sports</a>
+                {% if user and user.tier in ('premium', 'ultra') %}
+                <a href="/performance" class="text-gray-400 hover:text-white transition">Performance</a>
+                {% endif %}
+                {% if user and user.tier == 'ultra' %}
+                <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
+                {% endif %}
+                <!-- Analytics Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Analytics <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
+                            <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
+                            <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Explore Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Explore <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/hall-of-legends" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Hall of Legends</a>
+                            <a href="/wall-of-shame" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Wall of Shame</a>
+                            <a href="/ceo-rap-sheet" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128373; CEO Rap Sheet</a>
+                            <a href="/glossary" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128218; Glossary of Degens</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tools Dropdown -->
+                <div class="relative group">
+                    <button class="text-gray-400 hover:text-white transition flex items-center gap-1">
+                        Tools <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-52 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="py-1">
+                            <a href="/paper-trading" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128184; Paper Trading</a>
+                            <a href="/correlations" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128279; Correlations</a>
+                            <a href="/unusual-activity" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128680; Unusual Activity</a>
+                            <a href="/badges" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127942; Badges & Streaks</a>
+                            <a href="/widgets" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#129513; Embed Widgets</a>
+                        </div>
+                    </div>
+                </div>
                 <a href="/pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
                 {% if user %}
                 <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
@@ -70,6 +161,7 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block breadcrumbs %}{% endblock %}
         {% block content %}{% endblock %}
     </main>
 
@@ -168,6 +260,26 @@
         }
 
         connectWS();
+
+        // Signal count badge - check for new signals periodically
+        {% if user %}
+        async function updateSignalBadge() {
+            try {
+                const resp = await fetch('/api/v1/signals/new-count');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const badge = document.getElementById('signal-badge');
+                    if (badge && data.count > 0) {
+                        badge.textContent = data.count > 99 ? '99+' : data.count;
+                        badge.classList.remove('hidden');
+                    }
+                }
+            } catch(e) {}
+        }
+        // Check on load, then every 60s
+        updateSignalBadge();
+        setInterval(updateSignalBadge, 60000);
+        {% endif %}
     </script>
 </body>
 </html>

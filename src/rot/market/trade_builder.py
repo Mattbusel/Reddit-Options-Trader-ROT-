@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from rot.core.types import Event, OptionLeg, ReasoningPacket, Strategy, TradeIdea
 from rot.market.gates import check_trade_gates
@@ -66,12 +66,13 @@ class TradeBuilder:
         if not price or price <= 0:
             return [self._no_trade(underlying, packet.thesis, ["no_price_data"])]
 
-        # Strategy selection
+        # Strategy selection (IV-aware)
         strategy, legs, expiry = self._select_strategy(
             stance=stance,
             horizon=horizon,
             price=price,
             underlying=underlying,
+            options_data=sym_data,
         )
 
         if strategy == "none":
@@ -83,6 +84,18 @@ class TradeBuilder:
         # Quality score based on confidence and evidence
         quality = self._quality_score(confidence, event, packet)
 
+        # Include IV context in trade meta
+        trade_meta: Dict[str, Any] = {
+            "stance": stance,
+            "horizon": horizon,
+            "llm_confidence": confidence,
+            "event_type": raw.get("event_type", event.event_type),
+        }
+        if sym_data.get("atm_iv"):
+            trade_meta["atm_iv"] = sym_data["atm_iv"]
+        if sym_data.get("pc_ratio"):
+            trade_meta["pc_ratio"] = sym_data["pc_ratio"]
+
         return [
             TradeIdea(
                 underlying=underlying,
@@ -92,12 +105,7 @@ class TradeBuilder:
                 thesis=packet.thesis,
                 time_stop=expiry,
                 quality_score=quality,
-                meta={
-                    "stance": stance,
-                    "horizon": horizon,
-                    "llm_confidence": confidence,
-                    "event_type": raw.get("event_type", event.event_type),
-                },
+                meta=trade_meta,
             )
         ]
 
@@ -107,8 +115,9 @@ class TradeBuilder:
         horizon: str,
         price: float,
         underlying: str,
+        options_data: Optional[Dict[str, Any]] = None,
     ) -> tuple[Strategy, List[OptionLeg], str]:
-        """Select options strategy based on stance and horizon."""
+        """Select options strategy based on stance, horizon, and IV environment."""
 
         if horizon == "intraday":
             expiry = _next_friday()
@@ -117,39 +126,78 @@ class TradeBuilder:
         else:
             expiry = _next_monthly()
 
+        # Determine IV regime from options data
+        high_iv = False
+        if options_data:
+            atm_iv = options_data.get("atm_iv")
+            if atm_iv and atm_iv > 0.5:  # >50% IV = high volatility
+                high_iv = True
+
         if stance == "bullish":
-            # Bull call spread: buy ATM call, sell OTM call
             atm = round(price, 0)
-            otm = round(price * 1.05, 0)
-            legs = [
-                OptionLeg(side="buy", kind="call", strike=atm, expiry=expiry, qty=1),
-                OptionLeg(side="sell", kind="call", strike=otm, expiry=expiry, qty=1),
-            ]
-            return "debit_spread", legs, expiry
+            if high_iv:
+                # High IV: bull put credit spread (sell premium)
+                otm = round(price * 0.95, 0)
+                legs = [
+                    OptionLeg(side="sell", kind="put", strike=atm, expiry=expiry, qty=1),
+                    OptionLeg(side="buy", kind="put", strike=otm, expiry=expiry, qty=1),
+                ]
+                return "credit_spread", legs, expiry
+            else:
+                # Low/normal IV: bull call debit spread (buy premium)
+                otm = round(price * 1.05, 0)
+                legs = [
+                    OptionLeg(side="buy", kind="call", strike=atm, expiry=expiry, qty=1),
+                    OptionLeg(side="sell", kind="call", strike=otm, expiry=expiry, qty=1),
+                ]
+                return "debit_spread", legs, expiry
 
         elif stance == "bearish":
-            # Bear put spread: buy ATM put, sell OTM put
             atm = round(price, 0)
-            otm = round(price * 0.95, 0)
-            legs = [
-                OptionLeg(side="buy", kind="put", strike=atm, expiry=expiry, qty=1),
-                OptionLeg(side="sell", kind="put", strike=otm, expiry=expiry, qty=1),
-            ]
-            return "debit_spread", legs, expiry
+            if high_iv:
+                # High IV: bear call credit spread (sell premium)
+                otm = round(price * 1.05, 0)
+                legs = [
+                    OptionLeg(side="sell", kind="call", strike=atm, expiry=expiry, qty=1),
+                    OptionLeg(side="buy", kind="call", strike=otm, expiry=expiry, qty=1),
+                ]
+                return "credit_spread", legs, expiry
+            else:
+                # Low/normal IV: bear put debit spread (buy premium)
+                otm = round(price * 0.95, 0)
+                legs = [
+                    OptionLeg(side="buy", kind="put", strike=atm, expiry=expiry, qty=1),
+                    OptionLeg(side="sell", kind="put", strike=otm, expiry=expiry, qty=1),
+                ]
+                return "debit_spread", legs, expiry
 
         elif stance == "mixed":
-            # Straddle for uncertain direction
             atm = round(price, 0)
-            legs = [
-                OptionLeg(side="buy", kind="call", strike=atm, expiry=expiry, qty=1),
-                OptionLeg(side="buy", kind="put", strike=atm, expiry=expiry, qty=1),
-            ]
-            return "straddle", legs, expiry
+            if high_iv:
+                # High IV: iron condor (sell premium on both sides)
+                call_sell = round(price * 1.05, 0)
+                call_buy = round(price * 1.10, 0)
+                put_sell = round(price * 0.95, 0)
+                put_buy = round(price * 0.90, 0)
+                legs = [
+                    OptionLeg(side="sell", kind="call", strike=call_sell, expiry=expiry, qty=1),
+                    OptionLeg(side="buy", kind="call", strike=call_buy, expiry=expiry, qty=1),
+                    OptionLeg(side="sell", kind="put", strike=put_sell, expiry=expiry, qty=1),
+                    OptionLeg(side="buy", kind="put", strike=put_buy, expiry=expiry, qty=1),
+                ]
+                return "iron_condor", legs, expiry
+            else:
+                # Low IV: straddle (buy premium for breakout)
+                legs = [
+                    OptionLeg(side="buy", kind="call", strike=atm, expiry=expiry, qty=1),
+                    OptionLeg(side="buy", kind="put", strike=atm, expiry=expiry, qty=1),
+                ]
+                return "straddle", legs, expiry
 
         return "none", [], expiry
 
     def _estimate_max_loss(self, strategy: Strategy, legs: List[OptionLeg], price: float) -> float:
-        if strategy == "debit_spread":
+        if strategy in ("debit_spread", "credit_spread"):
             # Max loss is width of spread (approximate)
             strikes = [leg.strike for leg in legs]
             if len(strikes) >= 2:
@@ -159,6 +207,11 @@ class TradeBuilder:
             return price * 0.03 * 100 * 2
         elif strategy == "strangle":
             return price * 0.02 * 100 * 2
+        elif strategy == "iron_condor":
+            # Max loss is wider wing width minus net credit
+            strikes = sorted([leg.strike for leg in legs])
+            if len(strikes) >= 4:
+                return abs(strikes[1] - strikes[0]) * 100
         return 0.0
 
     def _quality_score(self, confidence: float, event: Event, packet: ReasoningPacket) -> float:

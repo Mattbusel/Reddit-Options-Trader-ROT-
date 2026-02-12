@@ -24,6 +24,7 @@ _TIER_PRICE_MAP = {
     "pro": "pro_price_id",
     "premium": "premium_price_id",
     "ultra": "ultra_price_id",
+    "enterprise": "enterprise_price_id",
 }
 
 _PRICE_TO_TIER = {}  # populated at runtime from settings
@@ -49,6 +50,8 @@ def _build_price_to_tier(settings) -> dict:
         mapping[cfg.premium_price_id] = "premium"
     if cfg.ultra_price_id:
         mapping[cfg.ultra_price_id] = "ultra"
+    if cfg.enterprise_price_id:
+        mapping[cfg.enterprise_price_id] = "enterprise"
     return mapping
 
 

@@ -38,6 +38,7 @@ def main() -> None:
         rss_ingestor = RSSIngestor(
             feeds=feed_configs,
             state_path=f"{cfg.storage_root}/seen_rss.json",
+            max_entries_per_feed=cfg.rss.max_entries_per_feed,
         )
         ingestor = MultiSourceIngestor([reddit_ingestor, rss_ingestor])
         print(f"📡 RSS feeds: ACTIVE ({len(feed_configs)} feeds)")

@@ -15,6 +15,21 @@ from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.market.enricher import MarketEnricher
 from rot.market.symbol_validator import SymbolValidator
+from rot.core.types import ReasoningPacket, TradeIdea
+
+
+# Sources that are informational-only: no LLM reasoning, no trade ideas,
+# no confidence scoring. Government contracts and regulatory press releases
+# aren't tradeable signals — just news items.
+_INFORMATIONAL_ONLY_SOURCES = {
+    # Department of Defense
+    "dod-contracts", "dod-releases", "dod-news",
+    # FDA / Pharma regulatory
+    "fda-press-releases", "fda-drugs", "fda-safety-alerts",
+    "fda-recalls", "fda-oncology",
+    # Pharma industry news
+    "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
+}
 
 
 class PipelineRunner:
@@ -43,21 +58,45 @@ class PipelineRunner:
         self.symbol_validator = symbol_validator or SymbolValidator()
         self.top_n = top_n
         self.on_signal = on_signal
+        self._emitted_keys: set = set()  # (post_url, ticker) dedup
 
     def _emit_signal(self, signal_data: Dict[str, Any]) -> None:
-        if self.on_signal:
-            try:
-                self.on_signal(signal_data)
-            except Exception:
-                pass
+        if not self.on_signal:
+            return
+
+        # Extract dedup key from event dataclass
+        event = signal_data.get("event")
+        if event is None:
+            return
+
+        entities = event.entities if hasattr(event, "entities") else []
+        ticker = entities[0] if entities else "UNKNOWN"
+
+        evidence = event.evidence if hasattr(event, "evidence") else []
+        post_url = evidence[0].permalink if evidence else ""
+
+        dedup_key = (post_url, ticker)
+        if dedup_key in self._emitted_keys:
+            return  # Already emitted this signal
+
+        self._emitted_keys.add(dedup_key)
+
+        # Prevent unbounded memory growth
+        if len(self._emitted_keys) > 10_000:
+            self._emitted_keys.clear()
+
+        try:
+            self.on_signal(signal_data)
+        except Exception:
+            pass
 
     def run_once(self) -> dict:
         run_id = f"run_{int(time.time())}"
 
         # 1) ingest
         snapshots = self.ingestor.poll()
-        for s in snapshots:
-            self.log.write("snapshots", {"run_id": run_id, "snapshot": s})
+        # Note: raw snapshot logging removed to reduce JSONL volume
+        # (~150 entries/cycle × 4320 cycles/day was the largest JSONL stream)
 
         # Save trend store state after detection
         # 2) trend detect
@@ -170,9 +209,62 @@ class PipelineRunner:
 
         # 4) reason + ideas
         idea_count = 0
+        stub_count = 0
+        info_count = 0
         for e in scored:
+            # Informational-only sources (DoD, FDA, pharma): skip LLM reasoning
+            # and trade ideas. These are news items, not tradeable signals.
+            source = ""
+            is_rss = (e.meta or {}).get("flair") == "rss"
+            if is_rss and e.evidence:
+                source = (e.evidence[0].subreddit or "").lower()
+            if source in _INFORMATIONAL_ONLY_SOURCES:
+                info_count += 1
+                info_packet = ReasoningPacket(
+                    thesis=f"Informational: {e.evidence[0].excerpt[:150] if e.evidence else 'government/regulatory news'}",
+                    catalyst_window="N/A",
+                    market_expectation="informational only",
+                    invalidations=[],
+                    recommended_structures=[],
+                    risk_notes=["This is a government/regulatory news item, not a trade signal"],
+                    raw={"informational": True, "source": source},
+                )
+                no_trade = TradeIdea(
+                    underlying=e.entities[0] if e.entities else "N/A",
+                    strategy="none",
+                    legs=[],
+                    max_loss=0.0,
+                    thesis=info_packet.thesis,
+                    time_stop="N/A",
+                    quality_score=0.0,
+                    do_not_trade_reasons=["informational_source"],
+                )
+                # Override confidence to 0 — this is not a tradeable signal
+                e = dataclasses.replace(e, confidence=0.0)
+                self.log.write("events_informational", {"run_id": run_id, "event": e, "source": source})
+                self._emit_signal({
+                    "run_id": run_id,
+                    "event": e,
+                    "reasoning": info_packet,
+                    "trade_idea": no_trade,
+                })
+                continue
+
             packet = self.reasoner.reason(e)
             self.log.write("reasoning", {"run_id": run_id, "event": e, "packet": packet})
+
+            raw = packet.raw or {}
+            is_stub = bool(raw.get("stub"))
+            if is_stub:
+                stub_count += 1
+
+            # Merge LLM confidence back onto Event so the stored signal uses
+            # the LLM-calibrated value instead of the heuristic pre-LLM value.
+            # Stubs keep the heuristic confidence from the credibility scorer.
+            llm_confidence = raw.get("confidence")
+            if llm_confidence is not None and not raw.get("error") and not is_stub:
+                e = dataclasses.replace(e, confidence=float(llm_confidence))
+
             ideas = self.trade_builder.build(packet, e)
             for idea in ideas:
                 idea_count += 1
@@ -193,6 +285,8 @@ class PipelineRunner:
             "ticker_candidates": len(ticker_candidates),
             "ticker_candidate_count": ticker_candidate_count,
             "events": len(scored),
+            "stubs_skipped": stub_count,
+            "informational_only": info_count,
             "trade_ideas": idea_count,
             "top_signals": len(top_all),
             "top_ticker_signals": len(top_ticker_pairs),

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROT Widget — {{ ticker }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f0f23; color: #e0e0e0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; padding: 12px; font-size: 13px; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .ticker-badge { font-size: 16px; font-weight: 700; color: #fff; }
+        .powered { font-size: 10px; color: #6b7280; text-decoration: none; }
+        .powered:hover { color: #f97316; }
+        .signal-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; margin-bottom: 4px; background: rgba(30, 30, 50, 0.6); border: 1px solid rgba(75, 85, 99, 0.3); }
+        .stance { font-weight: 600; font-size: 12px; text-transform: uppercase; min-width: 60px; }
+        .bullish { color: #34d399; }
+        .bearish { color: #f87171; }
+        .mixed { color: #fbbf24; }
+        .unknown { color: #9ca3af; }
+        .conf-bar { width: 50px; height: 6px; background: #374151; border-radius: 3px; overflow: hidden; }
+        .conf-fill { height: 100%; border-radius: 3px; }
+        .meta { font-size: 11px; color: #9ca3af; }
+        .strategy { font-size: 11px; color: #818cf8; }
+        .empty { text-align: center; color: #6b7280; padding: 20px 0; font-size: 12px; }
+        a.view-all { display: block; text-align: center; margin-top: 8px; padding: 6px; background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 6px; color: #f97316; text-decoration: none; font-size: 11px; font-weight: 600; }
+        a.view-all:hover { background: rgba(249, 115, 22, 0.25); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="ticker-badge">${{ ticker }}</span>
+        <a href="{{ base_url }}" target="_blank" rel="noopener" class="powered">Powered by ROT</a>
+    </div>
+
+    {% if signals %}
+    {% for s in signals %}
+    <div class="signal-row">
+        <span class="stance {{ s.stance }}">{{ s.stance }}</span>
+        <span class="strategy">{{ s.strategy | replace('_', ' ') }}</span>
+        <div>
+            <div class="conf-bar">
+                <div class="conf-fill" style="width: {{ (s.confidence * 100)|round }}%; background: {% if s.confidence >= 0.7 %}#34d399{% elif s.confidence >= 0.4 %}#fbbf24{% else %}#f87171{% endif %};"></div>
+            </div>
+            <div class="meta">{{ (s.confidence * 100)|round }}%</div>
+        </div>
+    </div>
+    {% endfor %}
+    <a href="{{ base_url }}/dashboard?ticker={{ ticker }}" target="_blank" rel="noopener" class="view-all">View all {{ ticker }} signals on ROT &rarr;</a>
+    {% else %}
+    <div class="empty">No recent signals for {{ ticker }}</div>
+    {% endif %}
+</body>
+</html>

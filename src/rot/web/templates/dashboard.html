@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - ROT{% endblock %}
+{% block title %}Dashboard - ROT | Live Reddit Options Signals{% endblock %}
+{% block meta_description %}Track real-time options trading signals from Reddit. AI-powered analysis with confidence scoring, sentiment tracking, and trade ideas for options traders.{% endblock %}
+{% block og_title %}ROT Dashboard - Live Reddit Options Signals{% endblock %}
+{% block og_description %}Real-time AI-powered options signal intelligence from Reddit. Track sentiment, analyze trades, and spot opportunities.{% endblock %}
+{% block twitter_title %}ROT Dashboard - Live Reddit Options Signals{% endblock %}
+{% block twitter_description %}Real-time AI-powered options signal intelligence from Reddit.{% endblock %}
 
 {% block content %}
 <!-- Free Tier Banner -->
@@ -14,22 +19,87 @@
 </div>
 {% endif %}
 
+<!-- Data Retention Info Banner -->
+<div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+        <span class="text-blue-400 text-sm">&#128451;</span>
+        <span class="text-blue-300 text-sm">Signal data is retained for 14 days to keep costs low and your subscription affordable. Export via CSV or API to save permanently.</span>
+    </div>
+    <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+        {% if tier == 'free' %}
+        <a href="/pricing" class="px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition whitespace-nowrap">Upgrade for CSV Export</a>
+        {% else %}
+        <a href="#" onclick="exportFilteredCSV(); return false;" class="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition whitespace-nowrap">Export CSV</a>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Stats Bar -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
         <div class="text-3xl font-bold text-white">{{ summary.get('total_signals', 0) }}</div>
-        <div class="text-xs text-gray-500 mt-1">Last 30 days</div>
+        <div class="text-xs text-gray-500 mt-1">~{{ summary.get('daily_avg', 0) }}/day avg</div>
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Today</span>
+                <span class="text-white font-semibold">{{ summary.get('signals_today', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Last 7d</span>
+                <span class="text-white font-semibold">{{ summary.get('signals_7d', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Tickers</span>
+                <span class="text-blue-400 font-semibold">{{ summary.get('unique_tickers', 0) }}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Sources</span>
+                <span class="text-purple-400 font-semibold">{{ summary.get('unique_sources', 0) }}</span>
+            </div>
+        </div>
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tradeable</div>
         <div class="text-3xl font-bold text-green-400">{{ summary.get('tradeable_signals', 0) }}</div>
-        <div class="text-xs text-gray-500 mt-1">With strategy</div>
+        {% set total_s = summary.get('total_signals', 0) or 1 %}
+        {% set trade_pct = ((summary.get('tradeable_signals', 0) or 0) / total_s * 100)|round|int %}
+        <div class="text-xs text-gray-500 mt-1">{{ trade_pct }}% trade rate</div>
+        {% if strategy_breakdown %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Top Strategies</div>
+            {% for sb in strategy_breakdown %}
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">{{ sb.strategy|replace('_', ' ')|title }}</span>
+                <span class="text-blue-400 font-semibold">{{ sb.cnt }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
-        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format((summary.get('avg_confidence', 0) or 0) * 100) }}%</div>
+        {% set avg_conf = (summary.get('avg_confidence', 0) or 0) %}
+        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format(avg_conf * 100) }}%</div>
         <div class="text-xs text-gray-500 mt-1">Quality metric</div>
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Distribution</div>
+            {% set total_s = summary.get('total_signals', 0) or 1 %}
+            {% set high = summary.get('high_conf_count', 0) or 0 %}
+            {% set low = total_s - high %}
+            {% set high_pct = (high / total_s * 100)|round|int %}
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">&ge;50% conf</span>
+                <span class="text-green-400 font-semibold">{{ high }} <span class="text-gray-500">({{ high_pct }}%)</span></span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-400">&lt;50% conf</span>
+                <span class="text-yellow-400 font-semibold">{{ low }} <span class="text-gray-500">({{ 100 - high_pct }}%)</span></span>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2 mt-1 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-yellow-500 to-green-500" style="width: {{ [high_pct, 5]|max }}%"></div>
+            </div>
+        </div>
     </div>
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Sentiment Split</div>
@@ -41,6 +111,64 @@
             <span class="text-yellow-400">{{ summary.get('mixed_count', 0) }}</span>
         </div>
         <div class="text-xs text-gray-500 mt-1">Bull / Bear / Mix</div>
+        {% set bull = summary.get('bullish_count', 0) or 0 %}
+        {% set bear = summary.get('bearish_count', 0) or 0 %}
+        {% set mix = summary.get('mixed_count', 0) or 0 %}
+        {% set stotal = bull + bear + mix or 1 %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
+            <div class="w-full flex rounded-full h-2.5 overflow-hidden">
+                <div class="bg-green-500 h-full" style="width: {{ (bull / stotal * 100)|round }}%"></div>
+                <div class="bg-red-500 h-full" style="width: {{ (bear / stotal * 100)|round }}%"></div>
+                <div class="bg-yellow-500 h-full" style="width: {{ (mix / stotal * 100)|round }}%"></div>
+            </div>
+            {% set net = bull - bear %}
+            <div class="flex justify-between text-[10px] mt-1">
+                <span class="text-gray-500">Net sentiment</span>
+                <span class="font-semibold {{ 'text-green-400' if net > 0 else 'text-red-400' if net < 0 else 'text-gray-400' }}">
+                    {{ '+' if net > 0 }}{{ net }} {{ 'bullish' if net > 0 else 'bearish' if net < 0 else 'neutral' }}
+                </span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Bull ratio</span>
+                <span class="text-green-400 font-semibold">{{ "%.0f"|format(bull / stotal * 100) }}%</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="text-gray-500">Bear ratio</span>
+                <span class="text-red-400 font-semibold">{{ "%.0f"|format(bear / stotal * 100) }}%</span>
+            </div>
+        </div>
+    </div>
+    <!-- Signal Accuracy Tracker -->
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate ({{ perf_access.accuracy_days }}d)</div>
+        {% if (accuracy.winners or 0) > 0 or (accuracy.losers or 0) > 0 %}
+        <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-yellow-400' if accuracy.win_rate >= 30 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
+        <div class="text-xs text-gray-500 mt-1">{{ accuracy.winners or 0 }}W / {{ accuracy.losers or 0 }}L{% if accuracy.neutral %} / {{ accuracy.neutral }}N{% endif %}</div>
+        {% if accuracy_buckets %}
+        <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Win Rate by Confidence</div>
+            {% for b in accuracy_buckets %}
+            {% set wr = b.win_rate or 0 %}
+            {% set decided = (b.winners or 0) + (b.losers or 0) %}
+            <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-gray-400 w-10 shrink-0">{{ b.label }}</span>
+                {% if decided >= 3 %}
+                <div class="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
+                    <div class="h-full rounded-full {{ 'bg-green-500' if wr >= 55 else 'bg-yellow-500' if wr >= 40 else 'bg-red-500/70' }}" style="width: {{ [wr, 5]|max }}%"></div>
+                </div>
+                <span class="text-[10px] font-bold w-8 text-right {{ 'text-green-400' if wr >= 55 else 'text-yellow-400' if wr >= 40 else 'text-red-400' }}">{{ wr }}%</span>
+                {% else %}
+                <div class="flex-1"></div>
+                <span class="text-[10px] text-gray-600 w-8 text-right">&mdash;</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-3xl font-bold text-gray-600">&mdash;</div>
+        <div class="text-xs text-gray-500 mt-1">Awaiting price movement...</div>
+        {% endif %}
     </div>
 </div>
 
@@ -197,13 +325,15 @@
     const darkGrid = { color: 'rgba(75,85,99,0.2)' };
 
     // ── Quadrant Bubble Chart ──
+    const BUBBLE_RADIUS = 8;  // Fixed bubble size in pixels
+
     function makeBubbles(stance, color, borderColor) {
         return {
             label: stance.charAt(0).toUpperCase() + stance.slice(1),
             data: chartData.filter(d => d.dominant_stance === stance).map(d => ({
-                x: (d.avg_confidence || 0) * 100,
-                y: d.max_trend_score || 0,
-                r: Math.max(Math.sqrt(d.signal_count) * 6, 5),
+                x: Math.min(Math.max((d.avg_confidence || 0) * 100, 0), 100),
+                y: Math.max(d.max_trend_score || 0, 0),
+                r: BUBBLE_RADIUS,
                 ticker: d.ticker
             })),
             backgroundColor: color,
@@ -211,6 +341,10 @@
             borderWidth: 2
         };
     }
+
+    // Calculate the Y-axis max from data so bubbles stay within bounds
+    const allTrendScores = chartData.map(d => d.max_trend_score || 0);
+    const yMax = allTrendScores.length > 0 ? Math.ceil(Math.max(...allTrendScores) * 1.15 * 1000) / 1000 : 1;
 
     const quadrantChart = new Chart(document.getElementById('quadrantChart').getContext('2d'), {
         type: 'bubble',
@@ -223,6 +357,8 @@
         },
         options: {
             responsive: true, maintainAspectRatio: false,
+            layout: { padding: { top: BUBBLE_RADIUS, right: BUBBLE_RADIUS, bottom: BUBBLE_RADIUS, left: BUBBLE_RADIUS } },
+            clip: true,
             onClick: (e, items) => {
                 if (items.length > 0) {
                     const ds = items[0].datasetIndex;
@@ -239,7 +375,7 @@
             },
             scales: {
                 x: { title: { display: true, text: 'Confidence (%)', color: '#9ca3af' }, min: 0, max: 100, ticks: { color: '#9ca3af' }, grid: darkGrid },
-                y: { title: { display: true, text: 'Trend Score', color: '#9ca3af' }, min: 0, ticks: { color: '#9ca3af' }, grid: darkGrid }
+                y: { title: { display: true, text: 'Trend Score', color: '#9ca3af' }, min: 0, max: yMax, ticks: { color: '#9ca3af' }, grid: darkGrid }
             }
         }
     });
@@ -345,17 +481,57 @@
                 <option value="other" {{ 'selected' if filter_event == 'other' }}>Other</option>
             </select>
         </div>
+        <!-- Source -->
+        <div class="min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Source</label>
+            <select name="source" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All Sources</option>
+                <option value="defense" {{ 'selected' if filter_source == 'defense' }}>&#128737; Defense (DoD)</option>
+                <option value="pharma" {{ 'selected' if filter_source == 'pharma' }}>&#128138; Pharma (FDA)</option>
+                <option value="reddit" {{ 'selected' if filter_source == 'reddit' }}>&#128293; Reddit</option>
+                <option value="rss" {{ 'selected' if filter_source == 'rss' }}>&#128240; All RSS Feeds</option>
+                <option value="stocktwits" {{ 'selected' if filter_source == 'stocktwits' }}>&#128241; StockTwits</option>
+                <option value="twitter" {{ 'selected' if filter_source == 'twitter' }}>&#128038; Twitter/X</option>
+            </select>
+        </div>
         <!-- Min Confidence -->
         <div class="min-w-[100px]">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Min Conf %</label>
             <input type="number" name="min_confidence" value="{{ filter_confidence }}" placeholder="0" min="0" max="100" step="5"
                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
         </div>
+        {% if filter_access.has_date_range %}
+        <!-- Date Range (premium+) -->
+        <div class="min-w-[120px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Date Range</label>
+            <select name="date_range" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All Time</option>
+                <option value="24h" {{ 'selected' if filter_date_range == '24h' }}>Last 24h</option>
+                <option value="7d" {{ 'selected' if filter_date_range == '7d' }}>Last 7d</option>
+                <option value="30d" {{ 'selected' if filter_date_range == '30d' }}>Last 30d</option>
+            </select>
+        </div>
+        {% endif %}
+        {% if filter_access.has_saved_presets and filter_presets|length > 0 %}
+        <!-- Saved Presets (ultra) -->
+        <div class="min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Preset</label>
+            <select onchange="loadPreset(this.value)" class="w-full bg-gray-800 border border-amber-700/50 rounded-lg px-3 py-2 text-sm text-amber-400 focus:border-amber-500 focus:outline-none transition appearance-none">
+                <option value="">Select preset...</option>
+                {% for p in filter_presets %}
+                <option value="{{ loop.index0 }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <!-- Buttons -->
         <div class="flex space-x-2">
             <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">Filter</button>
             {% if has_filters %}
             <a href="/dashboard" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition">Clear</a>
+            {% endif %}
+            {% if filter_access.has_saved_presets %}
+            <button type="button" onclick="saveCurrentPreset()" class="px-4 py-2 rounded-lg bg-amber-900/40 hover:bg-amber-900/60 text-amber-400 border border-amber-700/50 text-sm transition" title="Save current filter as preset">Save</button>
             {% endif %}
         </div>
     </form>
@@ -376,7 +552,7 @@
             </h2>
             <div class="flex space-x-2 text-xs">
                 {% if tier != 'free' %}
-                <a href="/api/v1/signals/export" class="px-3 py-1 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition">Export CSV</a>
+                <a href="#" onclick="exportFilteredCSV(); return false;" class="px-3 py-1 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition">Export CSV</a>
                 {% endif %}
             </div>
         </div>
@@ -392,6 +568,16 @@
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center space-x-3 flex-wrap gap-y-2">
                         <span class="text-xl font-bold text-white tracking-tight">{{ s.ticker }}</span>
+                        {% if market_context.has_price_badge and s.market_data is mapping %}
+                        {% set md = s.market_data.get(s.ticker, {}) if s.market_data is mapping else {} %}
+                        {% if md.get('last_close') %}
+                        <span class="text-xs text-gray-400">${{ "%.2f"|format(md.last_close) }}
+                            {% if md.get('pct_1d') is not none %}
+                            <span class="{{ 'text-green-400' if md.pct_1d >= 0 else 'text-red-400' }}">{{ "%.1f"|format(md.pct_1d * 100) }}%</span>
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                        {% endif %}
                         <span class="badge border {{ stance_bg(s.stance) }} {{ stance_color(s.stance) }}">{{ s.stance }}</span>
                         <span class="badge bg-gray-700/70 text-gray-300">{{ s.event_type }}</span>
                         {% if s.strategy and s.strategy != 'none' %}
@@ -410,7 +596,15 @@
                 </div>
                 <p class="text-sm text-gray-300 leading-relaxed truncate mb-3">{{ s.post_title }}</p>
                 <div class="flex items-center justify-between text-xs text-gray-500">
-                    <span class="font-medium">r/{{ s.subreddit }}</span>
+                    {% if s.subreddit == 'stocktwits' %}
+                    <span class="font-medium text-purple-400">&#128202; StockTwits</span>
+                    {% elif s.subreddit == 'twitter' %}
+                    <span class="font-medium text-cyan-400">&#128038; Twitter/X</span>
+                    {% elif s.get('event_data', {}).get('flair') == 'rss' or s.subreddit in ('marketwatch-top', 'marketwatch-realtime', 'investing-com-stocks', 'yahoo-finance-top', 'cnbc-market', 'seekingalpha-currents') %}
+                    <span class="font-medium text-blue-400">&#128240; {{ s.subreddit }}</span>
+                    {% else %}
+                    <span class="font-medium text-orange-400">&#128293; r/{{ s.subreddit }}</span>
+                    {% endif %}
                     <span>{{ format_time(s.created_at) }}</span>
                 </div>
             </a>
@@ -485,6 +679,63 @@
             </div>
         </div>
 
+        <!-- Sector Heatmap -->
+        {% if heatmap_access.has_heatmap and heatmap_data %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128293; Sector Heatmap</h2>
+            <div class="grid grid-cols-2 gap-1.5">
+                {% for sector in heatmap_data %}
+                {% set total = (sector.bullish_count or 0) + (sector.bearish_count or 0) + (sector.mixed_count or 0) %}
+                {% set bull_ratio = (sector.bullish_count or 0) / total if total > 0 else 0.5 %}
+                {% if heatmap_access.has_drill_down %}
+                <a href="/dashboard?ticker=&event_type=&stance=&min_confidence=" title="{{ sector.tickers }}"
+                {% else %}
+                <div title="{{ sector.sector }}: {{ total }} signals"
+                {% endif %}
+                   class="rounded-lg p-2 text-center transition hover:opacity-80"
+                   {% set alpha = 0.2 + (sector.signal_count or 1) * 0.08 %}
+                   style="background: rgba({{ (248 * (1 - bull_ratio) + 74 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 222 * bull_ratio)|int }}, {{ (113 * (1 - bull_ratio) + 128 * bull_ratio)|int }}, {{ [alpha, 0.7]|min }});">
+                    <div class="text-xs font-semibold text-white truncate">{{ sector.sector or 'Unknown' }}</div>
+                    <div class="text-xs text-gray-300">{{ total }} sigs</div>
+                {% if heatmap_access.has_drill_down %}
+                </a>
+                {% else %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% elif heatmap_access.has_heatmap %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128293; Sector Heatmap</h2>
+            <p class="text-gray-500 text-xs">No sector data available yet. Sectors populate as signals are enriched with market data.</p>
+        </div>
+        {% endif %}
+
+        <!-- Correlation View -->
+        {% if corr_access.has_correlation and correlations %}
+        <div>
+            <h2 class="text-sm font-semibold text-white mb-3">&#128279; Correlated Tickers</h2>
+            <div class="space-y-1.5">
+                {% for pair in correlations[:8] %}
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-2 flex items-center justify-between">
+                    <div class="text-sm">
+                        <span class="text-white font-bold">{{ pair.ticker_a }}</span>
+                        <span class="text-gray-500 mx-1">&harr;</span>
+                        <span class="text-white font-bold">{{ pair.ticker_b }}</span>
+                    </div>
+                    <div class="text-xs">
+                        <span class="text-blue-400">{{ pair.co_occurrences }}x</span>
+                        {% if corr_access.has_strength_scores %}
+                        <span class="text-gray-500 ml-1">{{ "%.0f"|format((pair.avg_joint_confidence or 0) * 100) }}%</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- API Info -->
         <div class="mt-8 bg-gray-800/30 border border-gray-700 rounded-lg p-4">
             <h3 class="text-sm font-semibold text-white mb-2">API Endpoints</h3>
@@ -492,6 +743,9 @@
                 <p>GET /api/v1/signals</p>
                 <p>GET /api/v1/tickers/trending</p>
                 <p>GET /api/v1/signals/export</p>
+                <p>GET /api/v1/leaderboard</p>
+                <p>GET /api/v1/correlations</p>
+                <p>GET /api/v1/performance/accuracy</p>
                 <p>WS /api/v1/signals/live</p>
                 <p>GET /api/v1/health</p>
             </div>
@@ -570,6 +824,23 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 .signal-new {
     animation: signal-flash 2s ease-out;
 }
+/* Toast notification */
+.toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: rgba(31,31,51,0.95);
+    border: 1px solid rgba(74,222,128,0.5);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: #e0e0e0;
+    font-size: 14px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s;
+    animation-fill-mode: forwards;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 </style>
 <script>
 (function() {
@@ -692,5 +963,99 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
     // Start polling after initial page load
     setTimeout(pollSignals, POLL_INTERVAL);
 })();
+
+// ── Toast Notifications (pro+) ──
+{% if tier != 'free' %}
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+{% endif %}
+
+// ── Filter Presets (ultra) ──
+{% if filter_access.has_saved_presets %}
+const filterPresets = {{ filter_presets|tojson|safe }};
+
+function loadPreset(index) {
+    if (index === '') return;
+    const preset = filterPresets[parseInt(index)];
+    if (!preset) return;
+    const params = new URLSearchParams();
+    if (preset.ticker) params.set('ticker', preset.ticker);
+    if (preset.stance) params.set('stance', preset.stance);
+    if (preset.event_type) params.set('event_type', preset.event_type);
+    if (preset.min_confidence) params.set('min_confidence', preset.min_confidence);
+    if (preset.date_range) params.set('date_range', preset.date_range);
+    window.location.href = '/dashboard?' + params.toString();
+}
+
+async function saveCurrentPreset() {
+    const name = prompt('Preset name:');
+    if (!name) return;
+    const form = document.getElementById('filter-form');
+    const fd = new FormData(form);
+    try {
+        const resp = await fetch('/api/v1/auth/filter-presets', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                ticker: fd.get('ticker') || '',
+                stance: fd.get('stance') || '',
+                event_type: fd.get('event_type') || '',
+                min_confidence: fd.get('min_confidence') || '',
+                date_range: fd.get('date_range') || '',
+            })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('Preset saved: ' + name);
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(data.detail || 'Error saving preset');
+        }
+    } catch(e) { console.error('Preset error:', e); }
+}
+{% endif %}
+
+// ── Filtered CSV Export ──
+function exportFilteredCSV() {
+    const form = document.getElementById('filter-form');
+    const fd = new FormData(form);
+    const params = new URLSearchParams();
+
+    const ticker = (fd.get('ticker') || '').trim();
+    if (ticker) params.set('ticker', ticker);
+
+    const stance = fd.get('stance') || '';
+    if (stance) params.set('stance', stance);
+
+    const eventType = fd.get('event_type') || '';
+    if (eventType) params.set('event_type', eventType);
+
+    const source = fd.get('source') || '';
+    if (source) params.set('source', source);
+
+    const minConf = fd.get('min_confidence') || '';
+    if (minConf) {
+        // Dashboard sends as percentage (0-100), export expects 0-1 float
+        params.set('min_confidence', (parseFloat(minConf) / 100).toFixed(2));
+    }
+
+    const dateRange = fd.get('date_range') || '';
+    if (dateRange) {
+        const now = Math.floor(Date.now() / 1000);
+        const rangeMap = {'24h': 86400, '7d': 604800, '30d': 2592000};
+        if (rangeMap[dateRange]) {
+            params.set('date_from', now - rangeMap[dateRange]);
+        }
+    }
+
+    const qs = params.toString();
+    window.location.href = '/api/v1/signals/export' + (qs ? '?' + qs : '');
+}
 </script>
 {% endblock %}

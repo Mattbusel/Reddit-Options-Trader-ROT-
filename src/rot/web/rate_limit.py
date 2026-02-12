@@ -13,6 +13,7 @@ _DEFAULT_LIMITS = {
     "pro": 5000,
     "premium": 25000,
     "ultra": 50000,
+    "enterprise": 500000,
 }
 
 

@@ -16,7 +16,7 @@ router = APIRouter()
 _clients: Set[WebSocket] = set()
 MAX_WS_CLIENTS = 200
 
-_PAID_TIERS = ("pro", "premium", "ultra")
+_PAID_TIERS = ("pro", "premium", "ultra", "enterprise")
 
 
 def _jsonable(obj: Any) -> Any:

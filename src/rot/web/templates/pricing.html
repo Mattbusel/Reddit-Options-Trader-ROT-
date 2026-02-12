@@ -1,6 +1,87 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing - ROT{% endblock %}
+{% block title %}Pricing - ROT | Free, Pro, Premium, Ultra & Enterprise Plans{% endblock %}
+{% block meta_description %}Choose your ROT plan. Free tier with delayed signals, or upgrade for real-time alerts, performance tracking, AI analysis, and custom webhooks. Enterprise data licensing available.{% endblock %}
+{% block og_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
+{% block og_description %}Free, Pro ($9.99), Premium ($29.99), Ultra ($49.99), and Enterprise ($499) plans for real-time Reddit options intelligence.{% endblock %}
+{% block twitter_title %}ROT Pricing - Reddit Options Signal Plans{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+[
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "ROT Pro Plan",
+        "description": "Real-time Reddit options signals with full AI analysis, trade legs, WebSocket feed, and CSV export",
+        "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "ROT Premium Plan",
+        "description": "Extended signal charts, strategy breakdown, custom subreddits, and priority support",
+        "offers": {"@type": "Offer", "price": "29.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "ROT Ultra Plan",
+        "description": "Full platform access with live badges, custom time ranges, chart export, and early feature access",
+        "offers": {"@type": "Offer", "price": "49.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "ROT Enterprise Plan",
+        "description": "Full data licensing, sponsored signal analysis, 500K API calls/day, bulk CSV/JSON exports for quant funds and researchers",
+        "offers": {"@type": "Offer", "price": "499.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "How much does ROT cost?",
+                "acceptedAnswer": {"@type": "Answer", "text": "ROT offers a free tier with delayed signals, plus paid plans: Pro at $9.99/mo, Premium at $29.99/mo, and Ultra at $49.99/mo. All paid plans include real-time signals and AI-powered analysis."}
+            },
+            {
+                "@type": "Question",
+                "name": "What is BYOK (Bring Your Own Key)?",
+                "acceptedAnswer": {"@type": "Answer", "text": "BYOK means you provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI-powered signal reasoning. ROT handles the signal pipeline and infrastructure, you control your AI costs."}
+            },
+            {
+                "@type": "Question",
+                "name": "What is included in the free tier?",
+                "acceptedAnswer": {"@type": "Answer", "text": "The free tier includes 15-minute delayed signals, 10 signals per page, 100 API calls per day, thesis preview, and basic stance charts. Full analysis, trade legs, and real-time features require a paid plan."}
+            },
+            {
+                "@type": "Question",
+                "name": "Can I upgrade or downgrade my plan?",
+                "acceptedAnswer": {"@type": "Answer", "text": "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately and billing is prorated."}
+            }
+        ]
+    }
+]
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">Pricing</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="text-center mb-12">
@@ -27,6 +108,9 @@
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No trade legs</span></li>
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No WebSocket feed</span></li>
             <li class="flex items-start space-x-2"><span class="text-gray-600 mt-0.5">&#10007;</span><span class="text-gray-500">No CSV export</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Paper trading ($10K virtual)</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Badges &amp; streaks</span></li>
+            <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Embeddable widgets</span></li>
         </ul>
         <div class="mt-6">
             {% if tier == 'free' %}
@@ -61,6 +145,14 @@
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>WebSocket live feed</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>CSV export</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>BYOK AI reasoning</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Correlation engine (30d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-400 mt-0.5">&#10003;</span>
+                <span class="text-blue-300">Unusual activity feed (24h)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'pro' %}
@@ -96,6 +188,14 @@
             </li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 5)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority support</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Correlation engine (90d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-purple-400 mt-0.5">&#10003;</span>
+                <span class="text-purple-300">Unusual activity (48h + detail)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'premium' %}
@@ -134,6 +234,14 @@
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Custom subreddits (up to 20)</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Priority Discord channel</span></li>
             <li class="flex items-start space-x-2"><span class="text-green-400 mt-0.5">&#10003;</span><span>Early access to features</span></li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Correlation engine (365d)</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-amber-400 mt-0.5">&#10003;</span>
+                <span class="text-amber-300">Unusual activity (7d + history)</span>
+            </li>
         </ul>
         <div class="mt-6">
             {% if tier == 'ultra' %}
@@ -149,9 +257,58 @@
     </div>
 </div>
 
+<!-- Enterprise -->
+<div class="max-w-4xl mx-auto mt-8">
+    <div class="signal-card rounded-xl p-8 relative" style="border-color: rgba(16, 185, 129, 0.5); border-width: 2px;">
+        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white text-xs font-bold px-5 py-1 rounded-full tracking-widest">ENTERPRISE</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-emerald-400">Enterprise</h2>
+                <div class="text-4xl font-bold text-white mt-2">$499<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <p class="text-gray-400 text-sm mt-2">For quant funds, researchers &amp; data providers</p>
+                <p class="text-emerald-400/60 text-xs mt-1">Custom volume pricing available &mdash; <a href="mailto:mattbusel@gmail.com" class="text-emerald-400 hover:underline">contact us</a> for $999+/yr annual deals</p>
+            </div>
+            <div>
+                <ul class="space-y-3 text-sm text-gray-300">
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Everything in Ultra</span></li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>500,000 API calls/day</span></li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Data Licensing &mdash; bulk CSV/JSON exports</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Full historical signal + accuracy datasets</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-emerald-400 mt-0.5">&#10003;</span>
+                        <span class="text-emerald-300">Sponsored Signals &mdash; priority IR analysis</span>
+                    </li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Enterprise dashboard &amp; usage analytics</span></li>
+                    <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Dedicated support &amp; onboarding</span></li>
+                </ul>
+            </div>
+            <div class="flex flex-col items-center justify-center gap-3">
+                {% if tier == 'enterprise' %}
+                <div class="w-full text-center py-3 px-6 rounded-lg bg-emerald-900/30 text-emerald-400 border border-emerald-700 text-sm font-semibold">Current Plan</div>
+                <a href="/enterprise" class="text-emerald-400 hover:text-emerald-300 text-sm hover:underline transition">Go to Enterprise Dashboard &rarr;</a>
+                {% elif stripe_enabled and user %}
+                <button onclick="checkout('enterprise')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Upgrade to Enterprise</button>
+                <a href="/enterprise" class="text-gray-400 hover:text-emerald-400 text-sm hover:underline transition">Learn more &rarr;</a>
+                {% elif not user %}
+                <a href="/register" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Sign Up</a>
+                <a href="/enterprise" class="text-gray-400 hover:text-emerald-400 text-sm hover:underline transition">Learn more &rarr;</a>
+                {% else %}
+                <a href="/enterprise" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition text-lg">Learn More</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart Feature Comparison -->
 <div class="max-w-4xl mx-auto mt-12">
-    <h3 class="text-xl font-semibold text-white text-center mb-6">Visualization Features by Plan</h3>
+    <h3 class="text-xl font-semibold text-white text-center mb-6">Features by Plan</h3>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -161,11 +318,13 @@
                     <th class="text-center py-3 px-4 text-blue-400 font-semibold">Pro</th>
                     <th class="text-center py-3 px-4 text-purple-400 font-semibold">Premium</th>
                     <th class="text-center py-3 px-4 text-amber-400 font-semibold">Ultra</th>
+                    <th class="text-center py-3 px-4 text-emerald-400 font-semibold">Enterprise</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Stance distribution chart</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
@@ -177,11 +336,13 @@
                     <td class="py-3 px-4 text-center text-green-400">24h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Signal volume timeline</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">24h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                     <td class="py-3 px-4 text-center text-green-400">48h</td>
                 </tr>
@@ -191,12 +352,14 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Custom time range</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
@@ -205,6 +368,7 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
                 </tr>
                 <tr>
                     <td class="py-3 px-4 text-gray-300">Live indicator badge</td>
@@ -212,6 +376,71 @@
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
                     <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Data licensing (bulk export)</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Sponsored signal analysis</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-emerald-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Embeddable widgets</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Paper trading</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Achievement badges &amp; streaks</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                    <td class="py-3 px-4 text-center text-green-400">&#10003;</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Correlation engine</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">30d</td>
+                    <td class="py-3 px-4 text-center text-green-400">90d</td>
+                    <td class="py-3 px-4 text-center text-green-400">365d</td>
+                    <td class="py-3 px-4 text-center text-green-400">365d</td>
+                </tr>
+                <tr>
+                    <td class="py-3 px-4 text-gray-300">Unusual activity feed</td>
+                    <td class="py-3 px-4 text-center text-gray-600">&#10007;</td>
+                    <td class="py-3 px-4 text-center text-green-400">24h</td>
+                    <td class="py-3 px-4 text-center text-green-400">48h</td>
+                    <td class="py-3 px-4 text-center text-green-400">7d</td>
+                    <td class="py-3 px-4 text-center text-green-400">30d</td>
+                </tr>
+                <tr class="bg-blue-900/10">
+                    <td class="py-3 px-4 text-gray-300">Signal data retention</td>
+                    <td class="py-3 px-4 text-center text-gray-400 text-xs">14 days</td>
+                    <td class="py-3 px-4 text-center text-blue-400 text-xs">14d + CSV</td>
+                    <td class="py-3 px-4 text-center text-purple-400 text-xs">14d + CSV + API</td>
+                    <td class="py-3 px-4 text-center text-amber-400 text-xs">14d + CSV + API</td>
+                    <td class="py-3 px-4 text-center text-emerald-400 text-xs">14d + CSV + API + Bulk</td>
                 </tr>
             </tbody>
         </table>
@@ -230,6 +459,73 @@
         This keeps subscription costs low and gives you full control over your AI spend.
         Configure your API key in <a href="/account" class="text-orange-400 hover:text-orange-300 hover:underline transition">Account Settings</a> after subscribing.
     </p>
+</div>
+
+<!-- Data Retention Explainer -->
+<div class="max-w-3xl mx-auto mt-8 signal-card rounded-xl p-6" style="border-color: rgba(59, 130, 246, 0.3);">
+    <h3 class="text-lg font-semibold text-white mb-3 flex items-center space-x-2">
+        <span>&#128451;</span>
+        <span>Why We Purge Old Data</span>
+    </h3>
+    <p class="text-gray-400 text-sm mb-3 leading-relaxed">
+        We automatically clean up signal data older than 14 days to keep our infrastructure lean.
+        This lets us charge <span class="text-white font-semibold">significantly less</span> than competitors who store data indefinitely &mdash;
+        savings we pass directly to you through lower monthly prices.
+    </p>
+    <p class="text-gray-400 text-sm mb-4 leading-relaxed">
+        Need to keep your data longer? Use <span class="text-blue-400 font-semibold">CSV export</span> (Pro+) to download signals anytime,
+        or connect via our <span class="text-blue-400 font-semibold">REST API</span> to automatically pull data into your own database, spreadsheets, or trading tools.
+    </p>
+    <div class="flex items-center space-x-4">
+        {% if tier == 'free' %}
+        <a href="#plans" class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade for CSV Export</a>
+        {% endif %}
+        <a href="/account" class="text-blue-400 hover:text-blue-300 text-sm hover:underline transition">Set up API access &rarr;</a>
+    </div>
+</div>
+
+<!-- Why ROT -->
+<div class="max-w-5xl mx-auto mt-12">
+    <h3 class="text-xl font-semibold text-white text-center mb-6">Why Traders Choose ROT</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="text-center signal-card rounded-xl p-5">
+            <div class="text-2xl mb-2">&#9889;</div>
+            <div class="text-white font-semibold mb-1">Speed</div>
+            <p class="text-gray-400 text-sm">Signals generated within seconds of Reddit posts trending</p>
+        </div>
+        <div class="text-center signal-card rounded-xl p-5">
+            <div class="text-2xl mb-2">&#127919;</div>
+            <div class="text-white font-semibold mb-1">Accuracy</div>
+            <p class="text-gray-400 text-sm">Multi-factor credibility scoring with subreddit weighting</p>
+        </div>
+        <div class="text-center signal-card rounded-xl p-5">
+            <div class="text-2xl mb-2">&#128200;</div>
+            <div class="text-white font-semibold mb-1">Transparency</div>
+            <p class="text-gray-400 text-sm">Every signal tracked with 1h, 4h, 1d, 1w price snapshots</p>
+        </div>
+    </div>
+</div>
+
+<!-- Explore Free Content -->
+<div class="max-w-5xl mx-auto mt-12 border-t border-gray-800 pt-8">
+    <h3 class="text-lg font-semibold text-white text-center mb-4">Explore Free Content</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition text-center">
+            <div class="text-lg mb-1">&#127942;</div>
+            <div class="text-sm font-semibold text-white">Hall of Legends</div>
+            <p class="text-xs text-gray-400 mt-1">Greatest trades in history</p>
+        </a>
+        <a href="/glossary" class="signal-card rounded-xl p-4 block hover:border-blue-700 transition text-center">
+            <div class="text-lg mb-1">&#128218;</div>
+            <div class="text-sm font-semibold text-white">Glossary of Degens</div>
+            <p class="text-xs text-gray-400 mt-1">75 trading terms explained</p>
+        </a>
+        <a href="/ceo-rap-sheet" class="signal-card rounded-xl p-4 block hover:border-red-700 transition text-center">
+            <div class="text-lg mb-1">&#128373;</div>
+            <div class="text-sm font-semibold text-white">CEO Rap Sheet</div>
+            <p class="text-xs text-gray-400 mt-1">Corporate scandal tracker</p>
+        </a>
+    </div>
 </div>
 
 {% if stripe_enabled %}

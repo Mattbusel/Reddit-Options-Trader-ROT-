@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from rot.alerts.discord import DiscordAlerter
+from rot.alerts.webhook import WebhookAlerter
 
 log = logging.getLogger(__name__)
 
@@ -25,17 +26,21 @@ class AlertDispatcher:
         discord_webhook_url: str | None = None,
         min_confidence: float = 0.6,
         dashboard_url: str = "",
+        db=None,
+        email_alerter=None,
     ) -> None:
         self.min_confidence = min_confidence
         self.dashboard_url = dashboard_url
         self._channels: List[DiscordAlerter] = []
+        self._db = db
+        self._email_alerter = email_alerter
 
         if discord_webhook_url:
             self._channels.append(DiscordAlerter(discord_webhook_url))
 
     @property
     def has_channels(self) -> bool:
-        return len(self._channels) > 0
+        return len(self._channels) > 0 or self._db is not None
 
     async def dispatch(self, signal_data: Dict[str, Any]) -> None:
         """Dispatch a signal to all configured channels if it meets confidence threshold."""
@@ -53,14 +58,45 @@ class AlertDispatcher:
 
         entities = event.get("entities", [])
         ticker = entities[0] if entities else "UNKNOWN"
+        stance = event.get("stance", "unknown")
+        event_type = event.get("event_type", "other")
 
         log.info(
-            "Dispatching alert for %s (confidence=%.2f, strategy=%s)",
-            ticker, confidence, strategy,
+            "Dispatching alert for %s (confidence=%.2f, strategy=%s, stance=%s)",
+            ticker, confidence, strategy, stance,
         )
 
+        # Discord alerts
         for channel in self._channels:
             try:
                 await channel.send_signal(signal_data, dashboard_url=self.dashboard_url)
             except Exception as e:
                 log.error("Alert dispatch failed: %s", e)
+
+        # Webhook alerts (ultra users)
+        if self._db:
+            try:
+                await self._dispatch_webhooks(signal_data, ticker, stance, confidence, event_type)
+            except Exception as e:
+                log.error("Webhook dispatch failed: %s", e)
+
+        # Note: Real-time email alerts removed to conserve email quota.
+        # Users receive signals via daily digest instead.
+
+    async def _dispatch_webhooks(
+        self, signal_data: Dict[str, Any], ticker: str, stance: str,
+        confidence: float, event_type: str
+    ) -> None:
+        """Send signal to all configured webhook URLs for matching users."""
+        if not self._db:
+            return
+
+        users = await self._db.get_users_for_realtime_alert(ticker, stance, confidence, event_type)
+        for u in users:
+            webhook_url = u.get("webhook_url", "")
+            if webhook_url:
+                try:
+                    await WebhookAlerter.send_webhook(webhook_url, signal_data)
+                except Exception as e:
+                    log.error("Webhook to %s failed: %s", webhook_url, e)
+

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}{{ symbol }} - Ticker Deep Dive{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="flex items-center gap-3 mb-1">
+                <h1 class="text-4xl font-bold text-white">{{ symbol }}</h1>
+                <span class="px-3 py-1 rounded-lg text-sm font-bold border {{ stance_bg.get(consensus, 'bg-gray-900/30 border-gray-700') }} {{ stance_colors.get(consensus, 'text-gray-400') }}">
+                    {{ consensus|upper }}
+                </span>
+                {% if market_data.get('price') %}
+                <span class="text-lg text-gray-300">${{ "%.2f"|format(market_data.price) }}</span>
+                {% endif %}
+            </div>
+            <p class="text-gray-500 text-sm">Everything ROT knows about {{ symbol }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/sentiment" class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 text-xs hover:text-white transition">
+                &#128200; Heatmap
+            </a>
+            <a href="/dashboard" class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 text-xs hover:text-white transition">
+                &#128202; Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold {{ stance_colors.get(consensus, 'text-gray-400') }}">{{ total_signals }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Signals</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-400">{{ avg_confidence }}%</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Confidence</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ bull_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Bullish</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-red-400">{{ bear_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Bearish</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-yellow-400">{{ mixed_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Mixed</div>
+        </div>
+    </div>
+
+    <!-- Signal Frequency Row -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-orange-400">{{ count_24h }}</div>
+            <div class="text-xs text-gray-500 mt-1">Last 24h</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-orange-400">{{ count_7d }}</div>
+            <div class="text-xs text-gray-500 mt-1">Last 7 days</div>
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-orange-400">{{ count_30d }}</div>
+            <div class="text-xs text-gray-500 mt-1">Last 30 days</div>
+        </div>
+    </div>
+
+    <!-- Consensus Breakdown Bar -->
+    {% if total_signals > 0 %}
+    <div class="stat-card rounded-xl p-4">
+        <h2 class="text-sm font-semibold text-white mb-3">Sentiment Breakdown</h2>
+        <div class="flex rounded-full overflow-hidden h-4 bg-gray-800">
+            {% if bull_count > 0 %}
+            <div class="bg-green-500 transition-all" style="width: {{ (bull_count / total_signals * 100)|int }}%"
+                 title="{{ bull_count }} bullish ({{ (bull_count / total_signals * 100)|int }}%)"></div>
+            {% endif %}
+            {% if mixed_count > 0 %}
+            <div class="bg-yellow-500 transition-all" style="width: {{ (mixed_count / total_signals * 100)|int }}%"
+                 title="{{ mixed_count }} mixed ({{ (mixed_count / total_signals * 100)|int }}%)"></div>
+            {% endif %}
+            {% if bear_count > 0 %}
+            <div class="bg-red-500 transition-all" style="width: {{ (bear_count / total_signals * 100)|int }}%"
+                 title="{{ bear_count }} bearish ({{ (bear_count / total_signals * 100)|int }}%)"></div>
+            {% endif %}
+        </div>
+        <div class="flex justify-between mt-2 text-xs text-gray-500">
+            <span class="text-green-400">{{ (bull_count / total_signals * 100)|int }}% bullish</span>
+            <span class="text-yellow-400">{{ (mixed_count / total_signals * 100)|int }}% mixed</span>
+            <span class="text-red-400">{{ (bear_count / total_signals * 100)|int }}% bearish</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confidence Chart (Pro+) -->
+    {% if access.has_chart %}
+    <div class="chart-container">
+        <h2 class="text-sm font-semibold text-white mb-3">Confidence Over Time</h2>
+        {% if chart_data %}
+        <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="confidenceChart"></canvas>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+            <p class="text-sm">Not enough data points for chart</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="stat-card rounded-xl p-6 text-center locked-overlay">
+        <div class="relative z-10">
+            <p class="text-orange-400 text-sm font-semibold mb-1">&#128274; Confidence Chart</p>
+            <p class="text-gray-400 text-xs">Upgrade to Pro to see confidence trends over time</p>
+            <a href="/pricing" class="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition">Upgrade to Pro</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Signal Feed -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Recent Signals</h2>
+            <span class="text-xs text-gray-500">
+                Showing {{ signals|length }} of {{ total_signals }}
+                {% if signals|length < total_signals %}
+                ({{ access.max_signals }} max for {{ tier|upper }})
+                {% endif %}
+            </span>
+        </div>
+
+        {% if signals %}
+        <div class="space-y-3">
+            {% for signal in signals %}
+            <div class="signal-card rounded-xl p-4 fade-in" style="animation-delay: {{ loop.index * 30 }}ms">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        {% set s_stance = signal.get('stance', 'unknown') %}
+                        <span class="px-2 py-0.5 rounded text-xs border font-semibold
+                            {% if s_stance == 'bullish' %}text-green-400 bg-green-900/30 border-green-700
+                            {% elif s_stance == 'bearish' %}text-red-400 bg-red-900/30 border-red-700
+                            {% elif s_stance == 'mixed' %}text-yellow-400 bg-yellow-900/30 border-yellow-700
+                            {% else %}text-gray-400 bg-gray-900/30 border-gray-700{% endif %}">
+                            {{ s_stance|upper }}
+                        </span>
+                        <span class="text-sm text-gray-400">{{ (signal.get('confidence', 0) * 100)|int }}% confidence</span>
+                        {% if signal.get('created_at') %}
+                        <span class="text-xs text-gray-600">{{ time_ago(signal.created_at) }}</span>
+                        {% endif %}
+                    </div>
+                    {% if signal.get('event_type') %}
+                    <span class="text-xs text-gray-600 bg-gray-800 px-2 py-0.5 rounded">{{ signal.event_type }}</span>
+                    {% endif %}
+                </div>
+
+                {% if signal.get('thesis') %}
+                <p class="text-sm text-gray-300 mb-2">{{ signal.thesis }}</p>
+                {% endif %}
+
+                {% if signal.get('strategy') and signal.strategy != 'none' %}
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs text-gray-500">Strategy:</span>
+                    <span class="text-xs text-blue-400 font-semibold">{{ signal.strategy|upper }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if signals|length >= access.max_signals and tier != 'ultra' %}
+        <div class="text-center py-4 mt-4 bg-orange-900/10 border border-orange-700/30 rounded-xl">
+            <p class="text-orange-400 text-sm font-semibold mb-1">&#128274; Showing {{ access.max_signals }} signals ({{ tier|upper }} limit)</p>
+            <p class="text-gray-400 text-xs">Upgrade to see more signal history</p>
+            <a href="/pricing" class="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition">Upgrade</a>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-12 text-gray-500">
+            <div class="text-4xl mb-3">&#128269;</div>
+            <p class="text-lg">No signals found for {{ symbol }}</p>
+            <p class="text-sm mt-1">Check back later — ROT is always scanning Reddit.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center text-gray-600 text-xs mt-8">
+        <p>Signal data sourced from Reddit analysis. Not financial advice.</p>
+    </div>
+
+</div>
+
+{% if access.has_chart and chart_data %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartData = {{ chart_data|tojson }};
+    const ctx = document.getElementById('confidenceChart').getContext('2d');
+
+    const stanceColors = {
+        bullish: 'rgba(74, 222, 128, 0.8)',
+        bearish: 'rgba(248, 113, 113, 0.8)',
+        mixed: 'rgba(250, 204, 21, 0.8)',
+        unknown: 'rgba(156, 163, 175, 0.8)',
+    };
+
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Confidence',
+                data: chartData.map(d => ({x: d.x, y: d.y})),
+                pointBackgroundColor: chartData.map(d => stanceColors[d.stance] || stanceColors.unknown),
+                pointBorderColor: 'transparent',
+                pointRadius: 6,
+                pointHoverRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const d = chartData[ctx.dataIndex];
+                            return `${d.stance} — ${d.y}% confidence`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Time', color: '#6b7280' },
+                    ticks: {
+                        color: '#6b7280',
+                        callback: function(value) {
+                            return new Date(value).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+                        }
+                    },
+                    grid: { color: 'rgba(75, 85, 99, 0.2)' }
+                },
+                y: {
+                    min: 0, max: 100,
+                    title: { display: true, text: 'Confidence %', color: '#6b7280' },
+                    ticks: { color: '#6b7280' },
+                    grid: { color: 'rgba(75, 85, 99, 0.2)' }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

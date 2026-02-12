@@ -6,6 +6,30 @@ from typing import Dict
 from rot.core.types import Event
 
 
+_SUBREDDIT_WEIGHTS: Dict[str, float] = {
+    "wallstreetbets": -0.10,
+    "wallstreetbetsogs": -0.05,
+    "shortsqueeze": -0.10,
+    "pennystocks": -0.10,
+    "stocks": 0.0,
+    "options": 0.05,
+    "investing": 0.05,
+    "stockmarket": 0.0,
+    "thetagang": 0.05,
+    "valueinvesting": 0.05,
+}
+
+
+_INSTITUTIONAL_RSS_LABELS = {
+    "fda-press-releases", "fda-drugs", "fda-safety-alerts",
+    "fda-recalls", "fda-oncology",
+    "fed-press-releases", "sec-8k-filings",
+    "dod-contracts", "dod-releases", "dod-news",
+    "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
+    "seekingalpha-currents",
+}
+
+
 class CredibilityScorer:
     """Multi-factor credibility scoring for Reddit-sourced events."""
 
@@ -15,11 +39,30 @@ class CredibilityScorer:
 
         meta = event.meta or {}
 
-        # Factor 1: Ticker mention quality
-        # Explicit $TICKER mentions are more intentional than bare uppercase words
+        # Factor 0: RSS source quality — institutional/government feeds are high-signal
+        is_rss = meta.get("flair") == "rss"
+        if is_rss:
+            subreddit_label = ""
+            if event.evidence:
+                subreddit_label = (event.evidence[0].subreddit or "").lower()
+            if subreddit_label in _INSTITUTIONAL_RSS_LABELS:
+                factors["institutional_rss"] = 0.15
+                adjustment += 0.15
+            elif is_rss:
+                factors["news_rss"] = 0.05
+                adjustment += 0.05
+
+        # Factor 1: Ticker mention quality / DD flair
+        # Explicit $TICKER mentions are more intentional than bare uppercase words.
+        # DD flair gets full boost only if the post body is substantial (>=200 chars).
         if meta.get("flair") == "DD":
-            factors["dd_flair"] = 0.15
-            adjustment += 0.15
+            body = meta.get("body_excerpt", "")
+            if isinstance(body, str) and len(body) >= 200:
+                factors["dd_flair"] = 0.15
+                adjustment += 0.15
+            else:
+                factors["dd_flair_shallow"] = 0.05
+                adjustment += 0.05
         elif meta.get("flair") in ("Discussion", "Technical Analysis", "Fundamentals"):
             factors["quality_flair"] = 0.05
             adjustment += 0.05
@@ -61,6 +104,16 @@ class CredibilityScorer:
         if isinstance(body_excerpt, str) and len(body_excerpt) > 100:
             factors["has_body_analysis"] = 0.05
             adjustment += 0.05
+
+        # Factor 7: Subreddit quality weighting
+        subreddit = ""
+        if event.evidence:
+            subreddit = (event.evidence[0].subreddit or "").lower()
+        sub_adj = _SUBREDDIT_WEIGHTS.get(subreddit, 0.0)
+        if sub_adj != 0:
+            label = "subreddit_boost" if sub_adj > 0 else "subreddit_penalty"
+            factors[label] = sub_adj
+            adjustment += sub_adj
 
         # Apply adjustment to confidence
         new_confidence = max(0.05, min(1.0, event.confidence + adjustment))

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Embed Widgets - ROT{% endblock %}
+{% block meta_description %}Embed live ROT options signals on your blog, Discord, or website. Free embeddable widgets for any ticker.{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Embed Widgets</h1>
+        <p class="text-gray-400">Drop live ROT signal widgets into your blog, Discord server, or website. Free for everyone.</p>
+    </div>
+
+    <!-- Generator -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-xl font-semibold text-white mb-4">Generate Widget Code</h2>
+        <div class="flex gap-4 mb-4">
+            <div class="flex-1">
+                <label class="text-sm text-gray-400 block mb-1">Ticker Symbol</label>
+                <input type="text" id="widget-ticker" placeholder="e.g. TSLA" value="TSLA" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm uppercase">
+            </div>
+            <div class="flex items-end">
+                <button onclick="generateWidget()" class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-semibold transition">Generate</button>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div id="preview-container" class="mb-6">
+            <h3 class="text-sm text-gray-400 mb-2">Preview</h3>
+            <div class="rounded-lg overflow-hidden border border-gray-700" style="max-width: 350px;">
+                <iframe id="widget-preview" src="{{ base_url }}/widget/TSLA" width="350" height="300" frameborder="0" style="border-radius: 8px;"></iframe>
+            </div>
+        </div>
+
+        <!-- Embed Codes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h3 class="text-sm text-gray-400 mb-2">iFrame Embed</h3>
+                <div class="relative">
+                    <pre id="iframe-code" class="bg-gray-900 rounded-lg p-3 text-xs text-green-400 overflow-x-auto border border-gray-700">&lt;iframe src="{{ base_url }}/widget/TSLA" width="350" height="300" frameborder="0" style="border-radius: 8px;"&gt;&lt;/iframe&gt;</pre>
+                    <button onclick="copyCode('iframe-code')" class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs">Copy</button>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-sm text-gray-400 mb-2">JavaScript Embed</h3>
+                <div class="relative">
+                    <pre id="js-code" class="bg-gray-900 rounded-lg p-3 text-xs text-blue-400 overflow-x-auto border border-gray-700">&lt;div id="rot-widget"&gt;&lt;/div&gt;
+&lt;script src="{{ base_url }}/api/v1/widgets/TSLA/json"&gt;&lt;/script&gt;</pre>
+                    <button onclick="copyCode('js-code')" class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+        <h2 class="text-lg font-semibold text-white mb-3">Widget Tips</h2>
+        <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex items-start space-x-2"><span class="text-orange-400 mt-0.5">&#9679;</span><span>Widgets auto-refresh every 5 minutes when embedded</span></li>
+            <li class="flex items-start space-x-2"><span class="text-orange-400 mt-0.5">&#9679;</span><span>Works in any website, blog, Notion, Discord embed, or forum</span></li>
+            <li class="flex items-start space-x-2"><span class="text-orange-400 mt-0.5">&#9679;</span><span>Shows the 5 most recent signals for the selected ticker</span></li>
+            <li class="flex items-start space-x-2"><span class="text-orange-400 mt-0.5">&#9679;</span><span>Each widget links back to your ROT dashboard for full details</span></li>
+            <li class="flex items-start space-x-2"><span class="text-orange-400 mt-0.5">&#9679;</span><span>No API key needed — widgets are completely public</span></li>
+        </ul>
+    </div>
+</div>
+
+<script>
+function generateWidget() {
+    const ticker = document.getElementById('widget-ticker').value.trim().toUpperCase();
+    if (!ticker) return;
+    const base = '{{ base_url }}';
+
+    document.getElementById('widget-preview').src = base + '/widget/' + ticker;
+    document.getElementById('iframe-code').textContent =
+        '<iframe src="' + base + '/widget/' + ticker + '" width="350" height="300" frameborder="0" style="border-radius: 8px;"></iframe>';
+    document.getElementById('js-code').textContent =
+        '<div id="rot-widget"></div>\n<script src="' + base + '/api/v1/widgets/' + ticker + '/json"><\/script>';
+}
+
+function copyCode(id) {
+    const text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById(id).parentElement.querySelector('button');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+}
+</script>
+{% endblock %}

@@ -117,8 +117,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_routes.router, prefix="/api/v1", tags=["auth"])
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
+    # TradingView, broker, affiliate, and enterprise routes (mixed HTML + API)
+    from rot.web.routes import tradingview, brokers, affiliates, enterprise
+    app.include_router(tradingview.router, tags=["tradingview"])
+    app.include_router(brokers.router, tags=["brokers"])
+    app.include_router(affiliates.router, tags=["affiliates"])
+    app.include_router(enterprise.router, tags=["enterprise"])
+
+    # Widget, paper trading, badges, correlation, unusual activity routes
+    from rot.web.routes import widgets, paper_trading, badges, correlations, unusual_activity
+    app.include_router(widgets.router, tags=["widgets"])
+    app.include_router(paper_trading.router, tags=["paper-trading"])
+    app.include_router(badges.router, tags=["badges"])
+    app.include_router(correlations.router, tags=["correlations"])
+    app.include_router(unusual_activity.router, tags=["unusual-activity"])
+
     # Dashboard routes (HTML)
-    from rot.web.routes import dashboard
+    from rot.web.routes import (
+        dashboard, performance, backtest, raid_tracker, sports_tracker,
+        hall_of_legends, glossary, ceo_rap_sheet,
+        sentiment, ticker_dive, weekly_wrap, replay, seo,
+    )
     app.include_router(dashboard.router, tags=["dashboard"])
+    app.include_router(performance.router, tags=["performance"])
+    app.include_router(backtest.router, tags=["backtest"])
+    app.include_router(raid_tracker.router, tags=["raid-tracker"])
+    app.include_router(sports_tracker.router, tags=["sports-tracker"])
+    app.include_router(hall_of_legends.router, tags=["hall-of-legends"])
+    app.include_router(glossary.router, tags=["glossary"])
+    app.include_router(ceo_rap_sheet.router, tags=["ceo-rap-sheet"])
+    app.include_router(sentiment.router, tags=["sentiment"])
+    app.include_router(ticker_dive.router, tags=["ticker-dive"])
+    app.include_router(weekly_wrap.router, tags=["weekly-wrap"])
+    app.include_router(replay.router, tags=["replay"])
+    app.include_router(seo.router, tags=["seo"])
 
     return app

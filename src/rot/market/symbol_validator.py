@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass
 from typing import Dict, Optional
 
@@ -29,11 +30,11 @@ class SymbolValidator:
 
     def _prune_expired(self) -> None:
         """Remove entries older than ttl_s, then cap at max_cache_size."""
-        import time as _time
-        now = _time.time()
+        now = time.time()
         self._cache = {
             k: v for k, v in self._cache.items()
-            if isinstance(v, dict) and (now - v.get("ts", 0)) <= self.ttl_s
+            if isinstance(v, dict) and isinstance(v.get("ts"), (int, float))
+            and (now - v["ts"]) < self.ttl_s
         }
         if len(self._cache) > self.max_cache_size:
             sorted_keys = sorted(self._cache, key=lambda k: self._cache[k].get("ts", 0))
@@ -61,10 +62,10 @@ class SymbolValidator:
             return False
 
         # cache hit (respect TTL)
-        import time as _time
         entry = self._cache.get(s)
         if entry and isinstance(entry, dict) and "ok" in entry:
-            if (_time.time() - entry.get("ts", 0)) <= self.ttl_s:
+            ts = entry.get("ts")
+            if isinstance(ts, (int, float)) and (time.time() - ts) < self.ttl_s:
                 return bool(entry["ok"])
 
         ok = False
@@ -84,6 +85,6 @@ class SymbolValidator:
         except Exception:
             ok = False
 
-        self._cache[s] = {"ok": ok, "ts": _time.time()}
+        self._cache[s] = {"ok": ok, "ts": int(time.time())}
         self._save()
         return ok
