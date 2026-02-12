@@ -77,7 +77,16 @@ class TrendStore:
         except Exception:
             pass
 
+    def _evict_old(self) -> None:
+        cutoff = int(time.time()) - self.max_age_s
+        to_remove = [k for k, s in self._last.items() if s.snapshot_ts < cutoff]
+        for k in to_remove:
+            del self._last[k]
+
     def update(self, key: str, snap: ThreadSnapshot) -> Optional[ThreadSnapshot]:
         prev = self._last.get(key)
         self._last[key] = snap
+        # Periodically prune in-memory entries (piggyback on updates)
+        if len(self._last) % 100 == 0:
+            self._evict_old()
         return prev

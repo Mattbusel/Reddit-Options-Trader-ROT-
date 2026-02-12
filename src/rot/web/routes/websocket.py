@@ -14,6 +14,7 @@ router = APIRouter()
 
 # Connected WebSocket clients
 _clients: Set[WebSocket] = set()
+MAX_WS_CLIENTS = 200
 
 _PAID_TIERS = ("pro", "premium", "ultra")
 
@@ -70,6 +71,10 @@ async def signal_websocket(websocket: WebSocket):
     is_paid = await _authenticate_ws(websocket)
     if not is_paid:
         await websocket.close(code=4003, reason="WebSocket requires Pro or higher tier")
+        return
+
+    if len(_clients) >= MAX_WS_CLIENTS:
+        await websocket.close(code=4008, reason="Too many connections")
         return
 
     await websocket.accept()

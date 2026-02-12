@@ -19,6 +19,19 @@ from rot.web.routes import signals, health, websocket
 log = logging.getLogger(__name__)
 
 
+async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
+    """Background task: clean up old api_usage rows and old signals periodically."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            api_count = await db.cleanup_old_api_usage()
+            sig_count = await db.cleanup_old_signals()
+            if api_count or sig_count:
+                log.info("DB cleanup: removed %d api_usage rows, %d old signals", api_count, sig_count)
+        except Exception as e:
+            log.error("DB cleanup error: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -47,8 +60,12 @@ async def lifespan(app: FastAPI):
         size = os.path.getsize(db_path)
         log.info("Database connected: %s (size=%d bytes)", db_path, size)
 
+    # Start periodic cleanup task
+    cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
+
     yield
     # Shutdown
+    cleanup_task.cancel()
     await db.close()
 
 

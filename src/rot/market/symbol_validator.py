@@ -14,6 +14,7 @@ from rot.market.enricher import ALIAS_MAP, NON_EQUITY_TOKENS, _quiet_yfinance
 class SymbolValidator:
     cache_path: str = "storage/symbol_valid_cache.json"
     ttl_s: int = 7 * 24 * 3600  # 7d
+    max_cache_size: int = 5000
 
     def __post_init__(self) -> None:
         self._cache: Dict[str, Dict[str, object]] = {}
@@ -24,8 +25,23 @@ class SymbolValidator:
                     self._cache = json.load(f)
             except Exception:
                 self._cache = {}
+        self._prune_expired()
+
+    def _prune_expired(self) -> None:
+        """Remove entries older than ttl_s, then cap at max_cache_size."""
+        import time as _time
+        now = _time.time()
+        self._cache = {
+            k: v for k, v in self._cache.items()
+            if isinstance(v, dict) and (now - v.get("ts", 0)) <= self.ttl_s
+        }
+        if len(self._cache) > self.max_cache_size:
+            sorted_keys = sorted(self._cache, key=lambda k: self._cache[k].get("ts", 0))
+            for k in sorted_keys[: len(self._cache) - self.max_cache_size]:
+                del self._cache[k]
 
     def _save(self) -> None:
+        self._prune_expired()
         with open(self.cache_path, "w", encoding="utf-8") as f:
             json.dump(self._cache, f)
 
@@ -44,10 +60,12 @@ class SymbolValidator:
         if s in NON_EQUITY_TOKENS:
             return False
 
-        # cache hit
+        # cache hit (respect TTL)
+        import time as _time
         entry = self._cache.get(s)
         if entry and isinstance(entry, dict) and "ok" in entry:
-            return bool(entry["ok"])
+            if (_time.time() - entry.get("ts", 0)) <= self.ttl_s:
+                return bool(entry["ok"])
 
         ok = False
         try:
@@ -66,6 +84,6 @@ class SymbolValidator:
         except Exception:
             ok = False
 
-        self._cache[s] = {"ok": ok}
+        self._cache[s] = {"ok": ok, "ts": _time.time()}
         self._save()
         return ok

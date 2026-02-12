@@ -393,6 +393,16 @@ class Database:
         await self.db.commit()
         return count
 
+    async def cleanup_old_signals(self, older_than_s: int = 90 * 86400) -> int:
+        """Delete signals older than older_than_s seconds (default 90 days)."""
+        cutoff = time.time() - older_than_s
+        async with self.db.execute(
+            "DELETE FROM signals WHERE created_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        return count
+
     # ── Subscriptions ──
 
     async def upsert_subscription(self, user_id: str, data: Dict[str, Any]) -> None:

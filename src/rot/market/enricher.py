@@ -78,6 +78,8 @@ def _quiet_yfinance():
 class MarketEnricher:
     """Lightweight yfinance market metadata enrichment with caching."""
 
+    MAX_CACHE_SIZE = 2000
+
     def __init__(self, cache_path: str = "storage/market_cache.json", ttl_s: int = 3600) -> None:
         self.cache_path = Path(cache_path)
         self.ttl_s = ttl_s
@@ -93,8 +95,22 @@ class MarketEnricher:
         else:
             self.cache_path.parent.mkdir(parents=True, exist_ok=True)
             self._cache = {}
+        self._prune_expired()
+
+    def _prune_expired(self) -> None:
+        """Remove expired entries, then evict oldest if over max size."""
+        now = time.time()
+        self._cache = {
+            k: v for k, v in self._cache.items()
+            if isinstance(v, dict) and (now - v.get("ts", 0)) <= self.ttl_s
+        }
+        if len(self._cache) > self.MAX_CACHE_SIZE:
+            sorted_keys = sorted(self._cache, key=lambda k: self._cache[k].get("ts", 0))
+            for k in sorted_keys[: len(self._cache) - self.MAX_CACHE_SIZE]:
+                del self._cache[k]
 
     def _save_cache(self) -> None:
+        self._prune_expired()
         try:
             self.cache_path.write_text(
                 json.dumps(self._cache, ensure_ascii=False, indent=2), encoding="utf-8"

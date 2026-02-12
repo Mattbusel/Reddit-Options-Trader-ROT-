@@ -15,11 +15,14 @@ class SeenRecord:
 
 
 class SeenStore:
+    EVICT_INTERVAL = 300  # evict at most every 5 minutes during runtime
+
     def __init__(self, path: str = "storage/seen_posts.json", max_age_s: int = 7 * 24 * 3600) -> None:
         self.path = Path(path)
         self.max_age_s = max_age_s
         self._data: Dict[str, SeenRecord] = {}
         self._loaded = False
+        self._last_evict_ts = 0
 
     def load(self) -> None:
         if self._loaded:
@@ -60,6 +63,10 @@ class SeenStore:
     def update(self, post_id: str, score: int, num_comments: int, ts: int) -> None:
         self.load()
         self._data[post_id] = SeenRecord(score=int(score), num_comments=int(num_comments), last_seen_ts=int(ts))
+        now = int(time.time())
+        if now - self._last_evict_ts >= self.EVICT_INTERVAL:
+            self._evict_old()
+            self._last_evict_ts = now
 
     def is_changed(self, post_id: str, score: int, num_comments: int) -> bool:
         rec = self.get(post_id)
