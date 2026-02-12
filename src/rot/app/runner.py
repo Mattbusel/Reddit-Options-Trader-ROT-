@@ -197,6 +197,14 @@ class PipelineRunner:
         for e in scored:
             packet = self.reasoner.reason(e)
             self.log.write("reasoning", {"run_id": run_id, "event": e, "packet": packet})
+
+            # Merge LLM confidence back onto Event so the stored signal uses
+            # the LLM-calibrated value instead of the heuristic pre-LLM value.
+            raw = packet.raw or {}
+            llm_confidence = raw.get("confidence")
+            if llm_confidence is not None and not raw.get("stub") and not raw.get("error"):
+                e = dataclasses.replace(e, confidence=float(llm_confidence))
+
             ideas = self.trade_builder.build(packet, e)
             for idea in ideas:
                 idea_count += 1

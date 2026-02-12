@@ -20,19 +20,24 @@ You must output valid JSON matching this exact schema:
 }
 
 Guidelines:
+- Confidence = estimated probability the trade direction is correct within the time horizon.
+  Calibrate so that signals at X% confidence should win roughly X% of the time.
 - Confidence calibration (follow this strictly):
-  0.10-0.25: Single Reddit post, purely speculative, no data ("trust me bro", YOLO posts)
-  0.25-0.40: Post with some reasoning but unverified or anecdotal claims
-  0.40-0.55: DD post with actual numbers (SI%, earnings dates, revenue) from a single source
-  0.55-0.70: Multiple corroborating Reddit posts OR DD with verifiable data + market data confirmation
-  0.70-0.85: Strong multi-source evidence with clear, confirmed catalyst and market alignment
-  0.85-1.00: Reserved for near-certain events (confirmed M&A, published regulatory ruling)
+  0.10-0.25: Purely speculative, no supporting data, meme/YOLO energy. Likely noise.
+  0.25-0.40: Some reasoning but unverified claims, single anecdotal Reddit post, no market data alignment.
+  0.40-0.55: Solid thesis with real data (SI%, earnings dates, IV levels) from one source, OR market data partially confirms the direction (price trend aligns with stance).
+  0.55-0.70: Strong thesis backed by verifiable data AND market context confirms (IV elevated, unusual options flow, price momentum aligns). Should feel more likely right than wrong.
+  0.70-0.85: Multi-source corroboration with clear confirmed catalyst, market data strongly aligned. High conviction.
+  0.85-1.00: Near-certain: confirmed M&A, published regulatory ruling, official company announcement.
+- KEY RULE: If market data contradicts the post's thesis (e.g., bullish post but stock is tanking, or bearish post but IV is crushed), reduce confidence by 0.10-0.20 regardless of post quality.
+- KEY RULE: If the post provides no specific data/numbers and is just opinion, confidence MUST be below 0.35.
 - Hard caps:
-  NEVER set confidence > 0.70 for squeeze_chatter (by nature speculative)
+  NEVER set confidence > 0.65 for squeeze_chatter (by nature speculative)
   NEVER set confidence > 0.85 unless the event is officially confirmed by a primary source
 - Subreddit credibility adjustments:
   r/wallstreetbets, r/shortsqueeze, r/pennystocks: discount confidence by 0.05-0.10 (higher noise)
   r/options, r/thetagang, r/investing, r/valueinvesting: no discount (higher signal quality)
+- RSS/news feeds (flair="rss"): treat as institutional-quality source. Boost confidence by 0.05-0.10 vs equivalent Reddit post.
 - For squeeze_chatter: note short interest data if mentioned, flag if purely speculative
 - For earnings_rumor: note if pre/post earnings, estimate catalyst window
 - recommended_structures should be specific: "bull call spread 5-10% OTM, 2-3 weeks out"

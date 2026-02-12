@@ -20,6 +20,12 @@ _SUBREDDIT_WEIGHTS: Dict[str, float] = {
 }
 
 
+_INSTITUTIONAL_RSS_LABELS = {
+    "fda-press-releases", "fed-press-releases", "sec-8k-filings",
+    "dod-contracts", "seekingalpha-currents",
+}
+
+
 class CredibilityScorer:
     """Multi-factor credibility scoring for Reddit-sourced events."""
 
@@ -28,6 +34,19 @@ class CredibilityScorer:
         adjustment = 0.0
 
         meta = event.meta or {}
+
+        # Factor 0: RSS source quality — institutional/government feeds are high-signal
+        is_rss = meta.get("flair") == "rss"
+        if is_rss:
+            subreddit_label = ""
+            if event.evidence:
+                subreddit_label = (event.evidence[0].subreddit or "").lower()
+            if subreddit_label in _INSTITUTIONAL_RSS_LABELS:
+                factors["institutional_rss"] = 0.15
+                adjustment += 0.15
+            elif is_rss:
+                factors["news_rss"] = 0.05
+                adjustment += 0.05
 
         # Factor 1: Ticker mention quality / DD flair
         # Explicit $TICKER mentions are more intentional than bare uppercase words.
