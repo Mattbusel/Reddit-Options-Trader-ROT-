@@ -869,6 +869,7 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             {where}
             AND sp.price_at_signal > 0
+            AND s.strategy != 'none'
             AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
                  OR sp.max_gain_pct IS NOT NULL)
         """
@@ -922,6 +923,7 @@ class Database:
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ?
             AND sp.price_at_signal > 0
+            AND s.strategy != 'none'
             AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
             GROUP BY bucket
             ORDER BY s.confidence ASC
@@ -1015,6 +1017,7 @@ class Database:
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ? AND sp.price_at_signal > 0
+                  AND s.strategy != 'none'
                   AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
             GROUP BY time_bucket
             ORDER BY time_bucket ASC
@@ -1077,6 +1080,7 @@ class Database:
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ? AND sp.price_at_signal > 0
+              AND s.strategy != 'none'
               AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
             GROUP BY sp.ticker
             ORDER BY total_signals DESC

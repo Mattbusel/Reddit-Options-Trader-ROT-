@@ -22,10 +22,10 @@ _SUBREDDIT_WEIGHTS: Dict[str, float] = {
 
 _INSTITUTIONAL_RSS_LABELS = {
     "fda-press-releases", "fda-drugs", "fda-safety-alerts",
-    "fda-recalls",
+    "fda-recalls", "fda-oncology",
     "fed-press-releases", "sec-8k-filings",
     "dod-contracts", "dod-releases", "dod-news",
-    "biopharma-dive",
+    "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
     "seekingalpha-currents",
 }
 

@@ -65,6 +65,8 @@ _BARE_TICKER_BLOCKLIST = {
     "FILED", "AWARD", "GRANT", "PHASE", "TRIAL", "AGENT", "CLAIM",
     # Junk patterns (repeated letters, all same char)
     "GOOOO", "GOOO", "AAAA", "BBBB",
+    # Profanity / slang / junk that pass yfinance but aren't real tickers
+    "FUCK", "BS", "EOY", "JP", "OF", "GEX", "SIX",
     # Economic indicators / data releases (not tickers)
     "JOLTS", "NFP", "PMI", "PCE", "PPI", "ADP", "ISM",
     # Business metrics that look like tickers

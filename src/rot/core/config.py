@@ -140,11 +140,7 @@ class RSSConfig(BaseSettings):
                 label="fda-drugs",
                 poll_interval_s=1800,
             ),
-            RSSFeedEntry(
-                url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/medwatch-safety-alerts/rss.xml",
-                label="fda-safety-alerts",
-                poll_interval_s=1800,
-            ),
+            # fda-safety-alerts removed — returns HTTP 404
             RSSFeedEntry(
                 url="https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/recalls/rss.xml",
                 label="fda-recalls",
@@ -156,12 +152,7 @@ class RSSConfig(BaseSettings):
                 label="fed-press-releases",
             ),
             # SEC 8-K feed removed — consistently returns 403
-            # Pharma industry news — polled every 15 min
-            RSSFeedEntry(
-                url="https://www.biopharmadive.com/feeds/news/",
-                label="biopharma-dive",
-                poll_interval_s=900,
-            ),
+            # biopharma-dive removed — returns HTTP 403
         ]
     )
 

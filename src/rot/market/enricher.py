@@ -69,6 +69,8 @@ NON_EQUITY_TOKENS = {
     # Common false positives from user's logs
     "LLM", "VIX", "EBT", "SME", "IVN", "YOY", "QOQ",
     "CO",
+    # Profanity / slang / junk that pass yfinance but aren't real tickers
+    "FUCK", "BS", "EOY", "JP", "OF", "GEX", "SIX",
     # Economic indicators / data releases (not tickers)
     "JOLTS", "NFP", "PMI", "PCE", "PPI", "ADP", "ISM",
     "PAYROLLS", "CLAIMS",
