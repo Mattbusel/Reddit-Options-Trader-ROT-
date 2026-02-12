@@ -215,7 +215,8 @@ class PipelineRunner:
             # Informational-only sources (DoD, FDA, pharma): skip LLM reasoning
             # and trade ideas. These are news items, not tradeable signals.
             source = ""
-            if e.evidence:
+            is_rss = (e.meta or {}).get("flair") == "rss"
+            if is_rss and e.evidence:
                 source = (e.evidence[0].subreddit or "").lower()
             if source in _INFORMATIONAL_ONLY_SOURCES:
                 info_count += 1
