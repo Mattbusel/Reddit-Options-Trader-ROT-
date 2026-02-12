@@ -65,10 +65,20 @@ class JsonlLogger:
     def rotate(self, max_age_days: int = 3) -> Dict[str, int]:
         """Rotate all .jsonl files, keeping only entries from the last N days.
 
+        Also deletes stale .jsonl.N backup files to reclaim volume space.
         Returns dict of {filename: lines_removed}.
         """
         cutoff_ts = int(time.time()) - (max_age_days * 86400)
         results = {}
+
+        # Delete old .jsonl.N backup files — they're rotated copies and waste space
+        for backup_path in glob.glob(os.path.join(self.root, "*.jsonl.[0-9]*")):
+            try:
+                os.remove(backup_path)
+                results[os.path.basename(backup_path)] = 1
+                log.info("Log rotation: deleted backup %s", os.path.basename(backup_path))
+            except OSError:
+                pass
 
         for path in glob.glob(os.path.join(self.root, "*.jsonl")):
             fname = os.path.basename(path)

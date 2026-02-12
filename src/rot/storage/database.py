@@ -257,7 +257,9 @@ class Database:
         await self._db.execute("PRAGMA temp_store=MEMORY")      # Keep temp tables in memory
         await self._db.execute("PRAGMA mmap_size=67108864")     # 64MB memory-mapped I/O
         await self._db.execute("PRAGMA busy_timeout=5000")      # 5s busy timeout instead of immediate fail
-        log.info("SQLite PRAGMAs applied (WAL, 8MB cache, 64MB mmap)")
+        await self._db.execute("PRAGMA auto_vacuum=INCREMENTAL") # Incremental auto-vacuum
+        await self._db.execute("PRAGMA wal_autocheckpoint=500")  # Checkpoint every 500 pages (shrink WAL file)
+        log.info("SQLite PRAGMAs applied (WAL, 8MB cache, 64MB mmap, incremental auto_vacuum)")
 
         await self._db.executescript(_SCHEMA)
         await self._db.commit()
@@ -2846,10 +2848,92 @@ class Database:
             log.info("Purge: deleted %d signals with fake tickers %s", count, fake_tickers)
         return count
 
+    async def compact_old_signal_blobs(self, older_than_days: int = 3) -> int:
+        """Strip heavy JSON blobs from signals older than N days.
+
+        After 1-day price tracking completes, market_data/reasoning/trade_idea/event_data
+        are dead weight (1-10KB each). Replace with '{}' to reclaim ~80% of signal row size.
+        Keeps: id, ticker, stance, confidence, event_type, strategy, sector, quality_score,
+               post_title, post_url, subreddit, created_at, and all perf-related columns.
+        """
+        cutoff = time.time() - (older_than_days * 86400)
+        query = """
+            UPDATE signals
+            SET market_data = '{}', reasoning = '{}', trade_idea = '{}', event_data = '{}'
+            WHERE created_at < ? AND market_data != '{}'
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            count = cursor.rowcount
+        if count > 0:
+            await self.db.commit()
+            log.info("Compact: stripped JSON blobs from %d old signals (older than %d days)", count, older_than_days)
+        return count
+
+    async def purge_old_win_rate_snapshots(self, keep_count: int = 100) -> int:
+        """Keep only the most recent N win_rate_snapshots to prevent unbounded growth."""
+        query = """
+            DELETE FROM win_rate_snapshots
+            WHERE id NOT IN (
+                SELECT id FROM win_rate_snapshots ORDER BY snapshot_date DESC LIMIT ?
+            )
+        """
+        async with self.db.execute(query, (keep_count,)) as cursor:
+            count = cursor.rowcount
+        if count > 0:
+            await self.db.commit()
+            log.info("Purge: deleted %d old win_rate_snapshots (keeping %d)", count, keep_count)
+        return count
+
+    async def purge_old_data_exports(self, keep_days: int = 30) -> int:
+        """Delete data_exports records older than keep_days."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM data_exports WHERE requested_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        if count > 0:
+            await self.db.commit()
+            log.info("Purge: deleted %d old data_export records", count)
+        return count
+
+    async def get_db_size_info(self) -> Dict[str, Any]:
+        """Get database size diagnostics for monitoring."""
+        info: Dict[str, Any] = {}
+        try:
+            async with self.db.execute("PRAGMA page_count") as c:
+                row = await c.fetchone()
+                page_count = row[0] if row else 0
+            async with self.db.execute("PRAGMA page_size") as c:
+                row = await c.fetchone()
+                page_size = row[0] if row else 4096
+            info["db_size_bytes"] = page_count * page_size
+            info["db_size_mb"] = round(info["db_size_bytes"] / (1024 * 1024), 2)
+
+            # Row counts for major tables
+            for table in ("signals", "signal_performance", "users", "win_rate_snapshots",
+                          "api_usage", "x_posts", "paper_trades", "data_exports"):
+                try:
+                    async with self.db.execute(f"SELECT COUNT(*) FROM {table}") as c:
+                        row = await c.fetchone()
+                        info[f"{table}_rows"] = row[0] if row else 0
+                except Exception:
+                    info[f"{table}_rows"] = -1
+        except Exception as e:
+            log.warning("DB size info failed: %s", e)
+        return info
+
     async def vacuum(self) -> None:
-        """Run VACUUM to reclaim disk space after bulk deletes."""
+        """Run incremental auto-vacuum then WAL checkpoint to reclaim disk space."""
+        try:
+            await self.db.execute("PRAGMA incremental_vacuum(200)")  # Free up to 200 pages
+        except Exception:
+            pass
+        try:
+            await self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # Shrink WAL file
+        except Exception:
+            pass
         await self.db.execute("VACUUM")
-        log.info("Purge: VACUUM complete")
+        log.info("Purge: VACUUM + WAL checkpoint complete")
 
     async def run_full_cleanup(self) -> Dict[str, int]:
         """Run all purge methods and VACUUM. Returns summary."""
@@ -2925,14 +3009,47 @@ class Database:
             log.warning("Post-mortem generation failed: %s", e)
             results["post_mortems"] = 0
 
+        # Compact old signal JSON blobs (strip market_data/reasoning/trade_idea/event_data
+        # from signals older than 3 days — price tracking is done by then)
+        try:
+            results["compacted_blobs"] = await self.compact_old_signal_blobs(older_than_days=3)
+        except Exception as e:
+            log.warning("Compact old signal blobs failed: %s", e)
+            results["compacted_blobs"] = 0
+
+        # Cap win_rate_snapshots to prevent unbounded growth
+        try:
+            results["old_snapshots"] = await self.purge_old_win_rate_snapshots(keep_count=100)
+        except Exception as e:
+            log.warning("Purge old win_rate_snapshots failed: %s", e)
+            results["old_snapshots"] = 0
+
+        # Clean up old data_exports records
+        try:
+            results["old_data_exports"] = await self.purge_old_data_exports(keep_days=30)
+        except Exception as e:
+            log.warning("Purge old data_exports failed: %s", e)
+            results["old_data_exports"] = 0
+
         # Reclaim disk space
         try:
             await self.vacuum()
         except Exception as e:
             log.warning("VACUUM failed: %s", e)
 
+        # Log DB size after cleanup for monitoring
+        try:
+            size_info = await self.get_db_size_info()
+            log.info("DB size after cleanup: %.1f MB | signals=%d, performance=%d, users=%d",
+                     size_info.get("db_size_mb", 0),
+                     size_info.get("signals_rows", 0),
+                     size_info.get("signal_performance_rows", 0),
+                     size_info.get("users_rows", 0))
+        except Exception:
+            pass
+
         total = sum(results.values())
-        log.info("Cleanup complete: %d total rows deleted | %s", total, results)
+        log.info("Cleanup complete: %d total rows deleted/compacted | %s", total, results)
         return results
 
 

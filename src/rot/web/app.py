@@ -20,14 +20,16 @@ log = logging.getLogger(__name__)
 
 
 async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
-    """Background task: clean up old api_usage rows and old signals periodically."""
+    """Background task: lightweight cleanup of api_usage, old signals, and blob compaction."""
     while True:
         await asyncio.sleep(interval_s)
         try:
             api_count = await db.cleanup_old_api_usage()
             sig_count = await db.cleanup_old_signals()
-            if api_count or sig_count:
-                log.info("DB cleanup: removed %d api_usage rows, %d old signals", api_count, sig_count)
+            blob_count = await db.compact_old_signal_blobs(older_than_days=3)
+            if api_count or sig_count or blob_count:
+                log.info("DB cleanup: removed %d api_usage, %d old signals, compacted %d blobs",
+                         api_count, sig_count, blob_count)
         except Exception as e:
             log.error("DB cleanup error: %s", e)
 
