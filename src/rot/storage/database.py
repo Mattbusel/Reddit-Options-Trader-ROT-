@@ -234,6 +234,24 @@ class Database:
             except Exception:
                 pass  # column already exists
 
+        # One-time backfill: update stored confidence from LLM-calibrated value
+        # where reasoning JSON contains raw.confidence that differs from the heuristic
+        try:
+            await self._db.execute(
+                """UPDATE signals SET confidence = CAST(
+                       json_extract(reasoning, '$.raw.confidence') AS REAL
+                   )
+                   WHERE json_extract(reasoning, '$.raw.confidence') IS NOT NULL
+                     AND json_extract(reasoning, '$.raw.error') IS NULL
+                     AND json_extract(reasoning, '$.raw.stub') IS NULL
+                     AND ABS(confidence - CAST(json_extract(reasoning, '$.raw.confidence') AS REAL)) > 0.01"""
+            )
+            changes = self._db.total_changes
+            await self._db.commit()
+            log.info("Migration: backfilled LLM confidence for existing signals (rows affected: %d)", changes)
+        except Exception as e:
+            log.warning("LLM confidence backfill skipped: %s", e)
+
     async def close(self) -> None:
         if self._db:
             await self._db.close()

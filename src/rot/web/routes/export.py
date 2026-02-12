@@ -50,7 +50,7 @@ async def export_signals(
     headers = [
         "id", "ticker", "stance", "event_type", "confidence", "trend_score",
         "quality_score", "strategy", "subreddit", "post_title", "thesis",
-        "created_at",
+        "article_link", "created_at",
     ]
 
     # Premium/Ultra get extra columns
@@ -68,6 +68,11 @@ async def export_signals(
                 s["created_at"], tz=timezone.utc
             ).strftime("%Y-%m-%d %H:%M UTC")
 
+        # Build article link — Reddit posts get full reddit URL, RSS gets stored link
+        post_url = s.get("post_url", "")
+        if post_url and not post_url.startswith("http"):
+            post_url = f"https://reddit.com{post_url}"
+
         row = [
             s.get("id", ""),
             s.get("ticker", ""),
@@ -80,6 +85,7 @@ async def export_signals(
             s.get("subreddit", ""),
             s.get("post_title", ""),
             reasoning.get("thesis", ""),
+            post_url,
             created_dt,
         ]
 
