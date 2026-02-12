@@ -81,9 +81,11 @@ class RSSIngestor:
         self,
         feeds: List[RSSFeedConfig],
         state_path: str = "storage/seen_rss.json",
-        max_age_s: int = 7 * 24 * 3600,
+        max_age_s: int = 2 * 24 * 3600,
+        max_entries_per_feed: int = 50,
     ) -> None:
         self.feeds = feeds
+        self.max_entries_per_feed = max_entries_per_feed
         self.seen = SeenStore(path=state_path, max_age_s=max_age_s)
 
     def poll(self) -> List[ThreadSnapshot]:
@@ -104,6 +106,20 @@ class RSSIngestor:
             bozo = getattr(parsed, "bozo", False)
             n_entries = len(parsed.entries) if parsed.entries else 0
 
+            # Skip feeds returning HTTP errors (dead feeds)
+            if isinstance(status, int) and status in (403, 404, 410):
+                log.warning(
+                    "RSS feed %s returned HTTP %d — skipping (url=%s)",
+                    feed_cfg.label, status, feed_cfg.url,
+                )
+                continue
+            if isinstance(status, int) and status >= 500:
+                log.warning(
+                    "RSS feed %s returned HTTP %d — server error, skipping",
+                    feed_cfg.label, status,
+                )
+                continue
+
             if bozo:
                 bozo_exc = getattr(parsed, "bozo_exception", "unknown")
                 log.warning(
@@ -122,7 +138,10 @@ class RSSIngestor:
 
             feed_title = getattr(parsed.feed, "title", feed_cfg.label) or feed_cfg.label
 
-            for entry in parsed.entries:
+            # Cap entries per feed to prevent bloat (e.g. DoD returns 500+)
+            entries = parsed.entries[:self.max_entries_per_feed]
+
+            for entry in entries:
                 item_id = f"rss_{_item_id(entry, feed_cfg.url)}"
 
                 # Dedup: RSS score/comments never change, so is_changed

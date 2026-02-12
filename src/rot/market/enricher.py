@@ -69,6 +69,16 @@ NON_EQUITY_TOKENS = {
     # Common false positives from user's logs
     "LLM", "VIX", "EBT", "SME", "IVN", "YOY", "QOQ",
     "CO",
+    # Economic indicators / data releases (not tickers)
+    "JOLTS", "NFP", "PMI", "PCE", "PPI", "ADP", "ISM",
+    "PAYROLLS", "CLAIMS",
+    # Business metrics that look like tickers
+    "GMV", "MAU", "DAU", "ARR", "MRR", "TAM", "SAM",
+    "CAGR", "EBITDA", "EBIT", "NAV", "AUM",
+    # Internet / tech abbreviations
+    "URL", "CDN", "SDK", "MVP", "CRM", "ERP",
+    # Foreign exchanges / non-US tickers
+    "LSEG", "GFC",
 }
 
 
@@ -108,7 +118,7 @@ class MarketEnricher:
     def _save_cache(self) -> None:
         try:
             self.cache_path.write_text(
-                json.dumps(self._cache, ensure_ascii=False, indent=2), encoding="utf-8"
+                json.dumps(self._cache, ensure_ascii=False), encoding="utf-8"
             )
         except Exception:
             pass

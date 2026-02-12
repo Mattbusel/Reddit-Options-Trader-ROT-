@@ -44,6 +44,7 @@ def loop() -> None:
         rss_ingestor = RSSIngestor(
             feeds=feed_configs,
             state_path=f"{cfg.storage_root}/seen_rss.json",
+            max_entries_per_feed=cfg.rss.max_entries_per_feed,
         )
         sources.append(rss_ingestor)
         print(f"📡 RSS feeds: ACTIVE ({len(feed_configs)} feeds)")

@@ -2215,7 +2215,7 @@ class Database:
             log.warning("Purge duplicate signals failed: %s", e)
             results["duplicate_signals"] = 0
         try:
-            results["old_signals"] = await self.purge_old_signals(keep_days=90)
+            results["old_signals"] = await self.purge_old_signals(keep_days=14)
         except Exception as e:
             log.warning("Purge old signals failed: %s", e)
             results["old_signals"] = 0
@@ -2225,12 +2225,12 @@ class Database:
             log.warning("Purge orphaned performance failed: %s", e)
             results["orphaned_performance"] = 0
         try:
-            results["old_performance"] = await self.purge_old_performance(keep_days=90)
+            results["old_performance"] = await self.purge_old_performance(keep_days=14)
         except Exception as e:
             log.warning("Purge old performance failed: %s", e)
             results["old_performance"] = 0
         try:
-            results["old_api_usage"] = await self.cleanup_old_api_usage(older_than_s=172800)
+            results["old_api_usage"] = await self.cleanup_old_api_usage(older_than_s=86400)
         except Exception as e:
             log.warning("Purge old api usage failed: %s", e)
             results["old_api_usage"] = 0
@@ -2240,12 +2240,12 @@ class Database:
             log.warning("Purge old x_posts failed: %s", e)
             results["old_x_posts"] = 0
         try:
-            results["old_referral_clicks"] = await self.purge_old_referral_clicks(keep_days=90)
+            results["old_referral_clicks"] = await self.purge_old_referral_clicks(keep_days=30)
         except Exception as e:
             log.warning("Purge old referral clicks failed: %s", e)
             results["old_referral_clicks"] = 0
         try:
-            results["old_paper_trades"] = await self.purge_old_paper_trades(keep_days=180)
+            results["old_paper_trades"] = await self.purge_old_paper_trades(keep_days=60)
         except Exception as e:
             log.warning("Purge old paper trades failed: %s", e)
             results["old_paper_trades"] = 0

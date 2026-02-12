@@ -55,6 +55,7 @@ def _create_pipeline(cfg: Settings, on_signal=None) -> PipelineRunner:
         rss_ingestor = RSSIngestor(
             feeds=feed_configs,
             state_path=f"{cfg.storage_root}/seen_rss.json",
+            max_entries_per_feed=cfg.rss.max_entries_per_feed,
         )
         ingestor = MultiSourceIngestor([reddit_ingestor, rss_ingestor])
         log.info("RSS feeds: ACTIVE (%d feeds)", len(feed_configs))
@@ -296,6 +297,9 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
 
     log.info("X posting loop: first check starting after startup delay")
 
+    consecutive_failures = 0
+    MAX_X_FAILURES = 5
+
     while not stop_event.is_set():
         try:
             signal = await db.get_top_signal_for_x_post(min_confidence=min_confidence)
@@ -303,6 +307,7 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
                 tweet_text = format_tweet(signal, dashboard_url=dashboard_url)
                 tweet_id = await x_poster.post_tweet(tweet_text)
                 if tweet_id:
+                    consecutive_failures = 0  # Reset on success
                     await db.record_x_post(
                         signal_id=signal["id"],
                         ticker=signal["ticker"],
@@ -317,15 +322,27 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
                     # After successful post, wait the full interval before next post
                     wait_time = interval_s
                 else:
-                    log.warning("X post failed for %s (API error)", signal.get("ticker", "?"))
-                    # Retry sooner on API failure
+                    consecutive_failures += 1
+                    if consecutive_failures >= MAX_X_FAILURES:
+                        log.error(
+                            "X posting disabled after %d consecutive failures. "
+                            "Check OAuth credentials. Stopping X posting loop.",
+                            MAX_X_FAILURES,
+                        )
+                        return  # Exit the loop entirely
+                    log.warning("X post failed for %s (%d/%d)",
+                                signal.get("ticker", "?"), consecutive_failures, MAX_X_FAILURES)
                     wait_time = min(900, interval_s)
             else:
-                log.info("X post: no qualifying signal (checked last 6h, min_confidence=%.2f)", min_confidence)
-                # Retry sooner (15 min) when no signal found instead of waiting full 3h
+                # No qualifying signal — retry sooner (15 min)
                 wait_time = min(900, interval_s)
         except Exception as e:
-            log.error("X posting loop error: %s", e, exc_info=True)
+            consecutive_failures += 1
+            if consecutive_failures >= MAX_X_FAILURES:
+                log.error("X posting loop disabled after %d failures: %s", MAX_X_FAILURES, e)
+                return
+            log.error("X posting loop error (%d/%d): %s",
+                       consecutive_failures, MAX_X_FAILURES, e)
             wait_time = min(900, interval_s)
 
         for _ in range(wait_time):
@@ -345,11 +362,11 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
       - VACUUM SQLite to reclaim disk space
     NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
     """
-    CLEANUP_INTERVAL = 21600  # 6 hours
+    CLEANUP_INTERVAL = 3600  # 1 hour
     log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
 
-    # Wait 5 minutes on startup before first cleanup
-    for _ in range(300):
+    # Wait 30s on startup before first cleanup
+    for _ in range(30):
         if stop_event.is_set():
             return
         await asyncio.sleep(1)
@@ -366,7 +383,7 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
         try:
             # 2. JSONL log rotation
             jsonl_logger = JsonlLogger(root=storage_root)
-            rotation_results = jsonl_logger.rotate(max_age_days=7)
+            rotation_results = jsonl_logger.rotate(max_age_days=3)
             rotated = sum(rotation_results.values())
             if rotated > 0:
                 log.info("Cleanup: JSONL rotation — removed %d old entries across %d files",
@@ -382,7 +399,7 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
         except Exception as e:
             log.error("Cleanup market cache error: %s", e, exc_info=True)
 
-        log.info("Cleanup cycle complete — next run in %d hours", CLEANUP_INTERVAL // 3600)
+        log.info("Cleanup cycle complete — next run in %dh", CLEANUP_INTERVAL // 3600)
 
         for _ in range(CLEANUP_INTERVAL):
             if stop_event.is_set():
@@ -518,11 +535,18 @@ async def _run_server(cfg: Settings):
     else:
         log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
 
+    # Immediate startup cleanup to reclaim space on Railway restarts
+    try:
+        startup_summary = await app.state.db.run_full_cleanup()
+        log.info("Startup cleanup: %s", startup_summary)
+    except Exception as e:
+        log.warning("Startup cleanup failed: %s", e)
+
     # Start storage cleanup background task (always active)
     cleanup_task = asyncio.create_task(
         _cleanup_loop(app.state.db, cfg.storage_root, stop_event)
     )
-    log.info("Cleanup loop: ACTIVE (every 6h — purge old data, rotate logs, VACUUM)")
+    log.info("Cleanup loop: ACTIVE (every 1h — purge old data, rotate logs, VACUUM)")
 
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)

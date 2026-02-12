@@ -80,8 +80,8 @@ class PipelineRunner:
 
         # 1) ingest
         snapshots = self.ingestor.poll()
-        for s in snapshots:
-            self.log.write("snapshots", {"run_id": run_id, "snapshot": s})
+        # Note: raw snapshot logging removed to reduce JSONL volume
+        # (~150 entries/cycle × 4320 cycles/day was the largest JSONL stream)
 
         # Save trend store state after detection
         # 2) trend detect
@@ -194,15 +194,21 @@ class PipelineRunner:
 
         # 4) reason + ideas
         idea_count = 0
+        stub_count = 0
         for e in scored:
             packet = self.reasoner.reason(e)
             self.log.write("reasoning", {"run_id": run_id, "event": e, "packet": packet})
 
+            # Quality gate: skip storing/emitting signals with no real LLM analysis
+            raw = packet.raw or {}
+            if raw.get("stub"):
+                stub_count += 1
+                continue
+
             # Merge LLM confidence back onto Event so the stored signal uses
             # the LLM-calibrated value instead of the heuristic pre-LLM value.
-            raw = packet.raw or {}
             llm_confidence = raw.get("confidence")
-            if llm_confidence is not None and not raw.get("stub") and not raw.get("error"):
+            if llm_confidence is not None and not raw.get("error"):
                 e = dataclasses.replace(e, confidence=float(llm_confidence))
 
             ideas = self.trade_builder.build(packet, e)
@@ -225,6 +231,7 @@ class PipelineRunner:
             "ticker_candidates": len(ticker_candidates),
             "ticker_candidate_count": ticker_candidate_count,
             "events": len(scored),
+            "stubs_skipped": stub_count,
             "trade_ideas": idea_count,
             "top_signals": len(top_all),
             "top_ticker_signals": len(top_ticker_pairs),

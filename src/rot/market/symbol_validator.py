@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass
 from typing import Dict, Optional
 
@@ -26,6 +27,13 @@ class SymbolValidator:
                 self._cache = {}
 
     def _save(self) -> None:
+        # Evict stale entries before writing
+        now = time.time()
+        self._cache = {
+            k: v for k, v in self._cache.items()
+            if isinstance(v, dict) and isinstance(v.get("ts"), (int, float))
+            and (now - v["ts"]) < self.ttl_s
+        }
         with open(self.cache_path, "w", encoding="utf-8") as f:
             json.dump(self._cache, f)
 
@@ -44,10 +52,12 @@ class SymbolValidator:
         if s in NON_EQUITY_TOKENS:
             return False
 
-        # cache hit
+        # cache hit (with timestamp check)
         entry = self._cache.get(s)
         if entry and isinstance(entry, dict) and "ok" in entry:
-            return bool(entry["ok"])
+            ts = entry.get("ts")
+            if isinstance(ts, (int, float)) and (time.time() - ts) < self.ttl_s:
+                return bool(entry["ok"])
 
         ok = False
         try:
@@ -66,6 +76,6 @@ class SymbolValidator:
         except Exception:
             ok = False
 
-        self._cache[s] = {"ok": ok}
+        self._cache[s] = {"ok": ok, "ts": int(time.time())}
         self._save()
         return ok

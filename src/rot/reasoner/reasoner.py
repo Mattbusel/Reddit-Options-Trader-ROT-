@@ -11,6 +11,9 @@ from rot.reasoner.prompts import SYSTEM_PROMPT, format_event_prompt
 log = logging.getLogger(__name__)
 
 
+_PLACEHOLDER_KEYS = {"your_api_key", "sk-...", "your-api-key", "changeme", "test", ""}
+
+
 class Reasoner:
     """LLM-powered event reasoning. Falls back to template if no API key configured."""
 
@@ -24,34 +27,58 @@ class Reasoner:
         temperature: float = 0.3,
     ) -> None:
         self._llm: LLMClient | None = None
+        self._consecutive_failures = 0
+        self._max_failures = 3
+
         if api_key:
-            try:
-                self._llm = LLMClient(
-                    provider=provider,
-                    api_key=api_key,
-                    model=model,
-                    base_url=base_url,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
+            # Reject known placeholder / example keys
+            stripped = api_key.strip()
+            if stripped.lower() in _PLACEHOLDER_KEYS or len(stripped) < 20:
+                log.warning(
+                    "LLM API key appears to be a placeholder ('%s...') — "
+                    "using fallback reasoning. Set a real key in OPENAI_API_KEY.",
+                    stripped[:8],
                 )
-                if not self._llm.available:
+            else:
+                try:
+                    self._llm = LLMClient(
+                        provider=provider,
+                        api_key=api_key,
+                        model=model,
+                        base_url=base_url,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    if not self._llm.available:
+                        self._llm = None
+                except Exception as e:
+                    log.warning("Failed to init LLM client: %s", e)
                     self._llm = None
-            except Exception as e:
-                log.warning("Failed to init LLM client: %s", e)
-                self._llm = None
 
     @property
     def llm_available(self) -> bool:
         return self._llm is not None
 
     def reason(self, event: Event) -> ReasoningPacket:
-        if not self._llm:
+        if not self._llm or self._consecutive_failures >= self._max_failures:
             return self._stub_reason(event)
 
         try:
-            return self._llm_reason(event)
+            result = self._llm_reason(event)
+            self._consecutive_failures = 0  # Reset on success
+            return result
         except Exception as e:
-            log.warning("LLM reasoning failed, using fallback: %s", e)
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= self._max_failures:
+                log.error(
+                    "LLM reasoning disabled after %d consecutive failures: %s",
+                    self._max_failures, e,
+                )
+            else:
+                log.warning(
+                    "LLM reasoning failed (%d/%d), using fallback: %s",
+                    self._consecutive_failures, self._max_failures, e,
+                )
             return self._stub_reason(event)
 
     def _llm_reason(self, event: Event) -> ReasoningPacket:

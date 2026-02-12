@@ -65,6 +65,10 @@ _BARE_TICKER_BLOCKLIST = {
     "FILED", "AWARD", "GRANT", "PHASE", "TRIAL", "AGENT", "CLAIM",
     # Junk patterns (repeated letters, all same char)
     "GOOOO", "GOOO", "AAAA", "BBBB",
+    # Economic indicators / data releases (not tickers)
+    "JOLTS", "NFP", "PMI", "PCE", "PPI", "ADP", "ISM",
+    # Business metrics that look like tickers
+    "GMV", "MAU", "ARR", "MRR", "GFC",
 }
 
 # Real tickers that are also common English words. We only extract these

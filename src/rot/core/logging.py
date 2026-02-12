@@ -22,18 +22,40 @@ def _to_jsonable(obj: Any) -> Any:
 
 
 class JsonlLogger:
-    def __init__(self, root: str = "storage") -> None:
+    def __init__(self, root: str = "storage", max_file_size_bytes: int = 10 * 1024 * 1024) -> None:
         self.root = root
+        self.max_file_size_bytes = max_file_size_bytes
         os.makedirs(root, exist_ok=True)
 
     def write(self, stream: str, record: Dict[str, Any]) -> None:
         path = os.path.join(self.root, f"{stream}.jsonl")
         record = dict(record)
         record.setdefault("ts", int(time.time()))
+
+        # Size-cap check: trim oldest half when file exceeds max size
+        try:
+            if os.path.isfile(path) and os.path.getsize(path) > self.max_file_size_bytes:
+                self._trim_file(path)
+        except OSError:
+            pass
+
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(_to_jsonable(record), ensure_ascii=False) + "\n")
 
-    def rotate(self, max_age_days: int = 7) -> Dict[str, int]:
+    def _trim_file(self, path: str) -> None:
+        """Keep only the newest half of lines when file exceeds size limit."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            keep = lines[len(lines) // 2:]
+            with open(path, "w", encoding="utf-8") as f:
+                f.writelines(keep)
+            log.info("JSONL size cap: trimmed %s from %d to %d lines",
+                     os.path.basename(path), len(lines), len(keep))
+        except Exception:
+            pass
+
+    def rotate(self, max_age_days: int = 3) -> Dict[str, int]:
         """Rotate all .jsonl files, keeping only entries from the last N days.
 
         Returns dict of {filename: lines_removed}.

@@ -15,7 +15,7 @@ class SeenRecord:
 
 
 class SeenStore:
-    def __init__(self, path: str = "storage/seen_posts.json", max_age_s: int = 7 * 24 * 3600) -> None:
+    def __init__(self, path: str = "storage/seen_posts.json", max_age_s: int = 2 * 24 * 3600) -> None:
         self.path = Path(path)
         self.max_age_s = max_age_s
         self._data: Dict[str, SeenRecord] = {}
@@ -51,7 +51,7 @@ class SeenStore:
             k: {"score": r.score, "num_comments": r.num_comments, "last_seen_ts": r.last_seen_ts}
             for k, r in self._data.items()
         }
-        self.path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
 
     def get(self, post_id: str) -> Optional[SeenRecord]:
         self.load()
