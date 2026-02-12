@@ -34,6 +34,7 @@ async def list_signals(
     event_type: Optional[str] = None,
     date_from: Optional[float] = None,
     date_to: Optional[float] = None,
+    source: Optional[str] = None,
 ):
     user = await get_current_user_optional(request)
     await check_rate_limit(request, user)
@@ -60,6 +61,7 @@ async def list_signals(
         event_type=event_type,
         date_from=date_from,
         date_to=date_to,
+        source=source,
     )
 
     gated = gate_signal_list(

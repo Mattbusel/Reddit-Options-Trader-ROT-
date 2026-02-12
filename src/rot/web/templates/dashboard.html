@@ -369,6 +369,19 @@
                 <option value="other" {{ 'selected' if filter_event == 'other' }}>Other</option>
             </select>
         </div>
+        <!-- Source -->
+        <div class="min-w-[140px]">
+            <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Source</label>
+            <select name="source" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
+                <option value="">All Sources</option>
+                <option value="dod-contracts" {{ 'selected' if filter_source == 'dod-contracts' }}>&#128737; Defense (DoD)</option>
+                <option value="fda-press-releases" {{ 'selected' if filter_source == 'fda-press-releases' }}>&#128138; Pharma (FDA)</option>
+                <option value="reddit" {{ 'selected' if filter_source == 'reddit' }}>&#128293; Reddit</option>
+                <option value="rss" {{ 'selected' if filter_source == 'rss' }}>&#128240; All RSS Feeds</option>
+                <option value="stocktwits" {{ 'selected' if filter_source == 'stocktwits' }}>&#128241; StockTwits</option>
+                <option value="twitter" {{ 'selected' if filter_source == 'twitter' }}>&#128038; Twitter/X</option>
+            </select>
+        </div>
         <!-- Min Confidence -->
         <div class="min-w-[100px]">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Min Conf %</label>

@@ -327,6 +327,7 @@ class Database:
         event_type: Optional[str] = None,
         date_from: Optional[float] = None,
         date_to: Optional[float] = None,
+        source: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         conditions = []
         params: list = []
@@ -349,6 +350,20 @@ class Database:
         if date_to is not None:
             conditions.append("created_at <= ?")
             params.append(date_to)
+
+        # Source filter: supports group values and exact subreddit/label matches
+        if source:
+            if source == "reddit":
+                conditions.append(
+                    "subreddit IN ('wallstreetbets','options','stocks','investing',"
+                    "'thetagang','stockmarket','smallstreetbets')"
+                )
+            elif source == "rss":
+                conditions.append("json_extract(event_data, '$.flair') = 'rss'")
+            else:
+                # Exact match: dod-contracts, fda-press-releases, stocktwits, twitter, etc.
+                conditions.append("subreddit = ?")
+                params.append(source)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         query = f"SELECT * FROM signals {where} ORDER BY created_at DESC LIMIT ? OFFSET ?"

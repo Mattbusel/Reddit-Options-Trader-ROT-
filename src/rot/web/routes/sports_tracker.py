@@ -81,6 +81,31 @@ SPORTS_FEEDS = [
         "league": "Soccer",
         "icon": "\u26BD",  # soccer ball
     },
+    # ── NCAA ──
+    {
+        "url": "https://www.espn.com/espn/rss/ncf/news",
+        "label": "ESPN College Football",
+        "league": "NCAA",
+        "icon": "\U0001F393",  # graduation cap
+    },
+    {
+        "url": "https://www.espn.com/espn/rss/ncb/news",
+        "label": "ESPN College Basketball",
+        "league": "NCAA",
+        "icon": "\U0001F393",
+    },
+    {
+        "url": "https://www.cbssports.com/rss/headlines/college-football/",
+        "label": "CBS College Football",
+        "league": "NCAA",
+        "icon": "\U0001F393",
+    },
+    {
+        "url": "https://www.cbssports.com/rss/headlines/college-basketball/",
+        "label": "CBS College Basketball",
+        "league": "NCAA",
+        "icon": "\U0001F393",
+    },
     # ── Multi-sport / General ──
     {
         "url": "https://www.cbssports.com/rss/headlines/",
@@ -115,6 +140,9 @@ _TRADE_KEYWORDS = [
     "waive", "waived", "release", "released", "cut", "claim",
     "draft", "pick", "prospect", "extension", "contract",
     "buyout", "opt out", "option",
+    # NCAA-specific
+    "transfer portal", "portal", "transfer", "NIL", "commit",
+    "decommit", "recruiting", "recruit", "flip",
 ]
 
 _SUSPENSION_KEYWORDS = [
@@ -205,6 +233,7 @@ def _league_color(league: str) -> str:
         "MLB": "bg-blue-800/40 text-blue-300 border-blue-600/40",
         "NHL": "bg-cyan-800/40 text-cyan-300 border-cyan-600/40",
         "Soccer": "bg-emerald-800/40 text-emerald-300 border-emerald-600/40",
+        "NCAA": "bg-indigo-800/40 text-indigo-300 border-indigo-600/40",
         "Multi": "bg-gray-700/40 text-gray-300 border-gray-600/40",
     }.get(league, "bg-gray-700/40 text-gray-300 border-gray-600/40")
 

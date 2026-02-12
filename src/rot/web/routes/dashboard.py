@@ -141,6 +141,7 @@ async def _dashboard_inner(request: Request):
     q_stance = request.query_params.get("stance", "").strip().lower() or None
     q_event = request.query_params.get("event_type", "").strip().lower() or None
     q_confidence = request.query_params.get("min_confidence", "").strip() or None
+    q_source = request.query_params.get("source", "").strip() or None
     q_date_range = request.query_params.get("date_range", "").strip() or None
     min_conf_float = None
     if q_confidence:
@@ -169,6 +170,7 @@ async def _dashboard_inner(request: Request):
         event_type=q_event,
         date_from=date_from,
         date_to=date_to,
+        source=q_source,
     )
     trending = await db.get_trending_tickers(hours=24, limit=10)
     summary = await db.get_performance_summary(days=30)
@@ -273,8 +275,9 @@ async def _dashboard_inner(request: Request):
         "filter_stance": q_stance or "",
         "filter_event": q_event or "",
         "filter_confidence": q_confidence or "",
+        "filter_source": q_source or "",
         "filter_date_range": q_date_range or "",
-        "has_filters": bool(q_ticker or q_stance or q_event or q_confidence or q_date_range),
+        "has_filters": bool(q_ticker or q_stance or q_event or q_confidence or q_source or q_date_range),
         "watchlist": (user.get("settings") if user and isinstance(user.get("settings"), dict) else {}).get("watchlist", []),
         "watchlist_limit": {"free": 3, "pro": 20, "premium": 50, "ultra": 999}.get(tier, 3),
         "filter_access": filter_access,
