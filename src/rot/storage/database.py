@@ -372,18 +372,17 @@ class Database:
         # Source filter: supports group values and exact subreddit/label matches
         if source:
             if source == "defense":
-                # Defense/DoD: signals from DoD RSS feed OR defense-sector tickers
+                # Defense/DoD: signals from DoD RSS feeds only
+                # Don't include Reddit signals just because they mention defense tickers
                 conditions.append(
-                    "(subreddit = 'dod-contracts'"
-                    " OR sector LIKE '%Aerospace%'"
-                    " OR ticker IN ('LMT','RTX','NOC','GD','BA','LHX','HII','LDOS','BAH','KTOS'))"
+                    "subreddit IN ('dod-contracts', 'dod-releases', 'dod-news')"
                 )
             elif source == "pharma":
-                # Pharma/FDA: signals from FDA RSS feed OR healthcare-sector tickers
+                # Pharma/FDA: signals from FDA/pharma RSS feeds only
                 conditions.append(
-                    "(subreddit = 'fda-press-releases'"
-                    " OR sector = 'Healthcare'"
-                    " OR event_type = 'regulatory')"
+                    "subreddit IN ('fda-press-releases', 'fda-drugs', 'fda-safety-alerts',"
+                    " 'fda-recalls', 'fda-oncology', 'biopharma-dive',"
+                    " 'drugs-com-approvals', 'drugs-com-trials')"
                 )
             elif source == "reddit":
                 conditions.append(
