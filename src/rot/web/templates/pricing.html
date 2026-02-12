@@ -434,6 +434,14 @@
                     <td class="py-3 px-4 text-center text-green-400">7d</td>
                     <td class="py-3 px-4 text-center text-green-400">30d</td>
                 </tr>
+                <tr class="bg-blue-900/10">
+                    <td class="py-3 px-4 text-gray-300">Signal data retention</td>
+                    <td class="py-3 px-4 text-center text-gray-400 text-xs">14 days</td>
+                    <td class="py-3 px-4 text-center text-blue-400 text-xs">14d + CSV</td>
+                    <td class="py-3 px-4 text-center text-purple-400 text-xs">14d + CSV + API</td>
+                    <td class="py-3 px-4 text-center text-amber-400 text-xs">14d + CSV + API</td>
+                    <td class="py-3 px-4 text-center text-emerald-400 text-xs">14d + CSV + API + Bulk</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -451,6 +459,29 @@
         This keeps subscription costs low and gives you full control over your AI spend.
         Configure your API key in <a href="/account" class="text-orange-400 hover:text-orange-300 hover:underline transition">Account Settings</a> after subscribing.
     </p>
+</div>
+
+<!-- Data Retention Explainer -->
+<div class="max-w-3xl mx-auto mt-8 signal-card rounded-xl p-6" style="border-color: rgba(59, 130, 246, 0.3);">
+    <h3 class="text-lg font-semibold text-white mb-3 flex items-center space-x-2">
+        <span>&#128451;</span>
+        <span>Why We Purge Old Data</span>
+    </h3>
+    <p class="text-gray-400 text-sm mb-3 leading-relaxed">
+        We automatically clean up signal data older than 14 days to keep our infrastructure lean.
+        This lets us charge <span class="text-white font-semibold">significantly less</span> than competitors who store data indefinitely &mdash;
+        savings we pass directly to you through lower monthly prices.
+    </p>
+    <p class="text-gray-400 text-sm mb-4 leading-relaxed">
+        Need to keep your data longer? Use <span class="text-blue-400 font-semibold">CSV export</span> (Pro+) to download signals anytime,
+        or connect via our <span class="text-blue-400 font-semibold">REST API</span> to automatically pull data into your own database, spreadsheets, or trading tools.
+    </p>
+    <div class="flex items-center space-x-4">
+        {% if tier == 'free' %}
+        <a href="#plans" class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade for CSV Export</a>
+        {% endif %}
+        <a href="/account" class="text-blue-400 hover:text-blue-300 text-sm hover:underline transition">Set up API access &rarr;</a>
+    </div>
 </div>
 
 <!-- Why ROT -->

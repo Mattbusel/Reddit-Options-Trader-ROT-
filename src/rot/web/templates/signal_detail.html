@@ -562,6 +562,22 @@
                     <span class="text-gray-300">{{ signal.get('time_horizon', 'unknown') }}</span>
                 </div>
             </div>
+
+            <!-- Data Retention Notice -->
+            <div class="mt-4 pt-4 border-t border-gray-800">
+                <div class="flex items-center space-x-2 mb-1.5">
+                    <span class="text-gray-500 text-xs">&#128451;</span>
+                    <span class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Data Retention</span>
+                </div>
+                <p class="text-gray-500 text-xs leading-relaxed">
+                    This signal will be automatically purged after 14 days to keep infrastructure costs low.
+                    {% if tier == 'free' %}
+                    <a href="/pricing" class="text-orange-400 hover:text-orange-300 hover:underline">Upgrade to Pro</a> to export signals via CSV before they expire.
+                    {% else %}
+                    Use <a href="#" onclick="window.location='/dashboard'; return false;" class="text-blue-400 hover:text-blue-300 hover:underline">CSV export</a> or the <a href="/account" class="text-blue-400 hover:text-blue-300 hover:underline">API</a> to save this data permanently.
+                    {% endif %}
+                </p>
+            </div>
         </div>
     </div>
 </div>

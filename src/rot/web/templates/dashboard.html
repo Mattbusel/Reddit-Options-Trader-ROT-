@@ -19,6 +19,21 @@
 </div>
 {% endif %}
 
+<!-- Data Retention Info Banner -->
+<div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+        <span class="text-blue-400 text-sm">&#128451;</span>
+        <span class="text-blue-300 text-sm">Signal data is retained for 14 days to keep costs low and your subscription affordable. Export via CSV or API to save permanently.</span>
+    </div>
+    <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+        {% if tier == 'free' %}
+        <a href="/pricing" class="px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition whitespace-nowrap">Upgrade for CSV Export</a>
+        {% else %}
+        <a href="#" onclick="exportFilteredCSV(); return false;" class="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition whitespace-nowrap">Export CSV</a>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Stats Bar -->
 <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
     <div class="stat-card rounded-lg p-5">

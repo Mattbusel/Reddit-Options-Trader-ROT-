@@ -37,6 +37,42 @@
             </div>
         </div>
 
+        <!-- Data Retention -->
+        <div class="bg-gray-800/50 border border-blue-800/50 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-2 flex items-center space-x-2">
+                <span>&#128451;</span>
+                <span>Data Retention</span>
+            </h2>
+            <p class="text-sm text-gray-400 mb-4">
+                Signal data is automatically purged after <span class="text-white font-semibold">14 days</span> to keep infrastructure costs low and your subscription affordable.
+            </p>
+            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-400">Retention Window</span>
+                    <span class="text-sm text-white font-semibold">14 days</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Data Export</span>
+                    {% if tier == 'free' %}
+                    <span class="text-sm text-gray-500">Requires Pro or higher</span>
+                    {% else %}
+                    <span class="text-sm text-green-400">CSV + API available</span>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+                We purge old data so we can charge you less. Export your signals via CSV or API before they expire to keep them permanently.
+            </p>
+            {% if tier == 'free' %}
+            <a href="/pricing" class="inline-block px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Upgrade for CSV Export</a>
+            {% else %}
+            <div class="flex items-center space-x-3">
+                <a href="/dashboard" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">Export CSV from Dashboard</a>
+                <span class="text-gray-600 text-sm">or use API key below</span>
+            </div>
+            {% endif %}
+        </div>
+
         <!-- API Key -->
         <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
             <h2 class="text-lg font-semibold text-white mb-4">API Key</h2>
