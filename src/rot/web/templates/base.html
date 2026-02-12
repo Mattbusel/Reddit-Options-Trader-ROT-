@@ -113,9 +113,9 @@
                             <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
                             {% if user %}
                             <div class="border-t border-gray-700 my-1"></div>
-                            <a href="/accuracy-breakdown" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127919; Accuracy Breakdown {% if user.tier not in ('premium', 'ultra', 'enterprise') %}<span class="text-xs text-purple-400">Premium</span>{% endif %}</a>
-                            <a href="/confidence-calibration" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128201; Confidence Calibration {% if user.tier not in ('premium', 'ultra', 'enterprise') %}<span class="text-xs text-purple-400">Premium</span>{% endif %}</a>
-                            <a href="/sector-rotation" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128260; Sector Rotation {% if user.tier not in ('premium', 'ultra', 'enterprise') %}<span class="text-xs text-purple-400">Premium</span>{% endif %}</a>
+                            <a href="/accuracy-breakdown" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127919; Accuracy Breakdown {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <a href="/confidence-calibration" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128201; Confidence Calibration {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <a href="/sector-rotation" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128260; Sector Rotation {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             {% endif %}
                         </div>
                     </div>

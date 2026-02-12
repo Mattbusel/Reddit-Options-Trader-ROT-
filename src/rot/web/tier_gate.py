@@ -91,9 +91,9 @@ def gate_performance_access(tier: str) -> dict:
         "has_performance_export": tier in ("ultra", "enterprise"),
         "has_performance_dashboard": tier in ("premium", "ultra", "enterprise"),
         "has_strategy_pnl": tier in ("ultra", "enterprise"),
-        "has_accuracy_breakdown": tier in ("premium", "ultra", "enterprise"),  # event/strategy breakdown
-        "has_confidence_calibration": tier in ("premium", "ultra", "enterprise"),
-        "has_post_mortem": tier in ("premium", "ultra", "enterprise"),
+        "has_accuracy_breakdown": tier in _PAID_TIERS,  # Pro+ feature
+        "has_confidence_calibration": tier in _PAID_TIERS,  # Pro+ feature
+        "has_post_mortem": tier in ("premium", "ultra", "enterprise"),  # Premium+ feature
         "accuracy_days": 7 if tier == "free" else 30 if tier == "pro" else 90 if tier == "premium" else 365,
     }
 
@@ -217,10 +217,10 @@ def gate_sponsored_access(tier: str) -> dict:
 def gate_sector_rotation_access(tier: str) -> dict:
     """Return sector rotation insights feature access flags based on tier."""
     return {
-        "has_access": tier in ("premium", "ultra", "enterprise"),
+        "has_access": tier in _PAID_TIERS,  # Pro+ feature
         "has_performance_overlay": tier in ("premium", "ultra", "enterprise"),
         "has_export": tier in ("ultra", "enterprise"),
-        "max_days": 30 if tier == "premium" else 90 if tier in ("ultra", "enterprise") else 0,
+        "max_days": 30 if tier in ("pro", "premium") else 90 if tier in ("ultra", "enterprise") else 0,
     }
 
 
