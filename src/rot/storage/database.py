@@ -38,6 +38,9 @@ CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_confidence ON signals(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_stance ON signals(stance);
 CREATE INDEX IF NOT EXISTS idx_signals_dedup ON signals(post_url, ticker, created_at);
+CREATE INDEX IF NOT EXISTS idx_signals_sector ON signals(sector);
+CREATE INDEX IF NOT EXISTS idx_signals_event_type ON signals(event_type);
+CREATE INDEX IF NOT EXISTS idx_signals_strategy ON signals(strategy);
 
 CREATE TABLE IF NOT EXISTS signal_performance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -226,6 +229,14 @@ _MIGRATIONS = [
     ("signals", "sector", "TEXT NOT NULL DEFAULT ''"),
     ("signals", "sponsored", "INTEGER NOT NULL DEFAULT 0"),
     ("signals", "sponsored_by", "TEXT NOT NULL DEFAULT ''"),
+    # Signal expiration & author credibility
+    ("signals", "expires_at", "REAL"),
+    ("signals", "author", "TEXT NOT NULL DEFAULT ''"),
+    ("signals", "author_karma", "INTEGER NOT NULL DEFAULT 0"),
+    ("signals", "author_age_days", "INTEGER NOT NULL DEFAULT 0"),
+    ("signals", "corroboration_count", "INTEGER NOT NULL DEFAULT 0"),
+    ("signals", "corroboration_sources", "TEXT NOT NULL DEFAULT '[]'"),
+    ("signals", "post_mortem", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -238,6 +249,16 @@ class Database:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db = await aiosqlite.connect(str(self.db_path))
         self._db.row_factory = aiosqlite.Row
+
+        # SQLite performance optimizations
+        await self._db.execute("PRAGMA journal_mode=WAL")       # Write-Ahead Logging for concurrent reads
+        await self._db.execute("PRAGMA synchronous=NORMAL")     # Faster writes, safe with WAL
+        await self._db.execute("PRAGMA cache_size=-8000")       # 8MB page cache (default 2MB)
+        await self._db.execute("PRAGMA temp_store=MEMORY")      # Keep temp tables in memory
+        await self._db.execute("PRAGMA mmap_size=67108864")     # 64MB memory-mapped I/O
+        await self._db.execute("PRAGMA busy_timeout=5000")      # 5s busy timeout instead of immediate fail
+        log.info("SQLite PRAGMAs applied (WAL, 8MB cache, 64MB mmap)")
+
         await self._db.executescript(_SCHEMA)
         await self._db.commit()
 
@@ -270,6 +291,10 @@ class Database:
 
     async def close(self) -> None:
         if self._db:
+            try:
+                await self._db.execute("PRAGMA optimize")  # Optimize query planner stats
+            except Exception:
+                pass
             await self._db.close()
             self._db = None
 
@@ -319,13 +344,31 @@ class Database:
             if isinstance(ticker_market, dict):
                 sector = ticker_market.get("sector", "")
 
+        # Compute expires_at from time_horizon
+        time_horizon = event_dict.get("time_horizon", "unknown")
+        _HORIZON_SECONDS = {
+            "intraday": 86400,      # 1 day
+            "1w": 7 * 86400,        # 1 week
+            "earnings": 14 * 86400, # 2 weeks
+            "1m": 30 * 86400,       # 1 month
+            "swing": 14 * 86400,    # 2 weeks
+        }
+        horizon_ttl = _HORIZON_SECONDS.get(time_horizon, 14 * 86400)  # default 14 days
+        expires_at = now + horizon_ttl
+
+        # Extract author credibility metadata
+        author = first_evidence.get("author", meta.get("author", ""))
+        author_karma = meta.get("author_karma", 0) or 0
+        author_age_days = meta.get("author_age_days", 0) or 0
+
         await self.db.execute(
             """INSERT INTO signals
                (id, run_id, created_at, ticker, event_type, stance, time_horizon,
                 confidence, trend_score, quality_score, strategy,
                 subreddit, post_title, post_url,
-                market_data, reasoning, trade_idea, event_data, sector)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                market_data, reasoning, trade_idea, event_data, sector,
+                expires_at, author, author_karma, author_age_days)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 signal_id,
                 signal_data.get("run_id", ""),
@@ -333,7 +376,7 @@ class Database:
                 ticker,
                 event_dict.get("event_type", "other"),
                 event_dict.get("stance", "unknown"),
-                event_dict.get("time_horizon", "unknown"),
+                time_horizon,
                 event_dict.get("confidence", 0.0),
                 meta.get("trend_score", 0.0),
                 idea_dict.get("quality_score", 0.0),
@@ -346,6 +389,10 @@ class Database:
                 json.dumps(idea_dict),
                 json.dumps(event_dict),
                 sector,
+                expires_at,
+                author,
+                author_karma,
+                author_age_days,
             ),
         )
         await self.db.commit()
@@ -1125,6 +1172,380 @@ class Database:
             rows = await cursor.fetchall()
             return [_row_to_dict(row) for row in rows]
 
+    # ── Accuracy by Event Type / Strategy (Premium) ──
+
+    async def get_accuracy_by_event_type(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Win rate broken down by event_type (earnings_rumor, squeeze, etc.)."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.event_type,
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as losers,
+                AVG(CASE WHEN sp.price_1d IS NOT NULL
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_return_pct
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
+                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            GROUP BY s.event_type
+            ORDER BY total DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                w = d.get("winners", 0) or 0
+                l = d.get("losers", 0) or 0
+                decided = w + l
+                d["win_rate"] = round(w / decided * 100) if decided > 0 else 0
+                results.append(d)
+            return results
+
+    async def get_accuracy_by_strategy(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Win rate broken down by strategy (debit_spread, credit_spread, etc.)."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.strategy,
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as winners,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as losers,
+                AVG(CASE WHEN sp.price_1d IS NOT NULL
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_return_pct
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
+                  AND s.strategy != 'none'
+                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            GROUP BY s.strategy
+            ORDER BY total DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                w = d.get("winners", 0) or 0
+                l = d.get("losers", 0) or 0
+                decided = w + l
+                d["win_rate"] = round(w / decided * 100) if decided > 0 else 0
+                results.append(d)
+            return results
+
+    # ── Confidence Calibration ──
+
+    async def get_confidence_calibration(self, days: int = 90) -> List[Dict[str, Any]]:
+        """Expected vs actual win rate by confidence decile for calibration chart."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                CAST(s.confidence * 10 AS INTEGER) as decile,
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN s.stance = 'bearish'
+                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
+                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                             / sp.price_at_signal > 0.005
+                    THEN 1
+                    ELSE 0 END) as winners,
+                AVG(s.confidence) as avg_confidence
+            FROM signal_performance sp
+            JOIN signals s ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND sp.price_at_signal > 0
+                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            GROUP BY decile
+            ORDER BY decile ASC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                total = d.get("total", 0) or 0
+                w = d.get("winners", 0) or 0
+                d["actual_win_rate"] = round(w / total * 100) if total > 0 else 0
+                d["expected_win_rate"] = round((d.get("avg_confidence", 0) or 0) * 100)
+                d["label"] = f"{d.get('decile', 0) * 10}-{d.get('decile', 0) * 10 + 10}%"
+                results.append(d)
+            return results
+
+    # ── Sector Rotation ──
+
+    async def get_sector_rotation_data(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Sector-level signal aggregation with win rate for rotation insights."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.sector,
+                COUNT(*) as total_signals,
+                SUM(CASE WHEN s.stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN s.stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                AVG(s.confidence) as avg_confidence,
+                COUNT(DISTINCT s.ticker) as unique_tickers,
+                GROUP_CONCAT(DISTINCT s.ticker) as top_tickers
+            FROM signals s
+            WHERE s.created_at > ? AND s.sector != '' AND s.ticker != 'UNKNOWN'
+            GROUP BY s.sector
+            HAVING total_signals >= 2
+            ORDER BY total_signals DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                bull = d.get("bullish", 0) or 0
+                bear = d.get("bearish", 0) or 0
+                total = bull + bear
+                d["bullish_pct"] = round(bull / total * 100) if total > 0 else 50
+                if d.get("top_tickers"):
+                    d["top_tickers"] = d["top_tickers"].split(",")[:5]
+                else:
+                    d["top_tickers"] = []
+                results.append(d)
+            return results
+
+    async def get_sector_rotation_with_performance(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Sector rotation with win rate overlay."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.sector,
+                COUNT(*) as total_signals,
+                SUM(CASE WHEN s.stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN s.stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                AVG(s.confidence) as avg_confidence,
+                SUM(CASE
+                    WHEN sp.price_at_signal > 0 AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                    THEN CASE
+                        WHEN s.stance = 'bearish'
+                             AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        WHEN s.stance != 'bearish'
+                             AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        ELSE 0
+                    END ELSE NULL END) as winners,
+                SUM(CASE
+                    WHEN sp.price_at_signal > 0 AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                    THEN 1 ELSE 0 END) as tracked
+            FROM signals s
+            LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND s.sector != '' AND s.ticker != 'UNKNOWN'
+            GROUP BY s.sector
+            HAVING total_signals >= 2
+            ORDER BY total_signals DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                bull = d.get("bullish", 0) or 0
+                bear = d.get("bearish", 0) or 0
+                total = bull + bear
+                d["bullish_pct"] = round(bull / total * 100) if total > 0 else 50
+                w = d.get("winners", 0) or 0
+                tracked = d.get("tracked", 0) or 0
+                d["win_rate"] = round(w / tracked * 100) if tracked > 0 else None
+                results.append(d)
+            return results
+
+    # ── Cross-Source Corroboration ──
+
+    async def update_corroboration(self, signal_id: str, count: int, sources: List[str]) -> None:
+        """Update corroboration count and sources for a signal."""
+        await self.db.execute(
+            "UPDATE signals SET corroboration_count = ?, corroboration_sources = ? WHERE id = ?",
+            (count, json.dumps(sources), signal_id),
+        )
+        await self.db.commit()
+
+    async def find_corroborating_signals(
+        self, ticker: str, stance: str, window_s: int = 3600
+    ) -> List[Dict[str, Any]]:
+        """Find recent signals for the same ticker+stance from different sources."""
+        cutoff = time.time() - window_s
+        query = """
+            SELECT id, subreddit, confidence, created_at
+            FROM signals
+            WHERE ticker = ? AND stance = ? AND created_at > ?
+            ORDER BY created_at DESC
+        """
+        async with self.db.execute(query, (ticker, stance, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    # ── Signal Expiration ──
+
+    async def expire_stale_signals(self) -> int:
+        """Mark signals past their expires_at as expired (set confidence to 0).
+        Returns count of expired signals."""
+        now = time.time()
+        async with self.db.execute(
+            """UPDATE signals SET quality_score = 0
+               WHERE expires_at IS NOT NULL AND expires_at < ?
+               AND quality_score > 0""",
+            (now,),
+        ) as cursor:
+            count = cursor.rowcount
+        if count > 0:
+            await self.db.commit()
+            log.info("Expired %d stale signals past their expires_at", count)
+        return count
+
+    # ── Post-Mortem ──
+
+    async def save_post_mortem(self, signal_id: str, post_mortem: str) -> None:
+        """Save a post-mortem analysis for a resolved signal."""
+        await self.db.execute(
+            "UPDATE signals SET post_mortem = ? WHERE id = ?",
+            (post_mortem, signal_id),
+        )
+        await self.db.commit()
+
+    async def get_signals_needing_post_mortem(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get resolved signals that don't have a post-mortem yet."""
+        query = """
+            SELECT s.id, s.ticker, s.stance, s.confidence, s.event_type, s.strategy,
+                   s.post_title, s.created_at,
+                   sp.price_at_signal, sp.price_1d, sp.price_4h, sp.price_1h,
+                   sp.max_gain_pct, sp.max_loss_pct
+            FROM signals s
+            JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE s.post_mortem = '' AND sp.price_at_signal > 0
+                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            ORDER BY s.created_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (limit,)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def generate_heuristic_post_mortems(self, limit: int = 50) -> int:
+        """Generate heuristic post-mortem text for resolved signals without one.
+
+        This is a rule-based fallback when no LLM is available.
+        """
+        signals = await self.get_signals_needing_post_mortem(limit=limit)
+        count = 0
+        for sig in signals:
+            try:
+                pm = self._build_post_mortem_text(sig)
+                if pm:
+                    await self.save_post_mortem(sig["id"], pm)
+                    count += 1
+            except Exception as e:
+                log.warning("Post-mortem generation failed for %s: %s", sig.get("id"), e)
+        return count
+
+    @staticmethod
+    def _build_post_mortem_text(sig: dict) -> str:
+        """Build a heuristic post-mortem from price performance data."""
+        ticker = sig.get("ticker", "?")
+        stance = sig.get("stance", "unknown")
+        confidence = sig.get("confidence", 0)
+        strategy = sig.get("strategy", "none")
+        event_type = sig.get("event_type", "other")
+
+        price_at = sig.get("price_at_signal", 0)
+        price_now = sig.get("price_1d") or sig.get("price_4h") or sig.get("price_1h")
+        if not price_at or not price_now or price_at <= 0:
+            return ""
+
+        pct_change = ((price_now - price_at) / price_at) * 100
+        direction = "up" if pct_change > 0 else "down" if pct_change < 0 else "flat"
+        abs_pct = abs(pct_change)
+
+        threshold = 0.5
+        if stance == "bullish":
+            won = pct_change > threshold
+        elif stance == "bearish":
+            won = pct_change < -threshold
+        else:
+            won = abs_pct > threshold
+
+        outcome = "WIN" if won else "LOSS" if abs_pct > threshold else "NEUTRAL"
+        max_gain = sig.get("max_gain_pct") or 0
+        max_loss = sig.get("max_loss_pct") or 0
+
+        parts = [
+            f"Signal: {stance.upper()} {ticker} ({confidence*100:.0f}% conf, {strategy.replace('_',' ')})",
+            f"Outcome: {outcome} — Price moved {direction} {abs_pct:.1f}%",
+        ]
+        if max_gain > 0:
+            parts.append(f"Peak gain: +{max_gain:.1f}%")
+        if max_loss < 0:
+            parts.append(f"Max drawdown: {max_loss:.1f}%")
+
+        if won:
+            if abs_pct > 5:
+                parts.append(f"Strong directional move validated the {stance} thesis.")
+            else:
+                parts.append(f"Modest gain aligned with the {stance} outlook.")
+        elif abs_pct <= threshold:
+            parts.append("Price stayed within noise range; no decisive move.")
+        else:
+            if stance == "bullish" and pct_change < 0:
+                parts.append("Price moved against the bullish thesis.")
+            elif stance == "bearish" and pct_change > 0:
+                parts.append("Price rose despite bearish call.")
+            else:
+                parts.append("Mixed signal did not produce a clear directional winner.")
+
+        if event_type not in ("other", "unknown", ""):
+            parts.append(f"Event type: {event_type.replace('_', ' ')}")
+
+        return " | ".join(parts)
+
     # ── Signal Count Badge ──
 
     async def get_signals_since(self, timestamp: float) -> int:
@@ -1402,6 +1823,29 @@ class Database:
                 if filter_events and event_type not in filter_events:
                     continue
                 results.append(d)
+            return results
+
+    async def get_users_with_watchlist_ticker(self, ticker: str) -> List[Dict[str, Any]]:
+        """Get paid users who have this ticker on their watchlist (stored in settings JSON)."""
+        query = """
+            SELECT id, email, tier, settings
+            FROM users
+            WHERE tier IN ('pro', 'premium', 'ultra', 'enterprise')
+        """
+        async with self.db.execute(query) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = dict(row)
+                settings = d.get("settings", "{}")
+                if isinstance(settings, str):
+                    try:
+                        settings = json.loads(settings)
+                    except (json.JSONDecodeError, TypeError):
+                        settings = {}
+                watchlist = settings.get("watchlist", [])
+                if isinstance(watchlist, list) and ticker.upper() in [t.upper() for t in watchlist]:
+                    results.append(d)
             return results
 
     async def update_digest_sent(self, user_id: str) -> None:
@@ -2466,6 +2910,20 @@ class Database:
         except Exception as e:
             log.warning("Purge old paper trades failed: %s", e)
             results["old_paper_trades"] = 0
+
+        # Expire stale signals (set quality_score=0 for signals past expires_at)
+        try:
+            results["expired_signals"] = await self.expire_stale_signals()
+        except Exception as e:
+            log.warning("Expire stale signals failed: %s", e)
+            results["expired_signals"] = 0
+
+        # Generate post-mortems for resolved signals that don't have one
+        try:
+            results["post_mortems"] = await self.generate_heuristic_post_mortems(limit=50)
+        except Exception as e:
+            log.warning("Post-mortem generation failed: %s", e)
+            results["post_mortems"] = 0
 
         # Reclaim disk space
         try:

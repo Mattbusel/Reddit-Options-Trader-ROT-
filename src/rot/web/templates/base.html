@@ -111,6 +111,12 @@
                             <a href="/sentiment" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Sentiment Heatmap</a>
                             <a href="/weekly-wrap" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128240; Weekly Wrap</a>
                             <a href="/replay" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127916; Signal Replay</a>
+                            {% if user and user.tier in ('premium', 'ultra', 'enterprise') %}
+                            <div class="border-t border-gray-700 my-1"></div>
+                            <a href="/accuracy-breakdown" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127919; Accuracy Breakdown</a>
+                            <a href="/confidence-calibration" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128201; Confidence Calibration</a>
+                            <a href="/sector-rotation" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128260; Sector Rotation</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

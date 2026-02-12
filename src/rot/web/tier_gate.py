@@ -74,6 +74,9 @@ def gate_filter_access(tier: str) -> dict:
     return {
         "has_date_range": tier in ("premium", "ultra", "enterprise"),
         "has_confidence_range": True,  # all tiers have min_confidence
+        "has_ticker_filter": tier in _PAID_TIERS,     # Pro+ only
+        "has_stance_filter": tier in _PAID_TIERS,     # Pro+ only
+        "has_source_filter": tier in _PAID_TIERS,     # Pro+ only
         "has_saved_presets": tier in ("ultra", "enterprise"),
         "max_presets": 10 if tier in ("ultra", "enterprise") else 0,
     }
@@ -82,12 +85,15 @@ def gate_filter_access(tier: str) -> dict:
 def gate_performance_access(tier: str) -> dict:
     """Return performance/accuracy feature access flags based on tier."""
     return {
-        "has_aggregate_accuracy": True,  # all tiers
+        "has_aggregate_accuracy": tier in _PAID_TIERS,  # Pro+ only (monetization)
         "has_per_signal_pnl": tier in _PAID_TIERS,
         "has_roi_history_chart": tier in ("premium", "ultra", "enterprise"),
         "has_performance_export": tier in ("ultra", "enterprise"),
         "has_performance_dashboard": tier in ("premium", "ultra", "enterprise"),
         "has_strategy_pnl": tier in ("ultra", "enterprise"),
+        "has_accuracy_breakdown": tier in ("premium", "ultra", "enterprise"),  # event/strategy breakdown
+        "has_confidence_calibration": tier in ("premium", "ultra", "enterprise"),
+        "has_post_mortem": tier in ("premium", "ultra", "enterprise"),
         "accuracy_days": 7 if tier == "free" else 30 if tier == "pro" else 90 if tier == "premium" else 365,
     }
 
@@ -114,8 +120,8 @@ def gate_heatmap_access(tier: str) -> dict:
 def gate_leaderboard_access(tier: str) -> dict:
     """Return leaderboard feature access flags based on tier."""
     return {
-        "has_leaderboard": True,  # all tiers
-        "leaderboard_limit": 5 if tier == "free" else 20,
+        "has_leaderboard": tier in _PAID_TIERS,  # Pro+ only (monetization)
+        "leaderboard_limit": 0 if tier == "free" else 20,
         "has_sorting": tier in _PAID_TIERS,
         "has_historical": tier in ("premium", "ultra", "enterprise"),
         "has_performance_column": tier in ("premium", "ultra", "enterprise"),
@@ -145,8 +151,8 @@ def gate_correlation_access(tier: str) -> dict:
 def gate_sentiment_access(tier: str) -> dict:
     """Return sentiment heatmap feature access flags based on tier."""
     return {
-        "max_tickers": 10 if tier == "free" else 50,
-        "max_hours": 24 if tier == "free" else 168 if tier == "pro" else 720 if tier == "premium" else 2160,
+        "max_tickers": 3 if tier == "free" else 50,   # 3 tickers for free (was 10)
+        "max_hours": 12 if tier == "free" else 168 if tier == "pro" else 720 if tier == "premium" else 2160,  # 12h for free (was 24h)
         "has_drill_down": tier in _PAID_TIERS,
         "has_sector_group": tier in ("premium", "ultra", "enterprise"),
         "has_export": tier in ("premium", "ultra", "enterprise"),
@@ -168,7 +174,7 @@ def gate_ticker_dive_access(tier: str) -> dict:
 def gate_weekly_wrap_access(tier: str) -> dict:
     """Return weekly wrap feature access flags based on tier."""
     return {
-        "max_weeks_back": 0 if tier == "free" else 4 if tier == "pro" else 12 if tier == "premium" else 52,
+        "max_weeks_back": 1 if tier == "free" else 4 if tier == "pro" else 12 if tier == "premium" else 52,  # 1 week preview for free (was 0)
         "has_charts": tier in _PAID_TIERS,
         "has_strategy_breakdown": tier in ("premium", "ultra", "enterprise"),
         "has_export": tier in ("ultra", "enterprise"),
@@ -205,6 +211,16 @@ def gate_sponsored_access(tier: str) -> dict:
         "can_submit": tier == "enterprise",
         "can_view_status": tier == "enterprise",
         "max_pending": 10 if tier == "enterprise" else 0,
+    }
+
+
+def gate_sector_rotation_access(tier: str) -> dict:
+    """Return sector rotation insights feature access flags based on tier."""
+    return {
+        "has_access": tier in ("premium", "ultra", "enterprise"),
+        "has_performance_overlay": tier in ("premium", "ultra", "enterprise"),
+        "has_export": tier in ("ultra", "enterprise"),
+        "max_days": 30 if tier == "premium" else 90 if tier in ("ultra", "enterprise") else 0,
     }
 
 

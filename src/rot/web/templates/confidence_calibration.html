@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Confidence Calibration - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Confidence Calibration</h1>
+        <span class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">How well does signal confidence predict actual win rate? Data from the last {{ days }} days.</p>
+</div>
+
+<!-- Explanation card -->
+<div class="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4 mb-8">
+    <p class="text-sm text-blue-300">
+        <strong>How to read this:</strong> A perfectly calibrated system would show 60% confidence signals winning 60% of the time.
+        If actual win rate exceeds confidence, the system is <span class="text-green-400 font-semibold">underconfident</span> (good).
+        If actual win rate is below confidence, the system is <span class="text-red-400 font-semibold">overconfident</span> (signals to be careful with).
+    </p>
+</div>
+
+{% if calibration %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Calibration Chart -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Expected vs Actual Win Rate</h2>
+        <div style="height: 350px;">
+            <canvas id="calibrationChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Calibration Table -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Calibration by Decile</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-left">
+                        <th class="py-2 px-3 text-gray-400 font-semibold">Confidence Range</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Signals</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Avg Confidence</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Actual Win Rate</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Gap</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in calibration %}
+                    {% set gap = (row.actual_win_rate or 0) - (row.avg_confidence or 0) %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                        <td class="py-2 px-3 text-white font-medium">{{ row.bucket_label }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ row.total }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(row.avg_confidence or 0) }}%</td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.actual_win_rate or 0) >= 50 else 'text-red-400' }} font-bold">
+                            {{ "%.1f"|format(row.actual_win_rate or 0) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if gap >= 0 else 'text-red-400' }}">
+                            {{ "%.1f"|format(gap) }}pp
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Insight Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    {% set total_signals = calibration|map(attribute='total')|sum %}
+    {% set underconfident = calibration|selectattr('actual_win_rate')|list %}
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Calibrated</div>
+        <div class="text-3xl font-bold text-white">{{ total_signals }}</div>
+        <div class="text-xs text-gray-500 mt-1">signals with outcomes</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Best Decile</div>
+        {% set best = calibration|sort(attribute='actual_win_rate', reverse=true)|first %}
+        <div class="text-3xl font-bold text-green-400">{{ "%.0f"|format(best.actual_win_rate or 0) }}%</div>
+        <div class="text-xs text-gray-500 mt-1">{{ best.bucket_label }} confidence</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Deciles Tracked</div>
+        <div class="text-3xl font-bold text-white">{{ calibration|length }}</div>
+        <div class="text-xs text-gray-500 mt-1">with enough data</div>
+    </div>
+</div>
+{% else %}
+<div class="chart-container mb-8">
+    <p class="text-gray-500 text-sm">No calibration data available yet. Signals need time to be tracked and resolved before calibration can be computed.</p>
+</div>
+{% endif %}
+
+<div class="text-center mt-6">
+    <a href="/performance" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Performance Dashboard</a>
+</div>
+
+{% if calibration %}
+<script>
+(function() {
+    const data = {{ calibration|tojson }};
+    const labels = data.map(d => d.bucket_label);
+    const expected = data.map(d => d.avg_confidence || 0);
+    const actual = data.map(d => d.actual_win_rate || 0);
+
+    new Chart(document.getElementById('calibrationChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Perfect Calibration',
+                    data: expected,
+                    borderColor: 'rgba(107,114,128,0.6)',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: 'Actual Win Rate',
+                    data: actual,
+                    borderColor: 'rgba(34,197,94,0.9)',
+                    backgroundColor: 'rgba(34,197,94,0.15)',
+                    pointRadius: 5,
+                    pointBackgroundColor: actual.map((v, i) => v >= expected[i] ? '#22c55e' : '#ef4444'),
+                    fill: true,
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#9ca3af' } },
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(75,85,99,0.3)' }, ticks: { color: '#9ca3af' }, title: { display: true, text: 'Win Rate %', color: '#9ca3af' } },
+                x: { grid: { display: false }, ticks: { color: '#9ca3af' }, title: { display: true, text: 'Confidence Decile', color: '#9ca3af' } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

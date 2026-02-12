@@ -115,6 +115,29 @@ class CredibilityScorer:
             factors[label] = sub_adj
             adjustment += sub_adj
 
+        # Factor 8: Author credibility (karma, account age)
+        author_karma = meta.get("author_karma", 0)
+        author_age_days = meta.get("author_age_days", 0)
+
+        if isinstance(author_karma, (int, float)):
+            if author_karma >= 50000:
+                factors["author_high_karma"] = 0.10
+                adjustment += 0.10
+            elif author_karma >= 10000:
+                factors["author_good_karma"] = 0.05
+                adjustment += 0.05
+            elif author_karma < 100:
+                factors["author_low_karma"] = -0.10
+                adjustment -= 0.10
+
+        if isinstance(author_age_days, (int, float)):
+            if author_age_days >= 365:
+                factors["author_established"] = 0.05
+                adjustment += 0.05
+            elif author_age_days < 30:
+                factors["author_new_account"] = -0.10
+                adjustment -= 0.10
+
         # Apply adjustment to confidence
         new_confidence = max(0.05, min(1.0, event.confidence + adjustment))
 

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Sector Rotation - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Sector Rotation Insights</h1>
+        <span class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">Signal flow and sentiment by sector over the last {{ days }} days</p>
+</div>
+
+{% if sectors %}
+<!-- Summary Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    {% set total_signals = sectors|map(attribute='total_signals')|sum %}
+    {% set most_active = sectors|sort(attribute='total_signals', reverse=true)|first %}
+    {% set most_bullish = sectors|sort(attribute='bullish', reverse=true)|first %}
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Sectors Tracked</div>
+        <div class="text-3xl font-bold text-white">{{ sectors|length }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals</div>
+        <div class="text-3xl font-bold text-white">{{ total_signals }}</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Most Active</div>
+        <div class="text-xl font-bold text-orange-400 truncate">{{ most_active.sector }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ most_active.total_signals }} signals</div>
+    </div>
+    <div class="stat-card rounded-lg p-5">
+        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Most Bullish</div>
+        <div class="text-xl font-bold text-green-400 truncate">{{ most_bullish.sector }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ most_bullish.bullish }} bullish</div>
+    </div>
+</div>
+
+<!-- Sector Chart + Table -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Stacked Bar Chart -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Signal Flow by Sector</h2>
+        <div style="height: 400px;">
+            <canvas id="sectorChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Sector Table -->
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-4">Sector Details</h2>
+        <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-gray-900">
+                    <tr class="border-b border-gray-700 text-left">
+                        <th class="py-2 px-3 text-gray-400 font-semibold">Sector</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Signals</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Bull / Bear</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Avg Conf</th>
+                        {% if sectors[0].win_rate is defined %}
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sectors %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                        <td class="py-2 px-3 text-white font-medium">{{ row.sector }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ row.total_signals }}</td>
+                        <td class="py-2 px-3 text-right">
+                            <span class="text-green-400">{{ row.bullish }}</span> /
+                            <span class="text-red-400">{{ row.bearish }}</span>
+                        </td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((row.avg_confidence or 0) * 100) }}%</td>
+                        {% if row.win_rate is defined %}
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.win_rate or 0) >= 50 else 'text-red-400' if (row.win_rate or 0) > 0 else 'text-gray-500' }} font-bold">
+                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %}&mdash;{% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Sentiment Gauge (visual bull/bear ratio per sector) -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Sentiment Gauge</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for row in sectors %}
+        {% set bull_pct = (row.bullish / row.total_signals * 100) if row.total_signals > 0 else 50 %}
+        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-white font-semibold text-sm">{{ row.sector }}</span>
+                <span class="text-xs text-gray-500">{{ row.total_signals }} signals</span>
+            </div>
+            <div class="w-full h-3 rounded-full overflow-hidden flex">
+                <div class="bg-green-500 h-full" style="width: {{ bull_pct }}%"></div>
+                <div class="bg-red-500 h-full" style="width: {{ 100 - bull_pct }}%"></div>
+            </div>
+            <div class="flex items-center justify-between mt-1 text-xs">
+                <span class="text-green-400">{{ "%.0f"|format(bull_pct) }}% Bull</span>
+                <span class="text-red-400">{{ "%.0f"|format(100 - bull_pct) }}% Bear</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="chart-container mb-8">
+    <p class="text-gray-500 text-sm">No sector rotation data available yet. Signals need sector classification from market data enrichment.</p>
+</div>
+{% endif %}
+
+<div class="text-center mt-6">
+    <a href="/dashboard" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Dashboard</a>
+</div>
+
+{% if sectors %}
+<script>
+(function() {
+    const data = {{ sectors|tojson }};
+    const labels = data.map(d => d.sector);
+    const bullish = data.map(d => d.bullish);
+    const bearish = data.map(d => d.bearish);
+    const mixed = data.map(d => (d.total_signals - d.bullish - d.bearish));
+
+    new Chart(document.getElementById('sectorChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Bullish', data: bullish, backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 2 },
+                { label: 'Bearish', data: bearish, backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 2 },
+                { label: 'Mixed', data: mixed, backgroundColor: 'rgba(234,179,8,0.5)', borderRadius: 2 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#9ca3af' } } },
+            scales: {
+                x: { stacked: true, grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45 } },
+                y: { stacked: true, grid: { color: 'rgba(75,85,99,0.3)' }, ticks: { color: '#9ca3af' } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

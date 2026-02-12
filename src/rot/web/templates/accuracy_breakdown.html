@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Accuracy Breakdown - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Accuracy Breakdown</h1>
+        <span class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">Win rate by event type and strategy over the last {{ days }} days</p>
+</div>
+
+<!-- Accuracy by Event Type -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Win Rate by Event Type</h2>
+    {% if by_event %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div style="height: 350px;">
+            <canvas id="eventChart"></canvas>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-left">
+                        <th class="py-2 px-3 text-gray-400 font-semibold">Event Type</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Signals</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">W / L / N</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_event %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                        <td class="py-2 px-3 text-white font-medium">{{ row.event_type|replace('_', ' ')|title }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ row.total }}</td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.win_rate or 0) >= 50 else 'text-red-400' }} font-bold">
+                            {{ "%.1f"|format(row.win_rate or 0) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            <span class="text-green-400">{{ row.winners or 0 }}</span> /
+                            <span class="text-red-400">{{ row.losers or 0 }}</span> /
+                            <span class="text-gray-500">{{ row.neutral or 0 }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-gray-500 text-sm">No event-type data available yet. Signals need time to be tracked and resolved.</p>
+    {% endif %}
+</div>
+
+<!-- Accuracy by Strategy -->
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Win Rate by Strategy</h2>
+    {% if by_strategy %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div style="height: 350px;">
+            <canvas id="strategyChart"></canvas>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-left">
+                        <th class="py-2 px-3 text-gray-400 font-semibold">Strategy</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Signals</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Avg Gain</th>
+                        <th class="py-2 px-3 text-gray-400 font-semibold text-right">Avg Loss</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_strategy %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                        <td class="py-2 px-3 text-white font-medium">{{ row.strategy|replace('_', ' ')|title }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ row.total }}</td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.win_rate or 0) >= 50 else 'text-red-400' }} font-bold">
+                            {{ "%.1f"|format(row.win_rate or 0) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right text-green-400">{{ "%.1f"|format(row.avg_gain_pct or 0) }}%</td>
+                        <td class="py-2 px-3 text-right text-red-400">{{ "%.1f"|format(row.avg_loss_pct or 0) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-gray-500 text-sm">No strategy data available yet.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-6">
+    <a href="/performance" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Performance Dashboard</a>
+</div>
+
+<script>
+{% if by_event %}
+(function() {
+    const eventData = {{ by_event|tojson }};
+    const labels = eventData.map(d => d.event_type.replace(/_/g, ' '));
+    const winRates = eventData.map(d => d.win_rate || 0);
+    const colors = winRates.map(r => r >= 50 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)');
+    new Chart(document.getElementById('eventChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Win Rate %',
+                data: winRates,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace('0.7', '1')),
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(75,85,99,0.3)' }, ticks: { color: '#9ca3af' } },
+                x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45 } }
+            }
+        }
+    });
+})();
+{% endif %}
+
+{% if by_strategy %}
+(function() {
+    const stratData = {{ by_strategy|tojson }};
+    const labels = stratData.map(d => d.strategy.replace(/_/g, ' '));
+    const winRates = stratData.map(d => d.win_rate || 0);
+    const colors = winRates.map(r => r >= 50 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)');
+    new Chart(document.getElementById('strategyChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Win Rate %',
+                data: winRates,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace('0.7', '1')),
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(75,85,99,0.3)' }, ticks: { color: '#9ca3af' } },
+                x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45 } }
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
+{% endblock %}

@@ -37,6 +37,11 @@ class TradeBuilder:
     def __init__(self, min_market_cap: float = 1e8) -> None:
         self.min_market_cap = min_market_cap
 
+    # Minimum liquidity thresholds for options chain filtering
+    MIN_OPTION_VOLUME = 10       # minimum daily volume
+    MIN_OPEN_INTEREST = 50       # minimum open interest
+    MAX_BID_ASK_SPREAD_PCT = 0.15  # maximum bid-ask spread as % of mid price
+
     def build(self, packet: ReasoningPacket, event: Event) -> List[TradeIdea]:
         if not event.entities:
             return [self._no_trade("UNKNOWN", packet.thesis, ["no_tickers_extracted"])]
@@ -65,6 +70,11 @@ class TradeBuilder:
         price = sym_data.get("last_close")
         if not price or price <= 0:
             return [self._no_trade(underlying, packet.thesis, ["no_price_data"])]
+
+        # Options chain liquidity filter
+        liquidity_issues = self._check_options_liquidity(sym_data)
+        if liquidity_issues:
+            return [self._no_trade(underlying, packet.thesis, liquidity_issues)]
 
         # Strategy selection (IV-aware)
         strategy, legs, expiry = self._select_strategy(
@@ -234,6 +244,32 @@ class TradeBuilder:
             score -= 0.1
 
         return max(0.0, min(1.0, score))
+
+    def _check_options_liquidity(self, sym_data: Dict[str, Any]) -> List[str]:
+        """Check if the underlying has sufficient options chain liquidity.
+
+        Returns a list of gate failure reasons, or empty list if OK.
+        """
+        issues: List[str] = []
+        options = sym_data.get("options_chain", {})
+        if not options or not isinstance(options, dict):
+            # No options chain data available — allow trade (data may be missing)
+            return []
+
+        avg_volume = options.get("avg_volume", 0)
+        avg_oi = options.get("avg_open_interest", 0)
+        avg_spread_pct = options.get("avg_bid_ask_spread_pct", 0)
+
+        if isinstance(avg_volume, (int, float)) and avg_volume < self.MIN_OPTION_VOLUME:
+            issues.append("low_option_volume")
+
+        if isinstance(avg_oi, (int, float)) and avg_oi < self.MIN_OPEN_INTEREST:
+            issues.append("low_open_interest")
+
+        if isinstance(avg_spread_pct, (int, float)) and avg_spread_pct > self.MAX_BID_ASK_SPREAD_PCT:
+            issues.append("wide_bid_ask_spread")
+
+        return issues
 
     def _no_trade(self, underlying: str, thesis: str, reasons: List[str]) -> TradeIdea:
         return TradeIdea(

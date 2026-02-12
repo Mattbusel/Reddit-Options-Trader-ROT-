@@ -429,6 +429,45 @@
         </div>
         {% endif %}
 
+        <!-- Post-Mortem (Premium+) -->
+        {% if perf_access.get('has_post_mortem') %}
+        {% set post_mortem = signal.get('post_mortem', '') %}
+        {% if post_mortem %}
+        <div class="signal-card rounded-xl p-5" style="border-color: rgba(168, 85, 247, 0.3);">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128270;</span>
+                <span>Post-Mortem Analysis</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+            </h3>
+            <div class="space-y-2">
+                {% for part in post_mortem.split(' | ') %}
+                <p class="text-sm text-gray-300">{{ part }}</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% elif performance %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128270;</span>
+                <span>Post-Mortem Analysis</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
+            </h3>
+            <p class="text-gray-500 text-sm text-center py-2">Post-mortem will be generated once the signal has enough price data.</p>
+        </div>
+        {% endif %}
+        {% elif not perf_access.get('has_post_mortem') %}
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+                <span>&#128270;</span>
+                <span>Post-Mortem Analysis</span>
+            </h3>
+            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-4 text-center">
+                <p class="text-gray-500 text-sm mb-2">Post-mortem analysis available on Premium+</p>
+                <a href="/pricing" class="text-orange-400 hover:underline text-sm">Upgrade to unlock</a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Market Data -->
         {% set market = signal.get('market_data', {}) %}
         {% if market %}

@@ -80,8 +80,56 @@ class AlertDispatcher:
             except Exception as e:
                 log.error("Webhook dispatch failed: %s", e)
 
+        # Watchlist alerts: email users when a signal matches their watchlist tickers
+        if self._db and self._email_alerter:
+            try:
+                await self._dispatch_watchlist_alerts(signal_data, ticker, stance, confidence)
+            except Exception as e:
+                log.error("Watchlist alert dispatch failed: %s", e)
+
         # Note: Real-time email alerts removed to conserve email quota.
         # Users receive signals via daily digest instead.
+
+    async def _dispatch_watchlist_alerts(
+        self, signal_data: Dict[str, Any], ticker: str, stance: str,
+        confidence: float
+    ) -> None:
+        """Send email alerts to users who have this ticker on their watchlist."""
+        if not self._db or not self._email_alerter:
+            return
+
+        try:
+            users = await self._db.get_users_with_watchlist_ticker(ticker)
+        except Exception:
+            return
+
+        if not users:
+            return
+
+        idea = _to_dict(signal_data.get("trade_idea"))
+        strategy = idea.get("strategy", "none")
+
+        for u in users:
+            email = u.get("email", "")
+            tier = u.get("tier", "free")
+            # Only paid users get watchlist alerts
+            if tier not in ("pro", "premium", "ultra", "enterprise"):
+                continue
+            if not email:
+                continue
+            try:
+                subject = f"ROT Watchlist Alert: {ticker} ({stance.upper()}, {confidence*100:.0f}%)"
+                body = (
+                    f"<h2>Watchlist Alert: {ticker}</h2>"
+                    f"<p><strong>Stance:</strong> {stance} | "
+                    f"<strong>Confidence:</strong> {confidence*100:.0f}% | "
+                    f"<strong>Strategy:</strong> {strategy}</p>"
+                    f"<p>A new signal matching your watchlist was detected.</p>"
+                    f"<p><a href='{self.dashboard_url}/dashboard'>View on Dashboard</a></p>"
+                )
+                self._email_alerter._send_email(email, subject, body)
+            except Exception as e:
+                log.error("Watchlist email to %s failed: %s", email, e)
 
     async def _dispatch_webhooks(
         self, signal_data: Dict[str, Any], ticker: str, stance: str,
