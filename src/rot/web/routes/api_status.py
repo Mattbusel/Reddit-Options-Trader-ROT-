@@ -208,6 +208,24 @@ _ENDPOINTS = [
         "min_tier": "pro",
         "params": {},
     },
+    {
+        "path": "/api/v1/sports-betting",
+        "method": "GET",
+        "description": "Sports betting intelligence — news, Line Mover Scores, team tracking, AI analysis",
+        "min_tier": "premium",
+        "params": {
+            "league": "str — NFL, NBA, MLB, NHL, Soccer, NCAA, Multi, or all",
+            "category": "str — injury, trade, suspension, lineup, game, news, or all",
+            "team": "str — team name filter (e.g. 'chiefs', 'lakers')",
+            "urgency": "str — high, medium, low, or all",
+            "min_score": "int (0-100) — minimum Line Mover Score",
+            "sort": "str — time (default) or score (by Line Mover Score)",
+            "limit": "int (1-200, default 50)",
+            "offset": "int (default 0) — pagination offset",
+            "fields": "str — comma-separated field names to return",
+        },
+        "example": "/api/v1/sports-betting?league=NFL&urgency=high&min_score=60&sort=score&limit=20",
+    },
 ]
 
 _TIER_ORDER = {"free": 0, "pro": 1, "premium": 2, "ultra": 3, "enterprise": 4}

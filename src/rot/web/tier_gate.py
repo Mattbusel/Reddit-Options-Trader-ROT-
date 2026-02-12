@@ -267,6 +267,59 @@ def gate_paper_leaderboard_access(tier: str) -> dict:
     }
 
 
+def gate_sports_betting_access(tier: str) -> dict:
+    """Return sports betting intelligence feature access flags based on tier.
+
+    The sleeper monetization feature. Free tier = acquisition funnel (basic news).
+    Pro = line mover scores + team filtering. Premium+ = AI analysis + API.
+    Enterprise = bulk data + webhooks.
+    """
+    return {
+        # Basic access — free tier gets limited feed (acquisition funnel)
+        "has_access": True,
+        "max_days": (
+            2 if tier == "free"
+            else 5 if tier == "pro"
+            else 7 if tier == "premium"
+            else 14 if tier == "ultra"
+            else 365  # enterprise
+        ),
+        "max_items": (
+            20 if tier == "free"
+            else 50 if tier == "pro"
+            else 100 if tier == "premium"
+            else 9999  # ultra/enterprise
+        ),
+        # Betting intel features
+        "has_line_mover_scores": tier in _PAID_TIERS,
+        "has_team_filter": tier in _PAID_TIERS,
+        "has_league_filter": True,  # all tiers can filter by league
+        "has_category_filter": tier in _PAID_TIERS,
+        "has_betting_categories": tier in _PAID_TIERS,
+        # AI features
+        "has_ai_summaries": tier in ("premium", "ultra", "enterprise"),
+        "has_injury_analysis": tier in ("premium", "ultra", "enterprise"),
+        # Alerts
+        "has_email_alerts": tier in ("premium", "ultra", "enterprise"),
+        "has_custom_alerts": tier in ("ultra", "enterprise"),
+        "has_websocket_push": tier in ("ultra", "enterprise"),
+        # API
+        "has_api": tier in ("premium", "ultra", "enterprise"),
+        "api_daily_limit": (
+            0 if tier in ("free", "pro")
+            else 100 if tier == "premium"
+            else 500 if tier == "ultra"
+            else 10000  # enterprise
+        ),
+        # Export & Data
+        "has_csv_export": tier in ("ultra", "enterprise"),
+        "has_bulk_data": tier == "enterprise",
+        "has_webhook_feed": tier == "enterprise",
+        # Sort options
+        "has_score_sort": tier in _PAID_TIERS,  # sort by line mover score
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

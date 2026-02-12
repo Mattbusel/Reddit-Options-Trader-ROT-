@@ -19,6 +19,7 @@ _PUBLIC_PAGES = [
     "/ceo-rap-sheet",
     "/glossary",
     "/sports-tracker",
+    "/sports",
     "/news",
     "/leaderboard",
     "/congress-tracker",
@@ -63,7 +64,7 @@ async def llms_txt(request: Request):
         "- /pricing: Subscription plans — Free ($0), Pro ($9.99/mo), Premium ($29.99/mo), Ultra ($49.99/mo)\n"
         "- /sentiment: Real-time Reddit sentiment heatmap by ticker\n"
         "- /weekly-wrap: Auto-generated weekly market signal summary\n"
-        "- /sports-tracker: Live sports betting intelligence from Reddit communities\n"
+        "- /sports-tracker: Sports betting intelligence — Line Mover Scores (0-100), AI betting analysis, team tracking, injury impact across NFL, NBA, MLB, NHL, NCAA, Soccer from 20+ sources\n"
         "- /dashboard: Live signal feed with confidence scores, stance, and trade ideas\n"
         "- /news: Real-time market news aggregator from MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, FDA, DoD, Fed\n"
         "- /congress-tracker: Congressional stock trading tracker from SEC EFDS filings\n"
@@ -72,7 +73,7 @@ async def llms_txt(request: Request):
         "- /api/v1/docs: Public API endpoint reference with parameters, tier requirements, and examples\n"
         "\n"
         "## API\n"
-        "- RESTful JSON API with 19 endpoints covering signals, performance, correlations, news, and more\n"
+        "- RESTful JSON API with 20 endpoints covering signals, performance, correlations, news, sports betting, and more\n"
         "- Auth: Bearer JWT or X-API-Key header (get your key at /account)\n"
         "- Rate limits: Pro 1,000/day, Premium 5,000/day, Ultra 25,000/day, Enterprise 100,000/day\n"
         "- Customization: Field selection (?fields=), sorting (?sort=), filtering (?ticker=,?stance=)\n"
@@ -85,6 +86,14 @@ async def llms_txt(request: Request):
         "- Price tracking: 1h, 4h, 1d, 1w snapshots via yfinance\n"
         "- Performance: Stance-aware win/loss with 0.5% minimum movement threshold\n"
         "- Event types: earnings_rumor, product_news, regulatory, squeeze_chatter, macro, other\n"
+        "\n"
+        "## Sports Betting Intelligence\n"
+        "- 20+ RSS feeds from ESPN, CBS Sports, Sports Illustrated, Bleacher Report, and more\n"
+        "- Algorithmic Line Mover Scores (0-100) based on category, severity, star player impact, recency\n"
+        "- Team extraction across 124+ NFL, NBA, MLB, NHL teams\n"
+        "- AI-powered betting analysis for high-urgency items (Premium+)\n"
+        "- Categories: injury, trade, suspension, lineup, game + betting impact (spread, total, props)\n"
+        "- API: /api/v1/sports-betting (Premium+) with filtering, sorting, field selection\n"
     )
 
 

@@ -1,20 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Sports Tracker - Betting News Intel{% endblock %}
+{% block title %}Betting Edge - Sports Betting Intelligence | ROT{% endblock %}
+{% block meta_description %}Free sports betting news intelligence. Line Mover Scores, AI analysis, injury tracking, team-level filtering across NFL, NBA, MLB, NHL, NCAA, Soccer. 20+ sources, updated every 5 minutes.{% endblock %}
 
 {% block content %}
 <div class="space-y-8">
 
     <!-- Header -->
-    <div class="text-center mb-8">
+    <div class="text-center mb-6">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-900/30 border border-green-700/40 text-green-300 text-sm mb-4">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            Live — 20+ sources, refreshes every 5 min
+        </div>
         <h1 class="text-4xl font-bold mb-2">
-            <span class="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Sports Tracker</span>
+            <span class="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Betting Edge</span>
         </h1>
-        <p class="text-gray-400 text-lg">Injuries, trades, suspensions &amp; lineup changes &mdash; before the lines move</p>
-        <p class="text-gray-600 text-sm mt-1">Live feed from ESPN, Fox Sports, CBS Sports &mdash; auto-refreshes every 5 minutes</p>
+        <p class="text-gray-400 text-lg">Sports Betting Intelligence — Line-moving news before the lines move</p>
+        <p class="text-gray-600 text-sm mt-1">Injuries, trades, suspensions &amp; lineups with AI-powered Line Mover Scores</p>
     </div>
 
     <!-- Summary Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
         <div class="stat-card rounded-xl p-4 text-center">
             <div class="text-3xl font-bold text-blue-400">{{ total_items }}</div>
             <div class="text-xs text-gray-500 mt-1">News ({{ max_days }}d)</div>
@@ -31,46 +36,97 @@
             <div class="text-3xl font-bold text-orange-400">{{ high_urgency }}</div>
             <div class="text-xs text-gray-500 mt-1">High Urgency</div>
         </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            {% if gate.has_line_mover_scores %}
+            <div class="text-3xl font-bold {% if avg_score >= 50 %}text-red-400{% elif avg_score >= 30 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ avg_score }}</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Line Score</div>
+            {% else %}
+            <div class="text-3xl font-bold text-gray-600 blur-sm select-none">47</div>
+            <div class="text-xs text-gray-500 mt-1">Avg Line Score <a href="/pricing" class="text-blue-500 hover:underline">Pro</a></div>
+            {% endif %}
+        </div>
+        <div class="stat-card rounded-xl p-4 text-center">
+            {% if gate.has_line_mover_scores %}
+            <div class="text-3xl font-bold text-red-400">{{ top_score }}</div>
+            <div class="text-xs text-gray-500 mt-1">Top Line Score</div>
+            {% else %}
+            <div class="text-3xl font-bold text-gray-600 blur-sm select-none">82</div>
+            <div class="text-xs text-gray-500 mt-1">Top Line Score <a href="/pricing" class="text-blue-500 hover:underline">Pro</a></div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Filters -->
-    <div class="stat-card rounded-xl p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-3">
-            <!-- League Filter -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">League:</span>
-                <a href="/sports-tracker?league=all&category={{ selected_category }}"
-                   class="px-3 py-1 rounded-full text-xs font-medium transition
-                   {% if selected_league == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
-                    All
-                </a>
-                {% for lg in all_leagues %}
-                <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}"
-                   class="px-3 py-1 rounded-full text-xs font-medium transition
-                   {% if selected_league == lg %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
-                    {{ lg }}
-                </a>
-                {% endfor %}
-            </div>
+    <div class="stat-card rounded-xl p-4 mb-6 space-y-3">
+        <!-- League Filter -->
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider w-16">League:</span>
+            <a href="/sports-tracker?league=all&category={{ selected_category }}&team={{ selected_team }}&sort_by={{ selected_sort }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_league == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All
+            </a>
+            {% for lg in all_leagues %}
+            <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}&team={{ selected_team }}&sort_by={{ selected_sort }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_league == lg %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ lg }}
+            </a>
+            {% endfor %}
+        </div>
 
-            <div class="hidden md:block w-px h-6 bg-gray-700"></div>
+        <!-- Category Filter -->
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider w-16">Type:</span>
+            <a href="/sports-tracker?league={{ selected_league }}&category=all&team={{ selected_team }}&sort_by={{ selected_sort }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_category == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All
+            </a>
+            {% for cat in all_categories %}
+            <a href="/sports-tracker?league={{ selected_league }}&category={{ cat }}&team={{ selected_team }}&sort_by={{ selected_sort }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_category == cat %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                {{ category_emoji(cat) }} {{ cat|capitalize }}
+            </a>
+            {% endfor %}
+        </div>
 
-            <!-- Category Filter -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Type:</span>
-                <a href="/sports-tracker?league={{ selected_league }}&category=all"
-                   class="px-3 py-1 rounded-full text-xs font-medium transition
-                   {% if selected_category == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
-                    All
-                </a>
-                {% for cat in all_categories %}
-                <a href="/sports-tracker?league={{ selected_league }}&category={{ cat }}"
-                   class="px-3 py-1 rounded-full text-xs font-medium transition
-                   {% if selected_category == cat %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
-                    {{ category_emoji(cat) }} {{ cat|capitalize }}
-                </a>
+        <!-- Team Filter (Pro+ only) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider w-16">Team:</span>
+            {% if gate.has_team_filter %}
+            <a href="/sports-tracker?league={{ selected_league }}&category={{ selected_category }}&team=all&sort_by={{ selected_sort }}"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_team == 'all' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                All Teams
+            </a>
+            <select onchange="if(this.value) window.location.href='/sports-tracker?league={{ selected_league }}&category={{ selected_category }}&team='+this.value+'&sort_by={{ selected_sort }}'"
+                    class="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-3 py-1.5 cursor-pointer">
+                <option value="">Select team...</option>
+                {% for t in all_teams %}
+                <option value="{{ t }}" {% if selected_team == t %}selected{% endif %}>{{ t }}</option>
                 {% endfor %}
-            </div>
+            </select>
+            {% else %}
+            <span class="px-3 py-1 rounded-full text-xs text-gray-600 bg-gray-800/50 border border-gray-700/50 cursor-not-allowed">
+                &#128274; Team filtering — <a href="/pricing" class="text-blue-500 hover:underline">Upgrade to Pro</a>
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Sort (Pro+ has score sort) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider w-16">Sort:</span>
+            <a href="/sports-tracker?league={{ selected_league }}&category={{ selected_category }}&team={{ selected_team }}&sort_by=time"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_sort == 'time' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                &#128337; Newest First
+            </a>
+            {% if gate.has_score_sort %}
+            <a href="/sports-tracker?league={{ selected_league }}&category={{ selected_category }}&team={{ selected_team }}&sort_by=score"
+               class="px-3 py-1 rounded-full text-xs font-medium transition {% if selected_sort == 'score' %}bg-white/10 text-white border border-white/20{% else %}text-gray-400 hover:text-white hover:bg-white/5{% endif %}">
+                &#128200; Highest Line Mover Score
+            </a>
+            {% else %}
+            <span class="px-3 py-1 rounded-full text-xs text-gray-600 bg-gray-800/50 border border-gray-700/50 cursor-not-allowed">
+                &#128274; Sort by Score — <a href="/pricing" class="text-blue-500 hover:underline">Pro</a>
+            </span>
+            {% endif %}
         </div>
     </div>
 
@@ -78,13 +134,25 @@
     {% if league_counts %}
     <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
         {% for lg, count in league_counts.items() %}
-        <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}"
+        <a href="/sports-tracker?league={{ lg }}&category={{ selected_category }}&team={{ selected_team }}&sort_by={{ selected_sort }}"
            class="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50 hover:border-gray-500/50 transition">
             <div class="text-sm font-bold text-white">{{ lg }}</div>
             <div class="text-2xl font-bold text-blue-400 mt-1">{{ count }}</div>
             <div class="text-xs text-gray-500">stories</div>
         </a>
         {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- AI Betting Analysis Banner (Premium+ upsell) -->
+    {% if not gate.has_ai_summaries %}
+    <div class="stat-card rounded-xl p-5 mb-6 border-purple-800/50 bg-purple-900/10 text-center">
+        <div class="text-2xl mb-2">&#129504;</div>
+        <h3 class="text-base font-semibold text-white mb-1">AI Betting Analysis</h3>
+        <p class="text-gray-400 text-sm mb-3">Get AI-generated betting impact summaries for every high-urgency news item. Which lines move, which direction, and by how much.</p>
+        <a href="/pricing" class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold transition">
+            Upgrade to Premium &mdash; $29.99/mo
+        </a>
     </div>
     {% endif %}
 
@@ -96,7 +164,9 @@
             <span class="text-xs text-gray-500 font-normal">
                 {% if selected_league != 'all' %}{{ selected_league }}{% endif %}
                 {% if selected_category != 'all' %}{{ selected_category }}{% endif %}
-                {% if selected_league == 'all' and selected_category == 'all' %}all leagues{% endif %}
+                {% if selected_team != 'all' %}{{ selected_team }}{% endif %}
+                {% if selected_league == 'all' and selected_category == 'all' and selected_team == 'all' %}all leagues{% endif %}
+                &mdash; showing {{ items|length }} of {{ total_items }}
             </span>
         </h2>
 
@@ -130,6 +200,17 @@
                             <p class="text-gray-400 text-sm mt-1 leading-relaxed line-clamp-2">{{ item.summary[:200] }}</p>
                             {% endif %}
 
+                            <!-- AI Summary (Premium+) -->
+                            {% if item.ai_summary %}
+                            <div class="mt-2 p-2.5 rounded-lg bg-purple-900/20 border border-purple-800/30">
+                                <div class="flex items-center gap-1.5 mb-1">
+                                    <span class="text-xs">&#129504;</span>
+                                    <span class="text-xs text-purple-400 font-semibold">AI Betting Analysis</span>
+                                </div>
+                                <p class="text-sm text-gray-300 leading-relaxed">{{ item.ai_summary }}</p>
+                            </div>
+                            {% endif %}
+
                             <div class="flex items-center gap-2 mt-2 flex-wrap">
                                 <!-- League Badge -->
                                 <span class="text-xs px-2 py-0.5 rounded border {{ league_color(item.league) }}">
@@ -143,6 +224,23 @@
                                 </span>
                                 {% endfor %}
 
+                                <!-- Team Badges -->
+                                {% for team_name in item.teams[:3] %}
+                                <span class="text-xs px-2 py-0.5 rounded bg-gray-700/50 text-gray-300 border border-gray-600/40">
+                                    {{ team_name }}
+                                </span>
+                                {% endfor %}
+                                {% if item.teams|length > 3 %}
+                                <span class="text-xs text-gray-500">+{{ item.teams|length - 3 }}</span>
+                                {% endif %}
+
+                                <!-- Betting Category Badges (Pro+) -->
+                                {% for bc in item.betting_categories %}
+                                <span class="text-xs px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-700/40">
+                                    {% if bc == 'spread_impact' %}SPREAD{% elif bc == 'total_impact' %}TOTAL{% elif bc == 'prop_impact' %}PROPS{% endif %}
+                                </span>
+                                {% endfor %}
+
                                 <!-- Source -->
                                 <span class="text-xs text-gray-600">{{ item.source }}</span>
 
@@ -152,8 +250,25 @@
                         </div>
                     </div>
 
-                    <!-- Urgency Indicator -->
-                    <div class="flex-shrink-0 text-right">
+                    <!-- Right Side: Line Mover Score + Urgency -->
+                    <div class="flex-shrink-0 text-right space-y-2">
+                        <!-- Line Mover Score -->
+                        {% if item.line_mover_score >= 0 %}
+                        <div class="px-2.5 py-1.5 rounded-lg border text-center {{ line_mover_color(item.line_mover_score) }}" title="Line Mover Score: {{ item.line_mover_score }}/100">
+                            <div class="text-lg font-black leading-none">{{ item.line_mover_score }}</div>
+                            <div class="text-[9px] uppercase tracking-wider opacity-70 mt-0.5">LM Score</div>
+                        </div>
+                        {% else %}
+                        <!-- Locked score for free users -->
+                        <div class="px-2.5 py-1.5 rounded-lg border border-gray-700/50 bg-gray-800/50 text-center cursor-pointer" title="Upgrade to Pro to see Line Mover Scores">
+                            <div class="text-lg font-black leading-none text-gray-600 blur-sm select-none">47</div>
+                            <div class="text-[9px] uppercase tracking-wider text-gray-600 mt-0.5">
+                                <a href="/pricing" class="text-blue-500 hover:underline">&#128274; Pro</a>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Urgency Indicator -->
                         {% if item.urgency == 'high' %}
                         <div class="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded border border-red-800/50">
                             LINE MOVER
@@ -166,13 +281,43 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Upsell card every 5 items for free users -->
+            {% if loop.index % 5 == 0 and not gate.has_line_mover_scores %}
+            <div class="rounded-xl p-4 border border-green-800/40 bg-green-900/10 text-center">
+                <p class="text-sm text-gray-300 mb-2">
+                    &#128200; <strong class="text-green-400">Unlock Line Mover Scores</strong> — see which news items actually move betting lines
+                </p>
+                <a href="/pricing" class="px-5 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition">
+                    Upgrade to Pro &mdash; $9.99/mo
+                </a>
+            </div>
+            {% endif %}
+
             {% endfor %}
+
+            <!-- End of feed: more items available upsell -->
+            {% if total_items > items|length %}
+            <div class="text-center py-6 text-gray-500">
+                <p class="text-sm">Showing {{ items|length }} of {{ total_items }} items.</p>
+                {% if not gate.has_line_mover_scores %}
+                <p class="text-sm mt-1">
+                    <a href="/pricing" class="text-blue-400 hover:underline">Upgrade to Pro</a> for {{ 50 if tier == 'free' else 100 }} items, line mover scores, and team filtering.
+                </p>
+                {% elif not gate.has_ai_summaries %}
+                <p class="text-sm mt-1">
+                    <a href="/pricing" class="text-purple-400 hover:underline">Upgrade to Premium</a> for 100 items, AI betting analysis, and API access.
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
         {% else %}
             <div class="text-center py-12 text-gray-500">
                 <div class="text-4xl mb-3">&#127941;</div>
                 <p class="text-lg">No sports news found</p>
                 <p class="text-sm mt-1">
-                    {% if selected_league != 'all' or selected_category != 'all' %}
+                    {% if selected_league != 'all' or selected_category != 'all' or selected_team != 'all' %}
                     Try changing your filters or check back soon.
                     {% else %}
                     News feeds are loading &mdash; check back in a minute.
@@ -185,11 +330,57 @@
         {% endif %}
     </div>
 
+    <!-- Tier Upgrade Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 mb-8">
+        {% if not gate.has_line_mover_scores %}
+        <div class="stat-card rounded-xl p-5 border-blue-800/40 text-center">
+            <div class="text-2xl mb-2">&#128200;</div>
+            <h3 class="text-base font-semibold text-white mb-1">Pro — $9.99/mo</h3>
+            <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
+                <li>&#10003; Line Mover Scores (0-100)</li>
+                <li>&#10003; Team-level filtering</li>
+                <li>&#10003; Betting impact categories</li>
+                <li>&#10003; 50 items / 5-day lookback</li>
+                <li>&#10003; Sort by score</li>
+            </ul>
+            <a href="/pricing" class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition">Upgrade to Pro</a>
+        </div>
+        {% endif %}
+        {% if not gate.has_ai_summaries %}
+        <div class="stat-card rounded-xl p-5 border-purple-800/40 text-center">
+            <div class="text-2xl mb-2">&#129504;</div>
+            <h3 class="text-base font-semibold text-white mb-1">Premium — $29.99/mo</h3>
+            <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
+                <li>&#10003; AI Betting Analysis</li>
+                <li>&#10003; Email alerts (high urgency)</li>
+                <li>&#10003; 100 items / 7-day lookback</li>
+                <li>&#10003; Sports Betting API (100/day)</li>
+                <li>&#10003; Injury impact analysis</li>
+            </ul>
+            <a href="/pricing" class="px-4 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition">Upgrade to Premium</a>
+        </div>
+        {% endif %}
+        {% if not gate.has_csv_export %}
+        <div class="stat-card rounded-xl p-5 border-amber-800/40 text-center">
+            <div class="text-2xl mb-2">&#9889;</div>
+            <h3 class="text-base font-semibold text-white mb-1">Ultra — $49.99/mo</h3>
+            <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
+                <li>&#10003; Unlimited items / 14-day lookback</li>
+                <li>&#10003; Custom alert rules</li>
+                <li>&#10003; WebSocket push for line movers</li>
+                <li>&#10003; Sports API (500/day)</li>
+                <li>&#10003; CSV export</li>
+            </ul>
+            <a href="/pricing" class="px-4 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition">Upgrade to Ultra</a>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Footer Note -->
     <div class="text-center text-gray-600 text-xs mt-8 space-y-1">
-        <p>Aggregated from ESPN, Fox Sports, CBS Sports, and other major sports outlets.</p>
-        <p>News items are classified automatically. Urgency tags indicate potential line-moving impact.</p>
-        <p class="text-gray-700 mt-2">Not gambling advice. Always verify injury reports with official team sources before placing bets.</p>
+        <p>Aggregated from 20+ sources including ESPN, CBS Sports, Sports Illustrated, Bleacher Report, and more.</p>
+        <p>Line Mover Scores are algorithmically computed based on category, severity, star player impact, recency, and source credibility.</p>
+        <p class="text-gray-700 mt-2">Not gambling advice. Always verify injury reports with official team sources before placing bets. Please gamble responsibly.</p>
     </div>
 
 </div>
