@@ -590,7 +590,7 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
       - VACUUM SQLite to reclaim disk space
     NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
     """
-    CLEANUP_INTERVAL = 3600  # 1 hour
+    CLEANUP_INTERVAL = 1800  # 30 minutes
     log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
 
     # Wait 30s on startup before first cleanup
@@ -621,7 +621,7 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
 
         try:
             # 3. Market cache cleanup
-            evicted = cleanup_market_cache(storage_root, max_age_days=7)
+            evicted = cleanup_market_cache(storage_root, max_age_days=3)
             if evicted > 0:
                 log.info("Cleanup: market cache — evicted %d stale entries", evicted)
         except Exception as e:
@@ -777,7 +777,7 @@ async def _run_server(cfg: Settings):
         rotated = sum(rotation_results.values())
         if rotated > 0:
             log.info("Startup cleanup (JSONL): removed %d old entries", rotated)
-        evicted = cleanup_market_cache(cfg.storage_root, max_age_days=7)
+        evicted = cleanup_market_cache(cfg.storage_root, max_age_days=3)
         if evicted > 0:
             log.info("Startup cleanup (market cache): evicted %d stale entries", evicted)
     except Exception as e:
@@ -787,7 +787,7 @@ async def _run_server(cfg: Settings):
     cleanup_task = asyncio.create_task(
         _cleanup_loop(app.state.db, cfg.storage_root, stop_event)
     )
-    log.info("Cleanup loop: ACTIVE (every 1h — purge old data, rotate logs, VACUUM)")
+    log.info("Cleanup loop: ACTIVE (every 30m — purge old data, rotate logs, VACUUM)")
 
     # Start ML credibility retrain loop (trains from live data, hot-reloads model)
     ml_retrain_task = None

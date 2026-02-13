@@ -93,19 +93,21 @@ def _quiet_yfinance():
 class MarketEnricher:
     """Lightweight yfinance market metadata enrichment with caching."""
 
-    MAX_CACHE_SIZE = 2000
+    MAX_CACHE_SIZE = 500
 
     def __init__(
         self,
         cache_path: str = "storage/market_cache.json",
         ttl_s: int = 3600,
         options_ttl_s: int = 1800,
-        enable_options_chain: bool = True,
+        enable_options_chain: bool = False,
+        fetch_full_info: bool = False,
     ) -> None:
         self.cache_path = Path(cache_path)
         self.ttl_s = ttl_s
         self.options_ttl_s = options_ttl_s
         self.enable_options_chain = enable_options_chain
+        self._fetch_full_info = fetch_full_info
         self._cache: Dict[str, Any] = {}
         self._load_cache()
 
@@ -186,19 +188,23 @@ class MarketEnricher:
                 pass
 
             # Extended market data: sector, industry, volume, etc.
-            try:
-                full_info = t.info
-                if isinstance(full_info, dict):
-                    out["sector"] = full_info.get("sector", "")
-                    out["industry"] = full_info.get("industry", "")
-                    out["volume"] = full_info.get("volume")
-                    out["avg_volume"] = full_info.get("averageVolume")
-                    out["fifty_two_week_high"] = full_info.get("fiftyTwoWeekHigh")
-                    out["fifty_two_week_low"] = full_info.get("fiftyTwoWeekLow")
-                    out["pe_ratio"] = full_info.get("trailingPE")
-                    out["beta"] = full_info.get("beta")
-            except Exception:
-                pass
+            # NOTE: t.info is very expensive (full company financials download).
+            # Only fetch it when explicitly requested; otherwise skip to save
+            # ~100-200KB of network per symbol and significant memory.
+            if self._fetch_full_info:
+                try:
+                    full_info = t.info
+                    if isinstance(full_info, dict):
+                        out["sector"] = full_info.get("sector", "")
+                        out["industry"] = full_info.get("industry", "")
+                        out["volume"] = full_info.get("volume")
+                        out["avg_volume"] = full_info.get("averageVolume")
+                        out["fifty_two_week_high"] = full_info.get("fiftyTwoWeekHigh")
+                        out["fifty_two_week_low"] = full_info.get("fiftyTwoWeekLow")
+                        out["pe_ratio"] = full_info.get("trailingPE")
+                        out["beta"] = full_info.get("beta")
+                except Exception:
+                    pass
 
             # Options chain data: IV, open interest, put/call ratio
             if self.enable_options_chain:

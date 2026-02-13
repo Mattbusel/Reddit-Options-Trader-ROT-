@@ -54,6 +54,9 @@ class TrendStore:
         for key, snap in self._last.items():
             if snap.snapshot_ts < cutoff:
                 continue
+            # Truncate selftext to 500 chars for memory/disk savings
+            # (full text already consumed by NLP at trend-detect time)
+            selftext = snap.post.selftext or ""
             raw[key] = {
                 "snapshot_ts": snap.snapshot_ts,
                 "post": {
@@ -61,7 +64,7 @@ class TrendStore:
                     "created_utc": snap.post.created_utc,
                     "subreddit": snap.post.subreddit,
                     "title": snap.post.title,
-                    "selftext": snap.post.selftext,
+                    "selftext": selftext[:500],
                     "url": snap.post.url,
                     "score": snap.post.score,
                     "num_comments": snap.post.num_comments,
@@ -86,7 +89,7 @@ class TrendStore:
     def update(self, key: str, snap: ThreadSnapshot) -> Optional[ThreadSnapshot]:
         prev = self._last.get(key)
         self._last[key] = snap
-        # Periodically prune in-memory entries (piggyback on updates)
-        if len(self._last) % 100 == 0:
+        # Prune more aggressively (every 20 updates instead of 100)
+        if len(self._last) % 20 == 0:
             self._evict_old()
         return prev

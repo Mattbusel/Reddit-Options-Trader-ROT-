@@ -16,6 +16,7 @@ class SeenRecord:
 
 class SeenStore:
     EVICT_INTERVAL = 300  # evict at most every 5 minutes during runtime
+    MAX_SIZE = 5000  # cap entries to prevent unbounded memory growth
 
     def __init__(self, path: str = "storage/seen_posts.json", max_age_s: int = 2 * 24 * 3600) -> None:
         self.path = Path(path)
@@ -46,6 +47,11 @@ class SeenStore:
         to_remove = [k for k, r in self._data.items() if r.last_seen_ts < cutoff]
         for k in to_remove:
             del self._data[k]
+        # Cap size: keep most recent entries
+        if len(self._data) > self.MAX_SIZE:
+            sorted_keys = sorted(self._data, key=lambda k: self._data[k].last_seen_ts)
+            for k in sorted_keys[: len(self._data) - self.MAX_SIZE]:
+                del self._data[k]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

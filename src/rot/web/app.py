@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from rot.core.config import Settings
 from rot.storage.database import Database
@@ -88,6 +89,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # GZip compression — reduces HTML/JSON response sizes by ~70%
+    app.add_middleware(GZipMiddleware, minimum_size=500)
 
     # CORS
     app.add_middleware(

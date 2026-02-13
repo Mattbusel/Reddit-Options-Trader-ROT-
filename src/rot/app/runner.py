@@ -83,7 +83,7 @@ class PipelineRunner:
         self._emitted_keys.add(dedup_key)
 
         # Prevent unbounded memory growth
-        if len(self._emitted_keys) > 10_000:
+        if len(self._emitted_keys) > 2_000:
             self._emitted_keys.clear()
 
         try:

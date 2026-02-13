@@ -208,7 +208,7 @@ async def _dashboard_inner(request: Request):
 
     # User-filtered signals — NOT cached (user-specific filters)
     signals = await db.get_signals(
-        limit=50,
+        limit=25,
         ticker=q_ticker,
         stance=q_stance if q_stance in ("bullish", "bearish", "mixed") else None,
         min_confidence=min_conf_float,

@@ -11,6 +11,8 @@ Features:
 - Signal-triggered invalidation for fast-changing data
 - Hit/miss/refresh stats for monitoring
 - Exception-safe: failed fetches are not cached
+- Max entry limit to prevent unbounded memory growth
+- Periodic lock cleanup to prevent lock dict leak
 """
 
 from __future__ import annotations
@@ -49,12 +51,14 @@ class QueryCache:
         )
     """
 
-    def __init__(self, default_ttl: int = 60) -> None:
+    def __init__(self, default_ttl: int = 60, max_entries: int = 100) -> None:
         self._store: Dict[str, CacheEntry] = {}
         self._default_ttl = default_ttl
+        self._max_entries = max_entries
         self._locks: Dict[str, asyncio.Lock] = {}
         self._global_lock = asyncio.Lock()
         self._stats = {"hits": 0, "misses": 0, "refreshes": 0}
+        self._last_lock_cleanup = time.time()
 
     async def _get_lock(self, key: str) -> asyncio.Lock:
         """Get or create a per-key lock (prevents thundering herd)."""
@@ -64,6 +68,33 @@ class QueryCache:
                 if key not in self._locks:
                     self._locks[key] = asyncio.Lock()
         return self._locks[key]
+
+    def _evict_expired(self) -> None:
+        """Remove expired entries and trim to max size."""
+        now = time.time()
+        # Remove expired
+        expired = [k for k, e in self._store.items() if e.expires_at <= now]
+        for k in expired:
+            del self._store[k]
+
+        # If still over limit, evict oldest
+        if len(self._store) > self._max_entries:
+            sorted_keys = sorted(
+                self._store, key=lambda k: self._store[k].created_at
+            )
+            for k in sorted_keys[: len(self._store) - self._max_entries]:
+                del self._store[k]
+
+        # Periodically clean up stale locks (every 5 minutes)
+        if now - self._last_lock_cleanup > 300:
+            self._last_lock_cleanup = now
+            stale_lock_keys = [
+                k for k in self._locks if k not in self._store
+            ]
+            for k in stale_lock_keys:
+                lock = self._locks[k]
+                if not lock.locked():
+                    del self._locks[k]
 
     async def get_or_fetch(
         self,
@@ -117,6 +148,10 @@ class QueryCache:
                 created_at=now,
             )
             self._stats["refreshes"] += 1
+
+            # Periodic eviction check
+            self._evict_expired()
+
             return value
 
     def invalidate(self, prefix: Optional[str] = None) -> int:
@@ -144,6 +179,7 @@ class QueryCache:
         return {
             **self._stats,
             "entries": len(self._store),
+            "locks": len(self._locks),
             "keys": list(self._store.keys()),
         }
 

@@ -694,7 +694,7 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `CACHE_TTL_S` | `3600` | Market data cache TTL |
 | `SYMBOL_CACHE_TTL_S` | `604800` | Symbol validation cache (7 days) |
 | `MIN_MARKET_CAP` | `1e8` | Minimum market cap ($100M) |
-| `ENABLE_OPTIONS_CHAIN` | `True` | Fetch options chain data |
+| `ENABLE_OPTIONS_CHAIN` | `False` | Fetch options chain data (disabled by default to save memory/network) |
 | `OPTIONS_CACHE_TTL_S` | `1800` | Options data cache (30 min) |
 
 ### Trend (`ROT_TREND_*`)
@@ -1152,6 +1152,7 @@ The dashboard loads 12+ database queries per page view. To avoid hammering the D
 - **NOT cached (2 queries)**: user-filtered signals, per-user signal count badge
 - **Invalidation**: When a new signal arrives, fast-changing caches (trending, leaderboard) are invalidated via prefix matching. Slow-changing caches (accuracy, heatmaps) expire naturally via TTL.
 - **Thundering herd prevention**: Per-key `asyncio.Lock` ensures only one coroutine fetches when multiple requests arrive for the same stale key.
+- **Bounded**: Max 100 entries (evicts oldest when full). Lock dict cleaned up every 5 minutes (prevents stale lock leak).
 
 ---
 
@@ -1403,6 +1404,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Signal feedback engine — `src/rot/feedback/`: FeedbackAnalyzer (category performance, source reliability, ML feature importance, quality trends, suppression candidates, confidence calibration), SignalSuppressor (Stage 6.5 adaptive suppression saving LLM costs), Signal Quality dashboard (`/signal-quality`, Pro+ gated), FeedbackConfig, 39 new tests (161 total) | Claude Agent |
 | 2026-02 | Strategy Backtesting Engine — `src/rot/backtest/`: 12 modules (config, result, metrics, engine, monte_carlo, risk, walk_forward, optimizer, benchmark, comparator, report). Full portfolio simulation with stance-aware P&L (mirrors DB logic), 3 position sizing modes (fixed/Kelly/confidence-weighted), stop loss/take profit, Monte Carlo bootstrap (fan chart + probabilities), walk-forward IS/OOS validation with stability scoring, parameter grid search optimization with heatmap, risk analytics (VaR, CVaR, MAE/MFE, Ulcer Index, skewness/kurtosis), SPY benchmark comparison (alpha, beta, info ratio), strategy comparison. 10 HTMX-powered routes, 6 templates, 2 DB tables (backtest_runs, backtest_strategies), `gate_backtest_access()` tier gate (Pro+ tiered features), `BacktestServerConfig`, CSV/HTML report export. Backtest nav expanded from Ultra-only to Pro+. 253 new tests (423 total). | Claude Agent |
 | 2026-02 | Four Analytics Engines + Lag Timer — **Unusual Activity** (`src/rot/unusual/`): 4 modules, detection engine with 5 event types (IV spike, volume surge, OI surge, skew shift, sweep), composite scoring 0-100, rolling per-ticker baselines, `unusual_events` DB table, background scan loop (5 min), enhanced route + template with filters/timeline/KPIs. **Sector Rotation** (`src/rot/analysis/sector*.py`): momentum scoring, rotation detection, capital flow analysis, sector rankings, HTMX drill-down to ticker breakdown. **Correlation Engine** (`src/rot/analysis/correlation*.py`): signal co-fire correlations, hierarchical clustering, lead-lag detection, network graph construction, enhanced template with clusters/lead-lag/network. **Enterprise Export** (`src/rot/export/`): scheduled recurring exports, signal lineage/provenance chain (9-step), analytics overview API, enhanced dashboard with lineage lookup + analytics charts, `export_schedules` DB table. **Lag Timer UI**: `post_created_utc` + `snapshot_ts` in event meta, clock badge on RSS signal cards showing publish-to-signal delta. 3 new config sections (`UnusualActivityConfig`, `SectorConfig`, `ExportSchedulerConfig`), 2 new background loops in server.py. 247 new tests (670 total). | Claude Agent |
+| 2026-02 | Memory & network optimization — Estimated ~150-200MB memory savings + ~260KB/page network savings. **Market enricher**: cache size 2000→500, options chain disabled by default, `t.info` skipped by default (new `fetch_full_info` flag). **Symbol validator**: cache 5000→1000. **Query cache**: max 100 entries, periodic lock cleanup (prevents lock dict leak), evicts expired+oldest on overflow. **UnusualHistory**: LRU eviction at 500 tickers max. **Pipeline dedup**: 10K→2K threshold. **SeenStore**: 5000 entry cap. **TrendStore**: evicts every 20 updates (was 100), truncates selftext to 500 chars. **Self-hosted CDN**: Chart.js, HTMX, HTMX-ws served from `/static/js/` (saves ~260KB external CDN fetches per page). **GZip middleware**: added `GZipMiddleware(minimum_size=500)` for ~70% response compression. **Dashboard**: signal limit 50→25. **Cleanup loop**: 1h→30m interval, market cache max age 7d→3d. | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

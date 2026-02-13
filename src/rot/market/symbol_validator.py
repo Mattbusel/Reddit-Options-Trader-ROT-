@@ -15,7 +15,7 @@ from rot.market.enricher import ALIAS_MAP, NON_EQUITY_TOKENS, _quiet_yfinance
 class SymbolValidator:
     cache_path: str = "storage/symbol_valid_cache.json"
     ttl_s: int = 7 * 24 * 3600  # 7d
-    max_cache_size: int = 5000
+    max_cache_size: int = 1000
 
     def __post_init__(self) -> None:
         self._cache: Dict[str, Dict[str, object]] = {}

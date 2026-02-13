@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import threading
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any, Deque, Dict, List, Optional, Tuple
@@ -22,25 +23,41 @@ class TickerStats:
     oi_history: Deque[float] = field(default_factory=lambda: deque(maxlen=100))
     pc_ratio_history: Deque[float] = field(default_factory=lambda: deque(maxlen=100))
     last_oi: Optional[float] = None
+    last_accessed: float = 0.0
 
 
 class UnusualHistory:
     """Maintains rolling baselines per ticker for anomaly detection.
 
     Thread-safe: all mutations go through a lock.
+    Bounded: evicts least-recently-used tickers when over max_tickers.
     """
 
-    def __init__(self, max_window: int = 100) -> None:
+    def __init__(self, max_window: int = 100, max_tickers: int = 500) -> None:
         self._max_window = max_window
-        self._tickers: Dict[str, TickerStats] = defaultdict(
-            lambda: TickerStats(
-                iv_history=deque(maxlen=max_window),
-                volume_history=deque(maxlen=max_window),
-                oi_history=deque(maxlen=max_window),
-                pc_ratio_history=deque(maxlen=max_window),
-            )
-        )
+        self._max_tickers = max_tickers
+        self._tickers: Dict[str, TickerStats] = {}
         self._lock = threading.Lock()
+
+    def _make_stats(self) -> TickerStats:
+        return TickerStats(
+            iv_history=deque(maxlen=self._max_window),
+            volume_history=deque(maxlen=self._max_window),
+            oi_history=deque(maxlen=self._max_window),
+            pc_ratio_history=deque(maxlen=self._max_window),
+            last_accessed=time.time(),
+        )
+
+    def _evict_lru(self) -> None:
+        """Evict least-recently-used tickers when over limit. Must hold lock."""
+        if len(self._tickers) <= self._max_tickers:
+            return
+        sorted_tickers = sorted(
+            self._tickers, key=lambda k: self._tickers[k].last_accessed
+        )
+        to_remove = len(self._tickers) - self._max_tickers
+        for k in sorted_tickers[:to_remove]:
+            del self._tickers[k]
 
     @property
     def ticker_count(self) -> int:
@@ -57,7 +74,12 @@ class UnusualHistory:
     ) -> None:
         """Record new observation for a ticker."""
         with self._lock:
-            stats = self._tickers[ticker]
+            stats = self._tickers.get(ticker)
+            if stats is None:
+                stats = self._make_stats()
+                self._tickers[ticker] = stats
+                self._evict_lru()
+            stats.last_accessed = time.time()
             if iv is not None and iv > 0:
                 stats.iv_history.append(iv)
             if volume is not None and volume > 0:
@@ -76,6 +98,7 @@ class UnusualHistory:
             stats = self._tickers.get(ticker)
             if not stats or len(stats.iv_history) < 5:
                 return None
+            stats.last_accessed = time.time()
             history = list(stats.iv_history)
 
         count_below = sum(1 for v in history if v < current_iv)
@@ -87,6 +110,7 @@ class UnusualHistory:
             stats = self._tickers.get(ticker)
             if not stats or len(stats.volume_history) < 5:
                 return None
+            stats.last_accessed = time.time()
             history = list(stats.volume_history)
 
         mean = sum(history) / len(history)
@@ -105,6 +129,7 @@ class UnusualHistory:
             stats = self._tickers.get(ticker)
             if not stats or len(stats.volume_history) < 3:
                 return None
+            stats.last_accessed = time.time()
             history = list(stats.volume_history)
 
         mean = sum(history) / len(history)
@@ -118,6 +143,7 @@ class UnusualHistory:
             stats = self._tickers.get(ticker)
             if not stats or stats.last_oi is None or stats.last_oi < 1.0:
                 return None
+            stats.last_accessed = time.time()
             prev = stats.last_oi
 
         return ((current_oi - prev) / prev) * 100.0
@@ -130,6 +156,7 @@ class UnusualHistory:
             stats = self._tickers.get(ticker)
             if not stats or len(stats.pc_ratio_history) < 5:
                 return None
+            stats.last_accessed = time.time()
             history = list(stats.pc_ratio_history)
 
         mean = sum(history) / len(history)
