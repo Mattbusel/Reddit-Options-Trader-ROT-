@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Signal Quality - ROT{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl font-bold text-white">Signal Quality</h1>
+        <span class="px-2 py-1 rounded text-xs bg-blue-900/50 text-blue-400 border border-blue-700">Pro</span>
+    </div>
+    <p class="text-sm text-gray-500 mt-1">
+        Historical performance analysis by category, source, and confidence calibration
+        {% if analysis_timestamp %}
+            &mdash; Last updated: <span id="analysisTs">{{ analysis_timestamp }}</span>
+        {% endif %}
+    </p>
+</div>
+
+{% if not has_data %}
+<div class="chart-container mb-8">
+    <div class="text-center py-12">
+        <p class="text-gray-400 text-lg">Analysis Pending</p>
+        <p class="text-gray-500 text-sm mt-2">The feedback engine is computing results. This typically takes a few minutes after server startup.</p>
+    </div>
+</div>
+{% else %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 1. CATEGORY PERFORMANCE HEATMAP                                -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% if access.has_category_heatmap and category_performance %}
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Category Performance</h2>
+    <p class="text-xs text-gray-500 mb-3">Win rate by event type &times; stance. Cell color: <span class="text-green-400">green &gt;50%</span>, <span class="text-yellow-400">yellow 30-50%</span>, <span class="text-red-400">red &lt;30%</span>.</p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700 text-left">
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Event Type</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Stance</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Strategy</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Decided</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">W / L</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Avg Conf</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in category_performance %}
+                {% if row.decided and row.decided > 0 %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                    <td class="py-2 px-3 text-white font-medium">{{ row.event_type|replace('_', ' ')|title }}</td>
+                    <td class="py-2 px-3">
+                        <span class="px-2 py-0.5 rounded text-xs
+                            {% if row.stance == 'bullish' %}bg-green-900/40 text-green-400
+                            {% elif row.stance == 'bearish' %}bg-red-900/40 text-red-400
+                            {% elif row.stance == 'mixed' %}bg-yellow-900/40 text-yellow-400
+                            {% else %}bg-gray-800 text-gray-400{% endif %}">
+                            {{ row.stance }}
+                        </span>
+                    </td>
+                    <td class="py-2 px-3 text-gray-300">{{ row.strategy|replace('_', ' ')|title }}</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ row.decided }}</td>
+                    <td class="py-2 px-3 text-right font-bold"
+                        style="background-color: {% if row.win_rate is not none %}
+                            {% if row.win_rate >= 50 %}rgba(74,222,128,0.15)
+                            {% elif row.win_rate >= 30 %}rgba(250,204,21,0.15)
+                            {% else %}rgba(248,113,113,0.15){% endif %}
+                        {% else %}transparent{% endif %}">
+                        <span class="{% if row.win_rate is not none %}{% if row.win_rate >= 50 %}text-green-400{% elif row.win_rate >= 30 %}text-yellow-400{% else %}text-red-400{% endif %}{% else %}text-gray-500{% endif %}">
+                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %}&mdash;{% endif %}
+                        </span>
+                    </td>
+                    <td class="py-2 px-3 text-right">
+                        <span class="text-green-400">{{ row.winners }}</span> /
+                        <span class="text-red-400">{{ row.losers }}</span>
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-400">
+                        {% if row.avg_confidence %}{{ "%.0f"|format(row.avg_confidence * 100) }}%{% else %}&mdash;{% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 2. QUALITY TREND + 3. SOURCE RELIABILITY (side by side)        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    <!-- Quality Trend -->
+    {% if access.has_quality_trend and quality_trend and quality_trend.daily %}
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-1">Quality Trend
+            {% if quality_trend.direction == 'improving' %}
+                <span class="text-green-400 text-sm ml-2">&#9650; Improving</span>
+            {% elif quality_trend.direction == 'degrading' %}
+                <span class="text-red-400 text-sm ml-2">&#9660; Degrading</span>
+            {% else %}
+                <span class="text-gray-400 text-sm ml-2">&#9654; Stable</span>
+            {% endif %}
+        </h2>
+        <p class="text-xs text-gray-500 mb-3">Daily win rate (solid) and 7-day moving average (dashed)</p>
+        <div style="height: 280px;">
+            <canvas id="qualityTrendChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Source Reliability -->
+    {% if access.has_source_reliability and source_reliability %}
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-1">Source Reliability</h2>
+        <p class="text-xs text-gray-500 mb-3">Win rate by subreddit / feed source (min 5 signals)</p>
+        <div style="height: 280px;">
+            <canvas id="sourceChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 4. FEATURE IMPORTANCE + 5. CALIBRATION (side by side)          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    <!-- Feature Importance -->
+    {% if access.has_feature_importance and feature_importance %}
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-1">ML Feature Importance</h2>
+        <p class="text-xs text-gray-500 mb-3">Top 10 features driving P(win) predictions</p>
+        <div style="height: 280px;">
+            <canvas id="featureChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confidence Calibration -->
+    {% if access.has_calibration_detail and calibration %}
+    <div class="chart-container">
+        <h2 class="text-lg font-semibold text-white mb-1">Confidence Calibration</h2>
+        <p class="text-xs text-gray-500 mb-3">Expected confidence vs actual win rate per decile. Ideal = diagonal.</p>
+        <div style="height: 280px;">
+            <canvas id="calibrationChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 6. SUPPRESSION CANDIDATES TABLE                                -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% if access.has_suppression_view and suppression_candidates %}
+<div class="chart-container mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Suppression Candidates</h2>
+    <p class="text-xs text-gray-500 mb-3">Categories flagged for adaptive suppression (win rate below threshold). Suppressed signals skip LLM reasoning to save API costs.</p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700 text-left">
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Level</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Event Type</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold">Source</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Win Rate</th>
+                    <th class="py-2 px-3 text-gray-400 font-semibold text-right">Decided Signals</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in suppression_candidates %}
+                <tr class="border-b border-gray-800 hover:bg-red-900/10 transition">
+                    <td class="py-2 px-3">
+                        <span class="px-2 py-0.5 rounded text-xs {{ 'bg-red-900/40 text-red-400' if c.level == 'category' else 'bg-orange-900/40 text-orange-400' }}">
+                            {{ c.level }}
+                        </span>
+                    </td>
+                    <td class="py-2 px-3 text-white">{{ c.event_type|replace('_', ' ')|title }}</td>
+                    <td class="py-2 px-3 text-gray-400">{{ c.source or c.stance or '&mdash;' }}</td>
+                    <td class="py-2 px-3 text-right text-red-400 font-bold">{{ "%.1f"|format(c.win_rate) }}%</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ c.decided }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}{# end has_data #}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- CHART.JS SCRIPTS                                               -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0' };
+    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+    /* ── 1. Quality Trend Line Chart ───────────────────────────── */
+    const trendEl = document.getElementById('qualityTrendChart');
+    if (trendEl) {
+        const trend = {{ quality_trend|tojson|safe if quality_trend else '{}' }};
+        const daily = trend.daily || [];
+        const ma7 = trend.ma7 || [];
+        const labels = daily.map(d => d.day);
+        const winRates = daily.map(d => d.win_rate);
+
+        new Chart(trendEl.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Daily Win Rate',
+                        data: winRates,
+                        borderColor: 'rgba(74,222,128,1)',
+                        backgroundColor: 'rgba(74,222,128,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                    },
+                    {
+                        label: '7-day MA',
+                        data: ma7,
+                        borderColor: 'rgba(96,165,250,0.8)',
+                        borderDash: [5, 3],
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#9ca3af' } }, tooltip: darkTooltip },
+                scales: {
+                    y: { min: 0, max: 100, ticks: { color: '#9ca3af', callback: v => v + '%' }, grid: darkGrid },
+                    x: { ticks: { color: '#9ca3af', maxRotation: 45, maxTicksLimit: 10 }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    /* ── 2. Source Reliability Bar Chart ────────────────────────── */
+    const sourceEl = document.getElementById('sourceChart');
+    if (sourceEl) {
+        const srcData = {{ source_reliability|tojson|safe if source_reliability else '[]' }};
+        /* Aggregate by source (combine event types) */
+        const bySource = {};
+        srcData.forEach(r => {
+            if (!bySource[r.source]) bySource[r.source] = { winners: 0, losers: 0, decided: 0 };
+            bySource[r.source].winners += r.winners;
+            bySource[r.source].losers += r.losers;
+            bySource[r.source].decided += r.decided;
+        });
+        const entries = Object.entries(bySource)
+            .map(([s, d]) => ({ source: s, win_rate: d.decided > 0 ? d.winners / d.decided * 100 : 0, decided: d.decided }))
+            .sort((a, b) => b.win_rate - a.win_rate)
+            .slice(0, 15);
+        const colors = entries.map(e => e.win_rate >= 50 ? 'rgba(74,222,128,0.7)' : e.win_rate >= 30 ? 'rgba(250,204,21,0.7)' : 'rgba(248,113,113,0.7)');
+
+        new Chart(sourceEl.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: entries.map(e => e.source),
+                datasets: [{
+                    label: 'Win Rate %',
+                    data: entries.map(e => Math.round(e.win_rate * 10) / 10),
+                    backgroundColor: colors,
+                    borderColor: colors.map(c => c.replace('0.7', '1')),
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: darkTooltip },
+                scales: {
+                    x: { min: 0, max: 100, ticks: { color: '#9ca3af', callback: v => v + '%' }, grid: darkGrid },
+                    y: { ticks: { color: '#9ca3af' }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    /* ── 3. Feature Importance Bar Chart ────────────────────────── */
+    const featEl = document.getElementById('featureChart');
+    if (featEl) {
+        const features = {{ feature_importance|tojson|safe if feature_importance else '[]' }};
+        new Chart(featEl.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: features.map(f => f.feature.replace(/_/g, ' ')),
+                datasets: [{
+                    label: 'Importance',
+                    data: features.map(f => f.importance),
+                    backgroundColor: 'rgba(139,92,246,0.6)',
+                    borderColor: 'rgba(139,92,246,1)',
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: darkTooltip },
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: darkGrid },
+                    y: { ticks: { color: '#9ca3af', font: { size: 11 } }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    /* ── 4. Confidence Calibration Scatter ──────────────────────── */
+    const calEl = document.getElementById('calibrationChart');
+    if (calEl) {
+        const cal = {{ calibration|tojson|safe if calibration else '[]' }};
+        const points = cal
+            .filter(c => c.actual_win_rate !== null && c.decided > 2)
+            .map(c => ({ x: c.expected_win_rate, y: c.actual_win_rate, label: c.decile_label, n: c.decided }));
+
+        new Chart(calEl.getContext('2d'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Actual vs Expected',
+                        data: points,
+                        backgroundColor: 'rgba(251,191,36,0.7)',
+                        borderColor: 'rgba(251,191,36,1)',
+                        pointRadius: 6,
+                    },
+                    {
+                        label: 'Perfect Calibration',
+                        data: [{x:0,y:0},{x:100,y:100}],
+                        type: 'line',
+                        borderColor: 'rgba(107,114,128,0.5)',
+                        borderDash: [5,5],
+                        pointRadius: 0,
+                        fill: false,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#9ca3af' } },
+                    tooltip: {
+                        ...darkTooltip,
+                        callbacks: {
+                            label: ctx => {
+                                const p = ctx.raw;
+                                return p.label ? `${p.label}: expected ${p.x}%, actual ${p.y}% (n=${p.n})` : '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { min: 0, max: 100, title: { display: true, text: 'Expected Win Rate %', color: '#9ca3af' }, ticks: { color: '#9ca3af' }, grid: darkGrid },
+                    y: { min: 0, max: 100, title: { display: true, text: 'Actual Win Rate %', color: '#9ca3af' }, ticks: { color: '#9ca3af' }, grid: darkGrid }
+                }
+            }
+        });
+    }
+
+    /* ── Format analysis timestamp ─────────────────────────────── */
+    const tsEl = document.getElementById('analysisTs');
+    if (tsEl && tsEl.textContent) {
+        const ts = parseFloat(tsEl.textContent);
+        if (!isNaN(ts)) {
+            tsEl.textContent = new Date(ts * 1000).toLocaleString();
+        }
+    }
+})();
+</script>
+{% endblock %}

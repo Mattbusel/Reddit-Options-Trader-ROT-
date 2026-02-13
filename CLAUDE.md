@@ -15,7 +15,7 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~98+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~161+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
 | **DB** | SQLite with aiosqlite (WAL mode), 15+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
@@ -48,7 +48,7 @@ ROT is a vertically integrated pipeline that turns social media chatter into str
 
 ```
 [Ingestion] → [Trend Detection] → [NLP Analysis] → [Event Extraction]
-    → [Credibility Scoring] → [LLM Reasoning] → [Trade Building] → [Storage + Delivery]
+    → [Credibility Scoring] → [Adaptive Suppression] → [LLM Reasoning] → [Trade Building] → [Storage + Delivery]
 ```
 
 **Key architectural decisions:**
@@ -111,6 +111,18 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 - **Training:** `train.py` queries signal_performance for resolved win/loss outcomes, extracts features, trains with 5-fold cross-validation, saves pickle. Requires 100+ decided signals and 30+ in each class.
 - Both scores stored in `meta["ml_credibility"]` for A/B monitoring.
 - Result: event.confidence = P(win) from ML [0.05, 0.95], or heuristic adjustment clamped [0.05, 1.0]
+
+### Stage 6.5: Adaptive Signal Suppression
+**Module:** `src/rot/feedback/suppressor.py`
+- `SignalSuppressor.apply(event)` → `(Event, was_suppressed)`
+- Reads precomputed analysis from `FeedbackAnalyzer._last_analysis` (thread-safe GIL read)
+- **Category-level suppression**: if event_type win_rate < 20% (configurable) with 30+ decided signals
+- **Source-level suppression**: if (event_type, subreddit) win_rate < 15% with 30+ decided signals
+- **Low-confidence + poor category**: if confidence < 0.3 AND event_type appears in any suppression candidate
+- Suppressed signals: emit with stub ReasoningPacket + no-trade TradeIdea, skip LLM + trade building
+- Suppressed signals still stored with `meta["suppressed"]=True` for audit trail
+- Disabled by default until first `FeedbackAnalyzer.run_analysis()` completes (graceful first-deployment)
+- Saves LLM API costs by skipping reasoning on historically losing signal categories
 
 ### Stage 7: LLM Reasoning
 **Module:** `src/rot/reasoner/`
@@ -199,6 +211,12 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `ml_scorer.py` | ML-based credibility scorer (GradientBoosting). Predicts P(win) from 32 features. Falls back to heuristic |
 | `features.py` | 32-feature extraction for ML scoring. Shared by inference (Event) and training (DB row) paths |
 | `train.py` | Training script for ML model. Queries DB for win/loss outcomes, trains GradientBoosting, saves pickle |
+
+### `src/rot/feedback/`
+| File | Purpose |
+|------|---------|
+| `analyzer.py` | Signal feedback analysis engine: category performance, source reliability, feature importance, quality trends, suppression candidates, calibration. Precomputed cache refreshed by background loop every 6h |
+| `suppressor.py` | Adaptive signal suppressor: skips LLM reasoning for categories/sources with historically low win rates. Stage 6.5 in pipeline |
 
 ### `src/rot/reasoner/`
 | File | Purpose |
@@ -452,6 +470,7 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | GET | `/correlations` | Ticker correlations matrix |
 | GET | `/sector-rotation` | Sector rotation analysis |
 | GET | `/unusual-activity` | Unusual options activity |
+| GET | `/signal-quality` | Signal quality dashboard (Pro+) |
 | GET | `/ticker/{symbol}` | Ticker deep dive |
 | GET | `/news` | News feed |
 
@@ -571,6 +590,7 @@ Each returns a dict of boolean/numeric flags:
 - `gate_congress_tracker_access()` — congressional trading
 - `gate_paper_leaderboard_access()` — paper trading leaderboard
 - `gate_sports_betting_access()` — sports betting intel
+- `gate_signal_quality_access()` — signal quality analytics dashboard
 
 ---
 
@@ -698,6 +718,17 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `MIN_TRAINING_SAMPLES` | `100` | Minimum resolved signals to start training |
 | `RETRAIN_INTERVAL_S` | `86400` | Seconds between retrain attempts (24h) |
 | `MIN_CLASS_SAMPLES` | `30` | Minimum samples per class (win/loss) to train |
+
+### Feedback Engine (`ROT_FEEDBACK_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLED` | `True` | Enable feedback analysis background loop |
+| `ANALYSIS_INTERVAL_S` | `21600` | Seconds between analysis cycles (6h) |
+| `SUPPRESS_ENABLED` | `True` | Enable adaptive signal suppression (Stage 6.5) |
+| `SUPPRESS_THRESHOLD` | `0.20` | Suppress categories with win rate below 20% |
+| `SUPPRESS_SOURCE_THRESHOLD` | `0.15` | Suppress (event_type, source) combos below 15% |
+| `MIN_SIGNALS_FOR_SUPPRESSION` | `30` | Minimum decided signals before suppression kicks in |
+| `QUALITY_TREND_WINDOW_DAYS` | `30` | Days of history for quality trend analysis |
 
 ### Global
 | Variable | Default | Description |
@@ -905,6 +936,7 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_rss_ingestor.py` | RSS feed parsing, dedup |
 | `test_multi_ingestor.py` | Multi-source aggregation |
 | `test_query_cache.py` | Dashboard query cache: TTL, invalidation, thundering herd, edge cases |
+| `test_feedback.py` | Feedback analyzer (slope, MA, feature importance, suppression candidates), suppressor (category/source/low-confidence suppression, apply), tier gate tests |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -975,6 +1007,9 @@ if access["has_quadrant"]:
 ### JSON Blob Storage
 Complex nested data (market data, reasoning, trade ideas, event metadata including NLP) is stored as JSON text columns in SQLite. This avoids schema complexity while keeping data queryable via JSON functions.
 
+### Precomputed Feedback Analysis
+The feedback engine (`src/rot/feedback/`) runs expensive DB queries in a background loop every 6h, caching results in memory. The Signal Quality dashboard reads cached results instantly (no DB query on page load). The suppressor reads the same cache from the sync pipeline thread (GIL-safe dict read, no locks needed). First deployment: no analysis cached = suppressor never suppresses = identical behavior to before.
+
 ### Dashboard Query Cache
 The dashboard loads 12+ database queries per page view. To avoid hammering the DB on every request, an async in-memory TTL cache (`src/rot/web/query_cache.py`) is used:
 - **Cached (10 queries)**: trending tickers (30s), performance summary (120s), strategy breakdown (120s), chart data (60s), time series (60s), accuracy stats (120s), leaderboard (30s), heatmaps (120s), correlations (120s), landing page stats (300s)
@@ -1030,6 +1065,10 @@ rot/
 │       │   ├── ml_scorer.py           # ML-based scorer (GradientBoosting) with heuristic fallback
 │       │   ├── features.py            # 32-feature extraction for ML (inference + training)
 │       │   └── train.py               # Live training from DB win/loss outcomes
+│       ├── feedback/
+│       │   ├── __init__.py            # Exports FeedbackAnalyzer, SignalSuppressor
+│       │   ├── analyzer.py            # Category performance, source reliability, feature importance, quality trends, suppression candidates
+│       │   └── suppressor.py          # Adaptive signal suppression (Stage 6.5)
 │       ├── reasoner/
 │       │   ├── reasoner.py            # LLM orchestrator + circuit breaker
 │       │   ├── llm_client.py          # Provider-agnostic LLM client
@@ -1092,7 +1131,8 @@ rot/
     ├── test_trend_engine_rss.py
     ├── test_rss_ingestor.py
     ├── test_multi_ingestor.py
-    └── test_query_cache.py
+    ├── test_query_cache.py
+    └── test_feedback.py
 ```
 
 ---
@@ -1164,6 +1204,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2025 | Initial CLAUDE.md creation — comprehensive architecture documentation | Claude Agent |
 | 2025 | Dashboard query cache engine — `query_cache.py`: async TTL cache with per-key TTL, thundering-herd prevention, prefix invalidation. Caches 10 of 12 dashboard queries (trending, accuracy, leaderboard, charts, heatmaps, correlations). Signal-triggered invalidation for fast-changing data. | Claude Agent |
 | 2026-02 | Add ML credibility scorer — GradientBoosting replaces heuristic, live retrain loop, 32-feature extraction, heuristic fallback | Claude Agent |
+| 2026-02 | Signal feedback engine — `src/rot/feedback/`: FeedbackAnalyzer (category performance, source reliability, ML feature importance, quality trends, suppression candidates, confidence calibration), SignalSuppressor (Stage 6.5 adaptive suppression saving LLM costs), Signal Quality dashboard (`/signal-quality`, Pro+ gated), FeedbackConfig, 39 new tests (161 total) | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

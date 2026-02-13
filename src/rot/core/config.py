@@ -275,6 +275,20 @@ class MLConfig(BaseSettings):
     min_class_samples: int = 30  # minimum samples per class (win/loss)
 
 
+class FeedbackConfig(BaseSettings):
+    """Config for signal feedback engine (quality analysis + adaptive suppression)."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_FEEDBACK_")
+
+    enabled: bool = True  # Enable feedback analysis background loop
+    analysis_interval_s: int = 21600  # 6 hours between analysis cycles
+    suppress_enabled: bool = True  # Enable adaptive signal suppression
+    suppress_threshold: float = 0.20  # Suppress categories with win_rate < 20%
+    suppress_source_threshold: float = 0.15  # Suppress (event_type, source) with win_rate < 15%
+    min_signals_for_suppression: int = 30  # Minimum decided signals before suppression kicks in
+    quality_trend_window_days: int = 30  # Rolling window for trend analysis
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -299,6 +313,7 @@ class Settings(BaseSettings):
     email: EmailConfig = Field(default_factory=EmailConfig)
     sponsored: SponsoredConfig = Field(default_factory=SponsoredConfig)
     ml: MLConfig = Field(default_factory=MLConfig)
+    feedback: FeedbackConfig = Field(default_factory=FeedbackConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

@@ -319,6 +319,29 @@ def gate_sports_betting_access(tier: str) -> dict:
     }
 
 
+def gate_signal_quality_access(tier: str) -> dict:
+    """Return signal quality dashboard feature access flags based on tier.
+
+    Pro+ gets basic category heatmap and quality trends.
+    Premium+ gets source reliability, feature importance, and detailed calibration.
+    Ultra+ gets suppression view (operational insight into adaptive suppression).
+    """
+    return {
+        "has_access": tier in _PAID_TIERS,
+        "has_category_heatmap": tier in _PAID_TIERS,
+        "has_source_reliability": tier in ("premium", "ultra", "enterprise"),
+        "has_feature_importance": tier in ("premium", "ultra", "enterprise"),
+        "has_quality_trend": tier in _PAID_TIERS,
+        "has_suppression_view": tier in ("ultra", "enterprise"),
+        "has_calibration_detail": tier in ("premium", "ultra", "enterprise"),
+        "quality_days": (
+            30 if tier in ("free", "pro")
+            else 90 if tier == "premium"
+            else 365
+        ),
+    }
+
+
 def _redact_reasoning(reasoning: dict) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:

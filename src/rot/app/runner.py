@@ -58,6 +58,7 @@ class PipelineRunner:
         self.symbol_validator = symbol_validator or SymbolValidator()
         self.top_n = top_n
         self.on_signal = on_signal
+        self.suppressor: Optional[Any] = None  # SignalSuppressor, set externally
         self._emitted_keys: set = set()  # (post_url, ticker) dedup
 
     def _emit_signal(self, signal_data: Dict[str, Any]) -> None:
@@ -207,11 +208,49 @@ class PipelineRunner:
         for e in scored:
             self.log.write("events", {"run_id": run_id, "event": e})
 
+        # 3.5) Adaptive signal suppression (Stage 6.5)
+        # Skip LLM reasoning for categories with historically low win rates.
+        suppressed_count = 0
+        active_events = []
+        for e in scored:
+            if self.suppressor:
+                e, was_suppressed = self.suppressor.apply(e)
+                if was_suppressed:
+                    suppressed_count += 1
+                    stub_packet = ReasoningPacket(
+                        thesis=f"Suppressed: {(e.meta or {}).get('suppression_reason', 'low win rate')}",
+                        catalyst_window="N/A",
+                        market_expectation="suppressed",
+                        invalidations=[],
+                        recommended_structures=[],
+                        risk_notes=["Signal suppressed due to historically low win rate for this category"],
+                        raw={"stub": True, "suppressed": True},
+                    )
+                    no_trade = TradeIdea(
+                        underlying=e.entities[0] if e.entities else "N/A",
+                        strategy="none",
+                        legs=[],
+                        max_loss=0.0,
+                        thesis=stub_packet.thesis,
+                        time_stop="N/A",
+                        quality_score=0.0,
+                        do_not_trade_reasons=["suppressed"],
+                    )
+                    self.log.write("events_suppressed", {"run_id": run_id, "event": e})
+                    self._emit_signal({
+                        "run_id": run_id,
+                        "event": e,
+                        "reasoning": stub_packet,
+                        "trade_idea": no_trade,
+                    })
+                    continue
+            active_events.append(e)
+
         # 4) reason + ideas
         idea_count = 0
         stub_count = 0
         info_count = 0
-        for e in scored:
+        for e in active_events:
             # Informational-only sources (DoD, FDA, pharma): skip LLM reasoning
             # and trade ideas. These are news items, not tradeable signals.
             source = ""
@@ -295,6 +334,7 @@ class PipelineRunner:
             "ticker_candidates": len(ticker_candidates),
             "ticker_candidate_count": ticker_candidate_count,
             "events": len(scored),
+            "suppressed": suppressed_count,
             "stubs_skipped": stub_count,
             "informational_only": info_count,
             "trade_ideas": idea_count,

@@ -419,6 +419,62 @@ async def _ml_retrain_loop(
     log.info("ML retrain loop stopped")
 
 
+async def _feedback_analysis_loop(
+    analyzer,
+    ml_scorer,
+    cfg_feedback,
+    stop_event: threading.Event,
+):
+    """Background task that periodically runs signal feedback analysis.
+
+    Computes category performance, source reliability, feature importance,
+    quality trends, and suppression candidates.  Results are cached in
+    the analyzer and read by the Signal Quality dashboard and the suppressor.
+    """
+    log.info(
+        "Feedback analysis loop starting (interval=%ds)",
+        cfg_feedback.analysis_interval_s,
+    )
+
+    # Wait 120s on startup for DB to accumulate performance data
+    for _ in range(120):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            results = await analyzer.run_analysis(
+                ml_scorer=ml_scorer,
+                days=cfg_feedback.quality_trend_window_days,
+                suppress_threshold=cfg_feedback.suppress_threshold,
+                min_signals=cfg_feedback.min_signals_for_suppression,
+            )
+            # Log quality trend alerts
+            trend = results.get("quality_trend", {})
+            slope = trend.get("slope")
+            if slope is not None and slope < -0.02:
+                log.warning(
+                    "Signal quality DEGRADING: slope=%.3f over %d days",
+                    slope,
+                    len(trend.get("daily", [])),
+                )
+            candidates = results.get("suppression_candidates", [])
+            if candidates:
+                log.info(
+                    "Feedback: %d suppression candidates identified",
+                    len(candidates),
+                )
+        except Exception as e:
+            log.error("Feedback analysis error: %s", e, exc_info=True)
+
+        for _ in range(cfg_feedback.analysis_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Feedback analysis loop stopped")
+
+
 async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     """Background task that periodically purges old data to keep storage lean.
 
@@ -649,6 +705,49 @@ async def _run_server(cfg: Settings):
     else:
         log.info("ML retrain loop: DISABLED (set ROT_ML_ENABLED=true)")
 
+    # Start signal feedback analysis loop (quality analytics + adaptive suppression)
+    feedback_task = None
+    if cfg.feedback.enabled:
+        from rot.feedback.analyzer import FeedbackAnalyzer
+        from rot.feedback.suppressor import SignalSuppressor
+
+        feedback_analyzer = FeedbackAnalyzer(db=app.state.db)
+        app.state.feedback_analyzer = feedback_analyzer
+
+        if cfg.feedback.suppress_enabled:
+            suppressor = SignalSuppressor(
+                analyzer=feedback_analyzer,
+                threshold=cfg.feedback.suppress_threshold,
+                source_threshold=cfg.feedback.suppress_source_threshold,
+                min_signals=cfg.feedback.min_signals_for_suppression,
+                enabled=True,
+            )
+            runner.suppressor = suppressor
+            log.info(
+                "Signal suppressor: ACTIVE (threshold=%.0f%%, source_threshold=%.0f%%, min_signals=%d)",
+                cfg.feedback.suppress_threshold * 100,
+                cfg.feedback.suppress_source_threshold * 100,
+                cfg.feedback.min_signals_for_suppression,
+            )
+        else:
+            log.info("Signal suppressor: DISABLED (set ROT_FEEDBACK_SUPPRESS_ENABLED=true)")
+
+        feedback_task = asyncio.create_task(
+            _feedback_analysis_loop(
+                analyzer=feedback_analyzer,
+                ml_scorer=runner.cred,
+                cfg_feedback=cfg.feedback,
+                stop_event=stop_event,
+            )
+        )
+        log.info(
+            "Feedback analysis loop: ACTIVE (interval=%ds)",
+            cfg.feedback.analysis_interval_s,
+        )
+    else:
+        app.state.feedback_analyzer = None
+        log.info("Feedback analysis: DISABLED (set ROT_FEEDBACK_ENABLED=true)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -673,6 +772,8 @@ async def _run_server(cfg: Settings):
             x_post_task.cancel()
         if ml_retrain_task:
             ml_retrain_task.cancel()
+        if feedback_task:
+            feedback_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 

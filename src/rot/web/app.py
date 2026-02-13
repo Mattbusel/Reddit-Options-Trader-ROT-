@@ -158,12 +158,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         hall_of_legends, glossary, ceo_rap_sheet,
         sentiment, ticker_dive, weekly_wrap, replay, seo, faq,
         accuracy_breakdown, confidence_calibration, sector_rotation,
+        signal_quality,
     )
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(performance.router, tags=["performance"])
     app.include_router(accuracy_breakdown.router, tags=["accuracy-breakdown"])
     app.include_router(confidence_calibration.router, tags=["confidence-calibration"])
     app.include_router(sector_rotation.router, tags=["sector-rotation"])
+    app.include_router(signal_quality.router, tags=["signal-quality"])
     app.include_router(backtest.router, tags=["backtest"])
     app.include_router(raid_tracker.router, tags=["raid-tracker"])
     app.include_router(sports_tracker.router, tags=["sports-tracker"])
