@@ -289,6 +289,39 @@ class FeedbackConfig(BaseSettings):
     quality_trend_window_days: int = 30  # Rolling window for trend analysis
 
 
+class UnusualActivityConfig(BaseSettings):
+    """Config for unusual activity detection engine."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_UNUSUAL_")
+
+    scan_interval_s: int = 300  # 5 minutes between scans
+    iv_rank_threshold: float = 80.0  # flag if IV rank > 80th percentile
+    volume_surge_multiplier: float = 2.0  # flag if volume > 2x average
+    oi_surge_pct: float = 20.0  # flag if OI increases > 20%
+    skew_std_threshold: float = 2.0  # flag if P/C ratio > 2 std devs from mean
+    composite_min_score: float = 40.0  # minimum composite score to store
+    history_window_days: int = 20  # rolling window for baselines
+    purge_keep_days: int = 90  # days to keep unusual events
+
+
+class SectorConfig(BaseSettings):
+    """Config for sector rotation analysis."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_SECTOR_")
+
+    min_signals: int = 2  # minimum signals per sector for analysis
+    momentum_window_days: int = 30  # rolling window for momentum
+
+
+class ExportSchedulerConfig(BaseSettings):
+    """Config for enterprise export scheduler."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_EXPORT_")
+
+    scheduler_interval_s: int = 3600  # 1 hour between scheduler checks
+    max_rows_per_export: int = 1000000  # max rows per export
+
+
 class BacktestServerConfig(BaseSettings):
     """Config for backtesting engine server-side limits."""
 
@@ -326,6 +359,9 @@ class Settings(BaseSettings):
     ml: MLConfig = Field(default_factory=MLConfig)
     feedback: FeedbackConfig = Field(default_factory=FeedbackConfig)
     backtest_server: BacktestServerConfig = Field(default_factory=BacktestServerConfig)
+    unusual: UnusualActivityConfig = Field(default_factory=UnusualActivityConfig)
+    sector: SectorConfig = Field(default_factory=SectorConfig)
+    export_scheduler: ExportSchedulerConfig = Field(default_factory=ExportSchedulerConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

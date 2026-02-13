@@ -19,7 +19,7 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-white mb-2">Enterprise Dashboard</h1>
-            <p class="text-gray-400">Data licensing, sponsored signals, and API usage</p>
+            <p class="text-gray-400">Data licensing, analytics, signal lineage, and API usage</p>
         </div>
         <span class="px-3 py-1 bg-emerald-900/50 text-emerald-400 border border-emerald-700 rounded-full text-sm font-semibold">Enterprise</span>
     </div>
@@ -39,6 +39,85 @@
             </div>
         </div>
     </div>
+
+    <!-- Analytics Overview (7d) -->
+    {% if analytics %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {% set ss = analytics.get('signal_stats', {}) %}
+        {% set ps = analytics.get('performance_stats', {}) %}
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Signals (7d)</div>
+            <div class="text-3xl font-bold text-white">{{ ss.get('total_signals', 0) }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
+            <div class="text-3xl font-bold text-white">{{ "%.0f"|format((ss.get('avg_confidence', 0)) * 100) }}%</div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate</div>
+            {% set wr = ps.get('win_rate') %}
+            <div class="text-3xl font-bold {{ 'text-green-400' if wr and wr >= 0.5 else 'text-red-400' if wr else 'text-gray-500' }}">
+                {% if wr is not none %}{{ "%.1f"|format(wr * 100) }}%{% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tracked Trades</div>
+            <div class="text-3xl font-bold text-white">{{ ps.get('total_tracked', 0) }}</div>
+        </div>
+    </div>
+
+    <!-- Stance & Source Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Stance Breakdown -->
+        {% if ss.get('by_stance') %}
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <h2 class="text-lg font-semibold text-white mb-4">Stance Distribution (7d)</h2>
+            <div class="space-y-3">
+                {% for stance, count in ss['by_stance'].items() %}
+                {% set pct = (count / ss.total_signals * 100) if ss.total_signals > 0 else 0 %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="capitalize {{ 'text-green-400' if stance == 'bullish' else 'text-red-400' if stance == 'bearish' else 'text-yellow-400' }}">{{ stance }}</span>
+                        <span class="text-gray-400">{{ count }} ({{ "%.0f"|format(pct) }}%)</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-700 rounded-full">
+                        <div class="{{ 'bg-green-500' if stance == 'bullish' else 'bg-red-500' if stance == 'bearish' else 'bg-yellow-500' }} h-2 rounded-full" style="width: {{ pct }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Top Sources -->
+        {% set src = analytics.get('source_stats', {}) %}
+        {% if src.get('sources') %}
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <h2 class="text-lg font-semibold text-white mb-4">Top Sources (7d)</h2>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="text-left py-2 px-3">Source</th>
+                        <th class="text-right py-2 px-3">Signals</th>
+                        <th class="text-right py-2 px-3">Bullish</th>
+                        <th class="text-right py-2 px-3">Avg Conf</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for s in src['sources'][:8] %}
+                    <tr>
+                        <td class="py-2 px-3 text-white font-medium">{{ s.source }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ s.signal_count }}</td>
+                        <td class="py-2 px-3 text-right text-green-400">{{ "%.0f"|format(s.bullish_pct) }}%</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((s.avg_confidence|default(0)) * 100) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Data Export + Sponsored Signals side by side -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -62,6 +141,10 @@
                 <div>
                     <label class="text-sm text-gray-400 block mb-1">Max rows</label>
                     <input type="number" id="export-limit" value="100000" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="export-lineage" class="rounded bg-gray-900 border-gray-700">
+                    <label for="export-lineage" class="text-sm text-gray-400">Include signal lineage (provenance chain)</label>
                 </div>
             </div>
             <button onclick="requestExport()" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition">
@@ -128,6 +211,19 @@
         </div>
     </div>
 
+    <!-- Signal Lineage Lookup -->
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-lg font-semibold text-white mb-3">Signal Lineage Lookup</h2>
+        <p class="text-gray-400 text-sm mb-4">Trace any signal's full provenance chain: source &rarr; NLP &rarr; credibility &rarr; LLM &rarr; trade.</p>
+        <div class="flex gap-4">
+            <input type="text" id="lineage-signal-id" placeholder="Signal ID (UUID)" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm">
+            <button onclick="lookupLineage()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition">Lookup</button>
+        </div>
+        <div id="lineage-result" class="mt-4 hidden">
+            <div id="lineage-steps"></div>
+        </div>
+    </div>
+
     {% else %}
     <!-- ═══════════════════════════════════════════════ -->
     <!-- ENTERPRISE SALES PAGE                           -->
@@ -164,7 +260,7 @@
                 <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Full historical data (no time window restrictions)</span></li>
                 <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Filter by ticker, date range, strategy</span></li>
                 <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Up to 1M rows per export</span></li>
-                <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Perfect for backtesting and research</span></li>
+                <li class="flex items-start space-x-2"><span class="text-emerald-400 mt-0.5">&#10003;</span><span>Signal lineage &amp; provenance tracking</span></li>
             </ul>
         </div>
 
@@ -239,12 +335,13 @@ async function requestExport() {
     const fmt = document.getElementById('export-format').value;
     const ticker = document.getElementById('export-ticker').value.trim() || null;
     const limit = parseInt(document.getElementById('export-limit').value) || 100000;
+    const includeLineage = document.getElementById('export-lineage') ? document.getElementById('export-lineage').checked : false;
 
     try {
         const resp = await fetch('/api/v1/enterprise/data-export', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({format: fmt, ticker: ticker, limit: limit})
+            body: JSON.stringify({format: fmt, ticker: ticker, limit: limit, include_lineage: includeLineage})
         });
 
         if (fmt === 'json') {
@@ -299,6 +396,60 @@ async function submitSponsored() {
         }
     } catch (e) {
         alert('Submission error: ' + e.message);
+    }
+}
+
+async function lookupLineage() {
+    const signalId = document.getElementById('lineage-signal-id').value.trim();
+    if (!signalId) return;
+
+    try {
+        const resp = await fetch('/api/v1/enterprise/lineage/' + signalId);
+        const data = await resp.json();
+
+        document.getElementById('lineage-result').classList.remove('hidden');
+
+        if (data.ok && data.lineage) {
+            const lin = data.lineage;
+            let html = '<div class="space-y-2">';
+            html += '<div class="text-sm text-gray-400 mb-3">Signal: <span class="text-white font-semibold">' + lin.signal_id + '</span>';
+            html += ' &middot; ' + lin.steps.length + ' stages &middot; ';
+            html += (lin.processing_time_s || 0).toFixed(1) + 's total</div>';
+
+            (lin.steps || []).forEach((step, i) => {
+                const statusColor = step.status === 'completed' ? 'text-green-400' : step.status === 'skipped' ? 'text-gray-500' : 'text-yellow-400';
+                html += '<div class="bg-gray-900/50 rounded-lg p-3 border border-gray-700 flex items-start gap-3">';
+                html += '<div class="text-xs bg-gray-800 rounded-full w-6 h-6 flex items-center justify-center text-gray-400 font-bold flex-shrink-0">' + (i + 1) + '</div>';
+                html += '<div class="flex-1 min-w-0">';
+                html += '<div class="flex items-center gap-2 mb-1">';
+                html += '<span class="text-white font-semibold text-sm">' + step.stage + '</span>';
+                html += '<span class="' + statusColor + ' text-xs">' + step.status + '</span>';
+                if (step.duration_s) html += '<span class="text-gray-600 text-xs">' + step.duration_s.toFixed(2) + 's</span>';
+                html += '</div>';
+                if (step.details) {
+                    const details = typeof step.details === 'object' ? step.details : {};
+                    const detailKeys = Object.keys(details);
+                    if (detailKeys.length > 0) {
+                        html += '<div class="text-xs text-gray-500">';
+                        detailKeys.slice(0, 5).forEach(k => {
+                            let v = details[k];
+                            if (typeof v === 'object') v = JSON.stringify(v).substring(0, 60);
+                            html += '<span class="mr-3">' + k + ': <span class="text-gray-400">' + v + '</span></span>';
+                        });
+                        html += '</div>';
+                    }
+                }
+                html += '</div></div>';
+            });
+
+            html += '</div>';
+            document.getElementById('lineage-steps').innerHTML = html;
+        } else {
+            document.getElementById('lineage-steps').innerHTML = '<p class="text-red-400 text-sm">' + (data.detail || 'Signal not found') + '</p>';
+        }
+    } catch (e) {
+        document.getElementById('lineage-result').classList.remove('hidden');
+        document.getElementById('lineage-steps').innerHTML = '<p class="text-red-400 text-sm">Error: ' + e.message + '</p>';
     }
 }
 

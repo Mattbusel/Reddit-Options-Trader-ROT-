@@ -334,6 +334,8 @@ class EventBuilder:
                 "flair": post.flair,
                 "is_crosspost": post.is_crosspost,
                 "body_excerpt": post.selftext[:500] if post.selftext else "",
+                "post_created_utc": post.created_utc,
+                "snapshot_ts": c.snapshot.snapshot_ts,
                 "nlp": nlp_meta,
             },
         )
@@ -404,6 +406,8 @@ class EventBuilder:
                 "flair": post.flair,
                 "is_crosspost": post.is_crosspost,
                 "body_excerpt": post.selftext[:500] if post.selftext else "",
+                "post_created_utc": post.created_utc,
+                "snapshot_ts": c.snapshot.snapshot_ts,
             },
         )
 

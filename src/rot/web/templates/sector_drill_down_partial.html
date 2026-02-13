@@ -1,0 +1,41 @@
+<!-- HTMX partial: ticker breakdown within a sector -->
+<div class="p-4">
+    <h3 class="text-lg font-semibold text-white mb-3">{{ sector }} &mdash; Ticker Breakdown</h3>
+    {% if tickers %}
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-700 text-left">
+                <th class="py-2 px-3 text-gray-400">Ticker</th>
+                <th class="py-2 px-3 text-gray-400 text-right">Signals</th>
+                <th class="py-2 px-3 text-gray-400 text-right">Bull / Bear</th>
+                <th class="py-2 px-3 text-gray-400 text-right">Avg Conf</th>
+                {% if tickers[0].win_rate is defined %}
+                <th class="py-2 px-3 text-gray-400 text-right">Win Rate</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tickers %}
+            <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                <td class="py-2 px-3">
+                    <a href="/ticker/{{ t.ticker }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ t.ticker }}</a>
+                </td>
+                <td class="py-2 px-3 text-right text-gray-300">{{ t.signal_count }}</td>
+                <td class="py-2 px-3 text-right">
+                    <span class="text-green-400">{{ t.bullish }}</span> /
+                    <span class="text-red-400">{{ t.bearish }}</span>
+                </td>
+                <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((t.avg_confidence or 0) * 100) }}%</td>
+                {% if t.win_rate is defined %}
+                <td class="py-2 px-3 text-right {{ 'text-green-400' if (t.win_rate or 0) >= 50 else 'text-red-400' if (t.win_rate or 0) > 0 else 'text-gray-500' }} font-bold">
+                    {% if t.win_rate is not none %}{{ "%.1f"|format(t.win_rate) }}%{% else %}&mdash;{% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-gray-500 text-sm">No ticker data available for this sector.</p>
+    {% endif %}
+</div>

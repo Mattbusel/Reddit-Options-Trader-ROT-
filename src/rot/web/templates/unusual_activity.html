@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Unusual Activity - ROT{% endblock %}
-{% block meta_description %}Spot unusual options activity: high IV, volume spikes, extreme put/call ratios. Cross-referenced with ROT signals.{% endblock %}
+{% block meta_description %}Spot unusual options activity: high IV, volume spikes, OI surges, put/call skew shifts, and sweep patterns. Cross-referenced with ROT signals.{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-8">
+<div class="max-w-7xl mx-auto px-4 py-8">
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">Unusual Activity</h1>
-        <p class="text-gray-400">Signals flagged with unusual options characteristics: volume spikes, high IV, extreme P/C ratios.</p>
+        <h1 class="text-3xl font-bold text-white mb-2">&#128680; Unusual Activity</h1>
+        <p class="text-gray-400">Options flow anomalies detected by the ROT scanner: IV spikes, volume surges, OI changes, put/call skew, and sweep patterns.</p>
     </div>
 
     {% if not access.has_access %}
@@ -19,11 +19,207 @@
     </div>
     {% else %}
 
+    {# ── KPI Summary Cards ── #}
+    {% if summary %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Events</div>
+            <div class="text-2xl font-bold text-white">{{ summary.get('total_events', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Unique Tickers</div>
+            <div class="text-2xl font-bold text-white">{{ summary.get('unique_tickers', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Avg Score</div>
+            <div class="text-2xl font-bold
+                {% if summary.get('avg_score', 0) >= 70 %}text-red-400
+                {% elif summary.get('avg_score', 0) >= 50 %}text-orange-400
+                {% elif summary.get('avg_score', 0) >= 30 %}text-yellow-400
+                {% else %}text-gray-300{% endif %}">
+                {{ summary.get('avg_score', 0)|round(1) }}
+            </div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Max Score</div>
+            <div class="text-2xl font-bold
+                {% if summary.get('max_score', 0) >= 80 %}text-red-400
+                {% elif summary.get('max_score', 0) >= 60 %}text-orange-400
+                {% else %}text-yellow-400{% endif %}">
+                {{ summary.get('max_score', 0)|round(1) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Type Breakdown Bar ── #}
+    {% if summary and summary.get('type_breakdown') %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Event Type Breakdown</h3>
+        <div class="flex flex-wrap gap-3">
+            {% for etype, count in summary.type_breakdown.items() %}
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg
+                {% if etype == 'iv_spike' %}bg-purple-900/30 border border-purple-700/40
+                {% elif etype == 'volume_surge' %}bg-orange-900/30 border border-orange-700/40
+                {% elif etype == 'oi_surge' %}bg-blue-900/30 border border-blue-700/40
+                {% elif etype == 'skew_shift' %}bg-red-900/30 border border-red-700/40
+                {% elif etype == 'sweep' %}bg-cyan-900/30 border border-cyan-700/40
+                {% else %}bg-gray-700/30 border border-gray-600/40{% endif %}">
+                <span class="text-sm font-semibold
+                    {% if etype == 'iv_spike' %}text-purple-400
+                    {% elif etype == 'volume_surge' %}text-orange-400
+                    {% elif etype == 'oi_surge' %}text-blue-400
+                    {% elif etype == 'skew_shift' %}text-red-400
+                    {% elif etype == 'sweep' %}text-cyan-400
+                    {% else %}text-gray-400{% endif %}">
+                    {% if etype == 'iv_spike' %}&#x26A1; High IV
+                    {% elif etype == 'volume_surge' %}&#x1F4C8; Volume Spike
+                    {% elif etype == 'oi_surge' %}&#x1F4CA; OI Surge
+                    {% elif etype == 'skew_shift' %}&#x2696; P/C Skew
+                    {% elif etype == 'sweep' %}&#x1F3AF; Sweep
+                    {% else %}{{ etype }}{% endif %}
+                </span>
+                <span class="text-xs font-bold text-white bg-gray-700/50 rounded px-1.5 py-0.5">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Top Tickers ── #}
+    {% if summary and summary.get('top_tickers') %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Most Active Tickers</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-500 text-left border-b border-gray-700/50">
+                        <th class="pb-2 font-medium">Ticker</th>
+                        <th class="pb-2 font-medium text-center">Events</th>
+                        <th class="pb-2 font-medium text-right">Avg Score</th>
+                        <th class="pb-2 font-medium text-right">Intensity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in summary.top_tickers[:8] %}
+                    <tr class="border-b border-gray-800/40">
+                        <td class="py-2 font-bold text-white">{{ t.ticker }}</td>
+                        <td class="py-2 text-center text-gray-300">{{ t.count }}</td>
+                        <td class="py-2 text-right">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold
+                                {% if t.avg_score >= 70 %}bg-red-900/50 text-red-400
+                                {% elif t.avg_score >= 50 %}bg-orange-900/50 text-orange-400
+                                {% elif t.avg_score >= 30 %}bg-yellow-900/50 text-yellow-400
+                                {% else %}bg-gray-700/50 text-gray-400{% endif %}">
+                                {{ t.avg_score }}
+                            </span>
+                        </td>
+                        <td class="py-2 text-right">
+                            <div class="w-20 h-2 bg-gray-700 rounded-full ml-auto overflow-hidden">
+                                <div class="h-full rounded-full
+                                    {% if t.avg_score >= 70 %}bg-red-500
+                                    {% elif t.avg_score >= 50 %}bg-orange-500
+                                    {% elif t.avg_score >= 30 %}bg-yellow-500
+                                    {% else %}bg-gray-500{% endif %}"
+                                    style="width: {{ t.avg_score }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Unusual Event Cards (new engine) ── #}
+    {% if events %}
+    <h3 class="text-lg font-semibold text-white mb-4">Recent Unusual Events</h3>
+    <div class="space-y-3 mb-8">
+        {% for e in events %}
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    {# Score badge with color gradient #}
+                    <div class="w-11 h-11 rounded-lg flex items-center justify-center text-sm font-bold
+                        {% if e.score >= 80 %}bg-red-900/60 text-red-300 border border-red-700/50
+                        {% elif e.score >= 60 %}bg-orange-900/60 text-orange-300 border border-orange-700/50
+                        {% elif e.score >= 40 %}bg-yellow-900/60 text-yellow-300 border border-yellow-700/50
+                        {% else %}bg-gray-700/60 text-gray-300 border border-gray-600/50{% endif %}">
+                        {{ e.score|round(0)|int }}
+                    </div>
+                    <div>
+                        <span class="text-lg font-bold text-white">{{ e.ticker }}</span>
+                        <span class="ml-2 px-2 py-0.5 rounded text-xs font-bold
+                            {% if e.event_type == 'iv_spike' %}bg-purple-900/50 text-purple-400 border border-purple-700/40
+                            {% elif e.event_type == 'volume_surge' %}bg-orange-900/50 text-orange-400 border border-orange-700/40
+                            {% elif e.event_type == 'oi_surge' %}bg-blue-900/50 text-blue-400 border border-blue-700/40
+                            {% elif e.event_type == 'skew_shift' %}bg-red-900/50 text-red-400 border border-red-700/40
+                            {% elif e.event_type == 'sweep' %}bg-cyan-900/50 text-cyan-400 border border-cyan-700/40
+                            {% else %}bg-gray-700 text-gray-300{% endif %}">
+                            {% if e.event_type == 'iv_spike' %}&#x26A1; High IV
+                            {% elif e.event_type == 'volume_surge' %}&#x1F4C8; Volume Spike
+                            {% elif e.event_type == 'oi_surge' %}&#x1F4CA; OI Surge
+                            {% elif e.event_type == 'skew_shift' %}&#x2696; P/C Skew
+                            {% elif e.event_type == 'sweep' %}&#x1F3AF; Sweep
+                            {% else %}{{ e.event_type }}{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500">
+                    {% set age_s = (now - e.detected_at)|int if e.detected_at else 0 %}
+                    {% if age_s < 3600 %}{{ (age_s / 60)|int }}m ago
+                    {% elif age_s < 86400 %}{{ (age_s / 3600)|int }}h ago
+                    {% else %}{{ (age_s / 86400)|int }}d ago{% endif %}
+                </div>
+            </div>
+
+            {# Detail row (Premium+) #}
+            {% if access.has_detail and e.get('details') %}
+            <div class="flex flex-wrap gap-4 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700/40">
+                {% if e.details.get('atm_iv') %}
+                <span>IV: <span class="text-purple-400 font-semibold">{{ (e.details.atm_iv * 100)|round(1) }}%</span></span>
+                {% endif %}
+                {% if e.details.get('iv_rank') %}
+                <span>IV Rank: <span class="text-purple-400 font-semibold">{{ e.details.iv_rank|round(0)|int }}th pctl</span></span>
+                {% endif %}
+                {% if e.details.get('volume') %}
+                <span>Volume: <span class="text-orange-400 font-semibold">{{ "{:,.0f}".format(e.details.volume) }}</span></span>
+                {% endif %}
+                {% if e.details.get('volume_ratio') %}
+                <span>vs Avg: <span class="text-orange-400 font-semibold">{{ e.details.volume_ratio }}x</span></span>
+                {% endif %}
+                {% if e.details.get('total_oi') %}
+                <span>OI: <span class="text-blue-400 font-semibold">{{ "{:,.0f}".format(e.details.total_oi) }}</span></span>
+                {% endif %}
+                {% if e.details.get('oi_change_pct') %}
+                <span>OI Change: <span class="{% if e.details.oi_change_pct > 0 %}text-green-400{% else %}text-red-400{% endif %} font-semibold">{{ e.details.oi_change_pct|round(1) }}%</span></span>
+                {% endif %}
+                {% if e.details.get('pc_ratio') %}
+                <span>P/C: <span class="text-red-400 font-semibold">{{ e.details.pc_ratio|round(2) }}</span></span>
+                {% endif %}
+                {% if e.details.get('direction') %}
+                <span class="{% if e.details.direction == 'bearish_skew' %}text-red-400{% else %}text-green-400{% endif %} font-semibold">
+                    {{ e.details.direction|replace('_', ' ')|title }}
+                </span>
+                {% endif %}
+                {% if e.details.get('vol_oi_ratio') %}
+                <span>Vol/OI: <span class="text-cyan-400 font-semibold">{{ e.details.vol_oi_ratio }}x</span></span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Legacy Signal Cards (fallback) ── #}
     {% if signals %}
-    <div class="space-y-4">
+    <h3 class="text-lg font-semibold text-white mb-4">{% if events %}Legacy Flagged Signals{% else %}Flagged Signals{% endif %}</h3>
+    <div class="space-y-3">
         {% for s in signals %}
-        <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
-            <div class="flex items-center justify-between mb-3">
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-3">
                     <span class="text-lg font-bold text-white">{{ s.ticker }}</span>
                     <span class="px-2 py-0.5 rounded text-xs font-semibold {% if s.stance == 'bullish' %}bg-green-900/50 text-green-400{% elif s.stance == 'bearish' %}bg-red-900/50 text-red-400{% else %}bg-yellow-900/50 text-yellow-400{% endif %}">{{ s.stance }}</span>
@@ -42,12 +238,11 @@
                     {% endfor %}
                 </div>
             </div>
-
             <div class="flex items-center justify-between text-sm">
                 <div class="text-gray-400">
                     {{ s.strategy | replace('_', ' ') }} &middot; {{ s.subreddit }}
                 </div>
-                {% if access.has_detail and s.unusual_detail %}
+                {% if access.has_detail and s.get('unusual_detail') %}
                 <div class="flex gap-4 text-xs text-gray-500">
                     {% if s.unusual_detail.get('atm_iv') %}
                     <span>IV: {{ (s.unusual_detail.atm_iv * 100)|round(1) }}%</span>
@@ -64,9 +259,13 @@
         </div>
         {% endfor %}
     </div>
-    {% else %}
+    {% endif %}
+
+    {# ── Empty state ── #}
+    {% if not events and not signals %}
     <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
-        <p class="text-gray-500">No unusual activity detected in recent signals. Check back later.</p>
+        <div class="text-4xl mb-3">&#128269;</div>
+        <p class="text-gray-500">No unusual activity detected in recent signals. The scanner checks every 5 minutes.</p>
     </div>
     {% endif %}
 

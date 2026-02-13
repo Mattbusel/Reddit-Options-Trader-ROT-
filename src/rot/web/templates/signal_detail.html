@@ -669,9 +669,24 @@
                     <span class="text-gray-300 font-mono text-xs truncate max-w-[160px]">{{ signal.run_id }}</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-gray-500">Subreddit</span>
+                    <span class="text-gray-500">Source</span>
+                    {% if signal.get('event_data', {}).get('flair') == 'rss' %}
+                    <span class="text-blue-400">&#128240; {{ signal.subreddit }}</span>
+                    {% elif signal.subreddit == 'stocktwits' %}
+                    <span class="text-purple-400">&#128202; StockTwits</span>
+                    {% elif signal.subreddit == 'twitter' %}
+                    <span class="text-cyan-400">&#128038; Twitter/X</span>
+                    {% else %}
                     <span class="text-gray-300">r/{{ signal.subreddit }}</span>
+                    {% endif %}
                 </div>
+                {% set lag = format_lag(signal) %}
+                {% if lag %}
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-500">Detection Lag</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-700/50 text-emerald-400 text-xs font-semibold" title="Time from RSS article publish to ROT signal generation">&#9201; {{ lag }}</span>
+                </div>
+                {% endif %}
                 <div class="flex items-center justify-between">
                     <span class="text-gray-500">Time Horizon</span>
                     <span class="text-gray-300">{{ signal.get('time_horizon', 'unknown') }}</span>

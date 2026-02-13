@@ -40,6 +40,47 @@ def _format_time(ts: float | None) -> str:
     return dt.strftime("%Y-%m-%d %H:%M UTC")
 
 
+def _format_lag(signal: dict) -> str | None:
+    """Return a human-readable lag string for RSS signals.
+
+    Shows elapsed time between the RSS article's published timestamp
+    (``post_created_utc``) and when ROT stored the signal (``created_at``).
+    Returns *None* for non-RSS signals or when timestamps are missing.
+    """
+    ed = signal.get("event_data") or {}
+    if isinstance(ed, str):
+        try:
+            import json as _json
+            ed = _json.loads(ed)
+        except Exception:
+            return None
+
+    # Only show lag for RSS-sourced signals
+    flair = ed.get("flair", "")
+    if flair != "rss":
+        return None
+
+    pub_ts = ed.get("post_created_utc")
+    signal_ts = signal.get("created_at")
+    if not pub_ts or not signal_ts:
+        return None
+
+    delta_s = signal_ts - pub_ts
+    if delta_s < 0:
+        return None
+
+    if delta_s < 60:
+        return f"{int(delta_s)}s"
+    if delta_s < 3600:
+        mins = int(delta_s // 60)
+        return f"{mins}m"
+    hours = delta_s / 3600
+    if hours < 24:
+        return f"{hours:.1f}h"
+    days = hours / 24
+    return f"{days:.1f}d"
+
+
 def _stance_color(stance: str) -> str:
     return {
         "bullish": "text-green-400",
@@ -91,6 +132,7 @@ def _base_context(request: Request, user: dict | None) -> dict:
         "stance_bg": _stance_bg,
         "confidence_bar": _confidence_bar,
         "stripe_enabled": bool(request.app.state.settings.stripe.secret_key),
+        "format_lag": _format_lag,
     }
 
 

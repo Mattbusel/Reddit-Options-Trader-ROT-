@@ -475,6 +475,111 @@ async def _feedback_analysis_loop(
     log.info("Feedback analysis loop stopped")
 
 
+async def _unusual_activity_scan_loop(
+    db,
+    cfg_unusual,
+    stop_event: threading.Event,
+):
+    """Background task that scans recent signals for unusual activity events.
+
+    Runs every ``cfg_unusual.scan_interval_s`` seconds.  Scans the most recent
+    signals for IV spikes, volume surges, OI surges, and put/call skew shifts.
+    Stores detected events in the ``unusual_events`` table.
+    """
+    from rot.unusual.detector import UnusualDetector
+    from rot.unusual.config import UnusualConfig
+
+    log.info(
+        "Unusual activity scan loop starting (interval=%ds)",
+        cfg_unusual.scan_interval_s,
+    )
+
+    ua_config = UnusualConfig(
+        iv_rank_threshold=cfg_unusual.iv_rank_threshold,
+        volume_surge_multiplier=cfg_unusual.volume_surge_multiplier,
+        oi_surge_pct=cfg_unusual.oi_surge_pct,
+        skew_std_threshold=cfg_unusual.skew_std_threshold,
+        composite_min_score=cfg_unusual.composite_min_score,
+        history_window_days=cfg_unusual.history_window_days,
+    )
+    detector = UnusualDetector(config=ua_config)
+
+    # Wait 60s on startup for DB/pipeline to initialize
+    for _ in range(60):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            # Fetch recent signals (last scan_interval * 2 to avoid gaps)
+            cutoff = time.time() - cfg_unusual.scan_interval_s * 2
+            async with db.db.execute(
+                """SELECT id, ticker, market_data, created_at
+                   FROM signals WHERE created_at > ? ORDER BY created_at DESC LIMIT 200""",
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                signals = [dict(r) for r in rows]
+
+            if signals:
+                events = detector.scan_batch(signals)
+                if events:
+                    await db.save_unusual_events(events)
+                    log.info(
+                        "Unusual activity scan: %d events from %d signals",
+                        len(events), len(signals),
+                    )
+
+            # Periodic purge of old events
+            await db.purge_old_unusual_events(keep_days=cfg_unusual.purge_keep_days)
+
+        except Exception as e:
+            log.error("Unusual activity scan error: %s", e, exc_info=True)
+
+        for _ in range(cfg_unusual.scan_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Unusual activity scan loop stopped")
+
+
+async def _export_scheduler_loop(
+    db,
+    cfg_export,
+    stop_event: threading.Event,
+):
+    """Background task that runs pending scheduled exports.
+
+    Checks for due export jobs every ``cfg_export.scheduler_interval_s`` seconds
+    and generates CSV/JSON output for Enterprise users.
+    """
+    log.info(
+        "Export scheduler loop starting (interval=%ds)",
+        cfg_export.scheduler_interval_s,
+    )
+
+    # Wait 120s on startup
+    for _ in range(120):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            # Check for pending export schedules (future: read from export_schedules table)
+            # For now this loop is a placeholder that logs readiness
+            log.debug("Export scheduler: check cycle (no pending jobs)")
+        except Exception as e:
+            log.error("Export scheduler error: %s", e, exc_info=True)
+
+        for _ in range(cfg_export.scheduler_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Export scheduler loop stopped")
+
+
 async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     """Background task that periodically purges old data to keep storage lean.
 
@@ -748,6 +853,32 @@ async def _run_server(cfg: Settings):
         app.state.feedback_analyzer = None
         log.info("Feedback analysis: DISABLED (set ROT_FEEDBACK_ENABLED=true)")
 
+    # Start unusual activity scan loop (always active — scans signals for IV spikes, volume surges)
+    unusual_task = asyncio.create_task(
+        _unusual_activity_scan_loop(
+            db=app.state.db,
+            cfg_unusual=cfg.unusual,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Unusual activity scan: ACTIVE (interval=%ds)",
+        cfg.unusual.scan_interval_s,
+    )
+
+    # Start export scheduler loop (always active — processes scheduled Enterprise exports)
+    export_sched_task = asyncio.create_task(
+        _export_scheduler_loop(
+            db=app.state.db,
+            cfg_export=cfg.export_scheduler,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Export scheduler: ACTIVE (interval=%ds)",
+        cfg.export_scheduler.scheduler_interval_s,
+    )
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -766,6 +897,8 @@ async def _run_server(cfg: Settings):
         stop_event.set()
         price_check_task.cancel()
         cleanup_task.cancel()
+        unusual_task.cancel()
+        export_sched_task.cancel()
         if digest_task:
             digest_task.cancel()
         if x_post_task:

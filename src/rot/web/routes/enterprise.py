@@ -1,11 +1,16 @@
 """Enterprise tier routes.
 
 Provides:
-  - /enterprise — Enterprise info page or dashboard
+  - /enterprise — Enterprise info page or dashboard (with analytics)
   - /api/v1/enterprise/data-export — Bulk historical data export (CSV/JSON)
   - /api/v1/enterprise/sponsored/submit — Submit press release for priority analysis
   - /api/v1/enterprise/sponsored/status — Check sponsored signal statuses
   - /api/v1/enterprise/usage — Enterprise usage dashboard data
+  - /api/v1/enterprise/analytics/signals — Signal stats API
+  - /api/v1/enterprise/analytics/performance — Performance stats API
+  - /api/v1/enterprise/analytics/trends — Trend analysis API
+  - /api/v1/enterprise/analytics/sources — Source analysis API
+  - /api/v1/enterprise/lineage/{signal_id} — Signal lineage API
 """
 from __future__ import annotations
 
@@ -17,8 +22,8 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from rot.web.auth import get_current_user_optional, require_tier
@@ -46,6 +51,7 @@ class DataExportRequest(BaseModel):
     date_from: Optional[float] = None
     date_to: Optional[float] = None
     limit: int = 100000
+    include_lineage: bool = False
 
 
 # ── Enterprise page (HTML) ──
@@ -63,6 +69,7 @@ async def enterprise_page(request: Request):
         "tier": tier,
         "stripe_enabled": bool(request.app.state.settings.stripe.secret_key),
         "is_enterprise": tier == "enterprise",
+        "json_dumps": json.dumps,
     }
 
     if tier == "enterprise" and user:
@@ -71,11 +78,29 @@ async def enterprise_page(request: Request):
         exports = await db.get_data_exports(user_id=user["id"], limit=10)
         since_24h = time.time() - 86400
         api_count = await db.get_api_call_count(user["id"], since_24h)
+
+        # Analytics overview
+        analytics_data = {}
+        try:
+            from rot.export.analytics import AnalyticsAPI
+            analytics = AnalyticsAPI()
+            signals = await db.get_enterprise_analytics_signals(
+                date_from=time.time() - 86400 * 7,
+            )
+            analytics_data = {
+                "signal_stats": analytics.compute_signal_stats(signals),
+                "performance_stats": analytics.compute_performance_stats(signals),
+                "source_stats": analytics.compute_source_analysis(signals),
+            }
+        except Exception:
+            log.exception("Enterprise analytics failed")
+
         ctx.update({
             "sponsored_signals": sponsored,
             "data_exports": exports,
             "api_usage_24h": api_count,
             "api_limit_day": request.app.state.settings.tier_limits.enterprise_api_limit_day,
+            "analytics": analytics_data,
         })
 
     return templates.TemplateResponse("enterprise.html", ctx)
@@ -96,6 +121,16 @@ async def enterprise_data_export(body: DataExportRequest, request: Request):
         limit=body.limit,
     )
 
+    # Optionally include lineage
+    lineage_data = None
+    if body.include_lineage and rows:
+        try:
+            from rot.export.lineage import LineageBuilder
+            builder = LineageBuilder()
+            lineage_data = [l.to_dict() for l in builder.build_batch_lineage(rows[:500])]
+        except Exception:
+            log.exception("Lineage build failed")
+
     # Track the export
     await db.record_data_export(
         user_id=user["id"],
@@ -106,7 +141,10 @@ async def enterprise_data_export(body: DataExportRequest, request: Request):
     )
 
     if body.format == "json":
-        return {"ok": True, "count": len(rows), "data": rows}
+        result = {"ok": True, "count": len(rows), "data": rows}
+        if lineage_data:
+            result["lineage"] = lineage_data
+        return result
 
     # CSV streaming response
     output = io.StringIO()
@@ -223,3 +261,98 @@ async def enterprise_usage(request: Request):
             "completed": len([s for s in sponsored if s.get("status") == "completed"]),
         },
     }
+
+
+# ── Analytics API ──
+
+@router.get("/api/v1/enterprise/analytics/signals")
+async def analytics_signals(
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
+):
+    """Signal statistics. Enterprise only."""
+    user = await require_tier("enterprise")(request)
+    db = request.app.state.db
+
+    from rot.export.analytics import AnalyticsAPI
+    signals = await db.get_enterprise_analytics_signals(
+        date_from=time.time() - days * 86400,
+    )
+    api = AnalyticsAPI()
+    return {"ok": True, "stats": api.compute_signal_stats(signals)}
+
+
+@router.get("/api/v1/enterprise/analytics/performance")
+async def analytics_performance(
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
+):
+    """Performance statistics. Enterprise only."""
+    user = await require_tier("enterprise")(request)
+    db = request.app.state.db
+
+    from rot.export.analytics import AnalyticsAPI
+    signals = await db.get_enterprise_analytics_signals(
+        date_from=time.time() - days * 86400,
+    )
+    api = AnalyticsAPI()
+    return {"ok": True, "stats": api.compute_performance_stats(signals)}
+
+
+@router.get("/api/v1/enterprise/analytics/trends")
+async def analytics_trends(
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
+    bucket_hours: int = Query(24, ge=1, le=168),
+):
+    """Signal volume trends. Enterprise only."""
+    user = await require_tier("enterprise")(request)
+    db = request.app.state.db
+
+    from rot.export.analytics import AnalyticsAPI
+    signals = await db.get_enterprise_analytics_signals(
+        date_from=time.time() - days * 86400,
+    )
+    api = AnalyticsAPI()
+    return {"ok": True, "trends": api.compute_trend_analysis(signals, bucket_hours=bucket_hours)}
+
+
+@router.get("/api/v1/enterprise/analytics/sources")
+async def analytics_sources(
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
+):
+    """Source breakdown. Enterprise only."""
+    user = await require_tier("enterprise")(request)
+    db = request.app.state.db
+
+    from rot.export.analytics import AnalyticsAPI
+    signals = await db.get_enterprise_analytics_signals(
+        date_from=time.time() - days * 86400,
+    )
+    api = AnalyticsAPI()
+    return {"ok": True, "sources": api.compute_source_analysis(signals)}
+
+
+@router.get("/api/v1/enterprise/lineage/{signal_id}")
+async def signal_lineage(
+    request: Request,
+    signal_id: str = Path(...),
+):
+    """Get full provenance chain for a signal. Enterprise only."""
+    user = await require_tier("enterprise")(request)
+    db = request.app.state.db
+
+    from rot.export.lineage import LineageBuilder
+
+    # Fetch signal
+    query = "SELECT * FROM signals WHERE id = ?"
+    async with db.db.execute(query, (signal_id,)) as cursor:
+        row = await cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Signal not found")
+        signal = dict(row)
+
+    builder = LineageBuilder()
+    lineage = builder.build_lineage(signal)
+    return {"ok": True, "lineage": lineage.to_dict()}

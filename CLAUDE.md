@@ -15,9 +15,9 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~423+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~670+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
-| **DB** | SQLite with aiosqlite (WAL mode), 15+ tables |
+| **DB** | SQLite with aiosqlite (WAL mode), 18+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
 
 ---
@@ -252,10 +252,35 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `comparator.py` | `ComparisonResult` + `compare_strategies()` — side-by-side metrics, correlation matrix, rankings |
 | `report.py` | `generate_csv_trades()` + `generate_html_report()` — CSV export and standalone HTML report generation |
 
+### `src/rot/unusual/` (Unusual Activity Detection — 4 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Exports UnusualEvent, UnusualDetector, UnusualScore |
+| `types.py` | Frozen dataclasses: UnusualEvent, UnusualScore, UnusualSummary (event_type: iv_spike/volume_surge/oi_surge/skew_shift/sweep) |
+| `detector.py` | Core detection engine: IV percentile rank, volume surge (z-score), OI surge, P/C skew shift, sweep approximation, composite scoring (0-100) |
+| `history.py` | Rolling per-ticker baselines: IV rank, volume z-score, OI change %, skew mean/std. In-memory with periodic DB flush |
+
+### `src/rot/analysis/` (Sector Rotation + Correlation — 4 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Exports SectorAnalyzer, CorrelationAnalyzer |
+| `sector.py` | Sector rotation intelligence: momentum scoring, rotation detection, capital flow, sector rankings |
+| `sector_types.py` | Frozen dataclasses: SectorMomentum, RotationEvent, SectorRanking, CapitalFlow |
+| `correlations.py` | Correlation engine: signal co-fire correlations, hierarchical clustering, lead-lag detection, network graph construction |
+| `correlation_types.py` | Frozen dataclasses: CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph |
+
+### `src/rot/export/` (Enterprise Data Pipeline — 4 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Exports ExportJob, ExportScheduler, LineageBuilder |
+| `types.py` | Frozen dataclasses: ExportJob, ExportResult, SignalLineage, ScheduleConfig, LineageStep |
+| `scheduler.py` | ExportScheduler: scheduled recurring exports (daily/weekly/on-demand), background job runner, CSV/JSON generation |
+| `lineage.py` | LineageBuilder: full signal provenance chain (source → trend → NLP → credibility → LLM → trade → outcome) |
+
 ### `src/rot/storage/`
 | File | Purpose |
 |------|---------|
-| `database.py` | Async SQLite (aiosqlite), WAL mode, 17+ tables, migration system |
+| `database.py` | Async SQLite (aiosqlite), WAL mode, 18+ tables, migration system |
 
 ### `src/rot/alerts/`
 | File | Purpose |
@@ -425,6 +450,8 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `congress_trades` | Congressional trading tracker data |
 | `backtest_runs` | Saved backtest runs (id, user_id, name, config_json, result_json, monte_carlo_json, risk_json, created_at) |
 | `backtest_strategies` | Saved named backtest strategies (id, user_id, name, description, config_json, last_result_json, last_run_at, created_at, is_active) |
+| `unusual_events` | Unusual activity events (id, ticker, event_type, score, details_json, signal_id, detected_at). Types: iv_spike, volume_surge, oi_surge, skew_shift, sweep |
+| `export_schedules` | Scheduled enterprise exports (id, user_id, format, frequency, filters_json, last_run_at, next_run_at, created_at) |
 
 ---
 
@@ -485,9 +512,18 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/sentiment` | Sentiment heatmap |
-| GET | `/correlations` | Ticker correlations matrix |
-| GET | `/sector-rotation` | Sector rotation analysis |
-| GET | `/unusual-activity` | Unusual options activity |
+| GET | `/correlations` | Ticker correlations (pairs, clusters, lead-lag, network) |
+| GET | `/api/v1/correlations/matrix` | Correlation matrix JSON API |
+| GET | `/api/v1/correlations/{ticker}` | Per-ticker correlations JSON API |
+| GET | `/api/v1/correlations/clusters` | Cluster analysis JSON API |
+| GET | `/api/v1/correlations/lead-lag` | Lead-lag relationships JSON API |
+| GET | `/sector-rotation` | Sector rotation dashboard (rankings, flow, gauges) |
+| GET | `/sector-rotation/drill-down/{sector}` | HTMX partial: ticker breakdown within sector |
+| GET | `/api/v1/sectors/rankings` | Sector rankings JSON API |
+| GET | `/unusual-activity` | Unusual activity dashboard (events, timeline, filters) |
+| GET | `/api/v1/unusual-activity` | Unusual events JSON API |
+| GET | `/api/v1/unusual-activity/summary` | Aggregate unusual activity stats |
+| GET | `/api/v1/unusual-activity/timeline/{ticker}` | Per-ticker unusual event timeline |
 | GET | `/signal-quality` | Signal quality dashboard (Pro+) |
 | GET | `/ticker/{symbol}` | Ticker deep dive |
 | GET | `/news` | News feed |
@@ -530,13 +566,16 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | GET | `/portal` | Stripe customer portal |
 | GET | `/status` | Subscription status |
 
-#### Enterprise (`/api/v1/enterprise/`)
+#### Enterprise (`/enterprise`, `/api/v1/enterprise/`)
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/data-export` | Request data export |
-| POST | `/sponsored/submit` | Submit sponsored signal |
-| GET | `/sponsored/status` | Sponsored signal status |
-| GET | `/usage` | Enterprise usage stats |
+| GET | `/enterprise` | Enterprise dashboard (analytics, exports, lineage, schedules) |
+| POST | `/api/v1/enterprise/data-export` | Request data export (CSV/JSON, optional lineage) |
+| POST | `/api/v1/enterprise/sponsored/submit` | Submit sponsored signal |
+| GET | `/api/v1/enterprise/sponsored/status` | Sponsored signal status |
+| GET | `/api/v1/enterprise/usage` | Enterprise usage stats |
+| GET | `/api/v1/enterprise/analytics/overview` | Analytics overview (7d signals, confidence, win rate) |
+| GET | `/api/v1/enterprise/lineage/{signal_id}` | Signal lineage/provenance chain |
 
 #### Misc
 | Method | Path | Description |
@@ -766,6 +805,30 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `WALK_FORWARD_FOLDS` | `5` | Number of walk-forward folds |
 | `OPTIMIZER_MAX_COMBOS` | `500` | Max parameter combinations for optimizer |
 
+### Unusual Activity (`ROT_UNUSUAL_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCAN_INTERVAL_S` | `300` | Seconds between background scans (5 min) |
+| `IV_RANK_THRESHOLD` | `80.0` | Flag if IV rank > 80th percentile |
+| `VOLUME_SURGE_MULTIPLIER` | `2.0` | Flag if volume > 2x 20-day average |
+| `OI_SURGE_PCT` | `20.0` | Flag if OI increases > 20% |
+| `SKEW_STD_THRESHOLD` | `2.0` | Flag if P/C ratio > 2 std devs from mean |
+| `COMPOSITE_MIN_SCORE` | `40.0` | Minimum composite score (0-100) to store event |
+| `HISTORY_WINDOW_DAYS` | `20` | Rolling window for baseline computation |
+| `PURGE_KEEP_DAYS` | `90` | Days to keep unusual events before purging |
+
+### Sector Rotation (`ROT_SECTOR_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MIN_SIGNALS` | `2` | Minimum signals per sector to include in analysis |
+| `MOMENTUM_WINDOW_DAYS` | `30` | Rolling window for momentum scoring |
+
+### Export Scheduler (`ROT_EXPORT_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCHEDULER_INTERVAL_S` | `3600` | Seconds between scheduler checks (1 hour) |
+| `MAX_ROWS_PER_EXPORT` | `1000000` | Maximum rows per export file |
+
 ### Global
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -984,6 +1047,20 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_backtest_comparator.py` | Correlation matrix, rankings, summary table, strategy stats |
 | `test_backtest_tier_gate.py` | Free/Pro/Premium/Ultra/Enterprise tier access, feature hierarchy |
 | `test_backtest_report.py` | CSV trade export, HTML report generation with risk/Monte Carlo sections |
+| `test_unusual_types.py` | UnusualEvent, UnusualScore, UnusualSummary dataclass creation and validation |
+| `test_unusual_detector.py` | IV rank, volume surge, OI surge, skew shift, sweep detection, composite scoring, batch scan |
+| `test_unusual_history.py` | Rolling stats, percentile computation, cold start, baseline updates |
+| `test_unusual_db.py` | save/query/purge unusual events, timeline queries, summary aggregation |
+| `test_sector_types.py` | SectorMomentum, RotationEvent, SectorRanking, CapitalFlow dataclass tests |
+| `test_sector_analysis.py` | Momentum scoring, rotation detection, capital flow, sector ranking, edge cases |
+| `test_sector_db.py` | Time series queries, drill-down, ranking, performance |
+| `test_correlation_types.py` | CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph dataclass tests |
+| `test_correlation_analysis.py` | Co-fire correlation, clustering, lead-lag detection, network construction |
+| `test_correlation_db.py` | Correlation matrix queries, ticker correlations, signal pair queries |
+| `test_export_types.py` | ExportJob, ExportResult, SignalLineage, ScheduleConfig dataclass tests |
+| `test_export_scheduler.py` | Schedule creation, pending export detection, export generation |
+| `test_export_lineage.py` | Lineage chain construction, batch lineage, step ordering |
+| `test_enterprise_db.py` | Export schedule CRUD, analytics queries, lineage data retrieval |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1057,6 +1134,18 @@ Complex nested data (market data, reasoning, trade ideas, event metadata includi
 ### Precomputed Feedback Analysis
 The feedback engine (`src/rot/feedback/`) runs expensive DB queries in a background loop every 6h, caching results in memory. The Signal Quality dashboard reads cached results instantly (no DB query on page load). The suppressor reads the same cache from the sync pipeline thread (GIL-safe dict read, no locks needed). First deployment: no analysis cached = suppressor never suppresses = identical behavior to before.
 
+### Background Scan Loops (Unusual Activity + Export Scheduler)
+`server.py` runs background `asyncio` tasks alongside the main pipeline loop:
+- **Unusual Activity Scanner**: Every 5 min, fetches recent signals from DB, runs `UnusualDetector.scan_batch()`, saves detected events to `unusual_events` table, purges old events.
+- **Export Scheduler**: Every 1 hour, checks `export_schedules` table for pending exports and runs them.
+Both loops follow the pattern: initial delay → `while not stop_event.is_set()` → try/except with logging → `asyncio.sleep()`.
+
+### On-Demand Analysis (Sector + Correlation)
+Sector rotation and correlation analysis are computed on-demand when the user visits the page, not via background loops. Results are cached via the dashboard query cache (TTL 120s) to avoid re-running expensive aggregations on every page load.
+
+### Lag Timer (RSS Signal Provenance)
+Event meta stores `post_created_utc` (RSS article publish time) and `snapshot_ts` (ingestion time). The dashboard template computes `created_at - post_created_utc` to show how fast ROT detected the signal after publication. Only displayed on RSS-sourced signals (flair == "rss").
+
 ### Dashboard Query Cache
 The dashboard loads 12+ database queries per page view. To avoid hammering the DB on every request, an async in-memory TTL cache (`src/rot/web/query_cache.py`) is used:
 - **Cached (10 queries)**: trending tickers (30s), performance summary (120s), strategy breakdown (120s), chart data (60s), time series (60s), accuracy stats (120s), leaderboard (30s), heatmaps (120s), correlations (120s), landing page stats (300s)
@@ -1078,7 +1167,7 @@ rot/
 │   └── rot/
 │       ├── __init__.py
 │       ├── core/
-│       │   ├── config.py              # Pydantic Settings (15 config sections)
+│       │   ├── config.py              # Pydantic Settings (18 config sections)
 │       │   ├── types.py               # Frozen dataclasses (10 types)
 │       │   └── logging.py             # JSONL structured logging
 │       ├── ingest/
@@ -1141,8 +1230,24 @@ rot/
 │       │   ├── benchmark.py           # SPY benchmark comparison
 │       │   ├── comparator.py          # Strategy comparison
 │       │   └── report.py              # CSV/HTML report generation
+│       ├── unusual/                    # ★ UNUSUAL ACTIVITY DETECTION (4 modules)
+│       │   ├── __init__.py            # Exports UnusualEvent, UnusualDetector, UnusualScore
+│       │   ├── types.py               # Frozen dataclasses (UnusualEvent, UnusualScore, UnusualSummary)
+│       │   ├── detector.py            # Detection engine (IV rank, volume surge, OI surge, skew, sweep, composite)
+│       │   └── history.py             # Rolling per-ticker baselines for anomaly detection
+│       ├── analysis/                   # ★ SECTOR ROTATION + CORRELATION (5 modules)
+│       │   ├── __init__.py            # Exports SectorAnalyzer, CorrelationAnalyzer
+│       │   ├── sector.py             # Sector rotation: momentum, rotation, capital flow, rankings
+│       │   ├── sector_types.py       # SectorMomentum, RotationEvent, SectorRanking, CapitalFlow
+│       │   ├── correlations.py       # Signal co-fire, clustering, lead-lag, network graph
+│       │   └── correlation_types.py  # CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph
+│       ├── export/                     # ★ ENTERPRISE DATA PIPELINE (4 modules)
+│       │   ├── __init__.py            # Exports ExportJob, ExportScheduler, LineageBuilder
+│       │   ├── types.py               # ExportJob, ExportResult, SignalLineage, ScheduleConfig
+│       │   ├── scheduler.py           # Scheduled recurring exports (daily/weekly/on-demand)
+│       │   └── lineage.py             # Signal provenance chain (9-step lineage)
 │       ├── storage/
-│       │   └── database.py            # aiosqlite, 17+ tables, migrations
+│       │   └── database.py            # aiosqlite, 18+ tables, migrations
 │       ├── alerts/
 │       │   ├── dispatcher.py          # Multi-channel alert router
 │       │   ├── discord.py             # Discord webhooks
@@ -1209,7 +1314,21 @@ rot/
     ├── test_backtest_benchmark.py     # Benchmark comparison tests
     ├── test_backtest_comparator.py    # Strategy comparator tests
     ├── test_backtest_tier_gate.py     # Tier gating tests
-    └── test_backtest_report.py        # Report generation tests
+    ├── test_backtest_report.py        # Report generation tests
+    ├── test_unusual_types.py          # Unusual activity dataclass tests
+    ├── test_unusual_detector.py       # Detection algorithm tests
+    ├── test_unusual_history.py        # Rolling baseline tests
+    ├── test_unusual_db.py             # Unusual events DB tests
+    ├── test_sector_types.py           # Sector rotation dataclass tests
+    ├── test_sector_analysis.py        # Sector analysis algorithm tests
+    ├── test_sector_db.py              # Sector DB query tests
+    ├── test_correlation_types.py      # Correlation dataclass tests
+    ├── test_correlation_analysis.py   # Correlation algorithm tests
+    ├── test_correlation_db.py         # Correlation DB query tests
+    ├── test_export_types.py           # Export dataclass tests
+    ├── test_export_scheduler.py       # Export scheduler tests
+    ├── test_export_lineage.py         # Signal lineage tests
+    └── test_enterprise_db.py          # Enterprise DB tests
 ```
 
 ---
@@ -1283,6 +1402,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Add ML credibility scorer — GradientBoosting replaces heuristic, live retrain loop, 32-feature extraction, heuristic fallback | Claude Agent |
 | 2026-02 | Signal feedback engine — `src/rot/feedback/`: FeedbackAnalyzer (category performance, source reliability, ML feature importance, quality trends, suppression candidates, confidence calibration), SignalSuppressor (Stage 6.5 adaptive suppression saving LLM costs), Signal Quality dashboard (`/signal-quality`, Pro+ gated), FeedbackConfig, 39 new tests (161 total) | Claude Agent |
 | 2026-02 | Strategy Backtesting Engine — `src/rot/backtest/`: 12 modules (config, result, metrics, engine, monte_carlo, risk, walk_forward, optimizer, benchmark, comparator, report). Full portfolio simulation with stance-aware P&L (mirrors DB logic), 3 position sizing modes (fixed/Kelly/confidence-weighted), stop loss/take profit, Monte Carlo bootstrap (fan chart + probabilities), walk-forward IS/OOS validation with stability scoring, parameter grid search optimization with heatmap, risk analytics (VaR, CVaR, MAE/MFE, Ulcer Index, skewness/kurtosis), SPY benchmark comparison (alpha, beta, info ratio), strategy comparison. 10 HTMX-powered routes, 6 templates, 2 DB tables (backtest_runs, backtest_strategies), `gate_backtest_access()` tier gate (Pro+ tiered features), `BacktestServerConfig`, CSV/HTML report export. Backtest nav expanded from Ultra-only to Pro+. 253 new tests (423 total). | Claude Agent |
+| 2026-02 | Four Analytics Engines + Lag Timer — **Unusual Activity** (`src/rot/unusual/`): 4 modules, detection engine with 5 event types (IV spike, volume surge, OI surge, skew shift, sweep), composite scoring 0-100, rolling per-ticker baselines, `unusual_events` DB table, background scan loop (5 min), enhanced route + template with filters/timeline/KPIs. **Sector Rotation** (`src/rot/analysis/sector*.py`): momentum scoring, rotation detection, capital flow analysis, sector rankings, HTMX drill-down to ticker breakdown. **Correlation Engine** (`src/rot/analysis/correlation*.py`): signal co-fire correlations, hierarchical clustering, lead-lag detection, network graph construction, enhanced template with clusters/lead-lag/network. **Enterprise Export** (`src/rot/export/`): scheduled recurring exports, signal lineage/provenance chain (9-step), analytics overview API, enhanced dashboard with lineage lookup + analytics charts, `export_schedules` DB table. **Lag Timer UI**: `post_created_utc` + `snapshot_ts` in event meta, clock badge on RSS signal cards showing publish-to-signal delta. 3 new config sections (`UnusualActivityConfig`, `SectorConfig`, `ExportSchedulerConfig`), 2 new background loops in server.py. 247 new tests (670 total). | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

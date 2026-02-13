@@ -7,7 +7,7 @@
 <div class="max-w-6xl mx-auto px-4 py-8">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">Correlation Engine</h1>
-        <p class="text-gray-400">Discover which tickers fire signals together. "When TSLA goes bullish, RIVN follows 60% of the time."</p>
+        <p class="text-gray-400">Discover which tickers fire signals together and lead-lag relationships between stocks.</p>
     </div>
 
     {% if not access.has_correlation %}
@@ -18,6 +18,26 @@
         <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
     </div>
     {% else %}
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Correlated Pairs</div>
+            <div class="text-3xl font-bold text-white">{{ pairs|length }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Clusters</div>
+            <div class="text-3xl font-bold text-white">{{ clusters|length }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Lead-Lag Pairs</div>
+            <div class="text-3xl font-bold text-white">{{ lead_lag|length }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-5">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Network Nodes</div>
+            <div class="text-3xl font-bold text-white">{{ network_data.nodes|length if network_data else 0 }}</div>
+        </div>
+    </div>
 
     <!-- Ticker Search -->
     <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
@@ -33,36 +53,43 @@
     </div>
 
     <!-- Top Correlated Pairs -->
-    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
         <h2 class="text-lg font-semibold text-white mb-4">Top Correlated Pairs (30d)</h2>
-        {% if matrix %}
+        {% if pairs %}
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-700 text-gray-400">
                         <th class="text-left py-2 px-3">Pair</th>
                         <th class="text-right py-2 px-3">Co-Fires</th>
-                        <th class="text-right py-2 px-3">Stance Agreement</th>
+                        <th class="text-right py-2 px-3">Correlation</th>
+                        <th class="text-right py-2 px-3">Same Stance %</th>
                         {% if access.has_strength_scores %}
-                        <th class="text-right py-2 px-3">Avg Confidence</th>
+                        <th class="text-right py-2 px-3">Sample Size</th>
                         {% endif %}
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
-                    {% for p in matrix %}
-                    <tr>
+                    {% for p in pairs %}
+                    <tr class="hover:bg-gray-800/30 transition">
                         <td class="py-2 px-3">
-                            <span class="text-white font-semibold">{{ p.ticker_a }}</span>
+                            <a href="/ticker/{{ p.ticker_a }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ p.ticker_a }}</a>
                             <span class="text-gray-500 mx-1">&harr;</span>
-                            <span class="text-white font-semibold">{{ p.ticker_b }}</span>
+                            <a href="/ticker/{{ p.ticker_b }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ p.ticker_b }}</a>
                         </td>
                         <td class="py-2 px-3 text-right text-gray-300">{{ p.co_fires }}</td>
                         <td class="py-2 px-3 text-right">
-                            {% set pct = ((p.same_stance / p.co_fires) * 100)|round(1) if p.co_fires > 0 else 0 %}
-                            <span class="{% if pct >= 70 %}text-green-400{% elif pct >= 50 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ pct }}%</span>
+                            {% set corr = p.correlation|default(0) %}
+                            <span class="{% if corr >= 0.7 %}text-green-400{% elif corr >= 0.4 %}text-yellow-400{% else %}text-gray-400{% endif %} font-bold">
+                                {{ "%.2f"|format(corr) }}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            {% set pct = p.same_stance_pct|default(0) %}
+                            <span class="{% if pct >= 70 %}text-green-400{% elif pct >= 50 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ "%.1f"|format(pct) }}%</span>
                         </td>
                         {% if access.has_strength_scores %}
-                        <td class="py-2 px-3 text-right text-gray-300">{{ (p.avg_confidence * 100)|round(1) }}%</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ p.sample_size|default(p.co_fires) }}</td>
                         {% endif %}
                     </tr>
                     {% endfor %}
@@ -73,6 +100,103 @@
         <p class="text-gray-500 text-sm">Not enough signal data yet. Correlations appear after signals accumulate over time.</p>
         {% endif %}
     </div>
+
+    <!-- Clusters + Lead-Lag side by side -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Clusters -->
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <h2 class="text-lg font-semibold text-white mb-4">Ticker Clusters</h2>
+            {% if clusters %}
+            <div class="space-y-4">
+                {% for c in clusters %}
+                <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-white">Cluster {{ loop.index }}</span>
+                        <span class="text-xs text-gray-500">{{ c.tickers|length }} tickers &middot; avg corr: {{ "%.2f"|format(c.avg_internal_correlation|default(0)) }}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        {% for t in c.tickers %}
+                        <a href="/ticker/{{ t }}" class="px-2 py-1 bg-indigo-900/40 text-indigo-300 border border-indigo-700/50 rounded text-xs font-semibold hover:bg-indigo-800/40 transition">{{ t }}</a>
+                        {% endfor %}
+                    </div>
+                    {% if c.label %}
+                    <p class="text-xs text-gray-500 mt-2">{{ c.label }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No clusters detected. Need more correlated ticker pairs.</p>
+            {% endif %}
+        </div>
+
+        <!-- Lead-Lag Pairs -->
+        <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700">
+            <h2 class="text-lg font-semibold text-white mb-4">Lead-Lag Relationships</h2>
+            <p class="text-xs text-gray-500 mb-3">Which tickers signal before others.</p>
+            {% if lead_lag %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-700 text-gray-400">
+                            <th class="text-left py-2 px-3">Leader</th>
+                            <th class="text-center py-2 px-3">&rarr;</th>
+                            <th class="text-left py-2 px-3">Follower</th>
+                            <th class="text-right py-2 px-3">Avg Lag</th>
+                            <th class="text-right py-2 px-3">Occurrences</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        {% for ll in lead_lag %}
+                        <tr class="hover:bg-gray-800/30 transition">
+                            <td class="py-2 px-3">
+                                <a href="/ticker/{{ ll.leader }}" class="text-green-400 hover:text-green-300 font-semibold">{{ ll.leader }}</a>
+                            </td>
+                            <td class="py-2 px-3 text-center text-gray-500">&rarr;</td>
+                            <td class="py-2 px-3">
+                                <a href="/ticker/{{ ll.follower }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ ll.follower }}</a>
+                            </td>
+                            <td class="py-2 px-3 text-right text-gray-300">{{ "%.1f"|format(ll.avg_lag_hours) }}h</td>
+                            <td class="py-2 px-3 text-right text-gray-300">{{ ll.occurrences }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No lead-lag relationships detected yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Network Adjacency Table -->
+    {% if network_data and network_data.nodes %}
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Correlation Network</h2>
+        <p class="text-xs text-gray-500 mb-3">Tickers connected by signal co-occurrence. Size = signal count, color = correlation strength.</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {% for node in network_data.nodes %}
+            <div class="bg-gray-900/50 rounded-lg p-3 border border-gray-700 text-center hover:border-indigo-600 transition">
+                <a href="/ticker/{{ node.id }}" class="text-white font-bold text-sm hover:text-indigo-400">{{ node.id }}</a>
+                <div class="text-xs text-gray-500 mt-1">{{ node.signal_count|default(0) }} signals</div>
+                <div class="text-xs text-gray-600">{{ node.connections|default(0) }} links</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if network_data.edges %}
+        <div class="mt-4 border-t border-gray-700 pt-4">
+            <p class="text-xs text-gray-500 mb-2">Strongest edges ({{ network_data.edges|length }} total connections)</p>
+            <div class="flex flex-wrap gap-2">
+                {% for e in network_data.edges[:15] %}
+                <span class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-400">
+                    {{ e.source }}&harr;{{ e.target }} <span class="text-indigo-400">({{ "%.2f"|format(e.weight|default(0)) }})</span>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     {% endif %}
 </div>
@@ -100,7 +224,7 @@ async function searchCorrelations() {
                 const pct = c.stance_agreement_pct || 0;
                 const color = pct >= 70 ? 'text-green-400' : pct >= 50 ? 'text-yellow-400' : 'text-red-400';
                 html += '<tr>';
-                html += '<td class="py-2 px-3 text-white font-semibold">' + c.ticker + '</td>';
+                html += '<td class="py-2 px-3"><a href="/ticker/' + c.ticker + '" class="text-blue-400 hover:text-blue-300 font-semibold">' + c.ticker + '</a></td>';
                 html += '<td class="py-2 px-3 text-right text-gray-300">' + c.co_fires + '</td>';
                 html += '<td class="py-2 px-3 text-right ' + color + '">' + pct + '%</td>';
                 html += '</tr>';

@@ -349,6 +349,22 @@ CREATE TABLE IF NOT EXISTS backtest_strategies (
 );
 
 CREATE INDEX IF NOT EXISTS idx_backtest_strats_user ON backtest_strategies(user_id, is_active, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS unusual_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    score REAL NOT NULL DEFAULT 0.0,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    signal_id TEXT DEFAULT NULL,
+    detected_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_unusual_ticker ON unusual_events(ticker);
+CREATE INDEX IF NOT EXISTS idx_unusual_type ON unusual_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_unusual_detected ON unusual_events(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_unusual_score ON unusual_events(score DESC);
+CREATE INDEX IF NOT EXISTS idx_unusual_signal ON unusual_events(signal_id);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -1501,7 +1517,7 @@ class Database:
                         WHEN s.stance = 'bearish'
                              AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
                                  / sp.price_at_signal > 0.005 THEN 1
-                        WHEN s.stance != 'bearish'
+                        WHEN s.stance = 'bullish'
                              AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
                                  / sp.price_at_signal > 0.005 THEN 1
                         ELSE 0
@@ -2717,6 +2733,378 @@ class Database:
                     break
 
         return unusual
+
+    # ── Unusual Events Table (new detection engine) ──
+
+    async def save_unusual_events(
+        self, events: List[Dict[str, Any]],
+    ) -> int:
+        """Batch insert unusual events. Returns count inserted.
+
+        Each event dict should have: ticker, event_type, score, details (dict),
+        detected_at, and optionally signal_id.
+        """
+        if not events:
+            return 0
+        rows = []
+        for e in events:
+            rows.append((
+                e.get("ticker", ""),
+                e.get("event_type", ""),
+                e.get("score", 0.0),
+                json.dumps(e.get("details", {})),
+                e.get("signal_id"),
+                e.get("detected_at", time.time()),
+            ))
+        await self.db.executemany(
+            """INSERT INTO unusual_events
+               (ticker, event_type, score, details_json, signal_id, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        await self.db.commit()
+        return len(rows)
+
+    async def get_unusual_events(
+        self,
+        hours: int = 24,
+        ticker: Optional[str] = None,
+        min_score: float = 0.0,
+        event_type: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Query unusual events with filters."""
+        cutoff = time.time() - (hours * 3600)
+        clauses = ["detected_at > ?"]
+        params: list = [cutoff]
+
+        if ticker:
+            clauses.append("ticker = ?")
+            params.append(ticker)
+        if min_score > 0:
+            clauses.append("score >= ?")
+            params.append(min_score)
+        if event_type:
+            clauses.append("event_type = ?")
+            params.append(event_type)
+
+        where = " AND ".join(clauses)
+        query = f"""
+            SELECT * FROM unusual_events
+            WHERE {where}
+            ORDER BY detected_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def get_unusual_summary(
+        self, hours: int = 24,
+    ) -> Dict[str, Any]:
+        """Get aggregate unusual activity stats for a time period."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                COUNT(*) as total_events,
+                COUNT(DISTINCT ticker) as unique_tickers,
+                COALESCE(AVG(score), 0) as avg_score,
+                MAX(score) as max_score
+            FROM unusual_events
+            WHERE detected_at > ?
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            row = await cursor.fetchone()
+
+        summary = dict(row) if row else {
+            "total_events": 0, "unique_tickers": 0,
+            "avg_score": 0, "max_score": 0,
+        }
+
+        # Type breakdown
+        type_query = """
+            SELECT event_type, COUNT(*) as cnt
+            FROM unusual_events
+            WHERE detected_at > ?
+            GROUP BY event_type
+            ORDER BY cnt DESC
+        """
+        async with self.db.execute(type_query, (cutoff,)) as cursor:
+            type_rows = await cursor.fetchall()
+        summary["type_breakdown"] = {r["event_type"]: r["cnt"] for r in type_rows}
+
+        # Top tickers
+        ticker_query = """
+            SELECT ticker, COUNT(*) as cnt, AVG(score) as avg_score
+            FROM unusual_events
+            WHERE detected_at > ?
+            GROUP BY ticker
+            ORDER BY cnt DESC
+            LIMIT 10
+        """
+        async with self.db.execute(ticker_query, (cutoff,)) as cursor:
+            ticker_rows = await cursor.fetchall()
+        summary["top_tickers"] = [
+            {"ticker": r["ticker"], "count": r["cnt"],
+             "avg_score": round(r["avg_score"], 1)}
+            for r in ticker_rows
+        ]
+
+        return summary
+
+    async def get_unusual_timeline(
+        self, ticker: str, days: int = 7,
+    ) -> List[Dict[str, Any]]:
+        """Get unusual events timeline for a specific ticker."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT * FROM unusual_events
+            WHERE ticker = ? AND detected_at > ?
+            ORDER BY detected_at ASC
+        """
+        async with self.db.execute(query, (ticker, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def purge_old_unusual_events(self, keep_days: int = 30) -> int:
+        """Delete unusual events older than keep_days. Returns count deleted."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM unusual_events WHERE detected_at < ?",
+            (cutoff,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            count = row["cnt"] if row else 0
+
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM unusual_events WHERE detected_at < ?",
+                (cutoff,),
+            )
+            await self.db.commit()
+        return count
+
+    # ── Sector Rotation (Enhanced) ──
+
+    async def get_sector_time_series(
+        self, days: int = 30, bucket_hours: int = 24,
+    ) -> List[Dict[str, Any]]:
+        """Time-bucketed sector signal counts for rotation timeline."""
+        cutoff = time.time() - (days * 86400)
+        bucket_s = bucket_hours * 3600
+        query = """
+            SELECT
+                sector,
+                CAST((created_at / ?) AS INTEGER) as bucket,
+                COUNT(*) as signal_count,
+                SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                AVG(confidence) as avg_confidence
+            FROM signals
+            WHERE created_at > ? AND sector != '' AND ticker != 'UNKNOWN'
+            GROUP BY sector, bucket
+            ORDER BY bucket, sector
+        """
+        async with self.db.execute(query, (bucket_s, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                d["timestamp"] = d["bucket"] * bucket_s
+                results.append(d)
+            return results
+
+    async def get_sector_ticker_breakdown(
+        self, sector: str, days: int = 30,
+    ) -> List[Dict[str, Any]]:
+        """Tickers within a sector with signal count and performance."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.ticker,
+                COUNT(*) as signal_count,
+                SUM(CASE WHEN s.stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN s.stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                AVG(s.confidence) as avg_confidence,
+                MAX(s.created_at) as latest_at,
+                SUM(CASE
+                    WHEN sp.price_at_signal > 0 AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                    THEN CASE
+                        WHEN s.stance = 'bearish'
+                             AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        WHEN s.stance = 'bullish'
+                             AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        ELSE 0
+                    END ELSE NULL END) as winners,
+                SUM(CASE WHEN sp.price_at_signal IS NOT NULL
+                         AND (sp.price_1h IS NOT NULL OR sp.price_1d IS NOT NULL)
+                    THEN 1 ELSE 0 END) as tracked
+            FROM signals s
+            LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND s.sector = ? AND s.ticker != 'UNKNOWN'
+            GROUP BY s.ticker
+            ORDER BY signal_count DESC
+            LIMIT 20
+        """
+        async with self.db.execute(query, (cutoff, sector)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                w = d.get("winners", 0) or 0
+                tracked = d.get("tracked", 0) or 0
+                d["win_rate"] = round(w / tracked * 100) if tracked > 0 else None
+                results.append(d)
+            return results
+
+    async def get_sector_performance_ranked(
+        self, days: int = 30,
+    ) -> List[Dict[str, Any]]:
+        """All sectors ranked by win rate + signal count."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT
+                s.sector,
+                COUNT(*) as total_signals,
+                SUM(CASE WHEN s.stance = 'bullish' THEN 1 ELSE 0 END) as bullish,
+                SUM(CASE WHEN s.stance = 'bearish' THEN 1 ELSE 0 END) as bearish,
+                AVG(s.confidence) as avg_confidence,
+                COUNT(DISTINCT s.ticker) as unique_tickers,
+                SUM(CASE
+                    WHEN sp.price_at_signal > 0 AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                    THEN CASE
+                        WHEN s.stance = 'bearish'
+                             AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        WHEN s.stance = 'bullish'
+                             AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                                 / sp.price_at_signal > 0.005 THEN 1
+                        ELSE 0
+                    END ELSE NULL END) as winners,
+                SUM(CASE WHEN sp.price_at_signal IS NOT NULL
+                         AND (sp.price_1h IS NOT NULL OR sp.price_1d IS NOT NULL)
+                    THEN 1 ELSE 0 END) as tracked
+            FROM signals s
+            LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE s.created_at > ? AND s.sector != '' AND s.ticker != 'UNKNOWN'
+            GROUP BY s.sector
+            HAVING total_signals >= 2
+            ORDER BY total_signals DESC
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                d = _row_to_dict(row)
+                bull = d.get("bullish", 0) or 0
+                bear = d.get("bearish", 0) or 0
+                total = bull + bear
+                d["bullish_pct"] = round(bull / total * 100) if total > 0 else 50
+                w = d.get("winners", 0) or 0
+                tracked = d.get("tracked", 0) or 0
+                d["win_rate"] = round(w / tracked * 100) if tracked > 0 else None
+                results.append(d)
+            return results
+
+    # ── Correlation (Enhanced) ──
+
+    async def get_signal_pairs_for_correlation(
+        self, days: int = 30, limit: int = 3000,
+    ) -> List[Dict[str, Any]]:
+        """Fetch signals for correlation analysis."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT id, ticker, stance, confidence, created_at
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            ORDER BY created_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (cutoff, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    async def get_ticker_signal_counts(
+        self, days: int = 30,
+    ) -> Dict[str, int]:
+        """Signal counts per ticker for node sizing in network viz."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT ticker, COUNT(*) as cnt
+            FROM signals
+            WHERE created_at > ? AND ticker != 'UNKNOWN'
+            GROUP BY ticker
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            return {row["ticker"]: row["cnt"] for row in rows}
+
+    # ── Enterprise Export (Enhanced) ──
+
+    async def get_export_schedules(
+        self, user_id: str, limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Get export schedules for a user from data_exports table."""
+        query = """
+            SELECT * FROM data_exports
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (user_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
+    async def get_enterprise_analytics_signals(
+        self, date_from: float | None = None,
+        date_to: float | None = None,
+        limit: int = 5000,
+    ) -> List[Dict[str, Any]]:
+        """Fetch signals with performance data for analytics API."""
+        conditions = ["s.ticker != 'UNKNOWN'"]
+        params: list = []
+        if date_from:
+            conditions.append("s.created_at >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("s.created_at <= ?")
+            params.append(date_to)
+        where = " AND ".join(conditions)
+        query = f"""
+            SELECT s.*, sp.price_at_signal, sp.price_1h, sp.price_4h,
+                   sp.price_1d, sp.price_1w, sp.max_gain_pct, sp.max_loss_pct
+            FROM signals s
+            LEFT JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE {where}
+            ORDER BY s.created_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]
 
     # ── Win Rate Snapshots ──
 
