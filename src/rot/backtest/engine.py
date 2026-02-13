@@ -55,10 +55,10 @@ def _compute_pnl_pct(
     ``_LOSS_CASE_SQL``:
       - **bullish**: pnl = (exit - entry) / entry
       - **bearish**: pnl = (entry - exit) / entry  (profit when price drops)
-      - **mixed + straddle/strangle**: pnl = |price_move| - 1.5%  (needs big move)
-      - **mixed + iron_condor**: pnl = 1.0% - |price_move|  (needs small move)
-      - **mixed + other**: pnl = |price_move| - 0.5%
-      - **unknown**: pnl = 0 (neutral)
+      - **mixed/unknown**: pnl = 0 (neutral, no directional bet)
+
+    Only bullish and bearish signals count as trades. Strategy type is
+    irrelevant for win/loss determination.
 
     If stop_loss or take_profit are active (via max_loss_pct / max_gain_pct from
     signal_performance), the raw pnl is clamped.
@@ -72,19 +72,8 @@ def _compute_pnl_pct(
         pnl = raw_move
     elif stance == "bearish":
         pnl = -raw_move  # bearish profits when price drops
-    elif stance == "mixed":
-        abs_move = abs(raw_move)
-        if strategy in ("straddle", "strangle"):
-            # Need big move; breakeven at ~1.5%
-            pnl = abs_move - 0.015 if abs_move > 0.015 else -(0.015 - abs_move)
-        elif strategy == "iron_condor":
-            # Need small move; breakeven at ~1.0%
-            pnl = 0.01 - abs_move if abs_move < 0.01 else -(abs_move - 0.01)
-        else:
-            # Other mixed strategies: benefit from movement
-            pnl = abs_move - 0.005 if abs_move > 0.005 else -(0.005 - abs_move)
     else:
-        # unknown stance → neutral
+        # mixed/unknown stance → neutral (no directional bet to evaluate)
         pnl = 0.0
 
     pnl_pct = pnl * 100  # convert to percentage

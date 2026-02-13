@@ -71,7 +71,7 @@ FAQ_DATA = [
     },
     {
         "q": "What is a 'tradeable' signal?",
-        "a": "A tradeable signal is one with a confidence score of 50% or higher. These represent posts where the author has a clear directional thesis with meaningful conviction. Signals below 50% confidence are still tracked and included in statistics, but the 'Tradeable' count on the dashboard highlights the higher-quality subset.",
+        "a": "A tradeable signal is any signal with a <strong>bullish</strong> or <strong>bearish</strong> stance. These represent posts where the author has a clear directional thesis. Signals with a 'mixed' or 'unknown' stance are still tracked but treated as neutral for win/loss purposes since there is no directional bet to evaluate.",
     },
     {
         "q": "How is the Signal Map (scatter plot) organized?",

@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional
 log = logging.getLogger(__name__)
 
 # ── Stance-aware win/loss SQL helpers ──
-# These CASE expressions replace the old `!= 'bearish'` pattern with proper
-# handling for unknown (→ neutral) and mixed+strategy (straddle vs iron_condor).
+# Only bullish and bearish signals count as trades for win/loss evaluation.
+# Mixed and unknown stances are always neutral (no directional bet to evaluate).
 # Use {price_col} as placeholder for the evaluated price column expression.
 
 _WIN_CASE_SQL = """
@@ -25,22 +25,7 @@ _WIN_CASE_SQL = """
         WHEN s.stance = 'bearish'
              AND (sp.price_at_signal - {price_col}) / sp.price_at_signal > 0.005
         THEN 1
-        /* mixed + straddle/strangle: big move either way >1.5% */
-        WHEN s.stance = 'mixed'
-             AND s.strategy IN ('straddle', 'strangle')
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.015
-        THEN 1
-        /* mixed + iron_condor: price stayed flat <1.0% */
-        WHEN s.stance = 'mixed'
-             AND s.strategy = 'iron_condor'
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal < 0.010
-        THEN 1
-        /* mixed + other strategy: any big move >0.5% = partial win */
-        WHEN s.stance = 'mixed'
-             AND s.strategy NOT IN ('straddle', 'strangle', 'iron_condor')
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.005
-        THEN 1
-        /* unknown stance: always 0 (neutral, don't count) */
+        /* mixed/unknown: always 0 (no directional bet) */
         ELSE 0
     END"""
 
@@ -54,37 +39,17 @@ _LOSS_CASE_SQL = """
         WHEN s.stance = 'bearish'
              AND ({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.005
         THEN 1
-        /* mixed + straddle/strangle: price stayed flat <1.0% = loss */
-        WHEN s.stance = 'mixed'
-             AND s.strategy IN ('straddle', 'strangle')
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal < 0.010
-        THEN 1
-        /* mixed + iron_condor: big move >1.5% = loss */
-        WHEN s.stance = 'mixed'
-             AND s.strategy = 'iron_condor'
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.015
-        THEN 1
-        /* unknown stance: always 0 (neutral) */
+        /* mixed/unknown: always 0 (no directional bet) */
         ELSE 0
     END"""
 
 _NEUTRAL_CASE_SQL = """
     CASE
-        /* unknown stance: always neutral */
-        WHEN COALESCE(s.stance, 'unknown') = 'unknown' THEN 1
+        /* unknown/mixed stance: always neutral */
+        WHEN COALESCE(s.stance, 'unknown') IN ('unknown', 'mixed') THEN 1
         /* directional: price within 0.5% = noise */
         WHEN s.stance IN ('bullish', 'bearish')
              AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal <= 0.005
-        THEN 1
-        /* mixed + straddle/strangle: between 1.0% and 1.5% = neutral zone */
-        WHEN s.stance = 'mixed'
-             AND s.strategy IN ('straddle', 'strangle')
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal BETWEEN 0.010 AND 0.015
-        THEN 1
-        /* mixed + iron_condor: between 1.0% and 1.5% = neutral zone */
-        WHEN s.stance = 'mixed'
-             AND s.strategy = 'iron_condor'
-             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal BETWEEN 0.010 AND 0.015
         THEN 1
         ELSE 0
     END"""
@@ -758,7 +723,7 @@ class Database:
             SELECT
                 COUNT(*) as total_signals,
                 AVG(confidence) as avg_confidence,
-                SUM(CASE WHEN strategy != 'none' THEN 1 ELSE 0 END) as tradeable_signals,
+                SUM(CASE WHEN stance IN ('bullish', 'bearish') THEN 1 ELSE 0 END) as tradeable_signals,
                 SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
                 SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
                 SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
@@ -1132,7 +1097,7 @@ class Database:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        # Stance-aware win/loss evaluation with strategy-specific rules
+        # Stance-aware win/loss evaluation: bullish/bearish only
         query = f"""
             SELECT
                 COUNT(*) as total_tracked,
