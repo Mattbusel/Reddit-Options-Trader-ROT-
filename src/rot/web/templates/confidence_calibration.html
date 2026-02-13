@@ -46,13 +46,15 @@
                 </thead>
                 <tbody>
                     {% for row in calibration %}
-                    {% set gap = (row.actual_win_rate or 0) - (row.avg_confidence or 0) %}
+                    {% set expected = row.expected_win_rate or 0 %}
+                    {% set actual = row.actual_win_rate or 0 %}
+                    {% set gap = actual - expected %}
                     <tr class="border-b border-gray-800 hover:bg-gray-800/30 transition">
                         <td class="py-2 px-3 text-white font-medium">{{ row.bucket_label }}</td>
                         <td class="py-2 px-3 text-right text-gray-300">{{ row.total }}</td>
-                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(row.avg_confidence or 0) }}%</td>
-                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.actual_win_rate or 0) >= 50 else 'text-red-400' }} font-bold">
-                            {{ "%.1f"|format(row.actual_win_rate or 0) }}%
+                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(expected) }}%</td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if actual >= 50 else 'text-red-400' }} font-bold">
+                            {{ "%.1f"|format(actual) }}%
                         </td>
                         <td class="py-2 px-3 text-right {{ 'text-green-400' if gap >= 0 else 'text-red-400' }}">
                             {{ "%.1f"|format(gap) }}pp
@@ -101,7 +103,7 @@
 (function() {
     const data = {{ calibration|tojson }};
     const labels = data.map(d => d.bucket_label);
-    const expected = data.map(d => d.avg_confidence || 0);
+    const expected = data.map(d => d.expected_win_rate || 0);
     const actual = data.map(d => d.actual_win_rate || 0);
 
     new Chart(document.getElementById('calibrationChart'), {

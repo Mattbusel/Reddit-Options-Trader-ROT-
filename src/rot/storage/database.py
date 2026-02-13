@@ -1257,6 +1257,10 @@ class Database:
                              / sp.price_at_signal > 0.005
                     THEN 1
                     ELSE 0 END) as losers,
+                SUM(CASE
+                    WHEN ABS(COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
+                         / sp.price_at_signal <= 0.005
+                    THEN 1 ELSE 0 END) as neutral,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
                     THEN CASE WHEN s.stance = 'bearish'
                         THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
@@ -1284,6 +1288,7 @@ class Database:
     async def get_accuracy_by_strategy(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate broken down by strategy (debit_spread, credit_spread, etc.)."""
         cutoff = time.time() - (days * 86400)
+        # stance_return: positive = trade direction was right, negative = wrong
         query = """
             SELECT
                 s.strategy,
@@ -1312,7 +1317,29 @@ class Database:
                     THEN CASE WHEN s.stance = 'bearish'
                         THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
                         ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
-                    END ELSE NULL END) as avg_return_pct
+                    END ELSE NULL END) as avg_return_pct,
+                AVG(CASE
+                    WHEN sp.price_1d IS NOT NULL AND (
+                        (s.stance = 'bearish'
+                         AND (sp.price_at_signal - sp.price_1d) / sp.price_at_signal > 0.005)
+                        OR (COALESCE(s.stance, 'unknown') != 'bearish'
+                            AND (sp.price_1d - sp.price_at_signal) / sp.price_at_signal > 0.005)
+                    )
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_gain_pct,
+                AVG(CASE
+                    WHEN sp.price_1d IS NOT NULL AND (
+                        (s.stance = 'bearish'
+                         AND (sp.price_1d - sp.price_at_signal) / sp.price_at_signal > 0.005)
+                        OR (COALESCE(s.stance, 'unknown') != 'bearish'
+                            AND (sp.price_at_signal - sp.price_1d) / sp.price_at_signal > 0.005)
+                    )
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_loss_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ? AND sp.price_at_signal > 0
@@ -1369,7 +1396,9 @@ class Database:
                 w = d.get("winners", 0) or 0
                 d["actual_win_rate"] = round(w / total * 100) if total > 0 else 0
                 d["expected_win_rate"] = round((d.get("avg_confidence", 0) or 0) * 100)
-                d["label"] = f"{d.get('decile', 0) * 10}-{d.get('decile', 0) * 10 + 10}%"
+                decile = d.get("decile", 0) or 0
+                d["bucket_label"] = f"{decile * 10}-{decile * 10 + 10}%"
+                d["label"] = d["bucket_label"]  # backward compat
                 results.append(d)
             return results
 

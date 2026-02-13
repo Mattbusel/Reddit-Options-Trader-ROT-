@@ -80,8 +80,8 @@
                         <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.win_rate or 0) >= 50 else 'text-red-400' }} font-bold">
                             {{ "%.1f"|format(row.win_rate or 0) }}%
                         </td>
-                        <td class="py-2 px-3 text-right text-green-400">{{ "%.1f"|format(row.avg_gain_pct or 0) }}%</td>
-                        <td class="py-2 px-3 text-right text-red-400">{{ "%.1f"|format(row.avg_loss_pct or 0) }}%</td>
+                        <td class="py-2 px-3 text-right text-green-400">{% if row.avg_gain_pct %}+{{ "%.1f"|format(row.avg_gain_pct) }}%{% else %}&mdash;{% endif %}</td>
+                        <td class="py-2 px-3 text-right text-red-400">{% if row.avg_loss_pct %}{{ "%.1f"|format(row.avg_loss_pct) }}%{% else %}&mdash;{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
