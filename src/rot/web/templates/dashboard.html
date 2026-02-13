@@ -35,10 +35,10 @@
 </div>
 
 <!-- Stats Bar -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-    <div class="stat-card rounded-lg p-5">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 stagger-children">
+    <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
-        <div class="text-3xl font-bold text-white">{{ summary.get('total_signals', 0) }}</div>
+        <div class="text-3xl font-bold text-white tick-up">{{ summary.get('total_signals', 0) }}</div>
         <div class="text-xs text-gray-500 mt-1">~{{ summary.get('daily_avg', 0) }}/day avg</div>
         <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
             <div class="flex justify-between text-[10px]">
@@ -59,9 +59,9 @@
             </div>
         </div>
     </div>
-    <div class="stat-card rounded-lg p-5">
+    <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tradeable</div>
-        <div class="text-3xl font-bold text-green-400">{{ summary.get('tradeable_signals', 0) }}</div>
+        <div class="text-3xl font-bold text-green-400 tick-up">{{ summary.get('tradeable_signals', 0) }}</div>
         {% set total_s = summary.get('total_signals', 0) or 1 %}
         {% set trade_pct = ((summary.get('tradeable_signals', 0) or 0) / total_s * 100)|round|int %}
         <div class="text-xs text-gray-500 mt-1">{{ trade_pct }}% trade rate</div>
@@ -77,10 +77,10 @@
         </div>
         {% endif %}
     </div>
-    <div class="stat-card rounded-lg p-5">
+    <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
         {% set avg_conf = (summary.get('avg_confidence', 0) or 0) %}
-        <div class="text-3xl font-bold text-yellow-400">{{ "%.0f"|format(avg_conf * 100) }}%</div>
+        <div class="text-3xl font-bold text-yellow-400 tick-up">{{ "%.0f"|format(avg_conf * 100) }}%</div>
         <div class="text-xs text-gray-500 mt-1">Quality metric</div>
         <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
             <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Distribution</div>
@@ -97,11 +97,11 @@
                 <span class="text-yellow-400 font-semibold">{{ low }} <span class="text-gray-500">({{ 100 - high_pct }}%)</span></span>
             </div>
             <div class="w-full bg-gray-800 rounded-full h-2 mt-1 overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-yellow-500 to-green-500" style="width: {{ [high_pct, 5]|max }}%"></div>
+                <div class="h-full rounded-full bg-gradient-to-r from-yellow-500 to-green-500 animate-bar" style="width: {{ [high_pct, 5]|max }}%"></div>
             </div>
         </div>
     </div>
-    <div class="stat-card rounded-lg p-5">
+    <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Sentiment Split</div>
         <div class="flex items-center gap-2 text-xl font-bold mt-1">
             <span class="text-green-400">{{ summary.get('bullish_count', 0) }}</span>
@@ -117,9 +117,9 @@
         {% set stotal = bull + bear + mix or 1 %}
         <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
             <div class="w-full flex rounded-full h-2.5 overflow-hidden">
-                <div class="bg-green-500 h-full" style="width: {{ (bull / stotal * 100)|round }}%"></div>
-                <div class="bg-red-500 h-full" style="width: {{ (bear / stotal * 100)|round }}%"></div>
-                <div class="bg-yellow-500 h-full" style="width: {{ (mix / stotal * 100)|round }}%"></div>
+                <div class="bg-green-500 h-full animate-bar" style="width: {{ (bull / stotal * 100)|round }}%"></div>
+                <div class="bg-red-500 h-full animate-bar" style="width: {{ (bear / stotal * 100)|round }}%; animation-delay: 0.2s"></div>
+                <div class="bg-yellow-500 h-full animate-bar" style="width: {{ (mix / stotal * 100)|round }}%; animation-delay: 0.4s"></div>
             </div>
             {% set net = bull - bear %}
             <div class="flex justify-between text-[10px] mt-1">
@@ -139,7 +139,7 @@
         </div>
     </div>
     <!-- Signal Accuracy Tracker -->
-    <div class="stat-card rounded-lg p-5">
+    <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate ({{ perf_access.accuracy_days }}d)</div>
         {% if (accuracy.winners or 0) > 0 or (accuracy.losers or 0) > 0 %}
         <div class="text-3xl font-bold {{ 'text-green-400' if accuracy.win_rate >= 50 else 'text-yellow-400' if accuracy.win_rate >= 30 else 'text-red-400' }}">{{ "%.0f"|format(accuracy.win_rate) }}%</div>
@@ -242,7 +242,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Quadrant Bubble Chart (2/3 width) -->
-        <div class="lg:col-span-2 chart-container">
+        <div class="lg:col-span-2 chart-container slide-in-left">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-white">Signal Map ({{ chart_access.chart_hours }}h)</h2>
                 <div class="flex items-center space-x-2">
@@ -256,20 +256,20 @@
             <div style="height: 320px;">
                 <canvas id="quadrantChart"></canvas>
             </div>
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4 text-xs">
-                <div class="bg-gray-800/50 p-2 rounded text-center">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4 text-xs stagger-children">
+                <div class="bg-gray-800/50 p-2 rounded text-center pop-in sway">
                     <span class="text-green-400 font-semibold block">Top-Right</span>
                     <span class="text-gray-500">Hot &amp; Confident</span>
                 </div>
-                <div class="bg-gray-800/50 p-2 rounded text-center">
+                <div class="bg-gray-800/50 p-2 rounded text-center pop-in sway" style="animation-delay: 0.1s">
                     <span class="text-yellow-400 font-semibold block">Top-Left</span>
                     <span class="text-gray-500">Trending, Uncertain</span>
                 </div>
-                <div class="bg-gray-800/50 p-2 rounded text-center">
+                <div class="bg-gray-800/50 p-2 rounded text-center pop-in sway" style="animation-delay: 0.2s">
                     <span class="text-blue-400 font-semibold block">Bottom-Right</span>
                     <span class="text-gray-500">Confident, Quiet</span>
                 </div>
-                <div class="bg-gray-800/50 p-2 rounded text-center">
+                <div class="bg-gray-800/50 p-2 rounded text-center pop-in sway" style="animation-delay: 0.3s">
                     <span class="text-gray-600 font-semibold block">Bottom-Left</span>
                     <span class="text-gray-500">Weak Signals</span>
                 </div>
@@ -277,7 +277,7 @@
         </div>
 
         <!-- Timeline Chart (1/3 width) -->
-        <div class="chart-container">
+        <div class="chart-container slide-in-right">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-white">Signal Volume</h2>
                 <span class="text-xs text-gray-500">Last {{ chart_access.chart_hours }}h</span>
@@ -548,7 +548,7 @@
             <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
                 <span>Latest Signals</span>
                 {% if has_filters %}<span class="text-xs text-gray-500 font-normal ml-2">(filtered)</span>{% endif %}
-                <span class="w-2 h-2 rounded-full bg-green-500 pulse" id="live-indicator"></span>
+                <span class="w-2 h-2 rounded-full bg-green-500 blink" id="live-indicator"></span>
             </h2>
             <div class="flex space-x-2 text-xs">
                 {% if tier != 'free' %}
@@ -629,7 +629,7 @@
     </div>
 
     <!-- Sidebar -->
-    <div class="lg:col-span-1 space-y-6">
+    <div class="lg:col-span-1 space-y-6 slide-in-right">
         <!-- Watchlist -->
         {% if user %}
         <div>
@@ -659,7 +659,7 @@
         {% endif %}
 
         <!-- Trending Tickers -->
-        <div>
+        <div class="float">
             <h2 class="text-sm font-semibold text-white mb-3">&#127919; Trending (24h)</h2>
             <div class="space-y-1.5">
                 {% for t in trending %}
@@ -754,7 +754,7 @@
         <!-- Auto-refresh status -->
         <div class="mt-4 bg-gray-800/30 border border-gray-700 rounded-lg p-3 text-center">
             <div class="flex items-center justify-center space-x-2 text-xs text-gray-500">
-                <span class="w-1.5 h-1.5 rounded-full bg-green-500 pulse" id="refresh-dot"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 blink" id="refresh-dot"></span>
                 <span id="refresh-status">Auto-refresh active</span>
             </div>
         </div>
@@ -1020,6 +1020,83 @@ async function saveCurrentPreset() {
     } catch(e) { console.error('Preset error:', e); }
 }
 {% endif %}
+
+// ── Animated number counting ──
+document.querySelectorAll('.tick-up').forEach(el => {
+    const text = el.textContent.trim();
+    const match = text.match(/^([\d,]+)/);
+    if (!match) return;
+    const target = parseInt(match[1].replace(/,/g, ''));
+    if (isNaN(target) || target === 0) return;
+    const suffix = text.slice(match[0].length);
+    const duration = 1200;
+    const start = performance.now();
+    el.textContent = '0' + suffix;
+    function tick(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(target * eased);
+        el.textContent = current.toLocaleString() + suffix;
+        if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+});
+
+// ── Floating particles background ──
+(function() {
+    const canvas = document.createElement('canvas');
+    canvas.id = 'particles';
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.4;';
+    document.body.prepend(canvas);
+    const ctx = canvas.getContext('2d');
+    let w, h;
+    function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    const particles = Array.from({length: 35}, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 2 + 0.5,
+        color: ['rgba(249,115,22,', 'rgba(59,130,246,', 'rgba(74,222,128,', 'rgba(168,85,247,'][Math.floor(Math.random()*4)],
+        alpha: Math.random() * 0.4 + 0.1,
+        pulseSpeed: Math.random() * 0.02 + 0.005,
+        pulseOffset: Math.random() * Math.PI * 2
+    }));
+    function draw() {
+        ctx.clearRect(0, 0, w, h);
+        const t = Date.now() * 0.001;
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+            if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+            const pulse = Math.sin(t * p.pulseSpeed * 60 + p.pulseOffset) * 0.5 + 0.5;
+            const a = p.alpha * (0.5 + pulse * 0.5);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r + pulse, 0, Math.PI * 2);
+            ctx.fillStyle = p.color + a + ')';
+            ctx.fill();
+        });
+        // Draw faint connection lines between close particles
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = 'rgba(249,115,22,' + (0.06 * (1 - dist/120)) + ')';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
 
 // ── Filtered CSV Export ──
 function exportFilteredCSV() {
