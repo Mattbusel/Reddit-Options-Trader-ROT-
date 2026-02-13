@@ -2827,10 +2827,18 @@ class Database:
         async with self.db.execute(query, (cutoff,)) as cursor:
             row = await cursor.fetchone()
 
-        summary = dict(row) if row else {
-            "total_events": 0, "unique_tickers": 0,
-            "avg_score": 0, "max_score": 0,
-        }
+        if row:
+            summary = dict(row)
+            # SQL aggregates return NULL on empty tables — coerce to safe defaults
+            summary["total_events"] = summary.get("total_events") or 0
+            summary["unique_tickers"] = summary.get("unique_tickers") or 0
+            summary["avg_score"] = summary.get("avg_score") or 0
+            summary["max_score"] = summary.get("max_score") or 0
+        else:
+            summary = {
+                "total_events": 0, "unique_tickers": 0,
+                "avg_score": 0, "max_score": 0,
+            }
 
         # Type breakdown
         type_query = """
