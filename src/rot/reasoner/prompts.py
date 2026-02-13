@@ -73,11 +73,57 @@ Trend score: {trend_score:.4f}
 Score velocity: {score_rate:.4f}/s
 Comment velocity: {comment_rate:.4f}/s
 
-## Market Context
+{nlp_section}## Market Context
 {market_context}
 
 Analyze this signal and provide your structured JSON assessment.\
 """
+
+
+def _format_nlp_section(nlp_data: dict | None) -> str:
+    """Format NLP analysis metadata for the LLM prompt."""
+    if not nlp_data:
+        return ""
+
+    lines = ["## NLP Analysis (Custom Engine)"]
+    polarity = nlp_data.get("polarity", 0.0)
+    intensity = nlp_data.get("intensity", 0.0)
+    conviction = nlp_data.get("conviction", 0.5)
+    sarcasm = nlp_data.get("sarcasm_probability", 0.0)
+
+    lines.append(f"Sentiment polarity: {polarity:+.2f} (intensity: {intensity:.2f})")
+    lines.append(f"Conviction: {conviction:.2f} | Sarcasm probability: {sarcasm:.2f}")
+
+    # Classifications
+    classifications = nlp_data.get("classifications", [])
+    if classifications:
+        cats = ", ".join(f"{cat}({conf:.2f})" for cat, conf in classifications[:4])
+        lines.append(f"Event classifications: {cats}")
+
+    # Temporal
+    tense = nlp_data.get("tense", "unknown")
+    actionability = nlp_data.get("actionability", 0.5)
+    urgency = nlp_data.get("urgency", 0.0)
+    lines.append(f"Tense: {tense} | Actionability: {actionability:.2f} | Urgency: {urgency:.2f}")
+
+    # Thread consensus
+    thread_consensus = nlp_data.get("thread_consensus")
+    if thread_consensus is not None:
+        agreement = nlp_data.get("thread_agreement_with_op", 0.0)
+        contrarian = nlp_data.get("contrarian_detected", False)
+        lines.append(
+            f"Thread consensus: {thread_consensus:.2f} | OP agreement: {agreement:.2f}"
+            + (" | CONTRARIAN DETECTED" if contrarian else "")
+        )
+
+    # Per-ticker sentiments
+    ticker_sents = nlp_data.get("ticker_sentiments", {})
+    if ticker_sents:
+        parts = [f"{t}={s}" for t, s in ticker_sents.items()]
+        lines.append(f"Per-ticker sentiment: {', '.join(parts)}")
+
+    lines.append("")  # trailing newline
+    return "\n".join(lines) + "\n"
 
 
 def format_event_prompt(
@@ -95,6 +141,7 @@ def format_event_prompt(
     score_rate: float,
     comment_rate: float,
     market_data: dict | None,
+    nlp_data: dict | None = None,
 ) -> str:
     if market_data:
         lines = []
@@ -124,6 +171,8 @@ def format_event_prompt(
 
     subreddit_tier = _SUBREDDIT_TIERS.get(subreddit.lower(), "medium")
 
+    nlp_section = _format_nlp_section(nlp_data)
+
     return EVENT_TEMPLATE.format(
         entities=", ".join(entities) if entities else "None extracted",
         subreddit=subreddit,
@@ -139,5 +188,6 @@ def format_event_prompt(
         trend_score=trend_score,
         score_rate=score_rate,
         comment_rate=comment_rate,
+        nlp_section=nlp_section,
         market_context=market_context,
     )

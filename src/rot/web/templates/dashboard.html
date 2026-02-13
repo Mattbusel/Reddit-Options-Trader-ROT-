@@ -595,6 +595,28 @@
                     </div>
                 </div>
                 <p class="text-sm text-gray-300 leading-relaxed truncate mb-3">{{ s.post_title }}</p>
+                {% set nlp_active = s.get('sarcasm_score', 0) > 0 or s.get('conviction', 0.5) != 0.5 or s.get('nlp_polarity', 0) != 0 %}
+                {% if nlp_active %}
+                <div class="flex items-center flex-wrap gap-1.5 mb-3">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/40 text-purple-400 border border-purple-700/50 font-semibold tracking-wide uppercase">NLP Engine</span>
+                    {% if s.get('nlp_polarity', 0) != 0 %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded {{ 'bg-green-900/30 text-green-400 border-green-700/50' if s.nlp_polarity > 0 else 'bg-red-900/30 text-red-400 border-red-700/50' }} border">
+                        {{ "%.0f"|format(s.nlp_polarity * 100) }}% polarity
+                    </span>
+                    {% endif %}
+                    {% if s.get('conviction', 0.5) > 0.7 %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-yellow-900/30 text-yellow-400 border border-yellow-700/50">High Conviction</span>
+                    {% elif s.get('conviction', 0.5) < 0.3 %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 border border-gray-600/50">Low Conviction</span>
+                    {% endif %}
+                    {% if s.get('sarcasm_score', 0) > 0.5 %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/30 text-orange-400 border border-orange-700/50">&#129313; Sarcasm Detected</span>
+                    {% endif %}
+                    {% if s.get('consensus_score', 0) > 0.7 %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-700/50">Strong Consensus</span>
+                    {% endif %}
+                </div>
+                {% endif %}
                 <div class="flex items-center justify-between text-xs text-gray-500">
                     {% if s.subreddit == 'stocktwits' %}
                     <span class="font-medium text-purple-400">&#128202; StockTwits</span>

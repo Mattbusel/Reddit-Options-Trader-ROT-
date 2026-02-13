@@ -388,6 +388,7 @@ async def byok_reason_signal(request: Request, signal_id: str):
         score_rate=float(features.get("score_rate", 0)),
         comment_rate=float(features.get("comment_rate", 0)),
         market_data=market_data if market_data else None,
+        nlp_data=meta.get("nlp") if isinstance(meta, dict) else None,
     )
 
     # Call the LLM

@@ -106,6 +106,7 @@ class Reasoner:
             score_rate=float(features.get("score_rate", 0)),
             comment_rate=float(features.get("comment_rate", 0)),
             market_data=market_data if market_data else None,
+            nlp_data=meta.get("nlp"),
         )
 
         raw_response = self._llm.complete(SYSTEM_PROMPT, user_prompt)

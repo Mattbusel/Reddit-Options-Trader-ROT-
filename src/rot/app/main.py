@@ -8,6 +8,7 @@ from rot.ingest.multi_ingestor import MultiSourceIngestor
 from rot.trend.trend_store import TrendStore
 from rot.trend.trend_engine import TrendEngine
 from rot.extract.event_builder import EventBuilder
+from rot.nlp import NLPEngine
 from rot.credibility.scorer import CredibilityScorer
 from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
@@ -54,7 +55,9 @@ def main() -> None:
         rss_max_age_s=cfg.rss.max_age_s,
         rss_synthetic_score=cfg.rss.synthetic_trend_score,
     )
-    event_builder = EventBuilder()
+    nlp_engine = NLPEngine()
+    event_builder = EventBuilder(nlp_engine=nlp_engine)
+    print("🧬 NLP Engine: ACTIVE (custom pipeline with sarcasm detection, conviction scoring)")
     cred = CredibilityScorer()
     reasoner = Reasoner(
         provider=cfg.llm.provider,

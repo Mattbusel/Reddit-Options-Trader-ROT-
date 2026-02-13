@@ -138,6 +138,46 @@ class CredibilityScorer:
                 factors["author_new_account"] = -0.10
                 adjustment -= 0.10
 
+        # ── NLP-powered factors (when NLP engine is active) ──
+        nlp = meta.get("nlp", {})
+        if nlp:
+            # Factor 9: Sarcasm penalty — high sarcasm probability = unreliable signal
+            sarcasm_prob = nlp.get("sarcasm_probability", 0.0)
+            if isinstance(sarcasm_prob, (int, float)) and sarcasm_prob > 0.5:
+                penalty = min(0.15, sarcasm_prob * 0.2)
+                factors["nlp_sarcasm_penalty"] = -penalty
+                adjustment -= penalty
+
+            # Factor 10: Conviction boost/penalty
+            conviction = nlp.get("conviction", 0.5)
+            if isinstance(conviction, (int, float)):
+                if conviction > 0.7:
+                    factors["nlp_high_conviction"] = 0.05
+                    adjustment += 0.05
+                elif conviction < 0.3:
+                    factors["nlp_low_conviction"] = -0.05
+                    adjustment -= 0.05
+
+            # Factor 11: Thread consensus — community agreement
+            thread_consensus = nlp.get("thread_consensus", 0.0)
+            if isinstance(thread_consensus, (int, float)) and thread_consensus > 0:
+                if thread_consensus > 0.7:
+                    factors["nlp_strong_consensus"] = 0.10
+                    adjustment += 0.10
+                elif thread_consensus > 0.5:
+                    factors["nlp_moderate_consensus"] = 0.05
+                    adjustment += 0.05
+                # Contrarian detection
+                if nlp.get("contrarian_detected"):
+                    factors["nlp_contrarian_flag"] = -0.05
+                    adjustment -= 0.05
+
+            # Factor 12: Temporal actionability — past-tense = less tradeable
+            actionability = nlp.get("actionability", 0.5)
+            if isinstance(actionability, (int, float)) and actionability < 0.3:
+                factors["nlp_low_actionability"] = -0.10
+                adjustment -= 0.10
+
         # Apply adjustment to confidence
         new_confidence = max(0.05, min(1.0, event.confidence + adjustment))
 

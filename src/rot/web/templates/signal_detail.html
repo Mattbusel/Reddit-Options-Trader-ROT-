@@ -111,6 +111,82 @@
             </div>
         </div>
 
+        <!-- NLP Engine Analysis — Custom Pipeline Insights -->
+        {% set nlp_active = signal.get('sarcasm_score', 0) > 0 or signal.get('conviction', 0.5) != 0.5 or signal.get('nlp_polarity', 0) != 0 %}
+        {% if nlp_active %}
+        <div class="signal-card rounded-xl p-6 relative overflow-hidden">
+            <!-- Subtle glow border for marketing pop -->
+            <div class="absolute inset-0 rounded-xl border border-purple-500/20" style="box-shadow: inset 0 0 30px rgba(168, 85, 247, 0.05);"></div>
+            <div class="relative">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                        <span>&#129504;</span>
+                        <span>NLP Engine Analysis</span>
+                        <span class="text-[10px] bg-purple-900/50 text-purple-400 border border-purple-700 px-2 py-0.5 rounded ml-2 uppercase tracking-wider font-bold">Custom Engine</span>
+                    </h3>
+                    <span class="text-[10px] text-gray-500">Processed by ROT's proprietary NLP pipeline</span>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+                    <!-- Sentiment Polarity -->
+                    <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Polarity</div>
+                        {% set pol = signal.get('nlp_polarity', 0) %}
+                        <div class="text-xl font-bold {{ 'text-green-400' if pol > 0.1 else ('text-red-400' if pol < -0.1 else 'text-gray-300') }}">
+                            {{ "%+.0f"|format(pol * 100) }}%
+                        </div>
+                        <div class="text-[9px] text-gray-500 mt-0.5">{{ 'Bullish' if pol > 0.1 else ('Bearish' if pol < -0.1 else 'Neutral') }}</div>
+                    </div>
+                    <!-- Conviction -->
+                    <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Conviction</div>
+                        {% set conv = signal.get('conviction', 0.5) %}
+                        <div class="text-xl font-bold {{ 'text-yellow-400' if conv > 0.7 else ('text-gray-400' if conv < 0.3 else 'text-gray-300') }}">
+                            {{ "%.0f"|format(conv * 100) }}%
+                        </div>
+                        <div class="text-[9px] text-gray-500 mt-0.5">{{ 'All-in energy' if conv > 0.7 else ('Hedge words' if conv < 0.3 else 'Moderate') }}</div>
+                    </div>
+                    <!-- Sarcasm -->
+                    <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Sarcasm</div>
+                        {% set sarc = signal.get('sarcasm_score', 0) %}
+                        <div class="text-xl font-bold {{ 'text-orange-400' if sarc > 0.5 else ('text-yellow-400' if sarc > 0.3 else 'text-green-400') }}">
+                            {{ "%.0f"|format(sarc * 100) }}%
+                        </div>
+                        <div class="text-[9px] text-gray-500 mt-0.5">{{ '&#129313; Detected!' if sarc > 0.5 else ('Possible' if sarc > 0.3 else 'Genuine') }}</div>
+                    </div>
+                    <!-- Consensus -->
+                    <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Consensus</div>
+                        {% set cons = signal.get('consensus_score', 0) %}
+                        <div class="text-xl font-bold {{ 'text-blue-400' if cons > 0.7 else ('text-gray-400' if cons < 0.3 else 'text-gray-300') }}">
+                            {{ "%.0f"|format(cons * 100) }}%
+                        </div>
+                        <div class="text-[9px] text-gray-500 mt-0.5">{{ 'Thread agrees' if cons > 0.7 else ('Divided' if cons < 0.3 else 'Mixed') }}</div>
+                    </div>
+                    <!-- Actionability -->
+                    <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Actionability</div>
+                        {% set act = signal.get('actionability', 0.5) %}
+                        <div class="text-xl font-bold {{ 'text-green-400' if act > 0.7 else ('text-gray-400' if act < 0.3 else 'text-gray-300') }}">
+                            {{ "%.0f"|format(act * 100) }}%
+                        </div>
+                        <div class="text-[9px] text-gray-500 mt-0.5">{{ 'Act now' if act > 0.7 else ('Old news' if act < 0.3 else 'Moderate') }}</div>
+                    </div>
+                </div>
+
+                <!-- NLP Engine explainer for marketing -->
+                <div class="bg-purple-900/10 border border-purple-700/30 rounded-lg p-3">
+                    <p class="text-[11px] text-purple-300/80 leading-relaxed">
+                        <span class="font-semibold text-purple-300">Powered by ROT's Custom NLP Engine</span> &mdash;
+                        500+ term financial lexicon, 8-rule sarcasm detection, conviction scoring, thread consensus analysis,
+                        and temporal actionability. Zero external dependencies. Built specifically for Reddit finance slang.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Reasoning Section -->
         {% set reasoning = signal.get('reasoning', {}) %}
         {% if reasoning %}

@@ -38,7 +38,6 @@ CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_confidence ON signals(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_stance ON signals(stance);
 CREATE INDEX IF NOT EXISTS idx_signals_dedup ON signals(post_url, ticker, created_at);
-CREATE INDEX IF NOT EXISTS idx_signals_sector ON signals(sector);
 CREATE INDEX IF NOT EXISTS idx_signals_event_type ON signals(event_type);
 CREATE INDEX IF NOT EXISTS idx_signals_strategy ON signals(strategy);
 
@@ -257,6 +256,12 @@ _MIGRATIONS = [
     ("signals", "post_mortem", "TEXT NOT NULL DEFAULT ''"),
     # Universal AI summary (platform-generated, not BYOK)
     ("signals", "ai_summary", "TEXT NOT NULL DEFAULT ''"),
+    # NLP engine columns — custom pipeline metrics
+    ("signals", "sarcasm_score", "REAL NOT NULL DEFAULT 0.0"),
+    ("signals", "conviction", "REAL NOT NULL DEFAULT 0.5"),
+    ("signals", "consensus_score", "REAL NOT NULL DEFAULT 0.0"),
+    ("signals", "actionability", "REAL NOT NULL DEFAULT 0.5"),
+    ("signals", "nlp_polarity", "REAL NOT NULL DEFAULT 0.0"),
 ]
 
 
@@ -292,6 +297,20 @@ class Database:
                 log.info("Migration: added %s.%s", table, column)
             except Exception:
                 pass  # column already exists
+
+        # Post-migration indexes: these reference columns added by _MIGRATIONS
+        _POST_MIGRATION_INDEXES = [
+            "CREATE INDEX IF NOT EXISTS idx_signals_sector ON signals(sector)",
+            "CREATE INDEX IF NOT EXISTS idx_signals_sarcasm ON signals(sarcasm_score)",
+            "CREATE INDEX IF NOT EXISTS idx_signals_conviction ON signals(conviction)",
+            "CREATE INDEX IF NOT EXISTS idx_signals_nlp_polarity ON signals(nlp_polarity)",
+        ]
+        for idx_sql in _POST_MIGRATION_INDEXES:
+            try:
+                await self._db.execute(idx_sql)
+            except Exception:
+                pass  # column may not exist yet on very old DBs
+        await self._db.commit()
 
         # One-time backfill: update stored confidence from LLM-calibrated value
         # where reasoning JSON contains raw.confidence that differs from the heuristic
@@ -383,14 +402,24 @@ class Database:
         author_karma = meta.get("author_karma", 0) or 0
         author_age_days = meta.get("author_age_days", 0) or 0
 
+        # Extract NLP engine metrics
+        nlp = meta.get("nlp", {})
+        sarcasm_score = nlp.get("sarcasm_probability", 0.0) if isinstance(nlp, dict) else 0.0
+        conviction_val = nlp.get("conviction", 0.5) if isinstance(nlp, dict) else 0.5
+        consensus_val = nlp.get("thread_consensus", 0.0) if isinstance(nlp, dict) else 0.0
+        actionability_val = nlp.get("actionability", 0.5) if isinstance(nlp, dict) else 0.5
+        nlp_polarity_val = nlp.get("polarity", 0.0) if isinstance(nlp, dict) else 0.0
+
         await self.db.execute(
             """INSERT INTO signals
                (id, run_id, created_at, ticker, event_type, stance, time_horizon,
                 confidence, trend_score, quality_score, strategy,
                 subreddit, post_title, post_url,
                 market_data, reasoning, trade_idea, event_data, sector,
-                expires_at, author, author_karma, author_age_days)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                expires_at, author, author_karma, author_age_days,
+                sarcasm_score, conviction, consensus_score, actionability, nlp_polarity)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                       ?, ?, ?, ?, ?)""",
             (
                 signal_id,
                 signal_data.get("run_id", ""),
@@ -415,6 +444,11 @@ class Database:
                 author,
                 author_karma,
                 author_age_days,
+                sarcasm_score,
+                conviction_val,
+                consensus_val,
+                actionability_val,
+                nlp_polarity_val,
             ),
         )
         await self.db.commit()

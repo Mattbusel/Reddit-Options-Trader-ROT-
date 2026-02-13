@@ -35,7 +35,8 @@ class TestCredibilityScorer:
         self.scorer = CredibilityScorer()
 
     def test_dd_flair_boosts_confidence(self):
-        event = _make_event(flair="DD")
+        # DD flair with substantial body (>= 200 chars) should get full dd_flair boost
+        event = _make_event(flair="DD", body_excerpt="x" * 250)
         scored = self.scorer.score(event)
         assert scored.confidence > event.confidence
         assert scored.meta["credibility_breakdown"]["dd_flair"] == 0.15

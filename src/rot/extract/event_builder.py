@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import logging
 import re
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from rot.core.types import Evidence, Event, EventType, Horizon, Stance, TrendCandidate
 from rot.market.enricher import NON_EQUITY_TOKENS, ALIAS_MAP
+
+if TYPE_CHECKING:
+    from rot.nlp.engine import NLPEngine
+
+log = logging.getLogger(__name__)
 
 # Matches $TSLA or TSLA
 _TICKER_RE = re.compile(r"(?:\$([A-Z]{1,5})\b|\b([A-Z]{1,5})\b)")
@@ -121,6 +127,11 @@ _EARNINGS_WORDS = re.compile(r"\b(?:earnings|ER|before\s*open|after\s*close|repo
 
 
 class EventBuilder:
+    def __init__(self, nlp_engine: Optional["NLPEngine"] = None) -> None:
+        self._nlp = nlp_engine
+        if nlp_engine:
+            log.info("EventBuilder: NLP engine attached (custom pipeline active)")
+
     @staticmethod
     def _has_financial_context(text: str, ticker: str) -> bool:
         """Check if a bare ticker appears near financial context words."""
@@ -134,6 +145,15 @@ class EventBuilder:
         return False
 
     def extract_entities(self, title: str, body: str) -> List[str]:
+        """Extract ticker symbols. Uses NLP engine if available, else legacy regex."""
+        if self._nlp:
+            try:
+                return self._nlp.extract_tickers(title, body)
+            except Exception:
+                log.warning("NLP entity extraction failed, falling back to legacy", exc_info=True)
+        return self._extract_entities_legacy(title, body)
+
+    def _extract_entities_legacy(self, title: str, body: str) -> List[str]:
         text = f"{title}\n{body}"
         matches = _TICKER_RE.findall(text)
 
@@ -203,8 +223,148 @@ class EventBuilder:
         return "unknown"
 
     def from_candidate(self, c: TrendCandidate) -> List[Event]:
+        """Build Event(s) from a TrendCandidate. Uses NLP engine if available."""
+        if self._nlp:
+            try:
+                return self._from_candidate_nlp(c)
+            except Exception:
+                log.warning("NLP from_candidate failed, falling back to legacy", exc_info=True)
+        return self._from_candidate_legacy(c)
+
+    def _from_candidate_nlp(self, c: TrendCandidate) -> List[Event]:
+        """NLP-powered event construction — richer stance, sarcasm, conviction, classification."""
         post = c.snapshot.post
-        tickers = self.extract_entities(post.title, post.selftext)
+
+        # Run full NLP analysis
+        comments = []
+        if c.snapshot.top_comments:
+            comments = [(cm.body, cm.score) for cm in c.snapshot.top_comments if cm.body]
+
+        nlp_result = self._nlp.analyze(  # type: ignore[union-attr]
+            title=post.title,
+            body=post.selftext or "",
+            comments=comments,
+        )
+
+        tickers = nlp_result.ticker_symbols
+        if not tickers:
+            return []
+
+        # Map NLP primary event type to our EventType literal
+        event_type = self._map_nlp_event_type(nlp_result.primary_event_type)
+        stance = nlp_result.primary_stance if nlp_result.primary_stance in (
+            "bullish", "bearish", "mixed", "unknown"
+        ) else "unknown"
+        horizon = self._detect_horizon(f"{post.title} {post.selftext}")
+
+        # Richer confidence calculation using NLP signals
+        base_confidence = 0.4 if self._has_explicit_ticker(post.title, post.selftext) else 0.25
+
+        # Boost for classified event type
+        if event_type != "other":
+            base_confidence += 0.1
+
+        # NLP conviction boost (high conviction = +0.08, low = -0.05)
+        conviction = nlp_result.sentiment.conviction if nlp_result.sentiment else 0.5
+        if conviction > 0.7:
+            base_confidence += 0.08
+        elif conviction < 0.3:
+            base_confidence -= 0.05
+
+        # Sarcasm penalty
+        sarcasm = nlp_result.sentiment.sarcasm_probability if nlp_result.sentiment else 0.0
+        if sarcasm > 0.5:
+            base_confidence -= 0.10
+
+        # Thread consensus boost
+        if nlp_result.thread and nlp_result.thread.consensus_score > 0.7:
+            base_confidence += 0.05
+
+        # Temporal actionability
+        if nlp_result.temporal and nlp_result.temporal.actionability < 0.3:
+            base_confidence -= 0.05
+
+        # Build NLP metadata for downstream consumers
+        nlp_meta = {
+            "polarity": nlp_result.sentiment.polarity if nlp_result.sentiment else 0.0,
+            "intensity": nlp_result.sentiment.intensity if nlp_result.sentiment else 0.0,
+            "conviction": conviction,
+            "sarcasm_probability": sarcasm,
+            "classifications": [(cl.category, cl.confidence) for cl in nlp_result.classifications[:5]],
+            "actionability": nlp_result.temporal.actionability if nlp_result.temporal else 0.5,
+            "urgency": nlp_result.temporal.urgency if nlp_result.temporal else 0.0,
+            "tense": nlp_result.temporal.dominant_tense if nlp_result.temporal else "unknown",
+            "processing_time_ms": nlp_result.processing_time_ms,
+            "token_count": nlp_result.token_count,
+        }
+        if nlp_result.thread:
+            nlp_meta["thread_consensus"] = nlp_result.thread.consensus_score
+            nlp_meta["thread_agreement_with_op"] = nlp_result.thread.agreement_with_op
+            nlp_meta["contrarian_detected"] = nlp_result.thread.contrarian_detected
+
+        # Per-ticker sentiment
+        ticker_sentiments = {}
+        for ent in nlp_result.entities:
+            if ent.sentiment:
+                ticker_sentiments[ent.text] = ent.sentiment
+        if ticker_sentiments:
+            nlp_meta["ticker_sentiments"] = ticker_sentiments
+
+        ev = Event(
+            event_type=event_type,
+            entities=tickers,
+            stance=stance,
+            time_horizon=horizon,
+            evidence=[
+                Evidence(
+                    post_id=post.id,
+                    permalink=post.permalink,
+                    subreddit=post.subreddit,
+                    excerpt=post.title[:200],
+                )
+            ],
+            confidence=max(0.05, min(1.0, base_confidence)),
+            meta={
+                "trend_score": c.trend_score,
+                "features": c.features,
+                "score": post.score,
+                "num_comments": post.num_comments,
+                "upvote_ratio": post.upvote_ratio,
+                "author": post.author,
+                "flair": post.flair,
+                "is_crosspost": post.is_crosspost,
+                "body_excerpt": post.selftext[:500] if post.selftext else "",
+                "nlp": nlp_meta,
+            },
+        )
+
+        return [ev]
+
+    @staticmethod
+    def _map_nlp_event_type(nlp_type: str) -> EventType:
+        """Map NLP classifier's 14 categories back to our 6-value EventType literal."""
+        _MAP = {
+            "earnings_rumor": "earnings_rumor",
+            "squeeze_chatter": "squeeze_chatter",
+            "regulatory": "regulatory",
+            "product_news": "product_news",
+            "macro": "macro",
+            # Extended categories map to closest existing type
+            "insider_activity": "regulatory",
+            "technical_breakout": "other",
+            "options_flow": "other",
+            "dividend_play": "other",
+            "buyback": "product_news",
+            "ipo": "product_news",
+            "spac": "product_news",
+            "crypto_correlation": "macro",
+        }
+        return _MAP.get(nlp_type, "other")
+
+    def _from_candidate_legacy(self, c: TrendCandidate) -> List[Event]:
+        """Original regex-based event construction (fallback)."""
+        post = c.snapshot.post
+        tickers = self._extract_entities_legacy(post.title, post.selftext)
 
         if not tickers:
             return []
