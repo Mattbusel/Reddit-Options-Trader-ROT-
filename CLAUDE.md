@@ -15,7 +15,7 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~83+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~98+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
 | **DB** | SQLite with aiosqlite (WAL mode), 15+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
@@ -242,6 +242,7 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `routes/` | 35+ route files (see Section 6) |
 | `templates/` | 39+ Jinja2 HTML templates |
 | `auth.py` | JWT + API key + session cookie authentication |
+| `query_cache.py` | Async in-memory TTL cache for dashboard queries (per-key TTL, thundering-herd prevention, prefix invalidation) |
 | `tier_gate.py` | 5-tier feature gating (30+ gate functions) |
 | `rate_limit.py` | Per-tier API rate limiting |
 
@@ -888,6 +889,7 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_trend_engine_rss.py` | RSS trend detection, bypass logic |
 | `test_rss_ingestor.py` | RSS feed parsing, dedup |
 | `test_multi_ingestor.py` | Multi-source aggregation |
+| `test_query_cache.py` | Dashboard query cache: TTL, invalidation, thundering herd, edge cases |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -946,6 +948,13 @@ if access["has_quadrant"]:
 
 ### JSON Blob Storage
 Complex nested data (market data, reasoning, trade ideas, event metadata including NLP) is stored as JSON text columns in SQLite. This avoids schema complexity while keeping data queryable via JSON functions.
+
+### Dashboard Query Cache
+The dashboard loads 12+ database queries per page view. To avoid hammering the DB on every request, an async in-memory TTL cache (`src/rot/web/query_cache.py`) is used:
+- **Cached (10 queries)**: trending tickers (30s), performance summary (120s), strategy breakdown (120s), chart data (60s), time series (60s), accuracy stats (120s), leaderboard (30s), heatmaps (120s), correlations (120s), landing page stats (300s)
+- **NOT cached (2 queries)**: user-filtered signals, per-user signal count badge
+- **Invalidation**: When a new signal arrives, fast-changing caches (trending, leaderboard) are invalidated via prefix matching. Slow-changing caches (accuracy, heatmaps) expire naturally via TTL.
+- **Thundering herd prevention**: Per-key `asyncio.Lock` ensures only one coroutine fetches when multiple requests arrive for the same stale key.
 
 ---
 
@@ -1019,6 +1028,7 @@ rot/
 │       │   └── server.py              # FastAPI factory + background loop
 │       └── web/
 │           ├── auth.py                # JWT + API key + session auth
+│           ├── query_cache.py         # Async TTL cache for dashboard queries
 │           ├── tier_gate.py           # 5-tier feature gating (30+ gates)
 │           ├── rate_limit.py          # Per-tier rate limiting
 │           ├── routes/                # 35+ route files (50+ endpoints)
@@ -1052,7 +1062,8 @@ rot/
     ├── test_parser.py
     ├── test_trend_engine_rss.py
     ├── test_rss_ingestor.py
-    └── test_multi_ingestor.py
+    ├── test_multi_ingestor.py
+    └── test_query_cache.py
 ```
 
 ---
@@ -1122,6 +1133,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | Date | Change | Author |
 |------|--------|--------|
 | 2025 | Initial CLAUDE.md creation — comprehensive architecture documentation | Claude Agent |
+| 2025 | Dashboard query cache engine — `query_cache.py`: async TTL cache with per-key TTL, thundering-herd prevention, prefix invalidation. Caches 10 of 12 dashboard queries (trending, accuracy, leaderboard, charts, heatmaps, correlations). Signal-triggered invalidation for fast-changing data. | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

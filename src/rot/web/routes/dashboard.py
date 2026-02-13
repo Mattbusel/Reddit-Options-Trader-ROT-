@@ -162,6 +162,9 @@ async def _dashboard_inner(request: Request):
             date_from = now - range_map[q_date_range]
 
     db = request.app.state.db
+    cache = getattr(request.app.state, "query_cache", None)
+
+    # User-filtered signals — NOT cached (user-specific filters)
     signals = await db.get_signals(
         limit=50,
         ticker=q_ticker,
@@ -172,24 +175,57 @@ async def _dashboard_inner(request: Request):
         date_to=date_to,
         source=q_source,
     )
-    trending = await db.get_trending_tickers(hours=24, limit=10)
-    summary = await db.get_performance_summary(days=30)
-    strategy_breakdown = []
-    try:
-        strategy_breakdown = await db.get_strategy_breakdown(days=30)
-    except Exception:
-        pass
+
+    # ── Cached aggregate queries (change slowly, safe to cache) ──
+    if cache:
+        trending = await cache.get_or_fetch(
+            "trending_24_10",
+            lambda: db.get_trending_tickers(hours=24, limit=10),
+            ttl=30,
+        )
+        summary = await cache.get_or_fetch(
+            "perf_summary_30",
+            lambda: db.get_performance_summary(days=30),
+            ttl=120,
+        )
+        try:
+            strategy_breakdown = await cache.get_or_fetch(
+                "strategy_breakdown_30",
+                lambda: db.get_strategy_breakdown(days=30),
+                ttl=120,
+            )
+        except Exception:
+            strategy_breakdown = []
+    else:
+        trending = await db.get_trending_tickers(hours=24, limit=10)
+        summary = await db.get_performance_summary(days=30)
+        strategy_breakdown = []
+        try:
+            strategy_breakdown = await db.get_strategy_breakdown(days=30)
+        except Exception:
+            pass
 
     # Chart data — gated by tier
     chart_access = gate_chart_access(tier)
     chart_data = None
     time_series = None
     if chart_access["has_quadrant"]:
-        chart_data = await db.get_chart_data(
-            hours=chart_access["chart_hours"],
-            limit=chart_access["chart_limit"],
-        )
-        time_series = await db.get_time_series_data(hours=chart_access["chart_hours"])
+        ch = chart_access["chart_hours"]
+        cl = chart_access["chart_limit"]
+        if cache:
+            chart_data = await cache.get_or_fetch(
+                f"chart_data_{ch}_{cl}",
+                lambda: db.get_chart_data(hours=ch, limit=cl),
+                ttl=60,
+            )
+            time_series = await cache.get_or_fetch(
+                f"time_series_{ch}",
+                lambda: db.get_time_series_data(hours=ch),
+                ttl=60,
+            )
+        else:
+            chart_data = await db.get_chart_data(hours=ch, limit=cl)
+            time_series = await db.get_time_series_data(hours=ch)
 
     gated = gate_signal_list(
         signals, tier,
@@ -201,12 +237,27 @@ async def _dashboard_inner(request: Request):
     perf_access = gate_performance_access(tier)
     accuracy = {"total_tracked": 0, "winners": 0, "losers": 0, "win_rate": 0}
     accuracy_buckets = []
+    acc_days = perf_access["accuracy_days"]
     try:
-        accuracy = await db.get_aggregate_accuracy(days=perf_access["accuracy_days"])
+        if cache:
+            accuracy = await cache.get_or_fetch(
+                f"accuracy_{acc_days}",
+                lambda: db.get_aggregate_accuracy(days=acc_days),
+                ttl=120,
+            )
+        else:
+            accuracy = await db.get_aggregate_accuracy(days=acc_days)
     except Exception as e:
         log.warning("Failed to load accuracy data: %s", e)
     try:
-        accuracy_buckets = await db.get_accuracy_by_confidence(days=perf_access["accuracy_days"])
+        if cache:
+            accuracy_buckets = await cache.get_or_fetch(
+                f"accuracy_buckets_{acc_days}",
+                lambda: db.get_accuracy_by_confidence(days=acc_days),
+                ttl=120,
+            )
+        else:
+            accuracy_buckets = await db.get_accuracy_by_confidence(days=acc_days)
     except Exception as e:
         log.warning("Failed to load accuracy buckets: %s", e)
 
@@ -221,14 +272,33 @@ async def _dashboard_inner(request: Request):
         except ValueError:
             pass
     try:
+        lb_limit = lb_access["leaderboard_limit"]
         if lb_access["has_performance_column"]:
-            leaderboard = await db.get_leaderboard_with_performance(
-                hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
-            )
+            if cache:
+                leaderboard = await cache.get_or_fetch(
+                    f"leaderboard_perf_{leaderboard_hours}_{lb_limit}",
+                    lambda: db.get_leaderboard_with_performance(
+                        hours=leaderboard_hours, limit=lb_limit
+                    ),
+                    ttl=30,
+                )
+            else:
+                leaderboard = await db.get_leaderboard_with_performance(
+                    hours=leaderboard_hours, limit=lb_limit
+                )
         else:
-            leaderboard = await db.get_leaderboard(
-                hours=leaderboard_hours, limit=lb_access["leaderboard_limit"]
-            )
+            if cache:
+                leaderboard = await cache.get_or_fetch(
+                    f"leaderboard_{leaderboard_hours}_{lb_limit}",
+                    lambda: db.get_leaderboard(
+                        hours=leaderboard_hours, limit=lb_limit
+                    ),
+                    ttl=30,
+                )
+            else:
+                leaderboard = await db.get_leaderboard(
+                    hours=leaderboard_hours, limit=lb_limit
+                )
     except Exception as e:
         log.warning("Failed to load leaderboard: %s", e)
 
@@ -237,9 +307,15 @@ async def _dashboard_inner(request: Request):
     heatmap_data = None
     try:
         if heatmap_access["has_heatmap"]:
-            heatmap_data = await db.get_sector_heatmap_data(
-                hours=chart_access["chart_hours"] or 24
-            )
+            hm_hours = chart_access["chart_hours"] or 24
+            if cache:
+                heatmap_data = await cache.get_or_fetch(
+                    f"heatmap_{hm_hours}",
+                    lambda: db.get_sector_heatmap_data(hours=hm_hours),
+                    ttl=120,
+                )
+            else:
+                heatmap_data = await db.get_sector_heatmap_data(hours=hm_hours)
     except Exception as e:
         log.warning("Failed to load heatmap data: %s", e)
 
@@ -248,7 +324,14 @@ async def _dashboard_inner(request: Request):
     correlations = None
     try:
         if corr_access["has_correlation"]:
-            correlations = await db.get_co_occurring_tickers(hours=24, min_co_occurrence=2)
+            if cache:
+                correlations = await cache.get_or_fetch(
+                    "correlations_24_2",
+                    lambda: db.get_co_occurring_tickers(hours=24, min_co_occurrence=2),
+                    ttl=120,
+                )
+            else:
+                correlations = await db.get_co_occurring_tickers(hours=24, min_co_occurrence=2)
     except Exception as e:
         log.warning("Failed to load correlation data: %s", e)
 
@@ -314,28 +397,36 @@ async def _dashboard_inner(request: Request):
 async def _landing_page(request: Request):
     """Render the marketing landing page for logged-out visitors."""
     db = request.app.state.db
+    cache = getattr(request.app.state, "query_cache", None)
 
-    # Gather stats for the landing page (graceful degradation)
-    stats = {"total_signals": 0, "active_tickers": 0, "win_rate": None}
-    try:
-        summary = await db.get_performance_summary(days=90)
-        stats["total_signals"] = summary.get("total_signals", 0) or 0
-    except Exception:
-        pass
-    try:
-        trending = await db.get_trending_tickers(hours=24, limit=100)
-        stats["active_tickers"] = len(trending)
-    except Exception:
-        pass
-    try:
-        accuracy = await db.get_aggregate_accuracy(days=30)
-        winners = accuracy.get("winners", 0) or 0
-        losers = accuracy.get("losers", 0) or 0
-        decided = winners + losers
-        if decided > 0:
-            stats["win_rate"] = (winners / decided) * 100
-    except Exception:
-        pass
+    async def _fetch_landing_stats() -> dict:
+        """Fetch all landing page stats in one cacheable unit."""
+        s = {"total_signals": 0, "active_tickers": 0, "win_rate": None}
+        try:
+            summary = await db.get_performance_summary(days=90)
+            s["total_signals"] = summary.get("total_signals", 0) or 0
+        except Exception:
+            pass
+        try:
+            trending = await db.get_trending_tickers(hours=24, limit=100)
+            s["active_tickers"] = len(trending)
+        except Exception:
+            pass
+        try:
+            accuracy = await db.get_aggregate_accuracy(days=30)
+            winners = accuracy.get("winners", 0) or 0
+            losers = accuracy.get("losers", 0) or 0
+            decided = winners + losers
+            if decided > 0:
+                s["win_rate"] = (winners / decided) * 100
+        except Exception:
+            pass
+        return s
+
+    if cache:
+        stats = await cache.get_or_fetch("landing_stats", _fetch_landing_stats, ttl=300)
+    else:
+        stats = await _fetch_landing_stats()
 
     ctx = _base_context(request, None)
     ctx["stats"] = stats

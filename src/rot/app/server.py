@@ -166,6 +166,13 @@ async def _async_signal_handler(
     except Exception as e:
         log.error("WebSocket broadcast failed: %s", e)
 
+    # Invalidate fast-changing dashboard caches (trending, leaderboard)
+    cache = getattr(app.state, "query_cache", None)
+    if cache:
+        cache.invalidate("trending_")
+        cache.invalidate("leaderboard_")
+        cache.invalidate("landing_stats")
+
     # Dispatch alerts
     if dispatcher and dispatcher.has_channels:
         try:

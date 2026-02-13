@@ -104,6 +104,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.signal_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
 
+    # Dashboard query cache — reduces DB hits on repeated page loads
+    from rot.web.query_cache import QueryCache
+    app.state.query_cache = QueryCache(default_ttl=60)
+
     # Templates
     template_dir = Path(__file__).parent / "templates"
     template_dir.mkdir(exist_ok=True)
