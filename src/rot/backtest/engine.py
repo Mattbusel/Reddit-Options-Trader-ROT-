@@ -225,6 +225,11 @@ class BacktestEngine:
             if exit_price is None or entry_price is None or entry_price <= 0:
                 continue  # skip signals without price data
 
+            # Skip non-directional signals — only bullish/bearish are tradeable
+            stance = sig.get("stance", "unknown")
+            if stance not in ("bullish", "bearish"):
+                continue
+
             # Position sizing
             if config.position_size_mode == "kelly":
                 running_win_rate = (
@@ -258,7 +263,6 @@ class BacktestEngine:
                 continue  # can't trade with < $1
 
             # Compute P&L
-            stance = sig.get("stance", "unknown")
             strategy = sig.get("strategy", "debit_spread")
 
             # Stop loss / take profit: use config values or signal's max_gain/max_loss
