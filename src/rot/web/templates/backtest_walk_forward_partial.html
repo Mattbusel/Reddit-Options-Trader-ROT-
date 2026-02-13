@@ -1,0 +1,95 @@
+<!-- Walk-forward analysis results (HTMX partial) -->
+<div class="chart-container mb-8 fade-in">
+    <h2 class="text-lg font-semibold text-white mb-4">Walk-Forward Analysis
+        <span class="text-xs text-gray-500 ml-2">{{ wf.n_folds }} folds &middot; {{ "%.0f"|format(wf.in_sample_pct * 100) }}% in-sample</span>
+    </h2>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Stability Score</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if wf.stability_score >= 0.5 else 'text-yellow-400' if wf.stability_score >= 0.3 else 'text-red-400' }}">
+                {{ "%.2f"|format(wf.stability_score) }}
+            </div>
+            <div class="text-xs text-gray-500 mt-1">{{ 'Good' if wf.stability_score >= 0.5 else 'Fair' if wf.stability_score >= 0.3 else 'Unstable' }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Avg OOS Return</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if wf.avg_oos_return_pct >= 0 else 'text-red-400' }}">
+                {{ "%+.1f"|format(wf.avg_oos_return_pct) }}%
+            </div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Avg OOS Win Rate</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if wf.avg_oos_win_rate >= 0.5 else 'text-red-400' }}">
+                {{ "%.1f"|format(wf.avg_oos_win_rate * 100) }}%
+            </div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Avg Degradation</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if wf.avg_degradation_pct <= 20 else 'text-yellow-400' if wf.avg_degradation_pct <= 50 else 'text-red-400' }}">
+                {{ "%.0f"|format(wf.avg_degradation_pct) }}%
+            </div>
+            <div class="text-xs text-gray-500 mt-1">{{ 'Low' if wf.avg_degradation_pct <= 20 else 'Moderate' if wf.avg_degradation_pct <= 50 else 'High' }} overfitting risk</div>
+        </div>
+    </div>
+
+    <!-- Signal Counts -->
+    <div class="text-xs text-gray-500 mb-4">
+        Total signals: {{ wf.total_is_signals }} in-sample + {{ wf.total_oos_signals }} out-of-sample
+    </div>
+
+    <!-- Fold Detail Table -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700 text-gray-400">
+                    <th class="text-left py-2 px-3">Fold</th>
+                    <th class="text-right py-2 px-3">IS Signals</th>
+                    <th class="text-right py-2 px-3">OOS Signals</th>
+                    <th class="text-right py-2 px-3">IS Return</th>
+                    <th class="text-right py-2 px-3">OOS Return</th>
+                    <th class="text-right py-2 px-3">IS Win %</th>
+                    <th class="text-right py-2 px-3">OOS Win %</th>
+                    <th class="text-right py-2 px-3">IS Sharpe</th>
+                    <th class="text-right py-2 px-3">OOS Sharpe</th>
+                    <th class="text-right py-2 px-3">Degradation</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fold in wf.folds %}
+                <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                    <td class="py-2 px-3 text-white font-semibold">{{ fold.fold_index + 1 }}</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ fold.is_signals }}</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ fold.oos_signals }}</td>
+                    <td class="py-2 px-3 text-right {{ 'text-green-400' if fold.is_return_pct >= 0 else 'text-red-400' }}">
+                        {{ "%+.1f"|format(fold.is_return_pct) }}%
+                    </td>
+                    <td class="py-2 px-3 text-right font-semibold {{ 'text-green-400' if fold.oos_return_pct >= 0 else 'text-red-400' }}">
+                        {{ "%+.1f"|format(fold.oos_return_pct) }}%
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(fold.is_win_rate * 100) }}%</td>
+                    <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(fold.oos_win_rate * 100) }}%</td>
+                    <td class="py-2 px-3 text-right text-gray-300">
+                        {% if fold.is_sharpe is not none %}{{ "%.2f"|format(fold.is_sharpe) }}{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-300">
+                        {% if fold.oos_sharpe is not none %}{{ "%.2f"|format(fold.oos_sharpe) }}{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-right {{ 'text-green-400' if fold.degradation_pct <= 20 else 'text-yellow-400' if fold.degradation_pct <= 50 else 'text-red-400' }}">
+                        {{ "%.0f"|format(fold.degradation_pct) }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Interpretation -->
+    <div class="mt-4 p-3 rounded bg-gray-800/40 border border-gray-700 text-xs text-gray-400">
+        <strong class="text-gray-300">Interpretation:</strong>
+        Walk-forward splits signals chronologically into in-sample (training) and out-of-sample (validation) periods.
+        Low degradation (<20%) suggests the strategy generalizes well. High degradation (>50%) signals potential overfitting.
+        A stability score above 0.5 indicates consistent out-of-sample performance across folds.
+    </div>
+</div>

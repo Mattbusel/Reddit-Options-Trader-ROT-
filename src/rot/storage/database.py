@@ -322,6 +322,33 @@ CREATE TABLE IF NOT EXISTS congress_trades (
 CREATE INDEX IF NOT EXISTS idx_congress_ticker ON congress_trades(ticker);
 CREATE INDEX IF NOT EXISTS idx_congress_filed ON congress_trades(filed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_congress_politician ON congress_trades(politician);
+
+CREATE TABLE IF NOT EXISTS backtest_runs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '{}',
+    result_json TEXT NOT NULL DEFAULT '{}',
+    monte_carlo_json TEXT NOT NULL DEFAULT '{}',
+    risk_json TEXT NOT NULL DEFAULT '{}',
+    created_at REAL NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_backtest_runs_user ON backtest_runs(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS backtest_strategies (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '{}',
+    last_result_json TEXT NOT NULL DEFAULT '{}',
+    last_run_at REAL NOT NULL DEFAULT 0,
+    created_at REAL NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_backtest_strats_user ON backtest_strategies(user_id, is_active, created_at DESC);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -3314,6 +3341,190 @@ class Database:
         total = sum(results.values())
         log.info("Cleanup complete: %d total rows deleted/compacted | %s", total, results)
         return results
+
+    # ── Backtest methods ──
+
+    async def get_backtest_signals(
+        self,
+        days: int = 90,
+        ticker: Optional[str] = None,
+        stance: Optional[str] = None,
+        strategy: Optional[str] = None,
+        event_type: Optional[str] = None,
+        min_confidence: float = 0.0,
+        limit: int = 5000,
+    ) -> List[Dict[str, Any]]:
+        """Get signals with performance data for backtesting.
+
+        Joins signals + signal_performance and returns rows with the
+        fields the BacktestEngine needs: signal_id, ticker, stance,
+        strategy, event_type, confidence, created_at, price_at_signal,
+        price_1h, price_4h, price_1d, max_gain_pct, max_loss_pct.
+        """
+        cutoff = time.time() - (days * 86400)
+        conditions = [
+            "s.created_at > ?",
+            "sp.price_at_signal > 0",
+            "COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL",
+        ]
+        params: list = [cutoff]
+
+        if ticker:
+            conditions.append("s.ticker = ?")
+            params.append(ticker.upper())
+        if stance:
+            conditions.append("s.stance = ?")
+            params.append(stance)
+        if strategy:
+            conditions.append("s.strategy = ?")
+            params.append(strategy)
+        if event_type:
+            conditions.append("s.event_type = ?")
+            params.append(event_type)
+        if min_confidence > 0:
+            conditions.append("s.confidence >= ?")
+            params.append(min_confidence)
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""
+            SELECT
+                s.id as signal_id,
+                s.ticker,
+                s.stance,
+                s.strategy,
+                s.event_type,
+                s.confidence,
+                s.created_at,
+                sp.price_at_signal,
+                sp.price_1h,
+                sp.price_4h,
+                sp.price_1d,
+                sp.max_gain_pct,
+                sp.max_loss_pct
+            FROM signals s
+            JOIN signal_performance sp ON sp.signal_id = s.id
+            {where}
+            ORDER BY s.created_at ASC
+            LIMIT ?
+        """
+        params.append(limit)
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def save_backtest_run(
+        self,
+        user_id: str,
+        name: str,
+        config_json: str,
+        result_json: str,
+        monte_carlo_json: str = "{}",
+        risk_json: str = "{}",
+    ) -> str:
+        """Save a backtest run. Returns the run ID."""
+        run_id = str(uuid.uuid4())
+        await self.db.execute(
+            """INSERT INTO backtest_runs
+               (id, user_id, name, config_json, result_json, monte_carlo_json, risk_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (run_id, user_id, name, config_json, result_json, monte_carlo_json, risk_json, time.time()),
+        )
+        await self.db.commit()
+        return run_id
+
+    async def get_user_backtests(
+        self, user_id: str, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Get saved backtest runs for a user (summary only)."""
+        async with self.db.execute(
+            """SELECT id, name, config_json, created_at
+               FROM backtest_runs
+               WHERE user_id = ?
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (user_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_backtest_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single backtest run with full data."""
+        async with self.db.execute(
+            "SELECT * FROM backtest_runs WHERE id = ?", (run_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def delete_backtest_run(self, run_id: str, user_id: str) -> bool:
+        """Delete a backtest run (only if owned by user). Returns True if deleted."""
+        cursor = await self.db.execute(
+            "DELETE FROM backtest_runs WHERE id = ? AND user_id = ?",
+            (run_id, user_id),
+        )
+        await self.db.commit()
+        return cursor.rowcount > 0
+
+    async def save_backtest_strategy(
+        self,
+        user_id: str,
+        name: str,
+        description: str,
+        config_json: str,
+    ) -> str:
+        """Save a named backtest strategy. Returns the strategy ID."""
+        strat_id = str(uuid.uuid4())
+        await self.db.execute(
+            """INSERT INTO backtest_strategies
+               (id, user_id, name, description, config_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (strat_id, user_id, name, description, config_json, time.time()),
+        )
+        await self.db.commit()
+        return strat_id
+
+    async def get_user_strategies(
+        self, user_id: str, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Get saved strategies for a user."""
+        async with self.db.execute(
+            """SELECT id, name, description, config_json, last_run_at, created_at, is_active
+               FROM backtest_strategies
+               WHERE user_id = ? AND is_active = 1
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (user_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_backtest_strategy(self, strategy_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single strategy."""
+        async with self.db.execute(
+            "SELECT * FROM backtest_strategies WHERE id = ?", (strategy_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def update_strategy_result(
+        self, strategy_id: str, result_json: str
+    ) -> None:
+        """Update a strategy's last run result."""
+        await self.db.execute(
+            """UPDATE backtest_strategies
+               SET last_result_json = ?, last_run_at = ?
+               WHERE id = ?""",
+            (result_json, time.time(), strategy_id),
+        )
+        await self.db.commit()
+
+    async def delete_backtest_strategy(self, strategy_id: str, user_id: str) -> bool:
+        """Soft-delete a strategy (set is_active=0). Returns True if updated."""
+        cursor = await self.db.execute(
+            "UPDATE backtest_strategies SET is_active = 0 WHERE id = ? AND user_id = ?",
+            (strategy_id, user_id),
+        )
+        await self.db.commit()
+        return cursor.rowcount > 0
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:

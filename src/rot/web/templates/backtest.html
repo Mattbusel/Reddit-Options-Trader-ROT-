@@ -1,210 +1,235 @@
 {% extends "base.html" %}
-
-{% block title %}Backtest - ROT{% endblock %}
-
+{% block title %}Backtesting Engine - ROT{% endblock %}
+{% block meta_description %}Portfolio simulation backtesting with Monte Carlo, walk-forward, parameter optimization and risk analytics.{% endblock %}
 {% block content %}
-<div class="mb-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold text-white">Strategy Backtester</h1>
-            <p class="text-sm text-gray-500 mt-1">Replay historical signals against actual price outcomes</p>
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Backtesting Engine</h1>
+                <p class="text-sm text-gray-500 mt-1">Portfolio simulation with Monte Carlo, walk-forward analysis &amp; parameter optimization</p>
+            </div>
+            <span class="px-2 py-1 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
         </div>
-        <span class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-400 border border-amber-700">Ultra</span>
     </div>
-</div>
 
-<!-- Filters -->
-<div class="chart-container mb-6">
-    <form method="get" action="/backtest" class="flex flex-wrap items-end gap-4">
+    <!-- Tier Banner -->
+    <div class="mb-6 p-3 rounded-lg bg-gray-800/60 border border-gray-700 flex items-center justify-between text-sm text-gray-400">
         <div>
-            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Lookback</label>
-            <select name="days" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
-                <option value="7" {{ 'selected' if filter_days == 7 else '' }}>7 days</option>
-                <option value="30" {{ 'selected' if filter_days == 30 else '' }}>30 days</option>
-                <option value="90" {{ 'selected' if filter_days == 90 else '' }}>90 days</option>
-                <option value="180" {{ 'selected' if filter_days == 180 else '' }}>180 days</option>
-                <option value="365" {{ 'selected' if filter_days == 365 else '' }}>1 year</option>
-            </select>
+            Max <span class="text-white font-semibold">{{ access.max_days }}d</span> lookback &middot;
+            <span class="text-white font-semibold">{{ access.max_signals }}</span> signals
+            {% if not access.has_monte_carlo %}
+            <span class="ml-2 text-blue-400 text-xs">&uarr; Premium for Monte Carlo &amp; Walk-Forward</span>
+            {% endif %}
+            {% if not access.has_optimizer %}
+            <span class="ml-2 text-purple-400 text-xs">&uarr; Ultra for Optimizer &amp; Comparison</span>
+            {% endif %}
         </div>
-        <div>
-            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Strategy</label>
-            <select name="strategy" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
-                <option value="">All Strategies</option>
-                {% for s in strategies %}
-                <option value="{{ s }}" {{ 'selected' if filter_strategy == s else '' }}>{{ s }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Min Confidence</label>
-            <select name="min_confidence" class="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-orange-500 focus:outline-none">
-                <option value="">Any</option>
-                <option value="40" {{ 'selected' if filter_min_confidence == '40' else '' }}>40%+</option>
-                <option value="50" {{ 'selected' if filter_min_confidence == '50' else '' }}>50%+</option>
-                <option value="60" {{ 'selected' if filter_min_confidence == '60' else '' }}>60%+</option>
-                <option value="70" {{ 'selected' if filter_min_confidence == '70' else '' }}>70%+</option>
-                <option value="80" {{ 'selected' if filter_min_confidence == '80' else '' }}>80%+</option>
-            </select>
-        </div>
-        <button type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
-            Run Backtest
-        </button>
-    </form>
-</div>
+    </div>
 
-<!-- Summary Cards -->
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Signals</div>
-        <div class="text-2xl font-bold text-white">{{ backtest_summary.total }}</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Win Rate</div>
-        <div class="text-2xl font-bold {{ 'text-green-400' if backtest_summary.win_rate >= 50 else 'text-red-400' }}">{{ backtest_summary.win_rate }}%</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Winners</div>
-        <div class="text-2xl font-bold text-green-400">{{ backtest_summary.winners }}</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Losers</div>
-        <div class="text-2xl font-bold text-red-400">{{ backtest_summary.losers }}</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Gain</div>
-        <div class="text-2xl font-bold text-green-400">{{ backtest_summary.avg_gain }}%</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Loss</div>
-        <div class="text-2xl font-bold text-red-400">{{ backtest_summary.avg_loss }}%</div>
-    </div>
-    <div class="stat-card rounded-lg p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Cum. P&L</div>
-        <div class="text-2xl font-bold {{ 'text-green-400' if backtest_summary.cumulative_pnl >= 0 else 'text-red-400' }}">{{ "%+.1f"|format(backtest_summary.cumulative_pnl) }}%</div>
-    </div>
-</div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- ── Left: Config Form ── -->
+        <div class="lg:col-span-1">
+            <div class="stat-card rounded-xl p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Configuration</h2>
 
-<!-- Equity Curve -->
-<div class="chart-container mb-8">
-    <h2 class="text-lg font-semibold text-white mb-4">Equity Curve (Cumulative P&L)</h2>
-    <div style="height: 350px;">
-        <canvas id="equityChart"></canvas>
-    </div>
-</div>
+                <form hx-post="/backtest/run" hx-target="#backtest-results" hx-swap="innerHTML"
+                      hx-indicator="#run-spinner" class="space-y-4">
 
-<!-- Signal History Table -->
-<div class="chart-container mb-8">
-    <h2 class="text-lg font-semibold text-white mb-4">Signal Results</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-gray-400 border-b border-gray-700">
-                    <th class="text-left py-3 px-3">#</th>
-                    <th class="text-left py-3 px-3">Ticker</th>
-                    <th class="text-left py-3 px-3">Stance</th>
-                    <th class="text-right py-3 px-3">Conf</th>
-                    <th class="text-left py-3 px-3">Strategy</th>
-                    <th class="text-right py-3 px-3">Entry</th>
-                    <th class="text-right py-3 px-3">1D Price</th>
-                    <th class="text-right py-3 px-3">P&L</th>
-                    <th class="text-right py-3 px-3">Result</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for h in history %}
-                <tr class="border-b border-gray-800 hover:bg-gray-800/30">
-                    <td class="py-3 px-3 text-gray-500">{{ loop.index }}</td>
-                    <td class="py-3 px-3 font-bold text-white">
-                        <a href="/dashboard/signal/{{ h.signal_id }}" class="hover:text-blue-400 transition">{{ h.ticker }}</a>
-                    </td>
-                    <td class="py-3 px-3">
-                        <span class="{{ 'text-green-400' if h.stance == 'bullish' else 'text-red-400' if h.stance == 'bearish' else 'text-yellow-400' }}">{{ h.stance }}</span>
-                    </td>
-                    <td class="py-3 px-3 text-right text-gray-300">{{ "%.0f"|format((h.confidence or 0) * 100) }}%</td>
-                    <td class="py-3 px-3 text-gray-300">{{ h.strategy or 'none' }}</td>
-                    <td class="py-3 px-3 text-right text-white">${{ "%.2f"|format(h.price_at_signal or 0) }}</td>
-                    <td class="py-3 px-3 text-right text-gray-300">
-                        {% if h.price_1d %}${{ "%.2f"|format(h.price_1d) }}{% else %}&mdash;{% endif %}
-                    </td>
-                    <td class="py-3 px-3 text-right font-semibold {{ 'text-green-400' if (h.gain_loss_pct or 0) > 0 else 'text-red-400' }}">
-                        {% if h.gain_loss_pct is not none %}{{ "%+.2f"|format(h.gain_loss_pct) }}%{% else %}&mdash;{% endif %}
-                    </td>
-                    <td class="py-3 px-3 text-right">
-                        {% if h.gain_loss_pct is not none %}
-                        <span class="px-2 py-0.5 rounded text-xs font-semibold {{ 'bg-green-900/40 text-green-400' if (h.gain_loss_pct or 0) > 0 else 'bg-red-900/40 text-red-400' }}">
-                            {{ 'WIN' if (h.gain_loss_pct or 0) > 0 else 'LOSS' }}
+                    <!-- Capital -->
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Starting Capital ($)</label>
+                        <input type="number" name="starting_capital" value="10000" min="100" step="100"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <!-- Position Sizing -->
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Position Size Mode</label>
+                        <select name="position_size_mode"
+                                class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                            <option value="fixed_pct">Fixed %</option>
+                            {% if "confidence_weighted" in access.position_size_modes %}
+                            <option value="confidence_weighted">Confidence-Weighted</option>
+                            {% endif %}
+                            {% if "kelly" in access.position_size_modes %}
+                            <option value="kelly">Kelly Criterion</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Position Size (%)</label>
+                        <input type="number" name="position_size_pct" value="5" min="1" max="100" step="0.5"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Max Concurrent Positions</label>
+                        <input type="number" name="max_concurrent_positions" value="5" min="1" max="50"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <!-- Exit Rules -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Stop Loss (%)</label>
+                            <input type="number" name="stop_loss_pct" value="0" min="0" max="100" step="0.5"
+                                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Take Profit (%)</label>
+                            <input type="number" name="take_profit_pct" value="0" min="0" max="1000" step="0.5"
+                                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Min Confidence (%)</label>
+                        <input type="number" name="min_confidence" value="0" min="0" max="100" step="5"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Strategy Filter</label>
+                        <select name="strategy_filter"
+                                class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                            <option value="">All Strategies</option>
+                            {% for s in strategies %}
+                            <option value="{{ s }}">{{ s|replace('_',' ')|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Stance Filter</label>
+                        <select name="stance_filter"
+                                class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                            <option value="">All Stances</option>
+                            <option value="bullish">Bullish</option>
+                            <option value="bearish">Bearish</option>
+                            <option value="mixed">Mixed</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Ticker Filter</label>
+                        <input type="text" name="ticker_filter" value="" placeholder="e.g. TSLA"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Lookback Days (max {{ access.max_days }})</label>
+                        <input type="number" name="days" value="{{ [90, access.max_days]|min }}" min="7" max="{{ access.max_days }}"
+                               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" name="use_1d_price" value="true" checked id="use1d"
+                               class="rounded bg-gray-800 border-gray-700 text-blue-500 focus:ring-blue-500">
+                        <label for="use1d" class="text-xs text-gray-400">Use 1-day exit price (vs 4h/1h)</label>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit"
+                            class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2">
+                        <span id="run-spinner" class="htmx-indicator">
+                            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
                         </span>
-                        {% else %}
-                        <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-700 text-gray-400">PENDING</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="9" class="py-8 text-center text-gray-500">No backtest data available yet. Signals need time to accumulate performance data.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        Run Backtest
+                    </button>
+                </form>
+
+                {% if access.has_optimizer %}
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <h3 class="text-sm font-semibold text-white mb-2">Parameter Optimizer <span class="text-xs text-purple-400">Ultra</span></h3>
+                    <form hx-post="/backtest/optimize" hx-target="#backtest-results" hx-swap="innerHTML"
+                          hx-indicator="#opt-spinner" class="space-y-3">
+                        <input type="hidden" name="days" value="{{ [90, access.max_days]|min }}">
+                        <button type="submit"
+                                class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2">
+                            <span id="opt-spinner" class="htmx-indicator">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </span>
+                            Run Optimizer
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Saved Strategies -->
+            {% if access.has_saved_strategies and saved_strategies %}
+            <div class="stat-card rounded-xl p-6 mt-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Saved Strategies</h2>
+                <div class="space-y-2">
+                    {% for strat in saved_strategies %}
+                    <div class="flex items-center justify-between p-2 bg-gray-800/60 rounded border border-gray-700">
+                        <div>
+                            <div class="text-sm text-white font-semibold">{{ strat.name }}</div>
+                            {% if strat.description %}<div class="text-xs text-gray-500">{{ strat.description }}</div>{% endif %}
+                        </div>
+                        <button hx-delete="/backtest/strategies/{{ strat.id }}" hx-swap="outerHTML" hx-target="closest div.flex"
+                                class="text-red-400 hover:text-red-300 text-xs transition">Delete</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ── Right: Results area ── -->
+        <div class="lg:col-span-2">
+            <!-- Saved Runs -->
+            {% if saved_runs %}
+            <div class="stat-card rounded-xl p-6 mb-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Recent Runs</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-gray-400">
+                                <th class="text-left py-2 px-3">Name</th>
+                                <th class="text-right py-2 px-3">Date</th>
+                                <th class="text-right py-2 px-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for run in saved_runs[:10] %}
+                            <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                                <td class="py-2 px-3 text-white font-semibold">{{ run.name }}</td>
+                                <td class="py-2 px-3 text-right text-gray-500 text-xs">{{ format_time(run.created_at) }}</td>
+                                <td class="py-2 px-3 text-right">
+                                    <a href="/backtest/result/{{ run.id }}" class="text-blue-400 hover:text-blue-300 text-xs transition">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if access.has_comparison %}
+                <div class="mt-4 text-right">
+                    <a href="/backtest/compare" class="text-purple-400 hover:text-purple-300 text-sm transition">Compare Strategies &rarr;</a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Dynamic results container (HTMX target) -->
+            <div id="backtest-results">
+                <div class="stat-card rounded-xl p-10 text-center">
+                    <div class="text-gray-500 text-lg mb-2">Configure &amp; Run</div>
+                    <p class="text-gray-600 text-sm">Set your parameters and click "Run Backtest" to simulate portfolio performance on historical signals.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-
-<script>
-(function() {
-    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
-    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
-
-    // Equity Curve
-    const curveData = {{ json_dumps(equity_curve)|safe }};
-    const labels = curveData.map(d => {
-        if (!d.ts) return '';
-        const dt = new Date(d.ts * 1000);
-        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-    const pnlValues = curveData.map(d => d.pnl);
-
-    // Determine line color based on final P&L
-    const finalPnl = pnlValues.length > 0 ? pnlValues[pnlValues.length - 1] : 0;
-    const lineColor = finalPnl >= 0 ? 'rgba(74,222,128,1)' : 'rgba(248,113,113,1)';
-    const fillColor = finalPnl >= 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
-
-    new Chart(document.getElementById('equityChart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Cumulative P&L %',
-                data: pnlValues,
-                borderColor: lineColor,
-                backgroundColor: fillColor,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 2,
-                pointBackgroundColor: lineColor,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    ...darkTooltip,
-                    callbacks: {
-                        label: ctx => `P&L: ${ctx.parsed.y.toFixed(2)}%`,
-                        afterLabel: ctx => curveData[ctx.dataIndex] ? `Ticker: ${curveData[ctx.dataIndex].ticker}` : '',
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    ticks: { color: '#9ca3af', callback: v => v + '%' },
-                    grid: darkGrid,
-                },
-                x: {
-                    ticks: { color: '#9ca3af', maxRotation: 45 },
-                    grid: { display: false },
-                }
-            }
-        }
-    });
-})();
-</script>
 {% endblock %}

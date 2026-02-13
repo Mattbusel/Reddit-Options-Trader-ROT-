@@ -352,7 +352,7 @@
                 {% if user and user.tier in ('premium', 'ultra') %}
                 <a href="/performance" class="text-gray-400 hover:text-white transition">Performance</a>
                 {% endif %}
-                {% if user and user.tier == 'ultra' %}
+                {% if user and user.tier in ('pro', 'premium', 'ultra', 'enterprise') %}
                 <a href="/backtest" class="text-gray-400 hover:text-white transition">Backtest</a>
                 {% endif %}
                 <!-- Analytics Dropdown -->

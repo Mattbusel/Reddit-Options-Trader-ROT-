@@ -289,6 +289,17 @@ class FeedbackConfig(BaseSettings):
     quality_trend_window_days: int = 30  # Rolling window for trend analysis
 
 
+class BacktestServerConfig(BaseSettings):
+    """Config for backtesting engine server-side limits."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_BACKTEST_")
+
+    max_signals: int = 5000  # max signals per backtest run
+    monte_carlo_sims: int = 1000  # default Monte Carlo simulations
+    walk_forward_folds: int = 5  # default walk-forward folds
+    optimizer_max_combos: int = 500  # max parameter combinations for grid search
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -314,6 +325,7 @@ class Settings(BaseSettings):
     sponsored: SponsoredConfig = Field(default_factory=SponsoredConfig)
     ml: MLConfig = Field(default_factory=MLConfig)
     feedback: FeedbackConfig = Field(default_factory=FeedbackConfig)
+    backtest_server: BacktestServerConfig = Field(default_factory=BacktestServerConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

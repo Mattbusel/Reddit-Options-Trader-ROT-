@@ -15,7 +15,7 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~161+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~423+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
 | **DB** | SQLite with aiosqlite (WAL mode), 15+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
@@ -236,10 +236,26 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `price_checker.py` | Periodic price tracking for performance measurement |
 | `gates.py` | Trade safety gates (market cap, liquidity thresholds) |
 
+### `src/rot/backtest/` (Backtesting Engine — 10 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Re-exports BacktestConfig, BacktestEngine, BacktestResult, TradeRecord, EquityPoint, DrawdownPeriod |
+| `config.py` | Frozen dataclass `BacktestConfig` — portfolio settings, exit rules, signal filters, serialization |
+| `result.py` | Frozen dataclasses: `TradeRecord`, `EquityPoint`, `DrawdownPeriod`, `BacktestResult` with `to_dict()` |
+| `metrics.py` | Pure stateless metric functions: Sharpe, Sortino, Calmar, drawdown, profit factor, VaR, CVaR, MAE/MFE |
+| `engine.py` | Core `BacktestEngine.run(signals, config) → BacktestResult`. Stance-aware P&L, position sizing, stop/take-profit |
+| `monte_carlo.py` | `MonteCarloResult` + `run_monte_carlo()` — bootstrap resampling for confidence intervals and probabilities |
+| `risk.py` | `RiskMetrics` + `compute_risk_metrics()` — VaR, CVaR, MAE/MFE, Ulcer Index, skewness, kurtosis, underwater analysis |
+| `walk_forward.py` | `WalkForwardResult` + `run_walk_forward()` — chronological IS/OOS folds with stability scoring |
+| `optimizer.py` | `OptimizationResult` + `optimize()` — grid search over params, heatmap generation, Sharpe-based ranking |
+| `benchmark.py` | `BenchmarkComparison` + `compare_to_benchmark()` — alpha, beta, correlation, information ratio vs SPY |
+| `comparator.py` | `ComparisonResult` + `compare_strategies()` — side-by-side metrics, correlation matrix, rankings |
+| `report.py` | `generate_csv_trades()` + `generate_html_report()` — CSV export and standalone HTML report generation |
+
 ### `src/rot/storage/`
 | File | Purpose |
 |------|---------|
-| `database.py` | Async SQLite (aiosqlite), WAL mode, 15+ tables, migration system |
+| `database.py` | Async SQLite (aiosqlite), WAL mode, 17+ tables, migration system |
 
 ### `src/rot/alerts/`
 | File | Purpose |
@@ -407,6 +423,8 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `data_exports` | Enterprise data export request tracking |
 | `win_rate_snapshots` | Periodic win rate aggregation |
 | `congress_trades` | Congressional trading tracker data |
+| `backtest_runs` | Saved backtest runs (id, user_id, name, config_json, result_json, monte_carlo_json, risk_json, created_at) |
+| `backtest_strategies` | Saved named backtest strategies (id, user_id, name, description, config_json, last_result_json, last_run_at, created_at, is_active) |
 
 ---
 
@@ -481,7 +499,16 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | POST | `/api/v1/paper-trading/trade` | Execute paper trade |
 | POST | `/api/v1/paper-trading/close/{trade_id}` | Close paper trade |
 | GET | `/leaderboard` | Paper trading leaderboard |
-| GET | `/backtest` | Backtesting page |
+| GET | `/backtest` | Backtesting dashboard (Pro+) |
+| POST | `/backtest/run` | Run backtest simulation (HTMX) |
+| GET | `/backtest/result/{run_id}` | View saved backtest result |
+| POST | `/backtest/monte-carlo/{run_id}` | Run Monte Carlo simulation (HTMX) |
+| POST | `/backtest/optimize` | Run parameter optimization (HTMX) |
+| POST | `/backtest/walk-forward/{run_id}` | Run walk-forward analysis (HTMX) |
+| GET | `/backtest/compare` | Strategy comparison page |
+| POST | `/backtest/strategies/save` | Save named strategy config |
+| DELETE | `/backtest/strategies/{id}` | Delete saved strategy |
+| GET | `/api/v1/backtest/export/{run_id}` | Export results (JSON/CSV) |
 | GET | `/replay` | Signal replay |
 | GET | `/brokers` | Broker integrations page |
 | GET | `/tradingview` | TradingView integration |
@@ -591,6 +618,7 @@ Each returns a dict of boolean/numeric flags:
 - `gate_paper_leaderboard_access()` — paper trading leaderboard
 - `gate_sports_betting_access()` — sports betting intel
 - `gate_signal_quality_access()` — signal quality analytics dashboard
+- `gate_backtest_access()` — backtest engine features: Pro (basic, 30d, 200 signals), Premium (+MC, walk-forward, risk, benchmark, 90d, 1000 signals), Ultra (+optimizer, comparison, saved strategies, export, 365d, 5000 signals)
 
 ---
 
@@ -729,6 +757,14 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `SUPPRESS_SOURCE_THRESHOLD` | `0.15` | Suppress (event_type, source) combos below 15% |
 | `MIN_SIGNALS_FOR_SUPPRESSION` | `30` | Minimum decided signals before suppression kicks in |
 | `QUALITY_TREND_WINDOW_DAYS` | `30` | Days of history for quality trend analysis |
+
+### Backtest Server (`ROT_BACKTEST_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MAX_SIGNALS` | `5000` | Max signals per backtest query |
+| `MONTE_CARLO_SIMS` | `1000` | Number of Monte Carlo simulations |
+| `WALK_FORWARD_FOLDS` | `5` | Number of walk-forward folds |
+| `OPTIMIZER_MAX_COMBOS` | `500` | Max parameter combinations for optimizer |
 
 ### Global
 | Variable | Default | Description |
@@ -937,6 +973,17 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_multi_ingestor.py` | Multi-source aggregation |
 | `test_query_cache.py` | Dashboard query cache: TTL, invalidation, thundering herd, edge cases |
 | `test_feedback.py` | Feedback analyzer (slope, MA, feature importance, suppression candidates), suppressor (category/source/low-confidence suppression, apply), tier gate tests |
+| `test_backtest_types.py` | BacktestConfig validation, serialization, BacktestResult to_dict, TradeRecord/EquityPoint/DrawdownPeriod creation |
+| `test_backtest_metrics.py` | Sharpe, Sortino, Calmar, max drawdown, drawdown periods, profit factor, win rate, VaR, CVaR, MAE/MFE, monthly returns |
+| `test_backtest_engine.py` | Position sizing (fixed/Kelly/confidence), stop loss/take profit, concurrent limits, filters, stance-aware P&L |
+| `test_backtest_monte_carlo.py` | Bootstrap resampling, percentile curves, reproducibility, probabilities |
+| `test_backtest_risk.py` | VaR, CVaR, MAE/MFE, underwater analysis, Ulcer Index, skewness/kurtosis |
+| `test_backtest_walk_forward.py` | Fold generation, IS/OOS split, stability scoring, degradation |
+| `test_backtest_optimizer.py` | Grid generation, heatmap, max_combos cap, Sharpe ranking |
+| `test_backtest_benchmark.py` | Alpha, beta, correlation, information ratio, benchmark curve |
+| `test_backtest_comparator.py` | Correlation matrix, rankings, summary table, strategy stats |
+| `test_backtest_tier_gate.py` | Free/Pro/Premium/Ultra/Enterprise tier access, feature hierarchy |
+| `test_backtest_report.py` | CSV trade export, HTML report generation with risk/Monte Carlo sections |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1081,8 +1128,21 @@ rot/
 │       │   ├── symbol_validator.py    # Ticker validation
 │       │   ├── price_checker.py       # Performance price tracking
 │       │   └── gates.py               # Trade safety gates
+│       ├── backtest/                   # ★ BACKTESTING ENGINE (12 modules)
+│       │   ├── __init__.py            # Exports BacktestConfig, BacktestEngine, BacktestResult
+│       │   ├── config.py              # BacktestConfig frozen dataclass
+│       │   ├── result.py              # TradeRecord, EquityPoint, DrawdownPeriod, BacktestResult
+│       │   ├── metrics.py             # Pure metric functions (Sharpe, VaR, drawdown, etc.)
+│       │   ├── engine.py              # Core engine: stance-aware P&L, position sizing
+│       │   ├── monte_carlo.py         # Bootstrap Monte Carlo simulation
+│       │   ├── risk.py                # Comprehensive risk analytics
+│       │   ├── walk_forward.py        # Walk-forward IS/OOS validation
+│       │   ├── optimizer.py           # Parameter grid search optimization
+│       │   ├── benchmark.py           # SPY benchmark comparison
+│       │   ├── comparator.py          # Strategy comparison
+│       │   └── report.py              # CSV/HTML report generation
 │       ├── storage/
-│       │   └── database.py            # aiosqlite, 15+ tables, migrations
+│       │   └── database.py            # aiosqlite, 17+ tables, migrations
 │       ├── alerts/
 │       │   ├── dispatcher.py          # Multi-channel alert router
 │       │   ├── discord.py             # Discord webhooks
@@ -1120,6 +1180,12 @@ rot/
 │               ├── dashboard.html     # Main dashboard
 │               ├── signal_detail.html # Signal detail view
 │               ├── pricing.html       # Pricing page
+│               ├── backtest.html      # Backtest config form + saved runs
+│               ├── backtest_result.html  # Backtest results with KPI cards, equity curve, trade log
+│               ├── backtest_compare.html # Strategy comparison page
+│               ├── backtest_monte_carlo_partial.html  # HTMX partial: Monte Carlo results
+│               ├── backtest_optimize_partial.html     # HTMX partial: optimizer results
+│               ├── backtest_walk_forward_partial.html  # HTMX partial: walk-forward results
 │               └── ... (35+ more)
 └── tests/
     ├── conftest.py                    # Shared fixtures
@@ -1132,7 +1198,18 @@ rot/
     ├── test_rss_ingestor.py
     ├── test_multi_ingestor.py
     ├── test_query_cache.py
-    └── test_feedback.py
+    ├── test_feedback.py
+    ├── test_backtest_types.py         # Config, result, dataclass tests
+    ├── test_backtest_metrics.py       # Metric function tests
+    ├── test_backtest_engine.py        # Engine simulation tests
+    ├── test_backtest_monte_carlo.py   # Monte Carlo tests
+    ├── test_backtest_risk.py          # Risk analytics tests
+    ├── test_backtest_walk_forward.py  # Walk-forward tests
+    ├── test_backtest_optimizer.py     # Optimizer tests
+    ├── test_backtest_benchmark.py     # Benchmark comparison tests
+    ├── test_backtest_comparator.py    # Strategy comparator tests
+    ├── test_backtest_tier_gate.py     # Tier gating tests
+    └── test_backtest_report.py        # Report generation tests
 ```
 
 ---
@@ -1205,6 +1282,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2025 | Dashboard query cache engine — `query_cache.py`: async TTL cache with per-key TTL, thundering-herd prevention, prefix invalidation. Caches 10 of 12 dashboard queries (trending, accuracy, leaderboard, charts, heatmaps, correlations). Signal-triggered invalidation for fast-changing data. | Claude Agent |
 | 2026-02 | Add ML credibility scorer — GradientBoosting replaces heuristic, live retrain loop, 32-feature extraction, heuristic fallback | Claude Agent |
 | 2026-02 | Signal feedback engine — `src/rot/feedback/`: FeedbackAnalyzer (category performance, source reliability, ML feature importance, quality trends, suppression candidates, confidence calibration), SignalSuppressor (Stage 6.5 adaptive suppression saving LLM costs), Signal Quality dashboard (`/signal-quality`, Pro+ gated), FeedbackConfig, 39 new tests (161 total) | Claude Agent |
+| 2026-02 | Strategy Backtesting Engine — `src/rot/backtest/`: 12 modules (config, result, metrics, engine, monte_carlo, risk, walk_forward, optimizer, benchmark, comparator, report). Full portfolio simulation with stance-aware P&L (mirrors DB logic), 3 position sizing modes (fixed/Kelly/confidence-weighted), stop loss/take profit, Monte Carlo bootstrap (fan chart + probabilities), walk-forward IS/OOS validation with stability scoring, parameter grid search optimization with heatmap, risk analytics (VaR, CVaR, MAE/MFE, Ulcer Index, skewness/kurtosis), SPY benchmark comparison (alpha, beta, info ratio), strategy comparison. 10 HTMX-powered routes, 6 templates, 2 DB tables (backtest_runs, backtest_strategies), `gate_backtest_access()` tier gate (Pro+ tiered features), `BacktestServerConfig`, CSV/HTML report export. Backtest nav expanded from Ultra-only to Pro+. 253 new tests (423 total). | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

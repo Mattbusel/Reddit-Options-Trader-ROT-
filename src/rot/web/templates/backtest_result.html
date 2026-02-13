@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+{% block title %}Backtest Results - ROT{% endblock %}
+{% block meta_description %}Backtest simulation results with equity curve, trade log, risk metrics and Monte Carlo analysis.{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Backtest Results</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                {% if result is defined and result %}
+                {{ result.total_trades }} trades &middot; {{ config.days }}d lookback
+                {% elif result_dict is defined %}
+                {{ result_dict.get('total_trades', 0) }} trades
+                {% endif %}
+                {% if signal_count is defined %} &middot; {{ signal_count }} signals processed{% endif %}
+            </p>
+        </div>
+        <a href="/backtest" class="text-blue-400 hover:text-blue-300 text-sm transition">&larr; Back to Backtest</a>
+    </div>
+
+    {% set rd = result_dict if result_dict is defined else {} %}
+
+    <!-- ── KPI Cards ── -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8 stagger-children">
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Total Trades</div>
+            <div class="text-2xl font-bold text-white">{{ rd.get('total_trades', 0) }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Win Rate</div>
+            <div class="text-2xl font-bold {{ 'text-green-400' if (rd.get('win_rate', 0) or 0) >= 0.5 else 'text-red-400' }}">
+                {{ "%.1f"|format((rd.get('win_rate', 0) or 0) * 100) }}%
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Total Return</div>
+            <div class="text-2xl font-bold {{ 'text-green-400' if (rd.get('total_return_pct', 0) or 0) >= 0 else 'text-red-400' }}">
+                {{ "%+.1f"|format(rd.get('total_return_pct', 0) or 0) }}%
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Final Equity</div>
+            <div class="text-2xl font-bold text-white">${{ "{:,.0f}".format(rd.get('final_equity', 0) or 0) }}</div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Max Drawdown</div>
+            <div class="text-2xl font-bold text-red-400">{{ "%.1f"|format(rd.get('max_drawdown_pct', 0) or 0) }}%</div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sharpe</div>
+            <div class="text-2xl font-bold text-white">
+                {% if rd.get('sharpe_ratio') is not none %}{{ "%.2f"|format(rd.get('sharpe_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Profit Factor</div>
+            <div class="text-2xl font-bold {{ 'text-green-400' if (rd.get('profit_factor', 0) or 0) > 1 else 'text-red-400' }}">
+                {{ "%.2f"|format(rd.get('profit_factor', 0) or 0) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Secondary Metrics ── -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sortino</div>
+            <div class="text-lg font-bold text-white">
+                {% if rd.get('sortino_ratio') is not none %}{{ "%.2f"|format(rd.get('sortino_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Calmar</div>
+            <div class="text-lg font-bold text-white">
+                {% if rd.get('calmar_ratio') is not none %}{{ "%.2f"|format(rd.get('calmar_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Expectancy</div>
+            <div class="text-lg font-bold text-white">{{ "%.2f"|format(rd.get('expectancy', 0) or 0) }}%</div>
+        </div>
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Win</div>
+            <div class="text-lg font-bold text-green-400">+{{ "%.2f"|format(rd.get('avg_win_pct', 0) or 0) }}%</div>
+        </div>
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Avg Loss</div>
+            <div class="text-lg font-bold text-red-400">{{ "%.2f"|format(rd.get('avg_loss_pct', 0) or 0) }}%</div>
+        </div>
+        <div class="stat-card rounded-lg p-3">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Annual Return</div>
+            <div class="text-lg font-bold {{ 'text-green-400' if (rd.get('annual_return_pct', 0) or 0) >= 0 else 'text-red-400' }}">
+                {{ "%+.1f"|format(rd.get('annual_return_pct', 0) or 0) }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Charts Row ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Equity Curve -->
+        <div class="chart-container">
+            <h2 class="text-lg font-semibold text-white mb-4">Equity Curve</h2>
+            <div style="height: 300px;">
+                <canvas id="equityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Returns Heatmap -->
+        <div class="chart-container">
+            <h2 class="text-lg font-semibold text-white mb-4">Monthly Returns</h2>
+            {% set monthly = rd.get('monthly_returns', {}) %}
+            {% if monthly %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-center">
+                    <tbody>
+                        {% for month, ret in monthly.items() %}
+                        <tr class="border-b border-gray-800">
+                            <td class="py-1 px-2 text-gray-400 text-left font-mono">{{ month }}</td>
+                            <td class="py-1 px-2">
+                                <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
+                                    {% if ret > 5 %}bg-green-900/60 text-green-300
+                                    {% elif ret > 0 %}bg-green-900/30 text-green-400
+                                    {% elif ret > -5 %}bg-red-900/30 text-red-400
+                                    {% else %}bg-red-900/60 text-red-300{% endif %}">
+                                    {{ "%+.1f"|format(ret) }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No monthly data available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ── Risk Metrics ── -->
+    {% if risk is defined and risk %}
+    <div class="chart-container mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Risk Analytics <span class="text-xs text-blue-400">Premium</span></h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">VaR (95%)</div>
+                <div class="text-lg font-bold text-red-400">{{ "%.2f"|format(risk.var_95) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">CVaR (95%)</div>
+                <div class="text-lg font-bold text-red-400">{{ "%.2f"|format(risk.cvar_95) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Recovery Factor</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.recovery_factor) }}</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Ulcer Index</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.ulcer_index) }}</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Best Trade</div>
+                <div class="text-lg font-bold text-green-400">+{{ "%.2f"|format(risk.best_trade_pct) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Worst Trade</div>
+                <div class="text-lg font-bold text-red-400">{{ "%.2f"|format(risk.worst_trade_pct) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">MAE Avg</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.mae_avg) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">MFE Avg</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.mfe_avg) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Skewness</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.skewness) }}</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Kurtosis</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(risk.kurtosis) }}</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Time Underwater</div>
+                <div class="text-lg font-bold text-white">{{ "%.0f"|format(risk.pct_time_underwater * 100) }}%</div>
+            </div>
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Drawdowns</div>
+                <div class="text-lg font-bold text-white">{{ risk.num_drawdowns }}</div>
+            </div>
+        </div>
+    </div>
+    {% elif risk_dict is defined and risk_dict %}
+    <div class="chart-container mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Risk Analytics</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for key, val in risk_dict.items() %}
+            <div class="bg-gray-800/60 rounded p-3">
+                <div class="text-xs text-gray-400 uppercase font-semibold mb-1">{{ key|replace('_',' ')|title }}</div>
+                <div class="text-lg font-bold text-white">{{ "%.2f"|format(val) if val is number else val }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Strategy Breakdown ── -->
+    {% set breakdown = rd.get('strategy_breakdown', {}) %}
+    {% if breakdown %}
+    <div class="chart-container mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Strategy Breakdown</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="text-left py-2 px-3">Strategy</th>
+                        <th class="text-right py-2 px-3">Trades</th>
+                        <th class="text-right py-2 px-3">Win Rate</th>
+                        <th class="text-right py-2 px-3">Avg P&amp;L</th>
+                        <th class="text-right py-2 px-3">Total P&amp;L</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for strat, stats in breakdown.items() %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                        <td class="py-2 px-3 text-white font-semibold">{{ strat|replace('_',' ')|title }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ stats.get('count', 0)|int }}</td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (stats.get('win_rate', 0) or 0) >= 0.5 else 'text-red-400' }}">
+                            {{ "%.1f"|format((stats.get('win_rate', 0) or 0) * 100) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (stats.get('avg_pnl_pct', 0) or 0) >= 0 else 'text-red-400' }}">
+                            {{ "%+.2f"|format(stats.get('avg_pnl_pct', 0) or 0) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right {{ 'text-green-400' if (stats.get('total_pnl_pct', 0) or 0) >= 0 else 'text-red-400' }}">
+                            {{ "%+.1f"|format(stats.get('total_pnl_pct', 0) or 0) }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Action Buttons (Monte Carlo / Walk-Forward) ── -->
+    {% if run_id %}
+    <div class="flex flex-wrap gap-3 mb-8">
+        {% if access is defined and access.get('has_monte_carlo') %}
+        <button hx-post="/backtest/monte-carlo/{{ run_id }}" hx-target="#mc-results" hx-swap="innerHTML"
+                hx-indicator="#mc-spinner"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition flex items-center gap-2">
+            <span id="mc-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+            </span>
+            Run Monte Carlo
+        </button>
+        {% endif %}
+
+        {% if access is defined and access.get('has_walk_forward') %}
+        <button hx-post="/backtest/walk-forward/{{ run_id }}" hx-target="#wf-results" hx-swap="innerHTML"
+                hx-indicator="#wf-spinner"
+                class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-lg transition flex items-center gap-2">
+            <span id="wf-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+            </span>
+            Walk-Forward Analysis
+        </button>
+        {% endif %}
+
+        {% if access is defined and access.get('has_export') %}
+        <a href="/api/v1/backtest/export/{{ run_id }}?fmt=json"
+           class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-lg transition">
+            Export JSON
+        </a>
+        <a href="/api/v1/backtest/export/{{ run_id }}?fmt=csv"
+           class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold rounded-lg transition">
+            Export CSV
+        </a>
+        {% endif %}
+
+        {% if access is defined and access.get('has_saved_strategies') %}
+        <form hx-post="/backtest/strategies/save" hx-target="#save-feedback" hx-swap="innerHTML" class="flex items-center gap-2">
+            <input type="hidden" name="config_json" value='{{ json_dumps(rd.get("config", {})) }}'>
+            <input type="text" name="name" placeholder="Strategy name" required
+                   class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 focus:outline-none">
+            <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-lg transition">
+                Save Strategy
+            </button>
+        </form>
+        <span id="save-feedback"></span>
+        {% endif %}
+    </div>
+
+    <!-- Monte Carlo results target -->
+    <div id="mc-results">
+        {% if mc_dict is defined and mc_dict %}
+        <div class="chart-container mb-8">
+            <h2 class="text-lg font-semibold text-white mb-4">Monte Carlo Simulation</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-gray-800/60 rounded p-3">
+                    <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Profit</div>
+                    <div class="text-lg font-bold text-green-400">{{ "%.0f"|format((mc_dict.get('prob_profit', 0) or 0) * 100) }}%</div>
+                </div>
+                <div class="bg-gray-800/60 rounded p-3">
+                    <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Median Equity</div>
+                    <div class="text-lg font-bold text-white">${{ "{:,.0f}".format(mc_dict.get('final_equity_p50', 0) or 0) }}</div>
+                </div>
+                <div class="bg-gray-800/60 rounded p-3">
+                    <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Ruin</div>
+                    <div class="text-lg font-bold text-red-400">{{ "%.1f"|format((mc_dict.get('prob_ruin', 0) or 0) * 100) }}%</div>
+                </div>
+                <div class="bg-gray-800/60 rounded p-3">
+                    <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Double</div>
+                    <div class="text-lg font-bold text-blue-400">{{ "%.1f"|format((mc_dict.get('prob_double', 0) or 0) * 100) }}%</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Walk-forward results target -->
+    <div id="wf-results"></div>
+    {% endif %}
+
+    <!-- ── Trade Log ── -->
+    <div class="chart-container mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Trade Log</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="text-left py-2 px-3">#</th>
+                        <th class="text-left py-2 px-3">Ticker</th>
+                        <th class="text-left py-2 px-3">Stance</th>
+                        <th class="text-left py-2 px-3">Strategy</th>
+                        <th class="text-right py-2 px-3">Conf</th>
+                        <th class="text-right py-2 px-3">Entry</th>
+                        <th class="text-right py-2 px-3">Exit</th>
+                        <th class="text-right py-2 px-3">P&amp;L %</th>
+                        <th class="text-right py-2 px-3">P&amp;L $</th>
+                        <th class="text-right py-2 px-3">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set trades = rd.get('trades', []) %}
+                    {% for t in trades[:100] %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+                        <td class="py-2 px-3 text-gray-500">{{ loop.index }}</td>
+                        <td class="py-2 px-3 text-white font-semibold">{{ t.ticker }}</td>
+                        <td class="py-2 px-3">
+                            <span class="{{ stance_color(t.stance) }}">{{ t.stance }}</span>
+                        </td>
+                        <td class="py-2 px-3 text-gray-300">{{ (t.strategy or 'none')|replace('_',' ')|title }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((t.confidence or 0) * 100) }}%</td>
+                        <td class="py-2 px-3 text-right text-white">${{ "%.2f"|format(t.entry_price or 0) }}</td>
+                        <td class="py-2 px-3 text-right text-gray-300">${{ "%.2f"|format(t.exit_price or 0) }}</td>
+                        <td class="py-2 px-3 text-right font-semibold {{ 'text-green-400' if (t.pnl_pct or 0) >= 0 else 'text-red-400' }}">
+                            {{ "%+.2f"|format(t.pnl_pct or 0) }}%
+                        </td>
+                        <td class="py-2 px-3 text-right font-semibold {{ 'text-green-400' if (t.pnl_dollars or 0) >= 0 else 'text-red-400' }}">
+                            {{ "%+.0f"|format(t.pnl_dollars or 0) }}
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            <span class="px-2 py-0.5 rounded text-xs font-semibold {{ 'bg-green-900/40 text-green-400' if t.is_win else 'bg-red-900/40 text-red-400' }}">
+                                {{ 'WIN' if t.is_win else 'LOSS' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="py-8 text-center text-gray-500">No trades in this backtest run.</td></tr>
+                    {% endfor %}
+                    {% if trades|length > 100 %}
+                    <tr><td colspan="10" class="py-3 text-center text-gray-500 text-xs">Showing first 100 of {{ trades|length }} trades.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── Chart.js: Equity Curve ── -->
+<script>
+(function() {
+    const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
+    const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+    const curveData = {{ json_dumps(rd.get('equity_curve', [])) | safe }};
+    if (!curveData.length) return;
+
+    const labels = curveData.map(d => {
+        if (!d.ts) return '';
+        const dt = new Date(d.ts * 1000);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const equityValues = curveData.map(d => d.equity);
+
+    const finalEquity = equityValues[equityValues.length - 1] || 0;
+    const startEquity = equityValues[0] || 0;
+    const lineColor = finalEquity >= startEquity ? 'rgba(74,222,128,1)' : 'rgba(248,113,113,1)';
+    const fillColor = finalEquity >= startEquity ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
+
+    new Chart(document.getElementById('equityChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Equity',
+                data: equityValues,
+                borderColor: lineColor,
+                backgroundColor: fillColor,
+                fill: true,
+                tension: 0.3,
+                pointRadius: curveData.length > 50 ? 0 : 2,
+                pointBackgroundColor: lineColor,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    ...darkTooltip,
+                    callbacks: {
+                        label: ctx => '$' + ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 0}),
+                        afterLabel: ctx => 'Trade #' + (curveData[ctx.dataIndex] ? curveData[ctx.dataIndex].trades : ''),
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() },
+                    grid: darkGrid,
+                },
+                x: {
+                    ticks: { color: '#9ca3af', maxRotation: 45 },
+                    grid: { display: false },
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

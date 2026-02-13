@@ -1,0 +1,129 @@
+<!-- Monte Carlo simulation results (HTMX partial) -->
+<div class="chart-container mb-8 fade-in">
+    <h2 class="text-lg font-semibold text-white mb-4">Monte Carlo Simulation
+        <span class="text-xs text-gray-500 ml-2">{{ mc.n_simulations }} simulations &middot; {{ mc.n_trades }} trades</span>
+    </h2>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Profit</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if mc.prob_profit >= 0.5 else 'text-red-400' }}">{{ "%.0f"|format(mc.prob_profit * 100) }}%</div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Ruin</div>
+            <div class="text-xl font-bold {{ 'text-green-400' if mc.prob_ruin <= 0.05 else 'text-red-400' }}">{{ "%.1f"|format(mc.prob_ruin * 100) }}%</div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Prob. Double</div>
+            <div class="text-xl font-bold text-blue-400">{{ "%.1f"|format(mc.prob_double * 100) }}%</div>
+        </div>
+        <div class="bg-gray-800/60 rounded p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-1">Mean Final Equity</div>
+            <div class="text-xl font-bold text-white">${{ "{:,.0f}".format(mc.mean_final_equity) }}</div>
+        </div>
+    </div>
+
+    <!-- Equity Percentile Table -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+            <h3 class="text-sm font-semibold text-gray-300 mb-3">Final Equity Distribution</h3>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">5th Percentile (worst case)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-red-400">${{ "{:,.0f}".format(mc.final_equity_p5) }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">25th Percentile</td>
+                        <td class="py-1 px-2 text-right font-semibold text-yellow-400">${{ "{:,.0f}".format(mc.final_equity_p25) }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">50th Percentile (median)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-white">${{ "{:,.0f}".format(mc.final_equity_p50) }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">75th Percentile</td>
+                        <td class="py-1 px-2 text-right font-semibold text-green-400">${{ "{:,.0f}".format(mc.final_equity_p75) }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">95th Percentile (best case)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-green-300">${{ "{:,.0f}".format(mc.final_equity_p95) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3 class="text-sm font-semibold text-gray-300 mb-3">Max Drawdown Distribution</h3>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">5th Percentile (best case)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-green-400">{{ "%.1f"|format(mc.max_drawdown_p5) }}%</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">50th Percentile (median)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-yellow-400">{{ "%.1f"|format(mc.max_drawdown_p50) }}%</td>
+                    </tr>
+                    <tr class="border-b border-gray-800">
+                        <td class="py-1 px-2 text-gray-400">95th Percentile (worst case)</td>
+                        <td class="py-1 px-2 text-right font-semibold text-red-400">{{ "%.1f"|format(mc.max_drawdown_p95) }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="mt-4 text-xs text-gray-500">
+                Std Dev of Final Equity: ${{ "{:,.0f}".format(mc.std_final_equity) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Fan Chart -->
+    {% set mc_d = mc_dict if mc_dict is defined else {} %}
+    {% set curves = mc_d.get('percentile_curves', {}) if mc_d else {} %}
+    {% if curves %}
+    <div style="height: 300px;">
+        <canvas id="mcFanChart"></canvas>
+    </div>
+    <script>
+    (function() {
+        const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
+        const darkGrid = { color: 'rgba(75,85,99,0.2)' };
+
+        const curves = {{ json_dumps(curves) | safe }};
+        const p5  = curves['5']  || [];
+        const p25 = curves['25'] || [];
+        const p50 = curves['50'] || [];
+        const p75 = curves['75'] || [];
+        const p95 = curves['95'] || [];
+
+        const labels = p50.map((_, i) => i === 0 ? 'Start' : 'Trade ' + i);
+
+        new Chart(document.getElementById('mcFanChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'P95', data: p95, borderColor: 'rgba(74,222,128,0.4)', backgroundColor: 'rgba(74,222,128,0.05)', fill: '+1', tension: 0.3, pointRadius: 0, borderWidth: 1 },
+                    { label: 'P75', data: p75, borderColor: 'rgba(74,222,128,0.6)', backgroundColor: 'rgba(74,222,128,0.08)', fill: '+1', tension: 0.3, pointRadius: 0, borderWidth: 1 },
+                    { label: 'Median', data: p50, borderColor: 'rgba(255,255,255,0.9)', backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'P25', data: p25, borderColor: 'rgba(248,113,113,0.6)', backgroundColor: 'rgba(248,113,113,0.08)', fill: '+1', tension: 0.3, pointRadius: 0, borderWidth: 1 },
+                    { label: 'P5',  data: p5,  borderColor: 'rgba(248,113,113,0.4)', backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 0, borderWidth: 1 },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#9ca3af', usePointStyle: true, pointStyle: 'line' } },
+                    tooltip: { ...darkTooltip, mode: 'index', intersect: false }
+                },
+                scales: {
+                    y: { ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() }, grid: darkGrid },
+                    x: { ticks: { color: '#9ca3af' }, grid: { display: false } }
+                }
+            }
+        });
+    })();
+    </script>
+    {% endif %}
+</div>

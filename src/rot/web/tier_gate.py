@@ -357,6 +357,82 @@ def _redact_reasoning(reasoning: dict) -> dict:
     }
 
 
+def gate_backtest_access(tier: str) -> dict:
+    """Return backtest feature access flags based on tier.
+
+    Tier breakdown:
+      - Free: No access
+      - Pro: Basic backtest (30d, 200 signals, fixed_pct sizing)
+      - Premium: + Monte Carlo, walk-forward, risk, benchmark (90d, 1000 signals)
+      - Ultra/Enterprise: + optimizer, comparison, saved strategies, export (365d, 5000 signals)
+    """
+    if tier == "free":
+        return {
+            "has_access": False,
+            "has_basic": False,
+            "has_monte_carlo": False,
+            "has_walk_forward": False,
+            "has_risk_metrics": False,
+            "has_benchmark": False,
+            "has_optimizer": False,
+            "has_comparison": False,
+            "has_saved_strategies": False,
+            "has_export": False,
+            "max_days": 0,
+            "max_signals": 0,
+            "position_size_modes": [],
+        }
+    elif tier == "pro":
+        return {
+            "has_access": True,
+            "has_basic": True,
+            "has_monte_carlo": False,
+            "has_walk_forward": False,
+            "has_risk_metrics": False,
+            "has_benchmark": False,
+            "has_optimizer": False,
+            "has_comparison": False,
+            "has_saved_strategies": False,
+            "has_export": False,
+            "max_days": 30,
+            "max_signals": 200,
+            "position_size_modes": ["fixed_pct"],
+        }
+    elif tier == "premium":
+        return {
+            "has_access": True,
+            "has_basic": True,
+            "has_monte_carlo": True,
+            "has_walk_forward": True,
+            "has_risk_metrics": True,
+            "has_benchmark": True,
+            "has_optimizer": False,
+            "has_comparison": False,
+            "has_saved_strategies": False,
+            "has_export": False,
+            "max_days": 90,
+            "max_signals": 1000,
+            "position_size_modes": ["fixed_pct", "confidence_weighted"],
+        }
+    else:
+        # ultra / enterprise
+        return {
+            "has_access": True,
+            "has_basic": True,
+            "has_monte_carlo": True,
+            "has_walk_forward": True,
+            "has_risk_metrics": True,
+            "has_benchmark": True,
+            "has_optimizer": True,
+            "has_comparison": True,
+            "has_saved_strategies": True,
+            "has_export": True,
+            "max_days": 365,
+            "max_signals": 5000,
+            "position_size_modes": ["fixed_pct", "kelly", "confidence_weighted"],
+        }
+
+
 def _redact_trade_idea(idea: dict) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:

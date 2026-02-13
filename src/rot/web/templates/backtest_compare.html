@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Strategy Comparison - ROT{% endblock %}
+{% block meta_description %}Compare backtest strategies side-by-side with correlation analysis and performance rankings.{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Strategy Comparison</h1>
+            <p class="text-sm text-gray-500 mt-1">Compare saved backtest runs side-by-side</p>
+        </div>
+        <a href="/backtest" class="text-blue-400 hover:text-blue-300 text-sm transition">&larr; Back to Backtest</a>
+    </div>
+
+    {% if saved_runs %}
+    <!-- Selection -->
+    <div class="stat-card rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Select Runs to Compare</h2>
+        <p class="text-sm text-gray-500 mb-4">Choose 2 or more backtest runs to compare performance metrics side-by-side.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="run-selector">
+            {% for run in saved_runs %}
+            <label class="flex items-center gap-3 p-3 bg-gray-800/60 rounded border border-gray-700 hover:border-blue-500 cursor-pointer transition">
+                <input type="checkbox" name="run_ids" value="{{ run.id }}" data-run='{{ json_dumps(run) }}'
+                       class="rounded bg-gray-800 border-gray-700 text-blue-500 focus:ring-blue-500 compare-check">
+                <div>
+                    <div class="text-sm text-white font-semibold">{{ run.name }}</div>
+                    <div class="text-xs text-gray-500">{{ format_time(run.created_at) }}</div>
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <button onclick="compareSelected()" id="compareBtn" disabled
+                class="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition">
+            Compare Selected
+        </button>
+    </div>
+
+    <!-- Results target -->
+    <div id="compare-results"></div>
+
+    {% else %}
+    <div class="stat-card rounded-xl p-10 text-center">
+        <div class="text-gray-500 text-lg mb-2">No Saved Runs</div>
+        <p class="text-gray-600 text-sm">Run some backtests first, then come back here to compare them.</p>
+        <a href="/backtest" class="mt-4 inline-block text-blue-400 hover:text-blue-300 text-sm transition">Go to Backtest &rarr;</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    const checks = document.querySelectorAll('.compare-check');
+    const btn = document.getElementById('compareBtn');
+
+    checks.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const selected = document.querySelectorAll('.compare-check:checked');
+            btn.disabled = selected.length < 2;
+        });
+    });
+
+    window.compareSelected = function() {
+        const selected = document.querySelectorAll('.compare-check:checked');
+        if (selected.length < 2) return;
+
+        const runs = [];
+        selected.forEach(cb => {
+            try {
+                const run = JSON.parse(cb.dataset.run);
+                runs.push(run);
+            } catch(e) {}
+        });
+
+        if (runs.length < 2) return;
+
+        const container = document.getElementById('compare-results');
+        let html = '<div class="chart-container mb-8 fade-in">';
+        html += '<h2 class="text-lg font-semibold text-white mb-4">Comparison (' + runs.length + ' runs)</h2>';
+
+        // Build comparison table
+        html += '<div class="overflow-x-auto"><table class="w-full text-sm">';
+        html += '<thead><tr class="border-b border-gray-700 text-gray-400">';
+        html += '<th class="text-left py-2 px-3">Metric</th>';
+        runs.forEach(r => {
+            html += '<th class="text-right py-2 px-3">' + (r.name || 'Run') + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        // Parse result JSON for each run
+        const results = runs.map(r => {
+            try { return JSON.parse(r.result_json || '{}'); }
+            catch(e) { return {}; }
+        });
+
+        const metrics = [
+            { key: 'total_trades', label: 'Total Trades', fmt: v => v || 0 },
+            { key: 'win_rate', label: 'Win Rate', fmt: v => ((v || 0) * 100).toFixed(1) + '%' },
+            { key: 'total_return_pct', label: 'Total Return', fmt: v => (v >= 0 ? '+' : '') + (v || 0).toFixed(1) + '%', color: v => v >= 0 },
+            { key: 'final_equity', label: 'Final Equity', fmt: v => '$' + (v || 0).toLocaleString(undefined, {maximumFractionDigits: 0}) },
+            { key: 'sharpe_ratio', label: 'Sharpe Ratio', fmt: v => v != null ? v.toFixed(3) : '—' },
+            { key: 'sortino_ratio', label: 'Sortino Ratio', fmt: v => v != null ? v.toFixed(3) : '—' },
+            { key: 'max_drawdown_pct', label: 'Max Drawdown', fmt: v => (v || 0).toFixed(1) + '%' },
+            { key: 'profit_factor', label: 'Profit Factor', fmt: v => (v || 0).toFixed(2), color: v => v > 1 },
+            { key: 'expectancy', label: 'Expectancy', fmt: v => (v || 0).toFixed(2) + '%' },
+            { key: 'avg_win_pct', label: 'Avg Win', fmt: v => '+' + (v || 0).toFixed(2) + '%' },
+            { key: 'avg_loss_pct', label: 'Avg Loss', fmt: v => (v || 0).toFixed(2) + '%' },
+        ];
+
+        metrics.forEach(m => {
+            html += '<tr class="border-b border-gray-800 hover:bg-gray-800/30">';
+            html += '<td class="py-2 px-3 text-gray-400">' + m.label + '</td>';
+
+            // Find best value for highlighting
+            const vals = results.map(r => r[m.key]);
+
+            results.forEach((r, i) => {
+                const v = r[m.key];
+                const formatted = m.fmt(v);
+                let cls = 'text-white';
+                if (m.color) cls = m.color(v) ? 'text-green-400' : 'text-red-400';
+                html += '<td class="py-2 px-3 text-right font-semibold ' + cls + '">' + formatted + '</td>';
+            });
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+        container.innerHTML = html;
+    };
+})();
+</script>
+{% endblock %}
