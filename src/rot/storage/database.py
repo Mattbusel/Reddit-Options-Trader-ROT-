@@ -1407,11 +1407,13 @@ class Database:
                 CAST(s.confidence * 10 AS INTEGER) as decile,
                 COUNT(*) as total,
                 SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers,
                 AVG(s.confidence) as avg_confidence
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ? AND sp.price_at_signal > 0
                   AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                  AND s.stance IN ('bullish', 'bearish')
             GROUP BY decile
             ORDER BY decile ASC
         """
@@ -1420,9 +1422,10 @@ class Database:
             results = []
             for row in rows:
                 d = _row_to_dict(row)
-                total = d.get("total", 0) or 0
                 w = d.get("winners", 0) or 0
-                d["actual_win_rate"] = round(w / total * 100) if total > 0 else 0
+                l = d.get("losers", 0) or 0
+                decided = w + l
+                d["actual_win_rate"] = round(w / decided * 100) if decided > 0 else 0
                 d["expected_win_rate"] = round((d.get("avg_confidence", 0) or 0) * 100)
                 decile = d.get("decile", 0) or 0
                 d["bucket_label"] = f"{decile * 10}-{decile * 10 + 10}%"
