@@ -10,6 +10,91 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+# ── Stance-aware win/loss SQL helpers ──
+# These CASE expressions replace the old `!= 'bearish'` pattern with proper
+# handling for unknown (→ neutral) and mixed+strategy (straddle vs iron_condor).
+# Use {price_col} as placeholder for the evaluated price column expression.
+
+_WIN_CASE_SQL = """
+    CASE
+        /* bullish: price went up >0.5% */
+        WHEN s.stance = 'bullish'
+             AND ({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.005
+        THEN 1
+        /* bearish: price went down >0.5% */
+        WHEN s.stance = 'bearish'
+             AND (sp.price_at_signal - {price_col}) / sp.price_at_signal > 0.005
+        THEN 1
+        /* mixed + straddle/strangle: big move either way >1.5% */
+        WHEN s.stance = 'mixed'
+             AND s.strategy IN ('straddle', 'strangle')
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.015
+        THEN 1
+        /* mixed + iron_condor: price stayed flat <1.0% */
+        WHEN s.stance = 'mixed'
+             AND s.strategy = 'iron_condor'
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal < 0.010
+        THEN 1
+        /* mixed + other strategy: any big move >0.5% = partial win */
+        WHEN s.stance = 'mixed'
+             AND s.strategy NOT IN ('straddle', 'strangle', 'iron_condor')
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.005
+        THEN 1
+        /* unknown stance: always 0 (neutral, don't count) */
+        ELSE 0
+    END"""
+
+_LOSS_CASE_SQL = """
+    CASE
+        /* bullish: price went down >0.5% */
+        WHEN s.stance = 'bullish'
+             AND (sp.price_at_signal - {price_col}) / sp.price_at_signal > 0.005
+        THEN 1
+        /* bearish: price went up >0.5% */
+        WHEN s.stance = 'bearish'
+             AND ({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.005
+        THEN 1
+        /* mixed + straddle/strangle: price stayed flat <1.0% = loss */
+        WHEN s.stance = 'mixed'
+             AND s.strategy IN ('straddle', 'strangle')
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal < 0.010
+        THEN 1
+        /* mixed + iron_condor: big move >1.5% = loss */
+        WHEN s.stance = 'mixed'
+             AND s.strategy = 'iron_condor'
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal > 0.015
+        THEN 1
+        /* unknown stance: always 0 (neutral) */
+        ELSE 0
+    END"""
+
+_NEUTRAL_CASE_SQL = """
+    CASE
+        /* unknown stance: always neutral */
+        WHEN COALESCE(s.stance, 'unknown') = 'unknown' THEN 1
+        /* directional: price within 0.5% = noise */
+        WHEN s.stance IN ('bullish', 'bearish')
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal <= 0.005
+        THEN 1
+        /* mixed + straddle/strangle: between 1.0% and 1.5% = neutral zone */
+        WHEN s.stance = 'mixed'
+             AND s.strategy IN ('straddle', 'strangle')
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal BETWEEN 0.010 AND 0.015
+        THEN 1
+        /* mixed + iron_condor: between 1.0% and 1.5% = neutral zone */
+        WHEN s.stance = 'mixed'
+             AND s.strategy = 'iron_condor'
+             AND ABS({price_col} - sp.price_at_signal) / sp.price_at_signal BETWEEN 0.010 AND 0.015
+        THEN 1
+        ELSE 0
+    END"""
+
+# Pre-formatted with the standard COALESCE price column
+_PRICE_COL = "COALESCE(sp.price_1d, sp.price_4h, sp.price_1h)"
+_WIN_SQL = _WIN_CASE_SQL.format(price_col=_PRICE_COL)
+_LOSS_SQL = _LOSS_CASE_SQL.format(price_col=_PRICE_COL)
+_NEUTRAL_SQL = _NEUTRAL_CASE_SQL.format(price_col=_PRICE_COL)
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS signals (
@@ -329,6 +414,54 @@ class Database:
             log.info("Migration: backfilled LLM confidence for existing signals (rows affected: %d)", changes)
         except Exception as e:
             log.warning("LLM confidence backfill skipped: %s", e)
+
+        # Backfill LLM stance from reasoning JSON — fixes the root cause of
+        # anti-correlated win rates (EventBuilder regex stance was stored instead
+        # of LLM's calibrated stance).
+        try:
+            cursor = await self._db.execute(
+                """UPDATE signals SET stance = json_extract(reasoning, '$.raw.stance')
+                   WHERE json_extract(reasoning, '$.raw.stance') IS NOT NULL
+                     AND json_extract(reasoning, '$.raw.error') IS NULL
+                     AND json_extract(reasoning, '$.raw.stub') IS NULL
+                     AND json_extract(reasoning, '$.raw.stance') IN ('bullish', 'bearish', 'mixed', 'unknown')
+                     AND stance != json_extract(reasoning, '$.raw.stance')"""
+            )
+            stance_changes = cursor.rowcount
+            await self._db.commit()
+            log.info("Migration: backfilled LLM stance for %d signals", stance_changes)
+        except Exception as e:
+            log.warning("LLM stance backfill skipped: %s", e)
+
+        # Backfill LLM event_type from reasoning JSON
+        try:
+            cursor = await self._db.execute(
+                """UPDATE signals SET event_type = json_extract(reasoning, '$.raw.event_type')
+                   WHERE json_extract(reasoning, '$.raw.event_type') IS NOT NULL
+                     AND json_extract(reasoning, '$.raw.error') IS NULL
+                     AND json_extract(reasoning, '$.raw.stub') IS NULL
+                     AND json_extract(reasoning, '$.raw.event_type') IN (
+                         'earnings_rumor', 'product_news', 'regulatory',
+                         'squeeze_chatter', 'macro', 'other'
+                     )
+                     AND event_type != json_extract(reasoning, '$.raw.event_type')"""
+            )
+            et_changes = cursor.rowcount
+            await self._db.commit()
+            log.info("Migration: backfilled LLM event_type for %d signals", et_changes)
+        except Exception as e:
+            log.warning("LLM event_type backfill skipped: %s", e)
+
+        # Clear old win_rate_snapshots since they used broken evaluation logic.
+        # They'll be re-generated on the next purge cycle with correct stance-aware SQL.
+        try:
+            cursor = await self._db.execute("DELETE FROM win_rate_snapshots")
+            snap_deleted = cursor.rowcount
+            await self._db.commit()
+            if snap_deleted > 0:
+                log.info("Migration: cleared %d old win_rate_snapshots (will regenerate with stance-aware logic)", snap_deleted)
+        except Exception as e:
+            log.warning("win_rate_snapshots clear skipped: %s", e)
 
     async def close(self) -> None:
         if self._db:
@@ -956,35 +1089,13 @@ class Database:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        # Use COALESCE to pick the best available price: 1d > 4h > 1h
-        # 0.5% minimum threshold: ABS(price change) must exceed 0.005 to count
+        # Stance-aware win/loss evaluation with strategy-specific rules
         query = f"""
             SELECT
                 COUNT(*) as total_tracked,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as losers,
-                SUM(CASE
-                    WHEN ABS(COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                         / sp.price_at_signal <= 0.005
-                    THEN 1 ELSE 0 END) as neutral,
+                SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers,
+                SUM({_NEUTRAL_SQL}) as neutral,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
@@ -1040,26 +1151,8 @@ class Database:
                     ELSE 'very_high'
                 END as bucket,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as losers
+                SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ?
@@ -1141,17 +1234,11 @@ class Database:
         """Get time-bucketed accuracy for performance charts."""
         cutoff = time.time() - (days * 86400)
         bucket_s = 86400 if interval == "daily" else 3600
-        query = """
+        query = f"""
             SELECT
                 CAST(s.created_at / ? AS INTEGER) * ? as time_bucket,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
-                    WHEN sp.price_1d IS NULL AND (
-                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
-                    ELSE 0 END) as winners,
+                SUM({_WIN_SQL}) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
@@ -1168,17 +1255,11 @@ class Database:
     async def get_strategy_pnl(self, days: int = 30) -> List[Dict[str, Any]]:
         """Get P&L breakdown by strategy."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        query = f"""
             SELECT
                 s.strategy,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
-                    WHEN sp.price_1d IS NULL AND (
-                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
-                    ELSE 0 END) as winners,
+                SUM({_WIN_SQL}) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
@@ -1203,17 +1284,11 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get performance breakdown by ticker."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        query = f"""
             SELECT
                 sp.ticker,
                 COUNT(*) as total_signals,
-                SUM(CASE
-                    WHEN (s.stance = 'bearish' AND sp.price_1d < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_1d > sp.price_at_signal) THEN 1
-                    WHEN sp.price_1d IS NULL AND (
-                         (s.stance = 'bearish' AND sp.price_4h < sp.price_at_signal)
-                         OR (s.stance != 'bearish' AND sp.price_4h > sp.price_at_signal)) THEN 1
-                    ELSE 0 END) as winners,
+                SUM({_WIN_SQL}) as winners,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct
             FROM signal_performance sp
@@ -1233,30 +1308,13 @@ class Database:
     async def get_accuracy_by_event_type(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate broken down by event_type (earnings_rumor, squeeze, etc.)."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        query = f"""
             SELECT
                 s.event_type,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as losers,
+                SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers,
+                SUM({_NEUTRAL_SQL}) as neutral,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
                     THEN CASE WHEN s.stance = 'bearish'
                         THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
@@ -1284,35 +1342,33 @@ class Database:
     async def get_accuracy_by_strategy(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate broken down by strategy (debit_spread, credit_spread, etc.)."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        # stance_return: positive = trade direction was right, negative = wrong
+        # Use 1d-only price column for avg_gain/avg_loss (more reliable)
+        _1d_win = _WIN_CASE_SQL.format(price_col="sp.price_1d")
+        _1d_loss = _LOSS_CASE_SQL.format(price_col="sp.price_1d")
+        query = f"""
             SELECT
                 s.strategy,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as losers,
+                SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL
                     THEN CASE WHEN s.stance = 'bearish'
                         THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
                         ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
-                    END ELSE NULL END) as avg_return_pct
+                    END ELSE NULL END) as avg_return_pct,
+                AVG(CASE
+                    WHEN sp.price_1d IS NOT NULL AND {_1d_win} = 1
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_gain_pct,
+                AVG(CASE
+                    WHEN sp.price_1d IS NOT NULL AND {_1d_loss} = 1
+                    THEN CASE WHEN s.stance = 'bearish'
+                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
+                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    END ELSE NULL END) as avg_loss_pct
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
             WHERE s.created_at > ? AND sp.price_at_signal > 0
@@ -1338,20 +1394,11 @@ class Database:
     async def get_confidence_calibration(self, days: int = 90) -> List[Dict[str, Any]]:
         """Expected vs actual win rate by confidence decile for calibration chart."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        query = f"""
             SELECT
                 CAST(s.confidence * 10 AS INTEGER) as decile,
                 COUNT(*) as total,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
+                SUM({_WIN_SQL}) as winners,
                 AVG(s.confidence) as avg_confidence
             FROM signal_performance sp
             JOIN signals s ON sp.signal_id = s.id
@@ -1369,7 +1416,9 @@ class Database:
                 w = d.get("winners", 0) or 0
                 d["actual_win_rate"] = round(w / total * 100) if total > 0 else 0
                 d["expected_win_rate"] = round((d.get("avg_confidence", 0) or 0) * 100)
-                d["label"] = f"{d.get('decile', 0) * 10}-{d.get('decile', 0) * 10 + 10}%"
+                decile = d.get("decile", 0) or 0
+                d["bucket_label"] = f"{decile * 10}-{decile * 10 + 10}%"
+                d["label"] = d["bucket_label"]  # backward compat
                 results.append(d)
             return results
 
@@ -2653,35 +2702,14 @@ class Database:
         cutoff = time.time() - (keep_days * 86400)
         # Only snapshot signals that will be deleted (older than cutoff)
         # AND that have price data to evaluate
-        query = """
+        query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 MIN(s.created_at) as period_start,
                 MAX(s.created_at) as period_end,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as winners,
-                SUM(CASE
-                    WHEN s.stance = 'bearish'
-                         AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    WHEN COALESCE(s.stance, 'unknown') != 'bearish'
-                         AND (sp.price_at_signal - COALESCE(sp.price_1d, sp.price_4h, sp.price_1h))
-                             / sp.price_at_signal > 0.005
-                    THEN 1
-                    ELSE 0 END) as losers,
-                SUM(CASE
-                    WHEN ABS(COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) - sp.price_at_signal)
-                         / sp.price_at_signal <= 0.005
-                    THEN 1 ELSE 0 END) as neutral,
+                SUM({_WIN_SQL}) as winners,
+                SUM({_LOSS_SQL}) as losers,
+                SUM({_NEUTRAL_SQL}) as neutral,
                 AVG(sp.max_gain_pct) as avg_gain_pct,
                 AVG(sp.max_loss_pct) as avg_loss_pct,
                 AVG(CASE WHEN sp.price_1d IS NOT NULL

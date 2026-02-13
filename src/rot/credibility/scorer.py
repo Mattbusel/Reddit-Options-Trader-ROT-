@@ -115,6 +115,11 @@ class CredibilityScorer:
             factors[label] = sub_adj
             adjustment += sub_adj
 
+        # Factor 8.5: Earnings rumor penalty — historically worst-performing event type
+        if event.event_type == "earnings_rumor":
+            factors["earnings_rumor_penalty"] = -0.10
+            adjustment -= 0.10
+
         # Factor 8: Author credibility (karma, account age)
         author_karma = meta.get("author_karma", 0)
         author_age_days = meta.get("author_age_days", 0)

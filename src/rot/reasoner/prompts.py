@@ -33,7 +33,14 @@ Guidelines:
 - KEY RULE: If the post provides no specific data/numbers and is just opinion, confidence MUST be below 0.35.
 - Hard caps:
   NEVER set confidence > 0.65 for squeeze_chatter (by nature speculative)
+  NEVER set confidence > 0.35 for earnings_rumor (historically ~11% win rate; pure speculation unless backed by unusual options flow or insider data)
   NEVER set confidence > 0.85 unless the event is officially confirmed by a primary source
+  If stance is "unknown", confidence MUST be below 0.25 (no directional view = no conviction)
+- Stance guidance:
+  "mixed" = expecting a big move but direction unclear (e.g., earnings straddle, binary event). Use for catalysts that could go either way.
+  "unknown" = genuinely cannot determine any thesis or direction. This is NOT the same as mixed — it means insufficient information.
+  Prefer "mixed" over "unknown" when there is a clear catalyst but uncertain direction.
+  Prefer "unknown" only when the post is too vague, sarcastic, or noise-like to form any view.
 - Subreddit credibility adjustments:
   r/wallstreetbets, r/shortsqueeze, r/pennystocks: discount confidence by 0.05-0.10 (higher noise)
   r/options, r/thetagang, r/investing, r/valueinvesting: no discount (higher signal quality)

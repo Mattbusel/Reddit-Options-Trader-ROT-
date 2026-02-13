@@ -59,6 +59,15 @@ class TradeBuilder:
         confidence = raw.get("confidence", event.confidence)
         stance = raw.get("stance", event.stance)
         horizon = raw.get("time_horizon", event.time_horizon)
+        event_type = raw.get("event_type", event.event_type)
+
+        # Unknown stance = no directional view = no trade
+        if stance == "unknown":
+            return [self._no_trade(underlying, packet.thesis, ["unknown_stance"])]
+
+        # Earnings rumor confidence clamp — historically ~11% win rate
+        if event_type == "earnings_rumor" and confidence >= 0.35:
+            confidence = 0.30
 
         # Low confidence = no trade
         if confidence < 0.4:
