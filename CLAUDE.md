@@ -104,12 +104,13 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 - Options chain data fetched when `enable_options_chain=True`
 
 ### Stage 6: Credibility Scoring
-**Module:** `src/rot/credibility/scorer.py`
-- `CredibilityScorer.score(event)` → adjusted `Event`
-- 12 scoring factors (see detail below) that adjust confidence up/down
-- Factors 1-8: post metadata (flair, engagement, subreddit, author karma/age, crosspost, body length, entity count)
-- Factors 9-12: NLP-powered (sarcasm penalty, conviction boost, thread consensus, temporal actionability)
-- Result: event.confidence += sum(adjustments), clamped [0.05, 1.0]
+**Module:** `src/rot/credibility/`
+- **ML path (default):** `MLCredibilityScorer` wraps a trained scikit-learn `GradientBoostingClassifier` that predicts P(win) from 32 signal features. Model trains live from historical win/loss data in a background loop (every 24h). Hot-reloads after each retrain.
+- **Heuristic fallback:** `CredibilityScorer` with 12 hand-tuned factors (always runs internally for comparison metadata). Used when ML model not yet trained or inference fails.
+- **Feature extraction:** `features.py` produces a 32-float vector from Event metadata (post metadata, trend, NLP, market, author, categoricals).
+- **Training:** `train.py` queries signal_performance for resolved win/loss outcomes, extracts features, trains with 5-fold cross-validation, saves pickle. Requires 100+ decided signals and 30+ in each class.
+- Both scores stored in `meta["ml_credibility"]` for A/B monitoring.
+- Result: event.confidence = P(win) from ML [0.05, 0.95], or heuristic adjustment clamped [0.05, 1.0]
 
 ### Stage 7: LLM Reasoning
 **Module:** `src/rot/reasoner/`
@@ -194,7 +195,10 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 ### `src/rot/credibility/`
 | File | Purpose |
 |------|---------|
-| `scorer.py` | 12-factor credibility scoring. Adjusts event confidence based on post quality + NLP signals |
+| `scorer.py` | 12-factor heuristic credibility scoring. Adjusts event confidence based on post quality + NLP signals |
+| `ml_scorer.py` | ML-based credibility scorer (GradientBoosting). Predicts P(win) from 32 features. Falls back to heuristic |
+| `features.py` | 32-feature extraction for ML scoring. Shared by inference (Event) and training (DB row) paths |
+| `train.py` | Training script for ML model. Queries DB for win/loss outcomes, trains GradientBoosting, saves pickle |
 
 ### `src/rot/reasoner/`
 | File | Purpose |
@@ -686,6 +690,15 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `PORT` | `8000` | Server port |
 | `SECRET_KEY` | `"change-me-in-production"` | Session/JWT fallback secret |
 
+### ML Credibility (`ROT_ML_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLED` | `True` | Enable ML credibility scoring (falls back to heuristic when no model) |
+| `MODEL_PATH` | `""` | Path to trained model pickle (auto-derived from storage_root if empty) |
+| `MIN_TRAINING_SAMPLES` | `100` | Minimum resolved signals to start training |
+| `RETRAIN_INTERVAL_S` | `86400` | Seconds between retrain attempts (24h) |
+| `MIN_CLASS_SAMPLES` | `30` | Minimum samples per class (win/loss) to train |
+
 ### Global
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -862,7 +875,8 @@ comment_analyses (CommentAnalysis list)
 praw, yfinance, feedparser>=6.0, pydantic>=2.0, pydantic-settings>=2.0,
 openai>=1.0, anthropic>=0.20, fastapi>=0.109, uvicorn[standard]>=0.27,
 aiosqlite>=0.19, python-jose[cryptography]>=3.3, bcrypt>=4.0,
-httpx>=0.26, jinja2>=3.1, python-multipart>=0.0.6, stripe>=7.0
+httpx>=0.26, jinja2>=3.1, python-multipart>=0.0.6, stripe>=7.0,
+scikit-learn>=1.3, numpy>=1.24
 ```
 
 ### Dev Dependencies
@@ -882,7 +896,8 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | File | Tests |
 |------|-------|
 | `test_event_builder.py` | Event extraction, NLP vs legacy paths, entity extraction |
-| `test_credibility.py` | All 12 credibility scoring factors |
+| `test_credibility.py` | All 12 heuristic credibility scoring factors |
+| `test_ml_credibility.py` | ML feature extraction, ML scorer fallback, mock model inference |
 | `test_trade_builder.py` | Trade strategy selection, liquidity gates, quality scoring |
 | `test_database.py` | Schema creation, migrations, CRUD operations |
 | `test_parser.py` | LLM response parsing, malformed JSON handling |
@@ -935,8 +950,19 @@ FDA, DoD, and pharma RSS feeds are classified as informational-only. They skip L
 2. **Runner dedup** — (post_url, ticker) pair dedup at emission (in-memory, clears at 10k entries)
 3. **DB unique index** — (post_url, ticker, created_at) prevents duplicate signals in storage
 
-### Credibility as Confidence Adjustment
-Credibility scoring doesn't produce a separate score — it directly adjusts `event.confidence` by adding/subtracting factors. This means downstream consumers (Reasoner, TradeBuilder) always work with a single, pre-adjusted confidence value.
+### ML/Heuristic Dual-Path Credibility Scoring
+```python
+class MLCredibilityScorer:
+    def score(self, event):
+        heuristic_result = self._heuristic.score(event)  # always runs
+        if not self.ml_available:
+            return heuristic_result
+        return self._score_ml(event, heuristic_result)  # P(win) from model
+```
+The ML scorer trains live from historical win/loss outcomes in a background loop. If no model exists (insufficient data, first deployment), it falls back to the 12-factor heuristic. Both scores are stored in `meta["ml_credibility"]` for A/B comparison. The model hot-reloads after each retrain without server restart.
+
+### Credibility as Confidence Adjustment (Heuristic Fallback)
+The heuristic credibility scoring directly adjusts `event.confidence` by adding/subtracting factors. This means downstream consumers (Reasoner, TradeBuilder) always work with a single, pre-adjusted confidence value.
 
 ### Tier Gating as Dict Returns
 Gate functions return dicts of boolean/numeric flags rather than raising exceptions. This allows templates to show/hide features granularly:
@@ -1000,7 +1026,10 @@ rot/
 │       │   ├── event_builder.py       # Dual-path event extraction (NLP/legacy)
 │       │   └── enricher.py            # Ticker aliases, blocklists
 │       ├── credibility/
-│       │   └── scorer.py              # 12-factor credibility scoring
+│       │   ├── scorer.py              # 12-factor heuristic credibility scoring
+│       │   ├── ml_scorer.py           # ML-based scorer (GradientBoosting) with heuristic fallback
+│       │   ├── features.py            # 32-feature extraction for ML (inference + training)
+│       │   └── train.py               # Live training from DB win/loss outcomes
 │       ├── reasoner/
 │       │   ├── reasoner.py            # LLM orchestrator + circuit breaker
 │       │   ├── llm_client.py          # Provider-agnostic LLM client
@@ -1134,6 +1163,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 |------|--------|--------|
 | 2025 | Initial CLAUDE.md creation — comprehensive architecture documentation | Claude Agent |
 | 2025 | Dashboard query cache engine — `query_cache.py`: async TTL cache with per-key TTL, thundering-herd prevention, prefix invalidation. Caches 10 of 12 dashboard queries (trending, accuracy, leaderboard, charts, heatmaps, correlations). Signal-triggered invalidation for fast-changing data. | Claude Agent |
+| 2026-02 | Add ML credibility scorer — GradientBoosting replaces heuristic, live retrain loop, 32-feature extraction, heuristic fallback | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

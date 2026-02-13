@@ -16,7 +16,7 @@ from rot.ingest.multi_ingestor import MultiSourceIngestor
 from rot.trend.trend_store import TrendStore
 from rot.trend.trend_engine import TrendEngine
 from rot.extract.event_builder import EventBuilder
-from rot.credibility.scorer import CredibilityScorer
+from rot.credibility.ml_scorer import MLCredibilityScorer
 from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.app.runner import PipelineRunner
@@ -73,7 +73,15 @@ def _create_pipeline(cfg: Settings, on_signal=None) -> PipelineRunner:
         rss_synthetic_score=cfg.rss.synthetic_trend_score,
     )
     event_builder = EventBuilder()
-    cred = CredibilityScorer()
+    ml_model_path = cfg.ml.model_path or f"{cfg.storage_root}/credibility_model.pkl"
+    cred = MLCredibilityScorer(
+        model_path=ml_model_path,
+        enabled=cfg.ml.enabled,
+    )
+    if cred.ml_available:
+        log.info("ML credibility scoring: ACTIVE (model: %s)", ml_model_path)
+    else:
+        log.info("ML credibility scoring: PENDING (will train when data available, heuristic active)")
     reasoner = Reasoner(
         provider=cfg.llm.provider,
         api_key=cfg.llm.api_key,
@@ -359,6 +367,58 @@ async def _x_posting_loop(db, x_poster, interval_s: int, min_confidence: float,
     log.info("X posting loop stopped")
 
 
+async def _ml_retrain_loop(
+    db_path: str,
+    model_path: str,
+    scorer: MLCredibilityScorer,
+    cfg_ml,
+    stop_event: threading.Event,
+):
+    """Background task that periodically retrains the ML credibility model.
+
+    On first run (startup), trains immediately if enough data.  Then retrains
+    every ``cfg_ml.retrain_interval_s`` seconds.  After each successful train,
+    hot-reloads the model into the scorer so live scoring switches over.
+    """
+    from rot.credibility.train import train_model_from_db
+
+    log.info(
+        "ML retrain loop starting (interval=%ds, min_samples=%d)",
+        cfg_ml.retrain_interval_s,
+        cfg_ml.min_training_samples,
+    )
+
+    # Wait 60s on startup for DB to initialize and accumulate first signals
+    for _ in range(60):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            success = await train_model_from_db(
+                db_path=db_path,
+                output_path=model_path,
+                min_samples=cfg_ml.min_training_samples,
+                min_class_samples=cfg_ml.min_class_samples,
+            )
+            if success:
+                reloaded = scorer.reload(model_path)
+                if reloaded:
+                    log.info("ML credibility model retrained and hot-reloaded")
+                else:
+                    log.warning("ML model trained but hot-reload failed")
+        except Exception as e:
+            log.error("ML retrain error: %s", e, exc_info=True)
+
+        # Sleep until next retrain cycle
+        for _ in range(cfg_ml.retrain_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("ML retrain loop stopped")
+
+
 async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     """Background task that periodically purges old data to keep storage lean.
 
@@ -568,6 +628,27 @@ async def _run_server(cfg: Settings):
     )
     log.info("Cleanup loop: ACTIVE (every 1h — purge old data, rotate logs, VACUUM)")
 
+    # Start ML credibility retrain loop (trains from live data, hot-reloads model)
+    ml_retrain_task = None
+    if cfg.ml.enabled:
+        ml_model_path = cfg.ml.model_path or f"{cfg.storage_root}/credibility_model.pkl"
+        ml_retrain_task = asyncio.create_task(
+            _ml_retrain_loop(
+                db_path=cfg.db_path,
+                model_path=ml_model_path,
+                scorer=runner.cred,
+                cfg_ml=cfg.ml,
+                stop_event=stop_event,
+            )
+        )
+        log.info(
+            "ML retrain loop: ACTIVE (interval=%ds, model=%s)",
+            cfg.ml.retrain_interval_s,
+            ml_model_path,
+        )
+    else:
+        log.info("ML retrain loop: DISABLED (set ROT_ML_ENABLED=true)")
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -590,6 +671,8 @@ async def _run_server(cfg: Settings):
             digest_task.cancel()
         if x_post_task:
             x_post_task.cancel()
+        if ml_retrain_task:
+            ml_retrain_task.cancel()
         pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 

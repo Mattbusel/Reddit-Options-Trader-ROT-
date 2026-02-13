@@ -10,7 +10,7 @@ from rot.trend.trend_engine import TrendEngine
 from rot.trend.ranker import top_n_candidates
 from rot.trend.ticker_ranker import top_ticker_candidates
 from rot.extract.event_builder import EventBuilder
-from rot.credibility.scorer import CredibilityScorer
+from rot.credibility.scorer import CredibilityScorer  # also accepts MLCredibilityScorer (duck typing)
 from rot.reasoner.reasoner import Reasoner
 from rot.market.trade_builder import TradeBuilder
 from rot.market.enricher import MarketEnricher

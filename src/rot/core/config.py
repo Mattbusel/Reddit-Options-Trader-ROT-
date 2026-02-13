@@ -263,6 +263,18 @@ class SponsoredConfig(BaseSettings):
     label_text: str = "Sponsored Analysis"
 
 
+class MLConfig(BaseSettings):
+    """Config for ML-based credibility scoring."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_ML_")
+
+    enabled: bool = True  # ML scoring enabled by default (falls back to heuristic when no model)
+    model_path: str = ""  # auto-derived from storage_root if empty
+    min_training_samples: int = 100  # minimum resolved signals to train
+    retrain_interval_s: int = 86400  # retrain every 24 hours
+    min_class_samples: int = 30  # minimum samples per class (win/loss)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -286,6 +298,7 @@ class Settings(BaseSettings):
     tier_limits: TierConfig = Field(default_factory=TierConfig)
     email: EmailConfig = Field(default_factory=EmailConfig)
     sponsored: SponsoredConfig = Field(default_factory=SponsoredConfig)
+    ml: MLConfig = Field(default_factory=MLConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 
