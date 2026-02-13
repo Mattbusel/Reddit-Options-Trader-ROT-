@@ -10,22 +10,22 @@
 {% block content %}
 <!-- Free Tier Banner -->
 {% if tier == 'free' %}
-<div class="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-6 flex items-center justify-between">
+<div class="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
     <div class="flex items-center space-x-3">
         <span class="text-orange-400 text-sm">&#9888;</span>
         <span class="text-orange-300 text-sm">Free tier &mdash; signals are delayed 15 minutes and details are limited.</span>
     </div>
-    <a href="/pricing" class="px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition">Upgrade</a>
+    <a href="/pricing" class="flex-shrink-0 px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition w-full sm:w-auto text-center">Upgrade</a>
 </div>
 {% endif %}
 
 <!-- Data Retention Info Banner -->
-<div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-6 flex items-center justify-between">
+<div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
     <div class="flex items-center space-x-3">
         <span class="text-blue-400 text-sm">&#128451;</span>
         <span class="text-blue-300 text-sm">Signal data is retained for 14 days to keep costs low and your subscription affordable. Export via CSV or API to save permanently.</span>
     </div>
-    <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+    <div class="flex items-center space-x-2 flex-shrink-0 sm:ml-4">
         {% if tier == 'free' %}
         <a href="/pricing" class="px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition whitespace-nowrap">Upgrade for CSV Export</a>
         {% else %}
@@ -35,7 +35,7 @@
 </div>
 
 <!-- Stats Bar -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 stagger-children">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8 stagger-children">
     <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
         <div class="text-3xl font-bold text-white tick-up neon-text-blue">{{ summary.get('total_signals', 0) }}</div>
@@ -184,7 +184,7 @@
             <h2 class="text-sm font-semibold text-white">Signal Distribution</h2>
             <span class="text-xs text-gray-500 uppercase tracking-wider">30d</span>
         </div>
-        <div style="height: 130px;">
+        <div class="h-[100px] sm:h-[130px]">
             <canvas id="stanceBarChart"></canvas>
         </div>
     </div>
@@ -253,7 +253,7 @@
                     <span class="text-xs text-gray-500">Click to filter</span>
                 </div>
             </div>
-            <div style="height: 320px;">
+            <div class="chart-h-responsive">
                 <canvas id="quadrantChart"></canvas>
             </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4 text-xs stagger-children">
@@ -282,7 +282,7 @@
                 <h2 class="text-lg font-semibold text-white neon-text-pink">Signal Volume</h2>
                 <span class="text-xs text-gray-500">Last {{ chart_access.chart_hours }}h</span>
             </div>
-            <div style="height: 320px;">
+            <div class="chart-h-responsive">
                 <canvas id="timelineChart"></canvas>
             </div>
         </div>
@@ -301,16 +301,16 @@
 
     {% if chart_access.has_chart_export %}
     <!-- Ultra: Export Buttons -->
-    <div class="mt-4 flex items-center space-x-3">
-        <button onclick="exportChart('quadrantChart','signal-map')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
-            &#128190; Export Map (PNG)
+    <div class="mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
+        <button onclick="exportChart('quadrantChart','signal-map')" class="px-3 sm:px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-xs sm:text-sm font-semibold">
+            &#128190; Export Map
         </button>
-        <button onclick="exportChart('timelineChart','timeline')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
-            &#128190; Export Timeline (PNG)
+        <button onclick="exportChart('timelineChart','timeline')" class="px-3 sm:px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-xs sm:text-sm font-semibold">
+            &#128190; Export Timeline
         </button>
         {% if chart_access.has_strategy_breakdown %}
-        <button onclick="exportChart('strategyChart','strategy')" class="px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-sm font-semibold">
-            &#128190; Export Strategy (PNG)
+        <button onclick="exportChart('strategyChart','strategy')" class="px-3 sm:px-4 py-2 rounded bg-amber-900/40 text-amber-400 border border-amber-700/60 hover:bg-amber-900/60 transition text-xs sm:text-sm font-semibold">
+            &#128190; Export Strategy
         </button>
         {% endif %}
     </div>
@@ -452,15 +452,15 @@
 <!-- SEARCH & FILTER BAR                                            -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="mb-6">
-    <form id="filter-form" method="get" action="/dashboard" class="flex flex-wrap items-end gap-3">
+    <form id="filter-form" method="get" action="/dashboard" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap md:items-end gap-3">
         <!-- Ticker Search -->
-        <div class="flex-1 min-w-[140px]">
+        <div class="w-full md:flex-1 md:min-w-[140px]">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Ticker</label>
             <input type="text" name="ticker" value="{{ filter_ticker }}" placeholder="e.g. AAPL, TSLA"
                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
         </div>
         <!-- Stance -->
-        <div class="min-w-[120px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Stance</label>
             <select name="stance" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
                 <option value="">All</option>
@@ -470,7 +470,7 @@
             </select>
         </div>
         <!-- Event Type -->
-        <div class="min-w-[140px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Event Type</label>
             <select name="event_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
                 <option value="">All</option>
@@ -482,7 +482,7 @@
             </select>
         </div>
         <!-- Source -->
-        <div class="min-w-[140px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Source</label>
             <select name="source" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
                 <option value="">All Sources</option>
@@ -495,14 +495,14 @@
             </select>
         </div>
         <!-- Min Confidence -->
-        <div class="min-w-[100px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Min Conf %</label>
             <input type="number" name="min_confidence" value="{{ filter_confidence }}" placeholder="0" min="0" max="100" step="5"
                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition">
         </div>
         {% if filter_access.has_date_range %}
         <!-- Date Range (premium+) -->
-        <div class="min-w-[120px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Date Range</label>
             <select name="date_range" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition appearance-none">
                 <option value="">All Time</option>
@@ -514,7 +514,7 @@
         {% endif %}
         {% if filter_access.has_saved_presets and filter_presets|length > 0 %}
         <!-- Saved Presets (ultra) -->
-        <div class="min-w-[140px]">
+        <div class="w-full sm:w-auto">
             <label class="text-xs text-gray-500 uppercase tracking-wider block mb-1">Preset</label>
             <select onchange="loadPreset(this.value)" class="w-full bg-gray-800 border border-amber-700/50 rounded-lg px-3 py-2 text-sm text-amber-400 focus:border-amber-500 focus:outline-none transition appearance-none">
                 <option value="">Select preset...</option>
@@ -525,10 +525,10 @@
         </div>
         {% endif %}
         <!-- Buttons -->
-        <div class="flex space-x-2">
-            <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">Filter</button>
+        <div class="flex space-x-2 col-span-full sm:col-span-1">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition flex-1 sm:flex-none">Filter</button>
             {% if has_filters %}
-            <a href="/dashboard" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition">Clear</a>
+            <a href="/dashboard" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition flex-1 sm:flex-none text-center">Clear</a>
             {% endif %}
             {% if filter_access.has_saved_presets %}
             <button type="button" onclick="saveCurrentPreset()" class="px-4 py-2 rounded-lg bg-amber-900/40 hover:bg-amber-900/60 text-amber-400 border border-amber-700/50 text-sm transition" title="Save current filter as preset">Save</button>
@@ -541,9 +541,9 @@
 <!-- SIGNAL FEED + SIDEBAR                                          -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
     <!-- Main Signal Feed -->
-    <div class="lg:col-span-3">
+    <div class="md:col-span-3">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
                 <span class="neon-text-pink">Latest Signals</span>
@@ -587,8 +587,8 @@
                         <span class="badge bg-gray-700/70 text-gray-400">&#128274; Limited</span>
                         {% endif %}
                     </div>
-                    <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-4">
-                        <div class="w-28">
+                    <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-2 sm:ml-4">
+                        <div class="w-16 sm:w-28">
                             {{ confidence_bar(s.confidence)|safe }}
                         </div>
                         <span class="text-gray-300 font-semibold text-sm">{{ "%.0f"|format(s.confidence * 100) }}%</span>
@@ -655,7 +655,7 @@
     </div>
 
     <!-- Sidebar -->
-    <div class="lg:col-span-1 space-y-6 slide-in-right">
+    <div class="md:col-span-1 space-y-6 slide-in-right">
         <!-- Watchlist -->
         {% if user %}
         <div>
@@ -922,8 +922,8 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
                     <span class="badge bg-gray-700/70 text-gray-300">${s.event_type}</span>
                     ${strategy}${locked}
                 </div>
-                <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-4">
-                    <div class="w-28">${confBar(s.confidence)}</div>
+                <div class="flex items-center space-x-3 text-sm flex-shrink-0 ml-2 sm:ml-4">
+                    <div class="w-16 sm:w-28">${confBar(s.confidence)}</div>
                     <span class="text-gray-300 font-semibold text-sm">${pct}%</span>
                 </div>
             </div>

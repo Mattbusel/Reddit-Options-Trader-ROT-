@@ -9,7 +9,7 @@
 </div>
 
 <!-- Summary Stats -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
     <div class="stat-card rounded-lg p-5">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tracked Signals</div>
         <div class="text-3xl font-bold text-white">{{ accuracy.total_tracked or 0 }}</div>
@@ -37,7 +37,7 @@
     <!-- Accuracy Over Time -->
     <div class="chart-container">
         <h2 class="text-lg font-semibold text-white mb-4">Accuracy Over Time</h2>
-        <div style="height: 300px;">
+        <div class="chart-h-responsive">
             <canvas id="accuracyChart"></canvas>
         </div>
     </div>
@@ -45,7 +45,7 @@
     <!-- Win/Loss Donut -->
     <div class="chart-container">
         <h2 class="text-lg font-semibold text-white mb-4">Win / Loss Ratio</h2>
-        <div style="height: 300px;">
+        <div class="chart-h-responsive">
             <canvas id="winLossChart"></canvas>
         </div>
     </div>
@@ -58,8 +58,8 @@
         <h2 class="text-lg font-semibold text-white">Strategy P&L Breakdown</h2>
         <span class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-400 border border-amber-700">Ultra</span>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+    <div class="overflow-x-auto -mx-2 px-2">
+        <table class="w-full text-sm min-w-[550px]">
             <thead>
                 <tr class="text-gray-400 border-b border-gray-700">
                     <th class="text-left py-3 px-4">Strategy</th>
@@ -90,14 +90,15 @@
             </tbody>
         </table>
     </div>
+    <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns →</p>
 </div>
 {% endif %}
 
 <!-- Top Performers -->
 <div class="chart-container mb-8">
     <h2 class="text-lg font-semibold text-white mb-4">Performance by Ticker</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+    <div class="overflow-x-auto -mx-2 px-2">
+        <table class="w-full text-sm min-w-[520px]">
             <thead>
                 <tr class="text-gray-400 border-b border-gray-700">
                     <th class="text-left py-3 px-4">#</th>
@@ -131,6 +132,7 @@
             </tbody>
         </table>
     </div>
+    <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns →</p>
 </div>
 
 {% if perf_access.has_performance_export %}

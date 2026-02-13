@@ -333,6 +333,63 @@
 
         /* ── Selection highlight ── */
         ::selection { background: rgba(255,50,100,0.3); color: #fff; }
+
+        /* ═══════════════════════════════════════════════════════════
+           MOBILE RESPONSIVENESS
+           ═══════════════════════════════════════════════════════════ */
+
+        /* ── Disable hover transforms on touch devices (prevents sticky hover) ── */
+        @media (hover: none) {
+            .stat-card:hover {
+                transform: none;
+                box-shadow: 0 0 0px rgba(0,180,255,0), 0 4px 15px rgba(0,0,0,0.3);
+                border-color: rgba(100, 120, 180, 0.2);
+            }
+            .signal-card:hover {
+                transform: none;
+                box-shadow: none;
+                border-color: rgba(100, 120, 180, 0.15);
+            }
+            nav a.text-gray-400::after { display: none; }
+        }
+
+        /* ── Mobile menu ── */
+        body.mobile-menu-open { overflow: hidden; }
+        #mobile-menu-overlay {
+            transition: opacity 0.3s ease;
+        }
+        #mobile-menu-panel {
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        #mobile-menu-panel.translate-x-full { transform: translateX(100%); }
+        #mobile-menu-panel.translate-x-0 { transform: translateX(0); }
+
+        /* ── Responsive chart heights ── */
+        .chart-h-responsive { height: 200px; }
+        @media (min-width: 640px) { .chart-h-responsive { height: 280px; } }
+        @media (min-width: 768px) { .chart-h-responsive { height: 320px; } }
+
+        /* ── Tighter padding on mobile ── */
+        @media (max-width: 639px) {
+            main > .max-w-7xl, main.max-w-7xl { padding-left: 0.75rem; padding-right: 0.75rem; }
+            .chart-container { padding: 0.75rem; }
+        }
+
+        /* ── Mobile nav dropdown sections ── */
+        .mobile-dropdown-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .mobile-dropdown-content.open {
+            max-height: 500px;
+        }
+        .mobile-dropdown-chevron {
+            transition: transform 0.2s ease;
+        }
+        .mobile-dropdown-chevron.rotate-180 {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -343,7 +400,13 @@
                 <span class="text-xl font-bold shimmer">ROT</span>
                 <span class="text-sm text-gray-500">Reddit Options Trader</span>
             </a>
-            <div class="flex items-center space-x-4 text-sm">
+            <!-- Hamburger button (mobile only) -->
+            <button id="mobile-menu-btn" class="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" aria-label="Open menu">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+
+            <!-- Desktop navigation (hidden on mobile) -->
+            <div class="hidden md:flex items-center space-x-4 text-sm">
                 <a href="/dashboard" class="text-gray-400 hover:text-white transition relative" id="nav-signals">
                     Signals
                     <span id="signal-badge" class="hidden ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold absolute -top-2 -right-4"></span>
@@ -424,6 +487,109 @@
             </div>
         </div>
     </nav>
+
+    <!-- ── Mobile Menu Overlay ── -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 md:hidden" style="backdrop-filter: blur(4px);"></div>
+    <div id="mobile-menu-panel" class="fixed top-0 right-0 bottom-0 w-72 bg-gray-900/98 border-l border-gray-700 z-50 translate-x-full md:hidden overflow-y-auto" style="backdrop-filter: blur(20px);">
+        <div class="p-4">
+            <!-- Close button -->
+            <div class="flex items-center justify-between mb-6">
+                <span class="text-lg font-bold shimmer">ROT</span>
+                <button id="mobile-menu-close" class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" aria-label="Close menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Auth section -->
+            {% if user %}
+            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-gray-700">
+                <span class="px-2 py-0.5 rounded text-xs {{ tier_badge_class }}">{{ tier|upper }}</span>
+                <a href="/account" class="text-sm text-gray-300 hover:text-white transition">Account</a>
+                <a href="/logout" class="text-sm text-gray-400 hover:text-white transition ml-auto">Logout</a>
+            </div>
+            {% else %}
+            <div class="flex gap-3 mb-6 pb-4 border-b border-gray-700">
+                <a href="/login" class="flex-1 text-center py-2.5 rounded-lg border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 transition text-sm font-medium">Login</a>
+                <a href="/register" class="flex-1 text-center py-2.5 rounded-lg bg-orange-600 text-white hover:bg-orange-500 transition text-sm font-semibold">Sign Up</a>
+            </div>
+            {% endif %}
+
+            <!-- Main links -->
+            <nav class="space-y-1">
+                <a href="/dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition text-sm">
+                    <span>&#128202;</span> Signals
+                </a>
+                <a href="/sports-tracker" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition text-sm">
+                    <span>&#127919;</span> Sports
+                </a>
+                {% if user and user.tier in ('premium', 'ultra') %}
+                <a href="/performance" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition text-sm">
+                    <span>&#128200;</span> Performance
+                </a>
+                {% endif %}
+                {% if user and user.tier in ('pro', 'premium', 'ultra', 'enterprise') %}
+                <a href="/backtest" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition text-sm">
+                    <span>&#128201;</span> Backtest
+                </a>
+                {% endif %}
+                <a href="/pricing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition text-sm">
+                    <span>&#128176;</span> Pricing
+                </a>
+
+                <!-- Analytics Section -->
+                <div class="pt-3 mt-2 border-t border-gray-800">
+                    <button class="mobile-dropdown-toggle flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-xs font-semibold uppercase tracking-wider">
+                        Analytics
+                        <svg class="mobile-dropdown-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="mobile-dropdown-content ml-2 space-y-0.5">
+                        <a href="/news" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128240; News Feed</a>
+                        <a href="/sentiment" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128200; Sentiment</a>
+                        <a href="/weekly-wrap" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128240; Weekly Wrap</a>
+                        <a href="/replay" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127916; Signal Replay</a>
+                        {% if user %}
+                        <a href="/accuracy-breakdown" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127919; Accuracy</a>
+                        <a href="/confidence-calibration" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128201; Calibration</a>
+                        <a href="/sector-rotation" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128260; Sectors</a>
+                        <a href="/signal-quality" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128300; Signal Quality</a>
+                        <a href="/congress-tracker" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127963; Congress</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Explore Section -->
+                <div>
+                    <button class="mobile-dropdown-toggle flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-xs font-semibold uppercase tracking-wider">
+                        Explore
+                        <svg class="mobile-dropdown-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="mobile-dropdown-content ml-2 space-y-0.5">
+                        <a href="/hall-of-legends" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127942; Hall of Legends</a>
+                        <a href="/wall-of-shame" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128680; Wall of Shame</a>
+                        <a href="/ceo-rap-sheet" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128373; CEO Rap Sheet</a>
+                        <a href="/glossary" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128218; Glossary</a>
+                        <a href="/faq" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#10067; FAQ</a>
+                    </div>
+                </div>
+
+                <!-- Tools Section -->
+                <div>
+                    <button class="mobile-dropdown-toggle flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-xs font-semibold uppercase tracking-wider">
+                        Tools
+                        <svg class="mobile-dropdown-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="mobile-dropdown-content ml-2 space-y-0.5">
+                        <a href="/paper-trading" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128184; Paper Trading</a>
+                        <a href="/leaderboard" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127942; Leaderboard</a>
+                        <a href="/correlations" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128279; Correlations</a>
+                        <a href="/unusual-activity" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128680; Unusual Activity</a>
+                        <a href="/badges" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127942; Badges</a>
+                        <a href="/widgets" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#129513; Widgets</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
 
     <main class="max-w-7xl mx-auto px-4 py-6">
         {% block breadcrumbs %}{% endblock %}
@@ -547,6 +713,51 @@
         {% endif %}
     </script>
 
+    <!-- ── Mobile Menu Logic ── -->
+    <script>
+    (function() {
+        const btn = document.getElementById('mobile-menu-btn');
+        const overlay = document.getElementById('mobile-menu-overlay');
+        const panel = document.getElementById('mobile-menu-panel');
+        const closeBtn = document.getElementById('mobile-menu-close');
+        if (!btn || !overlay || !panel) return;
+
+        function openMenu() {
+            overlay.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                panel.classList.remove('translate-x-full');
+                panel.classList.add('translate-x-0');
+            });
+            document.body.classList.add('mobile-menu-open');
+        }
+        function closeMenu() {
+            overlay.style.opacity = '0';
+            panel.classList.remove('translate-x-0');
+            panel.classList.add('translate-x-full');
+            document.body.classList.remove('mobile-menu-open');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+
+        btn.addEventListener('click', openMenu);
+        closeBtn.addEventListener('click', closeMenu);
+        overlay.addEventListener('click', closeMenu);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeMenu();
+        });
+
+        // Collapsible dropdown sections in mobile menu
+        document.querySelectorAll('.mobile-dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const content = toggle.nextElementSibling;
+                const chevron = toggle.querySelector('.mobile-dropdown-chevron');
+                content.classList.toggle('open');
+                chevron.classList.toggle('rotate-180');
+            });
+        });
+    })();
+    </script>
+
     <!-- ── Floating Out-of-Focus Bokeh Bubbles (site-wide) ── -->
     <script>
     (function() {
@@ -574,8 +785,11 @@
             '255,100,180',  // rose
         ];
 
-        // 30 bokeh bubbles — soft, out-of-focus, dreamy
-        const bubbles = Array.from({length: 30}, () => {
+        // Reduce bubble count on mobile for performance (10 vs 30)
+        const isMobile = window.innerWidth < 768;
+        const bubbleCount = isMobile ? 10 : 30;
+
+        const bubbles = Array.from({length: bubbleCount}, () => {
             const r = Math.random() * 52 + 8; // radius 8–60px
             // Larger bubbles are more transparent (further out of focus)
             const alphaBase = 0.03 + (1 - r / 60) * 0.09; // 0.03–0.12
@@ -601,7 +815,15 @@
             };
         });
 
+        // On mobile, throttle to ~30fps by skipping every other frame
+        let frameCount = 0;
         function draw() {
+            frameCount++;
+            if (isMobile && frameCount % 2 !== 0) {
+                requestAnimationFrame(draw);
+                return;
+            }
+
             ctx.clearRect(0, 0, w, h);
             const t = Date.now() * 0.001;
 
