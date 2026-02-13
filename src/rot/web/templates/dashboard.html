@@ -1046,10 +1046,10 @@ document.querySelectorAll('.tick-up').forEach(el => {
     requestAnimationFrame(tick);
 });
 
-// ── Manhattan Snowfall + Neon City Canvas ──
+// ── Floating Out-of-Focus Bokeh Bubbles ──
 (function() {
     const canvas = document.createElement('canvas');
-    canvas.id = 'snowfall';
+    canvas.id = 'bokeh-bubbles';
     canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
     document.body.prepend(canvas);
     const ctx = canvas.getContext('2d');
@@ -1058,92 +1058,75 @@ document.querySelectorAll('.tick-up').forEach(el => {
     resize();
     window.addEventListener('resize', resize);
 
-    // Snowflakes — varying sizes, speeds, and drift
-    const flakes = Array.from({length: 80}, () => ({
-        x: Math.random() * w * 1.2 - w * 0.1,
-        y: Math.random() * h,
-        r: Math.random() * 2.5 + 0.5,
-        speed: Math.random() * 0.8 + 0.2,
-        wind: Math.random() * 0.3 - 0.05,
-        wobbleAmp: Math.random() * 0.5 + 0.2,
-        wobbleSpeed: Math.random() * 0.02 + 0.005,
-        wobbleOffset: Math.random() * Math.PI * 2,
-        alpha: Math.random() * 0.5 + 0.2
-    }));
+    // Neon palette — matches the Manhattan neon theme
+    const palette = [
+        '255,50,100',   // hot pink
+        '0,180,255',    // electric blue
+        '180,50,255',   // purple
+        '50,255,180',   // teal
+        '255,180,50',   // warm amber
+        '100,120,255',  // soft indigo
+        '255,100,180',  // rose
+    ];
 
-    // Distant neon signs — static twinkling lights in the background
-    const neonSigns = Array.from({length: 12}, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h * 0.4,
-        w: Math.random() * 30 + 10,
-        h: Math.random() * 6 + 2,
-        color: ['255,50,100','0,180,255','180,50,255','255,180,50','50,255,180'][Math.floor(Math.random()*5)],
-        flicker: Math.random() * 0.03 + 0.01,
-        offset: Math.random() * Math.PI * 2,
-        alpha: Math.random() * 0.15 + 0.05
-    }));
+    // 30 bokeh bubbles — soft, out-of-focus, dreamy
+    const bubbles = Array.from({length: 30}, () => {
+        const r = Math.random() * 52 + 8; // radius 8–60px
+        // Larger bubbles are more transparent (further out of focus)
+        const alphaBase = 0.03 + (1 - r / 60) * 0.09; // 0.03–0.12
+        return {
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: r,
+            // Slow drift in a random direction
+            dx: (Math.random() - 0.5) * 0.3,
+            dy: (Math.random() - 0.5) * 0.3,
+            // Gentle sine wobble for organic movement
+            wobbleAmpX: Math.random() * 0.4 + 0.1,
+            wobbleAmpY: Math.random() * 0.4 + 0.1,
+            wobbleSpeedX: Math.random() * 0.008 + 0.003,
+            wobbleSpeedY: Math.random() * 0.008 + 0.003,
+            wobbleOffsetX: Math.random() * Math.PI * 2,
+            wobbleOffsetY: Math.random() * Math.PI * 2,
+            // Slow alpha pulse so they breathe
+            alphaBase: alphaBase,
+            alphaPulseSpeed: Math.random() * 0.005 + 0.002,
+            alphaPulseOffset: Math.random() * Math.PI * 2,
+            color: palette[Math.floor(Math.random() * palette.length)]
+        };
+    });
 
     function draw() {
         ctx.clearRect(0, 0, w, h);
         const t = Date.now() * 0.001;
 
-        // Draw distant neon signs (behind snow)
-        neonSigns.forEach(n => {
-            const flicker = Math.sin(t * n.flicker * 60 + n.offset);
-            const on = flicker > -0.3; // Occasional flicker off
-            if (on) {
-                const a = n.alpha * (0.7 + flicker * 0.3);
-                // Glow halo
-                const grd = ctx.createRadialGradient(n.x + n.w/2, n.y + n.h/2, 0, n.x + n.w/2, n.y + n.h/2, n.w * 2);
-                grd.addColorStop(0, 'rgba(' + n.color + ',' + (a * 0.3) + ')');
-                grd.addColorStop(1, 'rgba(' + n.color + ',0)');
-                ctx.fillStyle = grd;
-                ctx.fillRect(n.x - n.w, n.y - n.w, n.w * 4, n.w * 4);
-                // Sign itself
-                ctx.fillStyle = 'rgba(' + n.color + ',' + a + ')';
-                ctx.fillRect(n.x, n.y, n.w, n.h);
-            }
-        });
+        bubbles.forEach(b => {
+            // Wobble movement
+            const wx = Math.sin(t * b.wobbleSpeedX * 60 + b.wobbleOffsetX) * b.wobbleAmpX;
+            const wy = Math.cos(t * b.wobbleSpeedY * 60 + b.wobbleOffsetY) * b.wobbleAmpY;
+            b.x += b.dx + wx * 0.05;
+            b.y += b.dy + wy * 0.05;
 
-        // Draw snowflakes
-        flakes.forEach(f => {
-            const wobble = Math.sin(t * f.wobbleSpeed * 60 + f.wobbleOffset) * f.wobbleAmp;
-            f.x += f.wind + wobble * 0.05;
-            f.y += f.speed;
+            // Wrap around screen edges seamlessly
+            if (b.x > w + b.r * 2) b.x = -b.r * 2;
+            if (b.x < -b.r * 2) b.x = w + b.r * 2;
+            if (b.y > h + b.r * 2) b.y = -b.r * 2;
+            if (b.y < -b.r * 2) b.y = h + b.r * 2;
 
-            // Reset when off screen
-            if (f.y > h + 10) { f.y = -10; f.x = Math.random() * w * 1.2 - w * 0.1; }
-            if (f.x > w + 20) f.x = -10;
-            if (f.x < -20) f.x = w + 10;
+            // Breathing alpha pulse
+            const alphaPulse = Math.sin(t * b.alphaPulseSpeed * 60 + b.alphaPulseOffset) * 0.3 + 0.7;
+            const alpha = b.alphaBase * alphaPulse;
 
-            // Snowflake with soft glow
-            const glow = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3);
-            glow.addColorStop(0, 'rgba(220,230,255,' + (f.alpha * 0.6) + ')');
-            glow.addColorStop(0.4, 'rgba(200,210,240,' + (f.alpha * 0.2) + ')');
-            glow.addColorStop(1, 'rgba(200,210,240,0)');
-            ctx.fillStyle = glow;
-            ctx.fillRect(f.x - f.r * 3, f.y - f.r * 3, f.r * 6, f.r * 6);
-
-            // Core snowflake
+            // Draw the out-of-focus bokeh bubble — soft radial gradient, no hard edge
+            const grd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+            grd.addColorStop(0, 'rgba(' + b.color + ',' + (alpha * 1.2) + ')');
+            grd.addColorStop(0.4, 'rgba(' + b.color + ',' + (alpha * 0.6) + ')');
+            grd.addColorStop(0.7, 'rgba(' + b.color + ',' + (alpha * 0.2) + ')');
+            grd.addColorStop(1, 'rgba(' + b.color + ',0)');
+            ctx.fillStyle = grd;
             ctx.beginPath();
-            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(230,235,255,' + f.alpha + ')';
+            ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
             ctx.fill();
-        });
-
-        // Neon reflection streaks on "wet ground" (bottom 8% of screen)
-        const reflectY = h * 0.92;
-        const reflectH = h * 0.08;
-        neonSigns.forEach(n => {
-            const flicker = Math.sin(t * n.flicker * 60 + n.offset);
-            if (flicker > -0.3) {
-                const a = n.alpha * 0.15 * (0.7 + flicker * 0.3);
-                const grd = ctx.createLinearGradient(0, reflectY, 0, h);
-                grd.addColorStop(0, 'rgba(' + n.color + ',' + a + ')');
-                grd.addColorStop(1, 'rgba(' + n.color + ',0)');
-                ctx.fillStyle = grd;
-                ctx.fillRect(n.x - 20, reflectY, n.w + 40, reflectH);
-            }
         });
 
         requestAnimationFrame(draw);
