@@ -258,12 +258,22 @@ class PipelineRunner:
             if is_stub:
                 stub_count += 1
 
-            # Merge LLM confidence back onto Event so the stored signal uses
-            # the LLM-calibrated value instead of the heuristic pre-LLM value.
-            # Stubs keep the heuristic confidence from the credibility scorer.
-            llm_confidence = raw.get("confidence")
-            if llm_confidence is not None and not raw.get("error") and not is_stub:
-                e = dataclasses.replace(e, confidence=float(llm_confidence))
+            # Merge LLM-calibrated fields back onto Event so the stored signal
+            # uses the LLM's stance, event_type, and confidence instead of the
+            # heuristic pre-LLM values.  Stubs keep heuristic values.
+            if not raw.get("error") and not is_stub:
+                merge_fields: Dict[str, Any] = {}
+                llm_confidence = raw.get("confidence")
+                if llm_confidence is not None:
+                    merge_fields["confidence"] = float(llm_confidence)
+                llm_stance = raw.get("stance")
+                if llm_stance in ("bullish", "bearish", "mixed", "unknown"):
+                    merge_fields["stance"] = llm_stance
+                llm_event_type = raw.get("event_type")
+                if llm_event_type:
+                    merge_fields["event_type"] = llm_event_type
+                if merge_fields:
+                    e = dataclasses.replace(e, **merge_fields)
 
             ideas = self.trade_builder.build(packet, e)
             for idea in ideas:
