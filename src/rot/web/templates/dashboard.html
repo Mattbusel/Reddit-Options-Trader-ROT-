@@ -38,7 +38,7 @@
 <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 stagger-children">
     <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Total Signals (30d)</div>
-        <div class="text-3xl font-bold text-white tick-up">{{ summary.get('total_signals', 0) }}</div>
+        <div class="text-3xl font-bold text-white tick-up neon-text-blue">{{ summary.get('total_signals', 0) }}</div>
         <div class="text-xs text-gray-500 mt-1">~{{ summary.get('daily_avg', 0) }}/day avg</div>
         <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
             <div class="flex justify-between text-[10px]">
@@ -61,7 +61,7 @@
     </div>
     <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Tradeable</div>
-        <div class="text-3xl font-bold text-green-400 tick-up">{{ summary.get('tradeable_signals', 0) }}</div>
+        <div class="text-3xl font-bold text-green-400 tick-up neon-text-green">{{ summary.get('tradeable_signals', 0) }}</div>
         {% set total_s = summary.get('total_signals', 0) or 1 %}
         {% set trade_pct = ((summary.get('tradeable_signals', 0) or 0) / total_s * 100)|round|int %}
         <div class="text-xs text-gray-500 mt-1">{{ trade_pct }}% trade rate</div>
@@ -80,7 +80,7 @@
     <div class="stat-card rounded-lg p-5 pop-in border-glow">
         <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Avg Confidence</div>
         {% set avg_conf = (summary.get('avg_confidence', 0) or 0) %}
-        <div class="text-3xl font-bold text-yellow-400 tick-up">{{ "%.0f"|format(avg_conf * 100) }}%</div>
+        <div class="text-3xl font-bold text-yellow-400 tick-up" style="text-shadow: 0 0 7px rgba(251,191,36,0.5), 0 0 20px rgba(251,191,36,0.2);">{{ "%.0f"|format(avg_conf * 100) }}%</div>
         <div class="text-xs text-gray-500 mt-1">Quality metric</div>
         <div class="mt-2 pt-2 border-t border-gray-700/50 space-y-1.5">
             <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Distribution</div>
@@ -244,7 +244,7 @@
         <!-- Quadrant Bubble Chart (2/3 width) -->
         <div class="lg:col-span-2 chart-container slide-in-left">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-white">Signal Map ({{ chart_access.chart_hours }}h)</h2>
+                <h2 class="text-lg font-semibold text-white neon-text-blue">Signal Map ({{ chart_access.chart_hours }}h)</h2>
                 <div class="flex items-center space-x-2">
                     {% if chart_access.has_realtime_badge %}
                     <span class="w-2 h-2 rounded-full bg-green-500 pulse"></span>
@@ -279,7 +279,7 @@
         <!-- Timeline Chart (1/3 width) -->
         <div class="chart-container slide-in-right">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-white">Signal Volume</h2>
+                <h2 class="text-lg font-semibold text-white neon-text-pink">Signal Volume</h2>
                 <span class="text-xs text-gray-500">Last {{ chart_access.chart_hours }}h</span>
             </div>
             <div style="height: 320px;">
@@ -546,7 +546,7 @@
     <div class="lg:col-span-3">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
-                <span>Latest Signals</span>
+                <span class="neon-text-pink">Latest Signals</span>
                 {% if has_filters %}<span class="text-xs text-gray-500 font-normal ml-2">(filtered)</span>{% endif %}
                 <span class="w-2 h-2 rounded-full bg-green-500 blink" id="live-indicator"></span>
             </h2>
@@ -818,8 +818,9 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <style>
 @keyframes signal-flash {
-    0% { background-color: rgba(74,222,128,0.15); }
-    100% { background-color: transparent; }
+    0% { background-color: rgba(0,180,255,0.12); box-shadow: inset 0 0 20px rgba(0,180,255,0.1); }
+    50% { background-color: rgba(255,50,100,0.06); }
+    100% { background-color: transparent; box-shadow: none; }
 }
 .signal-new {
     animation: signal-flash 2s ease-out;
@@ -829,13 +830,15 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
     position: fixed;
     top: 80px;
     right: 20px;
-    background: rgba(31,31,51,0.95);
-    border: 1px solid rgba(74,222,128,0.5);
+    background: rgba(10,10,30,0.95);
+    border: 1px solid rgba(0,180,255,0.4);
     border-radius: 8px;
     padding: 12px 20px;
-    color: #e0e0e0;
+    color: #d4d4e8;
     font-size: 14px;
     z-index: 9999;
+    box-shadow: 0 0 15px rgba(0,180,255,0.15), 0 8px 24px rgba(0,0,0,0.4);
+    backdrop-filter: blur(12px);
     animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s;
     animation-fill-mode: forwards;
 }
@@ -1043,56 +1046,106 @@ document.querySelectorAll('.tick-up').forEach(el => {
     requestAnimationFrame(tick);
 });
 
-// ── Floating particles background ──
+// ── Manhattan Snowfall + Neon City Canvas ──
 (function() {
     const canvas = document.createElement('canvas');
-    canvas.id = 'particles';
-    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.4;';
+    canvas.id = 'snowfall';
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
     document.body.prepend(canvas);
     const ctx = canvas.getContext('2d');
     let w, h;
     function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
     resize();
     window.addEventListener('resize', resize);
-    const particles = Array.from({length: 35}, () => ({
-        x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
-        r: Math.random() * 2 + 0.5,
-        color: ['rgba(249,115,22,', 'rgba(59,130,246,', 'rgba(74,222,128,', 'rgba(168,85,247,'][Math.floor(Math.random()*4)],
-        alpha: Math.random() * 0.4 + 0.1,
-        pulseSpeed: Math.random() * 0.02 + 0.005,
-        pulseOffset: Math.random() * Math.PI * 2
+
+    // Snowflakes — varying sizes, speeds, and drift
+    const flakes = Array.from({length: 80}, () => ({
+        x: Math.random() * w * 1.2 - w * 0.1,
+        y: Math.random() * h,
+        r: Math.random() * 2.5 + 0.5,
+        speed: Math.random() * 0.8 + 0.2,
+        wind: Math.random() * 0.3 - 0.05,
+        wobbleAmp: Math.random() * 0.5 + 0.2,
+        wobbleSpeed: Math.random() * 0.02 + 0.005,
+        wobbleOffset: Math.random() * Math.PI * 2,
+        alpha: Math.random() * 0.5 + 0.2
     }));
+
+    // Distant neon signs — static twinkling lights in the background
+    const neonSigns = Array.from({length: 12}, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h * 0.4,
+        w: Math.random() * 30 + 10,
+        h: Math.random() * 6 + 2,
+        color: ['255,50,100','0,180,255','180,50,255','255,180,50','50,255,180'][Math.floor(Math.random()*5)],
+        flicker: Math.random() * 0.03 + 0.01,
+        offset: Math.random() * Math.PI * 2,
+        alpha: Math.random() * 0.15 + 0.05
+    }));
+
     function draw() {
         ctx.clearRect(0, 0, w, h);
         const t = Date.now() * 0.001;
-        particles.forEach(p => {
-            p.x += p.vx; p.y += p.vy;
-            if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
-            if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-            const pulse = Math.sin(t * p.pulseSpeed * 60 + p.pulseOffset) * 0.5 + 0.5;
-            const a = p.alpha * (0.5 + pulse * 0.5);
+
+        // Draw distant neon signs (behind snow)
+        neonSigns.forEach(n => {
+            const flicker = Math.sin(t * n.flicker * 60 + n.offset);
+            const on = flicker > -0.3; // Occasional flicker off
+            if (on) {
+                const a = n.alpha * (0.7 + flicker * 0.3);
+                // Glow halo
+                const grd = ctx.createRadialGradient(n.x + n.w/2, n.y + n.h/2, 0, n.x + n.w/2, n.y + n.h/2, n.w * 2);
+                grd.addColorStop(0, 'rgba(' + n.color + ',' + (a * 0.3) + ')');
+                grd.addColorStop(1, 'rgba(' + n.color + ',0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(n.x - n.w, n.y - n.w, n.w * 4, n.w * 4);
+                // Sign itself
+                ctx.fillStyle = 'rgba(' + n.color + ',' + a + ')';
+                ctx.fillRect(n.x, n.y, n.w, n.h);
+            }
+        });
+
+        // Draw snowflakes
+        flakes.forEach(f => {
+            const wobble = Math.sin(t * f.wobbleSpeed * 60 + f.wobbleOffset) * f.wobbleAmp;
+            f.x += f.wind + wobble * 0.05;
+            f.y += f.speed;
+
+            // Reset when off screen
+            if (f.y > h + 10) { f.y = -10; f.x = Math.random() * w * 1.2 - w * 0.1; }
+            if (f.x > w + 20) f.x = -10;
+            if (f.x < -20) f.x = w + 10;
+
+            // Snowflake with soft glow
+            const glow = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3);
+            glow.addColorStop(0, 'rgba(220,230,255,' + (f.alpha * 0.6) + ')');
+            glow.addColorStop(0.4, 'rgba(200,210,240,' + (f.alpha * 0.2) + ')');
+            glow.addColorStop(1, 'rgba(200,210,240,0)');
+            ctx.fillStyle = glow;
+            ctx.fillRect(f.x - f.r * 3, f.y - f.r * 3, f.r * 6, f.r * 6);
+
+            // Core snowflake
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r + pulse, 0, Math.PI * 2);
-            ctx.fillStyle = p.color + a + ')';
+            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(230,235,255,' + f.alpha + ')';
             ctx.fill();
         });
-        // Draw faint connection lines between close particles
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 120) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = 'rgba(249,115,22,' + (0.06 * (1 - dist/120)) + ')';
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
+
+        // Neon reflection streaks on "wet ground" (bottom 8% of screen)
+        const reflectY = h * 0.92;
+        const reflectH = h * 0.08;
+        neonSigns.forEach(n => {
+            const flicker = Math.sin(t * n.flicker * 60 + n.offset);
+            if (flicker > -0.3) {
+                const a = n.alpha * 0.15 * (0.7 + flicker * 0.3);
+                const grd = ctx.createLinearGradient(0, reflectY, 0, h);
+                grd.addColorStop(0, 'rgba(' + n.color + ',' + a + ')');
+                grd.addColorStop(1, 'rgba(' + n.color + ',0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(n.x - 20, reflectY, n.w + 40, reflectH);
             }
-        }
+        });
+
         requestAnimationFrame(draw);
     }
     draw();
