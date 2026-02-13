@@ -85,28 +85,24 @@ class TestComputePnlPct:
         assert abs(pnl - (-5.0)) < 0.01
 
     def test_mixed_straddle_big_move(self):
-        """Mixed + straddle + big move → profit (move > 1.5%)."""
+        """Mixed stance → 0 P&L (neutral, regardless of strategy)."""
         pnl = _compute_pnl_pct("mixed", "straddle", 100.0, 103.0)
-        # abs_move=3%, pnl = 3% - 1.5% = 1.5%
-        assert abs(pnl - 1.5) < 0.01
+        assert pnl == 0.0
 
     def test_mixed_straddle_small_move(self):
-        """Mixed + straddle + small move → loss."""
+        """Mixed stance → 0 P&L (neutral, regardless of strategy)."""
         pnl = _compute_pnl_pct("mixed", "straddle", 100.0, 100.5)
-        # abs_move=0.5%, below 1.5%, loss = -(1.5% - 0.5%) = -1.0%
-        assert pnl < 0
+        assert pnl == 0.0
 
     def test_mixed_iron_condor_small_move(self):
-        """Mixed + iron_condor + small move → profit (stayed flat)."""
+        """Mixed stance → 0 P&L (neutral, regardless of strategy)."""
         pnl = _compute_pnl_pct("mixed", "iron_condor", 100.0, 100.5)
-        # abs_move=0.5%, below 1%, pnl = 1% - 0.5% = 0.5%
-        assert abs(pnl - 0.5) < 0.01
+        assert pnl == 0.0
 
     def test_mixed_iron_condor_big_move(self):
-        """Mixed + iron_condor + big move → loss."""
+        """Mixed stance → 0 P&L (neutral, regardless of strategy)."""
         pnl = _compute_pnl_pct("mixed", "iron_condor", 100.0, 103.0)
-        # abs_move=3%, above 1%, loss = -(3% - 1%) = -2.0%
-        assert abs(pnl - (-2.0)) < 0.01
+        assert pnl == 0.0
 
     def test_unknown_stance(self):
         """Unknown stance → 0 P&L (neutral)."""

@@ -15,7 +15,10 @@ from typing import Any, Dict, List, Optional
 log = logging.getLogger(__name__)
 
 # Reuse the stance-aware win/loss SQL from database.py — single source of truth.
-from rot.storage.database import _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _PRICE_COL
+from rot.storage.database import (
+    _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _PRICE_COL,
+    _A_WIN_SQL, _A_LOSS_SQL, _A_NEUTRAL_SQL, _A_PRICE_COL, _UNIFIED_CTE,
+)
 
 
 class FeedbackAnalyzer:
@@ -116,21 +119,21 @@ class FeedbackAnalyzer:
         """Win rate grouped by (event_type, stance, strategy)."""
         cutoff = time.time() - days * 86400
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.event_type,
-                s.stance,
-                s.strategy,
+                event_type,
+                stance,
+                strategy,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                SUM({_NEUTRAL_SQL}) as neutral,
-                AVG(s.confidence) as avg_confidence
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ?
-              AND sp.price_at_signal > 0
-              AND {_PRICE_COL} IS NOT NULL
-            GROUP BY s.event_type, s.stance, s.strategy
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                SUM({_A_NEUTRAL_SQL}) as neutral,
+                AVG(confidence) as avg_confidence
+            FROM _unified
+            WHERE created_at > ?
+              AND price_at_signal > 0
+              AND {_A_PRICE_COL} IS NOT NULL
+            GROUP BY event_type, stance, strategy
             ORDER BY total DESC
         """
         rows = []
@@ -160,19 +163,19 @@ class FeedbackAnalyzer:
         """Win rate grouped by (subreddit/source, event_type), min 5 signals."""
         cutoff = time.time() - days * 86400
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.subreddit as source,
-                s.event_type,
+                subreddit as source,
+                event_type,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                AVG(s.confidence) as avg_confidence
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ?
-              AND sp.price_at_signal > 0
-              AND {_PRICE_COL} IS NOT NULL
-            GROUP BY s.subreddit, s.event_type
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                AVG(confidence) as avg_confidence
+            FROM _unified
+            WHERE created_at > ?
+              AND price_at_signal > 0
+              AND {_A_PRICE_COL} IS NOT NULL
+            GROUP BY subreddit, event_type
             HAVING COUNT(*) >= 5
             ORDER BY total DESC
         """
@@ -236,18 +239,18 @@ class FeedbackAnalyzer:
         """Daily win rate trend with simple linear regression slope."""
         cutoff = time.time() - days * 86400
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                DATE(s.created_at, 'unixepoch') as day,
+                DATE(created_at, 'unixepoch') as day,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                AVG(s.confidence) as avg_confidence
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ?
-              AND sp.price_at_signal > 0
-              AND {_PRICE_COL} IS NOT NULL
-            GROUP BY DATE(s.created_at, 'unixepoch')
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                AVG(confidence) as avg_confidence
+            FROM _unified
+            WHERE created_at > ?
+              AND price_at_signal > 0
+              AND {_A_PRICE_COL} IS NOT NULL
+            GROUP BY DATE(created_at, 'unixepoch')
             ORDER BY day ASC
         """
         daily: List[Dict[str, Any]] = []
@@ -290,17 +293,17 @@ class FeedbackAnalyzer:
         """Per-decile confidence calibration: expected vs actual win rate."""
         cutoff = time.time() - days * 86400
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                CAST(s.confidence * 10 AS INTEGER) as decile,
+                CAST(confidence * 10 AS INTEGER) as decile,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                AVG(s.confidence) as avg_confidence
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ?
-              AND sp.price_at_signal > 0
-              AND {_PRICE_COL} IS NOT NULL
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                AVG(confidence) as avg_confidence
+            FROM _unified
+            WHERE created_at > ?
+              AND price_at_signal > 0
+              AND {_A_PRICE_COL} IS NOT NULL
             GROUP BY decile
             ORDER BY decile ASC
         """

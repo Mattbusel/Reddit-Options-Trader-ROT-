@@ -15,7 +15,7 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~670+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~689 tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
 | **DB** | SQLite with aiosqlite (WAL mode), 18+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
@@ -452,6 +452,7 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `backtest_strategies` | Saved named backtest strategies (id, user_id, name, description, config_json, last_result_json, last_run_at, created_at, is_active) |
 | `unusual_events` | Unusual activity events (id, ticker, event_type, score, details_json, signal_id, detected_at). Types: iv_spike, volume_surge, oi_surge, skew_shift, sweep |
 | `export_schedules` | Scheduled enterprise exports (id, user_id, format, frequency, filters_json, last_run_at, next_run_at, created_at) |
+| `signal_archive` | Denormalized archive of purged signals for long-term backtesting & analytics (id, created_at, ticker, event_type, stance, strategy, confidence, subreddit, quality_score, sector, post_title, price_at_signal, price_1h, price_4h, price_1d, max_gain_pct, max_loss_pct, archived_at). Populated by `archive_before_purge()` before signal deletion. 365-day retention (configurable via `ROT_ARCHIVE_KEEP_DAYS`) |
 
 ---
 
@@ -829,6 +830,11 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `SCHEDULER_INTERVAL_S` | `3600` | Seconds between scheduler checks (1 hour) |
 | `MAX_ROWS_PER_EXPORT` | `1000000` | Maximum rows per export file |
 
+### Archive (`ROT_ARCHIVE_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KEEP_DAYS` | `365` | How long to keep archived signals (1 year) |
+
 ### Global
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -1061,6 +1067,7 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_export_scheduler.py` | Schedule creation, pending export detection, export generation |
 | `test_export_lineage.py` | Lineage chain construction, batch lineage, step ordering |
 | `test_enterprise_db.py` | Export schedule CRUD, analytics queries, lineage data retrieval |
+| `test_signal_archive.py` | Signal archive: table creation, archive_before_purge, idempotency, purge retention, all 14 analytics queries include archived data, feedback analyzer includes archived data, initial migration |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1145,6 +1152,9 @@ Sector rotation and correlation analysis are computed on-demand when the user vi
 
 ### Lag Timer (RSS Signal Provenance)
 Event meta stores `post_created_utc` (RSS article publish time) and `snapshot_ts` (ingestion time). The dashboard template computes `created_at - post_created_utc` to show how fast ROT detected the signal after publication. Only displayed on RSS-sourced signals (flair == "rss").
+
+### Signal Archive (Long-Term Data Retention)
+Signals and performance data are purged after 14 days by `run_full_cleanup()`. To preserve per-signal data for backtesting and analytics beyond the purge window, `archive_before_purge()` copies resolved signals into the flat `signal_archive` table before deletion. A `_UNIFIED_CTE` (Common Table Expression) unions live `signals JOIN signal_performance` with `signal_archive`, enabling all 14 analytics queries (backtest, accuracy, calibration, strategy P&L, etc.) and 4 feedback analyzer queries to seamlessly include archived data. Archives are retained for 365 days (configurable via `ROT_ARCHIVE_KEEP_DAYS`), then purged by `purge_old_archives()`. No overlap risk: archived signals are older than 14 days, live signals are younger.
 
 ### Dashboard Query Cache
 The dashboard loads 12+ database queries per page view. To avoid hammering the DB on every request, an async in-memory TTL cache (`src/rot/web/query_cache.py`) is used:
@@ -1329,7 +1339,8 @@ rot/
     ├── test_export_types.py           # Export dataclass tests
     ├── test_export_scheduler.py       # Export scheduler tests
     ├── test_export_lineage.py         # Signal lineage tests
-    └── test_enterprise_db.py          # Enterprise DB tests
+    ├── test_enterprise_db.py          # Enterprise DB tests
+    └── test_signal_archive.py         # Signal archive: retention, unified CTE, 14 query integration
 ```
 
 ---
@@ -1406,6 +1417,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Four Analytics Engines + Lag Timer — **Unusual Activity** (`src/rot/unusual/`): 4 modules, detection engine with 5 event types (IV spike, volume surge, OI surge, skew shift, sweep), composite scoring 0-100, rolling per-ticker baselines, `unusual_events` DB table, background scan loop (5 min), enhanced route + template with filters/timeline/KPIs. **Sector Rotation** (`src/rot/analysis/sector*.py`): momentum scoring, rotation detection, capital flow analysis, sector rankings, HTMX drill-down to ticker breakdown. **Correlation Engine** (`src/rot/analysis/correlation*.py`): signal co-fire correlations, hierarchical clustering, lead-lag detection, network graph construction, enhanced template with clusters/lead-lag/network. **Enterprise Export** (`src/rot/export/`): scheduled recurring exports, signal lineage/provenance chain (9-step), analytics overview API, enhanced dashboard with lineage lookup + analytics charts, `export_schedules` DB table. **Lag Timer UI**: `post_created_utc` + `snapshot_ts` in event meta, clock badge on RSS signal cards showing publish-to-signal delta. 3 new config sections (`UnusualActivityConfig`, `SectorConfig`, `ExportSchedulerConfig`), 2 new background loops in server.py. 247 new tests (670 total). | Claude Agent |
 | 2026-02 | Memory & network optimization — Estimated ~150-200MB memory savings + ~260KB/page network savings. **Market enricher**: cache size 2000→500, options chain disabled by default, `t.info` skipped by default (new `fetch_full_info` flag). **Symbol validator**: cache 5000→1000. **Query cache**: max 100 entries, periodic lock cleanup (prevents lock dict leak), evicts expired+oldest on overflow. **UnusualHistory**: LRU eviction at 500 tickers max. **Pipeline dedup**: 10K→2K threshold. **SeenStore**: 5000 entry cap. **TrendStore**: evicts every 20 updates (was 100), truncates selftext to 500 chars. **Self-hosted CDN**: Chart.js, HTMX, HTMX-ws served from `/static/js/` (saves ~260KB external CDN fetches per page). **GZip middleware**: added `GZipMiddleware(minimum_size=500)` for ~70% response compression. **Dashboard**: signal limit 50→25. **Cleanup loop**: 1h→30m interval, market cache max age 7d→3d. | Claude Agent |
 | 2026-02 | Simplified win/loss trade counting — Only **bullish** and **bearish** signals count as trades for win/loss evaluation. Mixed and unknown stances are always neutral. Removed strategy-dependent logic for mixed signals (straddle/strangle/iron_condor special cases eliminated). `_WIN_CASE_SQL`, `_LOSS_CASE_SQL`, `_NEUTRAL_CASE_SQL` simplified in `database.py`. Backtest engine `_compute_pnl_pct` updated to match. `tradeable_signals` count in `get_performance_summary` now uses `stance IN ('bullish','bearish')` instead of `strategy != 'none'`. FAQ updated. Old win_rate_snapshots cleared on deploy (migration re-runs). Applies retroactively to all existing signals since win/loss is computed dynamically via SQL at query time. | Claude Agent |
+| 2026-02 | Signal archive for long-term backtesting & analytics — `signal_archive` table: flat denormalized table preserving per-signal data from `signals` + `signal_performance` before 14-day purge. `archive_before_purge(keep_days=14)` called in `run_full_cleanup()` before signal deletion. `purge_old_archives(keep_days=365)` bounds archive growth. `_UNIFIED_CTE`: SQL CTE that UNIONs live data with archive for seamless querying. `_A_WIN_SQL`/`_A_LOSS_SQL`/`_A_NEUTRAL_SQL`: archive-compatible SQL macros (unqualified column names). Modified 10 query methods in `database.py` + 4 in `feedback/analyzer.py` to use unified CTE (backtest, accuracy, calibration, strategy P&L, event type, confidence, ticker performance, CSV export, quality trend, source reliability). One-time migration in `connect()` seeds archive with existing resolved signals. `ArchiveConfig` with `keep_days=365` (env: `ROT_ARCHIVE_KEEP_DAYS`). 19 new tests (689 total). | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

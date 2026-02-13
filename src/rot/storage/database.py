@@ -60,6 +60,37 @@ _WIN_SQL = _WIN_CASE_SQL.format(price_col=_PRICE_COL)
 _LOSS_SQL = _LOSS_CASE_SQL.format(price_col=_PRICE_COL)
 _NEUTRAL_SQL = _NEUTRAL_CASE_SQL.format(price_col=_PRICE_COL)
 
+# ── Archive-compatible macros (unqualified column names) ──
+# Used with _UNIFIED_CTE where columns come from a single CTE, not s.*/sp.* tables
+_A_PRICE_COL = "COALESCE(price_1d, price_4h, price_1h)"
+_A_WIN_SQL = _WIN_CASE_SQL.format(price_col=_A_PRICE_COL).replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
+_A_LOSS_SQL = _LOSS_CASE_SQL.format(price_col=_A_PRICE_COL).replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
+_A_NEUTRAL_SQL = _NEUTRAL_CASE_SQL.format(price_col=_A_PRICE_COL).replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
+
+# CTE that unions live signals+performance with archived signals
+_UNIFIED_CTE = """
+WITH _unified AS (
+    SELECT
+        s.id, s.created_at, s.ticker, s.event_type, s.stance,
+        s.strategy, s.confidence, s.subreddit, s.quality_score,
+        s.sector, s.post_title,
+        sp.price_at_signal, sp.price_1h, sp.price_4h, sp.price_1d,
+        sp.max_gain_pct, sp.max_loss_pct
+    FROM signals s
+    JOIN signal_performance sp ON sp.signal_id = s.id
+
+    UNION ALL
+
+    SELECT
+        id, created_at, ticker, event_type, stance,
+        strategy, confidence, subreddit, quality_score,
+        sector, post_title,
+        price_at_signal, price_1h, price_4h, price_1d,
+        max_gain_pct, max_loss_pct
+    FROM signal_archive
+)
+"""
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS signals (
@@ -330,6 +361,34 @@ CREATE INDEX IF NOT EXISTS idx_unusual_type ON unusual_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_unusual_detected ON unusual_events(detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_unusual_score ON unusual_events(score DESC);
 CREATE INDEX IF NOT EXISTS idx_unusual_signal ON unusual_events(signal_id);
+
+CREATE TABLE IF NOT EXISTS signal_archive (
+    id TEXT PRIMARY KEY,
+    created_at REAL NOT NULL,
+    ticker TEXT NOT NULL,
+    event_type TEXT NOT NULL DEFAULT 'other',
+    stance TEXT NOT NULL DEFAULT 'unknown',
+    strategy TEXT NOT NULL DEFAULT 'none',
+    confidence REAL NOT NULL DEFAULT 0.5,
+    subreddit TEXT NOT NULL DEFAULT '',
+    quality_score REAL NOT NULL DEFAULT 0.0,
+    sector TEXT NOT NULL DEFAULT '',
+    post_title TEXT NOT NULL DEFAULT '',
+    price_at_signal REAL NOT NULL DEFAULT 0.0,
+    price_1h REAL,
+    price_4h REAL,
+    price_1d REAL,
+    max_gain_pct REAL,
+    max_loss_pct REAL,
+    archived_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_archive_created ON signal_archive(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_archive_ticker ON signal_archive(ticker);
+CREATE INDEX IF NOT EXISTS idx_archive_event_type ON signal_archive(event_type);
+CREATE INDEX IF NOT EXISTS idx_archive_stance ON signal_archive(stance);
+CREATE INDEX IF NOT EXISTS idx_archive_strategy ON signal_archive(strategy);
+CREATE INDEX IF NOT EXISTS idx_archive_subreddit ON signal_archive(subreddit);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -470,6 +529,31 @@ class Database:
                 log.info("Migration: cleared %d old win_rate_snapshots (will regenerate with stance-aware logic)", snap_deleted)
         except Exception as e:
             log.warning("win_rate_snapshots clear skipped: %s", e)
+
+        # One-time: archive existing resolved signals into signal_archive
+        # so backtests + analytics can see data beyond 14-day purge window
+        try:
+            cursor = await self._db.execute("""
+                INSERT OR IGNORE INTO signal_archive
+                    (id, created_at, ticker, event_type, stance, strategy,
+                     confidence, subreddit, quality_score, sector, post_title,
+                     price_at_signal, price_1h, price_4h, price_1d,
+                     max_gain_pct, max_loss_pct, archived_at)
+                SELECT
+                    s.id, s.created_at, s.ticker, s.event_type, s.stance, s.strategy,
+                    s.confidence, s.subreddit, s.quality_score, s.sector, s.post_title,
+                    sp.price_at_signal, sp.price_1h, sp.price_4h, sp.price_1d,
+                    sp.max_gain_pct, sp.max_loss_pct, ?
+                FROM signals s
+                JOIN signal_performance sp ON sp.signal_id = s.id
+                WHERE sp.price_at_signal > 0
+                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+            """, (time.time(),))
+            if cursor.rowcount > 0:
+                await self._db.commit()
+                log.info("Migration: archived %d existing signals to signal_archive", cursor.rowcount)
+        except Exception as e:
+            log.warning("Initial signal archive migration skipped: %s", e)
 
     async def close(self) -> None:
         if self._db:
@@ -1150,24 +1234,24 @@ class Database:
     async def get_accuracy_by_confidence(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate broken down by confidence buckets: <30%, 30-50%, 50-70%, 70%+."""
         cutoff = time.time() - (days * 86400)
-        query = """
+        query = f"""
+            {_UNIFIED_CTE}
             SELECT
                 CASE
-                    WHEN s.confidence < 0.3 THEN 'low'
-                    WHEN s.confidence < 0.5 THEN 'mid'
-                    WHEN s.confidence < 0.7 THEN 'high'
+                    WHEN confidence < 0.3 THEN 'low'
+                    WHEN confidence < 0.5 THEN 'mid'
+                    WHEN confidence < 0.7 THEN 'high'
                     ELSE 'very_high'
                 END as bucket,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ?
-            AND sp.price_at_signal > 0
-            AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers
+            FROM _unified
+            WHERE created_at > ?
+            AND price_at_signal > 0
+            AND {_A_PRICE_COL} IS NOT NULL
             GROUP BY bucket
-            ORDER BY s.confidence ASC
+            ORDER BY confidence ASC
         """
         labels = {"low": "<30%", "mid": "30-50%", "high": "50-70%", "very_high": "70%+"}
         async with self.db.execute(query, (cutoff,)) as cursor:
@@ -1188,21 +1272,24 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get per-signal performance records."""
         cutoff = time.time() - (days * 86400)
-        conditions = ["s.created_at > ?"]
+        conditions = ["created_at > ?"]
         params: list = [cutoff]
 
         if ticker:
-            conditions.append("sp.ticker = ?")
+            conditions.append("ticker = ?")
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
         query = f"""
-            SELECT sp.*, s.stance, s.confidence, s.strategy
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
+            {_UNIFIED_CTE}
+            SELECT id as signal_id, ticker, created_at,
+                   price_at_signal, price_1h, price_4h, price_1d,
+                   max_gain_pct, max_loss_pct,
+                   stance, confidence, strategy
+            FROM _unified
             {where}
-            AND sp.price_at_signal > 0
-            ORDER BY s.created_at DESC
+            AND price_at_signal > 0
+            ORDER BY created_at DESC
             LIMIT ?
         """
         params.append(limit)
@@ -1215,22 +1302,25 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get detailed performance data for CSV export."""
         cutoff = time.time() - (days * 86400)
-        conditions = ["s.created_at > ?"]
+        conditions = ["created_at > ?"]
         params: list = [cutoff]
 
         if ticker:
-            conditions.append("sp.ticker = ?")
+            conditions.append("ticker = ?")
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
         query = f"""
-            SELECT sp.*, s.ticker, s.stance, s.confidence, s.strategy,
-                   s.event_type, s.subreddit, s.post_title
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
+            {_UNIFIED_CTE}
+            SELECT id as signal_id, ticker, created_at,
+                   price_at_signal, price_1h, price_4h, price_1d,
+                   max_gain_pct, max_loss_pct,
+                   stance, confidence, strategy,
+                   event_type, subreddit, post_title
+            FROM _unified
             {where}
-            AND sp.price_at_signal > 0
-            ORDER BY s.created_at DESC
+            AND price_at_signal > 0
+            ORDER BY created_at DESC
         """
         async with self.db.execute(query, params) as cursor:
             rows = await cursor.fetchall()
@@ -1243,16 +1333,16 @@ class Database:
         cutoff = time.time() - (days * 86400)
         bucket_s = 86400 if interval == "daily" else 3600
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                CAST(s.created_at / ? AS INTEGER) * ? as time_bucket,
+                CAST(created_at / ? AS INTEGER) * ? as time_bucket,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                AVG(sp.max_gain_pct) as avg_gain_pct,
-                AVG(sp.max_loss_pct) as avg_loss_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-                  AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
+                SUM({_A_WIN_SQL}) as winners,
+                AVG(max_gain_pct) as avg_gain_pct,
+                AVG(max_loss_pct) as avg_loss_pct
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+                  AND (price_1d IS NOT NULL OR price_4h IS NOT NULL)
             GROUP BY time_bucket
             ORDER BY time_bucket ASC
         """
@@ -1264,23 +1354,23 @@ class Database:
         """Get P&L breakdown by strategy."""
         cutoff = time.time() - (days * 86400)
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.strategy,
+                strategy,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                AVG(sp.max_gain_pct) as avg_gain_pct,
-                AVG(sp.max_loss_pct) as avg_loss_pct,
-                AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                SUM({_A_WIN_SQL}) as winners,
+                AVG(max_gain_pct) as avg_gain_pct,
+                AVG(max_loss_pct) as avg_loss_pct,
+                AVG(CASE WHEN price_1d IS NOT NULL
+                    THEN CASE WHEN stance = 'bearish'
+                        THEN (1.0 - price_1d / price_at_signal) * 100
+                        ELSE (price_1d / price_at_signal - 1.0) * 100
                     END
                     ELSE NULL END) as avg_1d_return_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-                  AND s.strategy != 'none'
-            GROUP BY s.strategy
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+                  AND strategy != 'none'
+            GROUP BY strategy
             ORDER BY total DESC
         """
         async with self.db.execute(query, (cutoff,)) as cursor:
@@ -1293,17 +1383,17 @@ class Database:
         """Get performance breakdown by ticker."""
         cutoff = time.time() - (days * 86400)
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                sp.ticker,
+                ticker,
                 COUNT(*) as total_signals,
-                SUM({_WIN_SQL}) as winners,
-                AVG(sp.max_gain_pct) as avg_gain_pct,
-                AVG(sp.max_loss_pct) as avg_loss_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-              AND (sp.price_1d IS NOT NULL OR sp.price_4h IS NOT NULL)
-            GROUP BY sp.ticker
+                SUM({_A_WIN_SQL}) as winners,
+                AVG(max_gain_pct) as avg_gain_pct,
+                AVG(max_loss_pct) as avg_loss_pct
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+              AND (price_1d IS NOT NULL OR price_4h IS NOT NULL)
+            GROUP BY ticker
             ORDER BY total_signals DESC
             LIMIT ?
         """
@@ -1317,22 +1407,22 @@ class Database:
         """Win rate broken down by event_type (earnings_rumor, squeeze, etc.)."""
         cutoff = time.time() - (days * 86400)
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.event_type,
+                event_type,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                SUM({_NEUTRAL_SQL}) as neutral,
-                AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                SUM({_A_NEUTRAL_SQL}) as neutral,
+                AVG(CASE WHEN price_1d IS NOT NULL
+                    THEN CASE WHEN stance = 'bearish'
+                        THEN (1.0 - price_1d / price_at_signal) * 100
+                        ELSE (price_1d / price_at_signal - 1.0) * 100
                     END ELSE NULL END) as avg_return_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
-            GROUP BY s.event_type
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+                  AND {_A_PRICE_COL} IS NOT NULL
+            GROUP BY event_type
             ORDER BY total DESC
         """
         async with self.db.execute(query, (cutoff,)) as cursor:
@@ -1352,37 +1442,37 @@ class Database:
         cutoff = time.time() - (days * 86400)
         # stance_return: positive = trade direction was right, negative = wrong
         # Use 1d-only price column for avg_gain/avg_loss (more reliable)
-        _1d_win = _WIN_CASE_SQL.format(price_col="sp.price_1d")
-        _1d_loss = _LOSS_CASE_SQL.format(price_col="sp.price_1d")
+        _a_1d_win = _WIN_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
+        _a_1d_loss = _LOSS_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.strategy,
+                strategy,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                AVG(CASE WHEN price_1d IS NOT NULL
+                    THEN CASE WHEN stance = 'bearish'
+                        THEN (1.0 - price_1d / price_at_signal) * 100
+                        ELSE (price_1d / price_at_signal - 1.0) * 100
                     END ELSE NULL END) as avg_return_pct,
                 AVG(CASE
-                    WHEN sp.price_1d IS NOT NULL AND {_1d_win} = 1
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    WHEN price_1d IS NOT NULL AND {_a_1d_win} = 1
+                    THEN CASE WHEN stance = 'bearish'
+                        THEN (1.0 - price_1d / price_at_signal) * 100
+                        ELSE (price_1d / price_at_signal - 1.0) * 100
                     END ELSE NULL END) as avg_gain_pct,
                 AVG(CASE
-                    WHEN sp.price_1d IS NOT NULL AND {_1d_loss} = 1
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
+                    WHEN price_1d IS NOT NULL AND {_a_1d_loss} = 1
+                    THEN CASE WHEN stance = 'bearish'
+                        THEN (1.0 - price_1d / price_at_signal) * 100
+                        ELSE (price_1d / price_at_signal - 1.0) * 100
                     END ELSE NULL END) as avg_loss_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-                  AND s.strategy != 'none'
-                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
-            GROUP BY s.strategy
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+                  AND strategy != 'none'
+                  AND {_A_PRICE_COL} IS NOT NULL
+            GROUP BY strategy
             ORDER BY total DESC
         """
         async with self.db.execute(query, (cutoff,)) as cursor:
@@ -1403,17 +1493,17 @@ class Database:
         """Expected vs actual win rate by confidence decile for calibration chart."""
         cutoff = time.time() - (days * 86400)
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                CAST(s.confidence * 10 AS INTEGER) as decile,
+                CAST(confidence * 10 AS INTEGER) as decile,
                 COUNT(*) as total,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                AVG(s.confidence) as avg_confidence
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at > ? AND sp.price_at_signal > 0
-                  AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
-                  AND s.stance IN ('bullish', 'bearish')
+                SUM({_A_WIN_SQL}) as winners,
+                SUM({_A_LOSS_SQL}) as losers,
+                AVG(confidence) as avg_confidence
+            FROM _unified
+            WHERE created_at > ? AND price_at_signal > 0
+                  AND {_A_PRICE_COL} IS NOT NULL
+                  AND stance IN ('bullish', 'bearish')
             GROUP BY decile
             ORDER BY decile ASC
         """
@@ -3201,6 +3291,54 @@ class Database:
             d["win_rate"] = (winners / decided * 100) if decided > 0 else 0
             return d
 
+    # ── Signal Archive ──
+
+    async def archive_before_purge(self, keep_days: int = 14) -> int:
+        """Archive per-signal data before purging old signals.
+
+        Copies essential columns from signals + signal_performance into
+        signal_archive for signals about to be purged. Only archives signals
+        with valid price data (resolved outcomes).
+        INSERT OR IGNORE ensures idempotent re-runs.
+        """
+        cutoff = time.time() - (keep_days * 86400)
+        now = time.time()
+        query = """
+            INSERT OR IGNORE INTO signal_archive
+                (id, created_at, ticker, event_type, stance, strategy,
+                 confidence, subreddit, quality_score, sector, post_title,
+                 price_at_signal, price_1h, price_4h, price_1d,
+                 max_gain_pct, max_loss_pct, archived_at)
+            SELECT
+                s.id, s.created_at, s.ticker, s.event_type, s.stance, s.strategy,
+                s.confidence, s.subreddit, s.quality_score, s.sector, s.post_title,
+                sp.price_at_signal, sp.price_1h, sp.price_4h, sp.price_1d,
+                sp.max_gain_pct, sp.max_loss_pct, ?
+            FROM signals s
+            JOIN signal_performance sp ON sp.signal_id = s.id
+            WHERE s.created_at < ?
+              AND sp.price_at_signal > 0
+              AND COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
+        """
+        async with self.db.execute(query, (now, cutoff)) as cursor:
+            count = cursor.rowcount
+        await self.db.commit()
+        if count > 0:
+            log.info("Archive: archived %d signals before purge (cutoff=%d days)", count, keep_days)
+        return count
+
+    async def purge_old_archives(self, keep_days: int = 365) -> int:
+        """Delete archived signals older than keep_days to bound table growth."""
+        cutoff = time.time() - (keep_days * 86400)
+        async with self.db.execute(
+            "DELETE FROM signal_archive WHERE created_at < ?", (cutoff,)
+        ) as cursor:
+            count = cursor.rowcount
+        if count > 0:
+            await self.db.commit()
+            log.info("Purge: deleted %d archived signals older than %d days", count, keep_days)
+        return count
+
     # ── Storage Cleanup / Purge ──
 
     async def purge_old_signals(self, keep_days: int = 90) -> int:
@@ -3606,6 +3744,12 @@ class Database:
         except Exception as e:
             log.warning("Win-rate snapshot failed: %s", e)
             results["win_rate_snapshot"] = 0
+        # Archive per-signal data BEFORE deleting old signals
+        try:
+            results["archived_signals"] = await self.archive_before_purge(keep_days=14)
+        except Exception as e:
+            log.warning("Signal archive failed: %s", e)
+            results["archived_signals"] = 0
         try:
             results["old_signals"] = await self.purge_old_signals(keep_days=14)
         except Exception as e:
@@ -3685,6 +3829,13 @@ class Database:
             log.warning("Purge old congress trades failed: %s", e)
             results["old_congress_trades"] = 0
 
+        # Purge old signal archives beyond retention window (365 days)
+        try:
+            results["old_archives"] = await self.purge_old_archives(keep_days=365)
+        except Exception as e:
+            log.warning("Purge old archives failed: %s", e)
+            results["old_archives"] = 0
+
         # Reclaim disk space
         try:
             await self.vacuum()
@@ -3720,55 +3871,53 @@ class Database:
     ) -> List[Dict[str, Any]]:
         """Get signals with performance data for backtesting.
 
-        Joins signals + signal_performance and returns rows with the
-        fields the BacktestEngine needs: signal_id, ticker, stance,
-        strategy, event_type, confidence, created_at, price_at_signal,
-        price_1h, price_4h, price_1d, max_gain_pct, max_loss_pct.
+        Queries live signals+signal_performance UNION archived signals
+        to support lookbacks beyond the 14-day purge window.
         """
         cutoff = time.time() - (days * 86400)
         conditions = [
-            "s.created_at > ?",
-            "sp.price_at_signal > 0",
-            "COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL",
+            "created_at > ?",
+            "price_at_signal > 0",
+            f"{_A_PRICE_COL} IS NOT NULL",
         ]
         params: list = [cutoff]
 
         if ticker:
-            conditions.append("s.ticker = ?")
+            conditions.append("ticker = ?")
             params.append(ticker.upper())
         if stance:
-            conditions.append("s.stance = ?")
+            conditions.append("stance = ?")
             params.append(stance)
         if strategy:
-            conditions.append("s.strategy = ?")
+            conditions.append("strategy = ?")
             params.append(strategy)
         if event_type:
-            conditions.append("s.event_type = ?")
+            conditions.append("event_type = ?")
             params.append(event_type)
         if min_confidence > 0:
-            conditions.append("s.confidence >= ?")
+            conditions.append("confidence >= ?")
             params.append(min_confidence)
 
         where = f"WHERE {' AND '.join(conditions)}"
         query = f"""
+            {_UNIFIED_CTE}
             SELECT
-                s.id as signal_id,
-                s.ticker,
-                s.stance,
-                s.strategy,
-                s.event_type,
-                s.confidence,
-                s.created_at,
-                sp.price_at_signal,
-                sp.price_1h,
-                sp.price_4h,
-                sp.price_1d,
-                sp.max_gain_pct,
-                sp.max_loss_pct
-            FROM signals s
-            JOIN signal_performance sp ON sp.signal_id = s.id
+                id as signal_id,
+                ticker,
+                stance,
+                strategy,
+                event_type,
+                confidence,
+                created_at,
+                price_at_signal,
+                price_1h,
+                price_4h,
+                price_1d,
+                max_gain_pct,
+                max_loss_pct
+            FROM _unified
             {where}
-            ORDER BY s.created_at ASC
+            ORDER BY created_at ASC
             LIMIT ?
         """
         params.append(limit)

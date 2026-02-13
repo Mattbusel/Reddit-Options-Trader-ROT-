@@ -333,6 +333,14 @@ class BacktestServerConfig(BaseSettings):
     optimizer_max_combos: int = 500  # max parameter combinations for grid search
 
 
+class ArchiveConfig(BaseSettings):
+    """Config for signal archive retention."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_ARCHIVE_")
+
+    keep_days: int = 365  # how long to keep archived signals (1 year)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -362,6 +370,7 @@ class Settings(BaseSettings):
     unusual: UnusualActivityConfig = Field(default_factory=UnusualActivityConfig)
     sector: SectorConfig = Field(default_factory=SectorConfig)
     export_scheduler: ExportSchedulerConfig = Field(default_factory=ExportSchedulerConfig)
+    archive: ArchiveConfig = Field(default_factory=ArchiveConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 
