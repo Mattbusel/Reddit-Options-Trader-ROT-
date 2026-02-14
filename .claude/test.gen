@@ -1,0 +1,222 @@
+# TEST GENERATION MACROS — expand template with params
+# Usage: pick macro, substitute {VARS}, write to tests/test_{name}.py
+
+## HEADER (all test files start with this)
+```
+import asyncio, pytest, json, uuid, time
+from unittest.mock import MagicMock, AsyncMock, patch
+from dataclasses import replace
+```
+
+## M:DB_CRUD — test DB table CRUD operations
+# Params: {TABLE}, {CREATE_METHOD}, {GET_METHOD}, {FIELDS}
+```
+@pytest.fixture
+async def db(tmp_path):
+    from rot.storage.database import Database
+    d = Database(db_path=tmp_path / "test.db")
+    await d.connect(); yield d; await d.close()
+
+async def test_{TABLE}_create(db):
+    await db.{CREATE_METHOD}({FIELDS})
+    result = await db.{GET_METHOD}(...)
+    assert result is not None
+
+async def test_{TABLE}_not_found(db):
+    result = await db.{GET_METHOD}("nonexistent")
+    assert result is None
+```
+
+## M:ROUTE_AUTH — test route auth + tier gating
+# Params: {PATH}, {METHOD}, {TIER_MIN}, {FILE}
+```
+from fastapi.testclient import TestClient
+from rot.web.app import create_app
+
+@pytest.fixture
+def client():
+    app = create_app(); return TestClient(app)
+
+def test_{FILE}_unauth(client):
+    r = client.{METHOD}("{PATH}")
+    assert r.status_code in (401, 302)  # redirect or unauth
+
+def test_{FILE}_wrong_tier(client):
+    # mock user with tier below {TIER_MIN}
+    r = client.{METHOD}("{PATH}", headers={"Authorization": "Bearer ..."})
+    assert r.status_code == 403
+```
+
+## M:GATE_TIER — test tier gate function
+# Params: {GATE_FUNC}, {FREE_FLAGS}, {PRO_FLAGS}, {ULTRA_FLAGS}
+```
+from rot.web.tier_gate import {GATE_FUNC}
+
+def test_{GATE_FUNC}_free():
+    r = {GATE_FUNC}("free")
+    assert r["has_access"] == {FREE_FLAGS.has_access}
+
+def test_{GATE_FUNC}_pro():
+    r = {GATE_FUNC}("pro")
+    assert r["has_access"] == {PRO_FLAGS.has_access}
+
+@pytest.mark.parametrize("tier", ["free","pro","premium","ultra","enterprise"])
+def test_{GATE_FUNC}_hierarchy(tier):
+    r = {GATE_FUNC}(tier)
+    assert isinstance(r, dict)
+```
+
+## M:METRIC_CALC — test pure metric function
+# Params: {FUNC}, {INPUT}, {EXPECTED}
+```
+from rot.backtest.metrics import {FUNC}
+
+def test_{FUNC}_normal():
+    result = {FUNC}({INPUT})
+    assert abs(result - {EXPECTED}) < 0.01
+
+def test_{FUNC}_empty():
+    result = {FUNC}([])
+    assert result == 0.0  # or None
+```
+
+## M:FROZEN_DATACLASS — test frozen dataclass creation
+# Params: {CLASS}, {MODULE}, {FIELDS_DICT}
+```
+from rot.{MODULE} import {CLASS}
+
+def test_{CLASS}_create():
+    obj = {CLASS}(**{FIELDS_DICT})
+    assert obj.{first_field} == {first_value}
+
+def test_{CLASS}_frozen():
+    obj = {CLASS}(**{FIELDS_DICT})
+    with pytest.raises(AttributeError):
+        obj.{first_field} = "changed"
+```
+
+## M:NLP_ENGINE — test NLP analysis path
+# Params: {TITLE}, {BODY}, {EXPECTED_STANCE}, {EXPECTED_TICKERS}
+```
+from rot.nlp import NLPEngine
+
+def test_nlp_{test_name}():
+    engine = NLPEngine()
+    r = engine.analyze(title="{TITLE}", body="{BODY}")
+    assert r.primary_stance == "{EXPECTED_STANCE}"
+    assert "{EXPECTED_TICKERS[0]}" in r.ticker_symbols
+```
+
+## M:EVENT_BUILDER — test event extraction (NLP + legacy)
+# Params: {TITLE}, {SUBREDDIT}, {EXPECTED_TYPE}, {EXPECTED_STANCE}
+```
+from rot.extract.event_builder import EventBuilder
+from rot.nlp import NLPEngine
+from rot.core.types import Post, ThreadSnapshot, TrendCandidate
+
+def _make_candidate(title, sub):
+    p = Post(id="t",created_utc=time.time(),subreddit=sub,title=title,selftext="",url="",score=100,num_comments=50,upvote_ratio=0.9,author="u",permalink="/r",flair=None,is_crosspost=False)
+    snap = ThreadSnapshot(snapshot_ts=time.time(),post=p,top_comments=[])
+    return TrendCandidate(key="t",window_s=1800,features={"score_velocity":1.0,"comment_velocity":0.5},trend_score=0.5,reason="test",snapshot=snap)
+
+def test_nlp_path():
+    eb = EventBuilder(nlp_engine=NLPEngine())
+    events = eb.from_candidate(_make_candidate("{TITLE}","{SUBREDDIT}"))
+    assert any(e.event_type == "{EXPECTED_TYPE}" for e in events)
+
+def test_legacy_path():
+    eb = EventBuilder(nlp_engine=None)
+    events = eb.from_candidate(_make_candidate("{TITLE}","{SUBREDDIT}"))
+    assert len(events) >= 0  # legacy may not extract all
+```
+
+## M:BACKTEST_ENGINE — test backtest simulation
+# Params: {SIGNALS_COUNT}, {CONFIG_OVERRIDES}
+```
+from rot.backtest import BacktestConfig, BacktestEngine
+
+def test_backtest_{test_name}():
+    signals = [{"id":str(i),"created_at":1e9+i*3600,"ticker":"AAPL","stance":"bullish","confidence":0.6,"strategy":"debit_spread","price_at_signal":150.0,"price_1d":152.0,"max_gain_pct":2.0,"max_loss_pct":-1.0} for i in range({SIGNALS_COUNT})]
+    config = BacktestConfig(**{CONFIG_OVERRIDES})
+    result = BacktestEngine.run(signals, config)
+    assert result.total_trades > 0
+    assert result.final_equity > 0
+```
+
+## M:SUPPRESSOR — test adaptive suppression
+# Params: {EVENT_TYPE}, {WIN_RATE}, {SHOULD_SUPPRESS}
+```
+from rot.feedback.suppressor import SignalSuppressor
+from rot.feedback.analyzer import FeedbackAnalyzer
+
+def test_suppress_{test_name}():
+    analyzer = FeedbackAnalyzer.__new__(FeedbackAnalyzer)
+    analyzer._last_analysis = {"suppression_candidates": [...], "source_reliability": [...]}
+    suppressor = SignalSuppressor(analyzer)
+    event = _make_event(event_type="{EVENT_TYPE}", confidence=0.3)
+    _, suppressed = suppressor.apply(event)
+    assert suppressed == {SHOULD_SUPPRESS}
+```
+
+## M:UNUSUAL_DETECT — test unusual activity detection
+# Params: {EVENT_TYPE}, {THRESHOLD_FIELD}, {VALUE}
+```
+from rot.unusual import UnusualDetector
+
+def test_detect_{test_name}():
+    detector = UnusualDetector()
+    score = detector._score_{EVENT_TYPE}({VALUE}, baseline)
+    assert score.flagged == ({VALUE} > detector.config.{THRESHOLD_FIELD})
+```
+
+## M:SECTOR_ROTATION — test sector analysis
+```
+from rot.analysis.sector import SectorAnalyzer
+
+async def test_sector_{test_name}(db):
+    analyzer = SectorAnalyzer(db)
+    result = await analyzer.get_rankings(days=30)
+    assert isinstance(result, list)
+```
+
+## M:CORRELATION — test correlation engine
+```
+from rot.analysis.correlations import CorrelationAnalyzer
+
+async def test_correlation_{test_name}(db):
+    analyzer = CorrelationAnalyzer(db)
+    pairs = await analyzer.get_co_fire_pairs(days=30, min_co_fires=2)
+    assert isinstance(pairs, list)
+```
+
+## M:EXPORT_SCHEDULE — test export scheduler
+```
+from rot.export.scheduler import ExportScheduler
+
+async def test_export_{test_name}(db):
+    scheduler = ExportScheduler(db)
+    # test schedule creation, pending detection, generation
+```
+
+## M:LINEAGE — test signal lineage chain
+```
+from rot.export.lineage import LineageBuilder
+
+async def test_lineage_{test_name}(db):
+    builder = LineageBuilder(db)
+    chain = await builder.build(signal_id)
+    assert len(chain.steps) >= 3  # source -> nlp -> trade minimum
+```
+
+## M:ARCHIVE — test signal archive + unified CTE
+```
+async def test_archive_{test_name}(db):
+    # Insert signal + performance, archive, purge, verify unified query includes archived
+    await db.archive_before_purge(keep_days=0)
+    # Verify analytics methods still return archived data via _UNIFIED_CTE
+```
+
+# ASYNC FIXTURE PATTERN (conftest.py)
+# All DB tests need: @pytest.fixture async def db(tmp_path): ...
+# Use asyncio_mode = "auto" in pyproject.toml [tool.pytest.ini_options]
+# Never mock DB for integration tests — use real tmp SQLite

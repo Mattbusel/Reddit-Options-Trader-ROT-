@@ -1,0 +1,37 @@
+# TIER GATING MATRIX — grep "^feat_name" for instant lookup
+# TIER: f=free p=pro m=premium u=ultra e=enterprise
+# FORMAT: gate_func|tier|description|key_flags
+
+gate_signal|f|signal delay+redact|_delayed,_available_in_s,reasoning,trade_idea
+gate_signal_list|f|list pagination|page_limit
+gate_chart_access|p|chart features|has_quadrant,has_timeline,has_strategy_breakdown,has_realtime_badge,has_custom_time_range,chart_hours,chart_limit
+gate_filter_access|p|filter capabilities|has_date_range,has_confidence_range,has_ticker_filter,has_stance_filter,has_source_filter,has_saved_presets,max_presets
+gate_performance_access|p|performance analytics|has_aggregate_accuracy,has_per_signal_pnl,has_roi_history_chart,has_performance_export,has_performance_dashboard,has_strategy_pnl,has_accuracy_breakdown,has_confidence_calibration,accuracy_days
+gate_email_access|p|email alerts|has_daily_digest,has_realtime_email,has_custom_filters,has_webhook
+gate_heatmap_access|p|sector heatmap|has_heatmap,has_drill_down,has_historical_replay
+gate_leaderboard_access|p|leaderboard|has_leaderboard,leaderboard_limit,has_sorting,has_historical,has_performance_column,has_custom_range
+gate_market_context|p|market context card|has_price_badge,has_extended_market,has_options_chain
+gate_correlation_access|p|correlation matrix|has_correlation,has_strength_scores,has_matrix_export
+gate_sentiment_access|f|sentiment heatmap|max_tickers,max_hours,has_drill_down,has_sector_group,has_export
+gate_ticker_dive_access|f|ticker deep dive|max_signals,has_chart,has_performance,has_sector_compare,has_correlation,has_export
+gate_weekly_wrap_access|f|weekly summary|max_weeks_back,has_charts,has_strategy_breakdown,has_export
+gate_replay_access|p|signal replay|has_access,max_hours,has_price_overlay,has_export,has_step_controls
+gate_data_licensing|e|data licensing|has_access,has_full_history,has_json_export,has_csv_export,max_rows_per_export
+gate_sponsored_access|e|sponsored signals|can_submit,can_view_status,max_pending
+gate_sector_rotation_access|p|sector rotation|has_access,has_performance_overlay,has_export,max_days
+gate_unusual_activity|p|unusual options|has_access,has_detail,has_history,max_hours
+gate_news_feed_access|f|news feed|has_access,has_realtime,has_source_filter,has_ai_summary,max_hours,max_items
+gate_congress_tracker_access|p|congressional trading|has_access,has_amount_detail,has_ticker_filter,has_export,max_days
+gate_paper_leaderboard_access|f|paper trading board|has_access,has_full_stats,has_trade_history,max_entries
+gate_sports_betting_access|f|sports betting|has_access,max_days,max_items,has_line_mover_scores,has_api,api_daily_limit
+gate_signal_quality_access|p|signal quality|has_access,has_category_heatmap,has_source_reliability,has_feature_importance,has_quality_trend,has_suppression_view,quality_days
+gate_backtest_access|p|backtesting|has_access,has_basic,has_monte_carlo,has_walk_forward,has_risk_metrics,has_benchmark,has_optimizer,has_comparison,has_saved_strategies,has_export,max_days,max_signals
+gate_macro_access|f|macro events|has_access,has_calendar,has_earnings,has_insider,has_fomc,has_seasonal,has_impact,has_export,calendar_max_days
+gate_terminal_access|m|terminal UI|has_access,has_options_flow,has_news_wire,has_watchlist_alerts,has_heatmap,refresh_interval_s,max_signals_feed
+gate_agent_access|u|AI trading agents|has_access,max_agents,has_signal_follower,has_contrarian,has_momentum_rider,has_custom_rules,has_performance_export,has_api
+
+# TIER HIERARCHY: free < pro < premium < ultra < enterprise
+# TIER_ORDER = {"free":0,"pro":1,"premium":2,"ultra":3,"enterprise":4}
+# Pattern: if TIER_ORDER[user_tier] >= TIER_ORDER[required_tier]: grant
+# All gates return dict of bool/int flags, NEVER raise exceptions
+# Templates check: {% if access.has_X %} show {% else %} upgrade CTA {% endif %}

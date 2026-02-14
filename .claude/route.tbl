@@ -1,0 +1,203 @@
+# ROT ROUTE TABLE — grep "METHOD|PATH" for instant lookup
+# M=method(G/P/U/D/W) AUTH=Y/N TIER=f/p/m/u/e TTL=cache seconds or -
+# FORMAT: M|PATH|FILE|AUTH|TIER|TTL
+
+# ── CORE DASHBOARD ──
+G|/|dashboard|N|f|-
+G|/dashboard|dashboard|N|f|-
+G|/dashboard/signal/{id}|dashboard|N|f|-
+G|/login|dashboard|N|f|-
+P|/login|dashboard|N|f|-
+G|/register|dashboard|N|f|-
+P|/register|dashboard|N|f|-
+G|/logout|dashboard|N|f|-
+G|/forgot-password|dashboard|N|f|-
+P|/forgot-password|dashboard|N|f|-
+G|/reset-password|dashboard|N|f|-
+P|/reset-password|dashboard|N|f|-
+G|/pricing|dashboard|N|f|-
+G|/account|dashboard|Y|f|-
+
+# ── AUTH API ──
+P|/register|auth_routes|N|f|-
+P|/login|auth_routes|N|f|-
+P|/logout|auth_routes|N|f|-
+G|/auth/me|auth_routes|Y|f|-
+P|/auth/api-key|auth_routes|Y|p|-
+U|/auth/llm-settings|auth_routes|Y|p|-
+P|/auth/watchlist|auth_routes|Y|f|-
+D|/auth/watchlist/{ticker}|auth_routes|Y|f|-
+G|/auth/watchlist|auth_routes|Y|f|-
+P|/auth/filter-presets|auth_routes|Y|u|-
+D|/auth/filter-presets/{idx}|auth_routes|Y|u|-
+G|/auth/filter-presets|auth_routes|Y|u|-
+G|/auth/email-alerts|auth_routes|Y|f|-
+U|/auth/email-alerts|auth_routes|Y|f|-
+
+# ── SIGNALS API ──
+G|/signals|signals|Y|f|120
+G|/signals/new-count|signals|N|f|-
+G|/signals/{id}|signals|Y|f|-
+G|/tickers/trending|signals|Y|f|30
+G|/performance/summary|signals|Y|f|120
+G|/performance/accuracy|signals|Y|f|120
+G|/performance/history|signals|Y|p|120
+G|/performance/accuracy-chart|signals|Y|m|120
+G|/performance/strategy-pnl|signals|Y|u|120
+G|/leaderboard|signals|Y|f|30
+G|/correlations|signals|Y|p|120
+G|/sectors/{sector}|signals|Y|m|-
+P|/signals/{id}/reason|signals|Y|p|-
+
+# ── PERFORMANCE PAGES ──
+G|/performance|performance|Y|m|-
+G|/accuracy-breakdown|accuracy_breakdown|N|f|-
+G|/confidence-calibration|confidence_calibration|N|f|-
+
+# ── BACKTEST ──
+G|/backtest|backtest|Y|p|-
+P|/backtest/run|backtest|Y|p|-
+P|/backtest/monte-carlo/{run_id}|backtest|Y|m|-
+P|/backtest/optimize|backtest|Y|u|-
+P|/backtest/walk-forward/{run_id}|backtest|Y|m|-
+P|/backtest/strategies/save|backtest|Y|u|-
+D|/backtest/strategies/{id}|backtest|Y|u|-
+G|/backtest/result/{run_id}|backtest|Y|p|-
+G|/api/v1/backtest/export/{run_id}|backtest|Y|u|-
+G|/backtest/compare|backtest|Y|u|-
+
+# ── PAPER TRADING ──
+G|/paper-trading|paper_trading|N|f|-
+P|/api/v1/paper-trading/trade|paper_trading|Y|f|-
+P|/api/v1/paper-trading/close/{id}|paper_trading|Y|f|-
+G|/api/v1/paper-trading/portfolio|paper_trading|Y|f|-
+G|/leaderboard|paper_leaderboard|N|f|30
+G|/api/v1/paper-leaderboard|paper_leaderboard|Y|f|-
+
+# ── WEBSOCKET ──
+W|/signals/live|websocket|N|p|-
+
+# ── BILLING ──
+P|/api/v1/billing/checkout|stripe_routes|Y|f|-
+P|/api/v1/billing/webhook|stripe_routes|N|f|-
+G|/api/v1/billing/portal|stripe_routes|Y|f|-
+G|/api/v1/billing/status|stripe_routes|Y|f|-
+
+# ── ANALYTICS PAGES ──
+G|/sentiment|sentiment|N|f|120
+G|/correlations|correlations|Y|p|120
+G|/api/v1/correlations/matrix|correlations|Y|p|120
+G|/api/v1/correlations/{ticker}|correlations|Y|p|120
+G|/api/v1/correlations/clusters|correlations|Y|p|120
+G|/api/v1/correlations/lead-lag|correlations|Y|p|120
+G|/sector-rotation|sector_rotation|Y|p|-
+G|/sector-rotation/drill-down/{s}|sector_rotation|Y|p|-
+G|/api/v1/sectors/rankings|sector_rotation|Y|p|120
+G|/unusual-activity|unusual_activity|Y|p|-
+G|/api/v1/unusual-activity|unusual_activity|Y|p|120
+G|/api/v1/unusual-activity/summary|unusual_activity|Y|p|120
+G|/api/v1/unusual-activity/timeline/{t}|unusual_activity|Y|p|-
+G|/signal-quality|signal_quality|Y|p|-
+
+# ── TRACKER PAGES ──
+G|/congress-tracker|congress_tracker|N|f|-
+G|/api/v1/congress-trades|congress_tracker|Y|f|-
+G|/ceo-rap-sheet|ceo_rap_sheet|N|f|-
+G|/sports-tracker|sports_tracker|N|f|-
+G|/sports|sports_tracker|N|f|-
+G|/api/v1/sports-betting|sports_tracker|Y|f|-
+G|/wall-of-shame|raid_tracker|N|f|-
+G|/hall-of-legends|hall_of_legends|N|f|-
+
+# ── NEWS & FEED ──
+G|/news|news_feed|N|f|-
+G|/api/v1/news|news_feed|Y|f|-
+
+# ── EXPORT ──
+G|/signals/export|export|Y|f|-
+G|/performance/export|export|Y|f|-
+
+# ── TICKER & REPLAY ──
+G|/ticker/{symbol}|ticker_dive|N|f|-
+G|/replay|replay|N|f|-
+G|/weekly-wrap|weekly_wrap|N|f|-
+
+# ── TERMINAL ──
+G|/terminal|terminal|N|f|-
+G|/api/v1/terminal/ticker-bar|terminal|N|f|-
+G|/api/v1/terminal/quick-stats|terminal|N|f|-
+G|/api/v1/terminal/watchlist|terminal|N|f|-
+
+# ── AGENTS ──
+G|/agents|agents|Y|u|-
+G|/agents/{id}|agents|Y|u|-
+P|/api/v1/agents/create|agents|Y|u|-
+U|/api/v1/agents/{id}|agents|Y|u|-
+P|/api/v1/agents/{id}/pause|agents|Y|u|-
+P|/api/v1/agents/{id}/resume|agents|Y|u|-
+D|/api/v1/agents/{id}|agents|Y|u|-
+G|/api/v1/agents/{id}/trades|agents|Y|u|-
+G|/api/v1/agents/{id}/performance|agents|Y|u|-
+
+# ── BROKERS ──
+G|/brokers|brokers|Y|u|-
+P|/api/v1/brokers/connect|brokers|Y|u|-
+P|/api/v1/brokers/disconnect|brokers|Y|u|-
+P|/api/v1/brokers/preview|brokers|Y|u|-
+P|/api/v1/brokers/execute|brokers|Y|u|-
+
+# ── ENTERPRISE ──
+G|/enterprise|enterprise|Y|e|-
+P|/api/v1/enterprise/data-export|enterprise|Y|e|-
+P|/api/v1/enterprise/sponsored/submit|enterprise|Y|e|-
+G|/api/v1/enterprise/sponsored/status|enterprise|Y|e|-
+G|/api/v1/enterprise/usage|enterprise|Y|e|-
+G|/api/v1/enterprise/analytics/signals|enterprise|Y|e|-
+G|/api/v1/enterprise/analytics/performance|enterprise|Y|e|-
+G|/api/v1/enterprise/analytics/trends|enterprise|Y|e|-
+G|/api/v1/enterprise/analytics/sources|enterprise|Y|e|-
+G|/api/v1/enterprise/lineage/{id}|enterprise|Y|e|-
+
+# ── TRADINGVIEW ──
+G|/tradingview|tradingview|Y|f|-
+G|/api/v1/tradingview/signals|tradingview|Y|f|-
+P|/api/v1/tradingview/webhook|tradingview|N|f|-
+
+# ── WIDGETS & BADGES ──
+G|/widgets|widgets|N|f|-
+G|/widget/{ticker}|widgets|N|f|-
+G|/api/v1/widgets/{ticker}/json|widgets|N|f|-
+G|/badges|badges|N|f|-
+G|/api/v1/badges/check|badges|Y|f|-
+
+# ── AFFILIATES ──
+G|/affiliates|affiliates|N|f|-
+P|/api/v1/affiliates/register|affiliates|Y|f|-
+G|/api/v1/affiliates/dashboard|affiliates|Y|f|-
+G|/api/v1/affiliates/widget|affiliates|Y|f|-
+G|/ref/{ref_code}|affiliates|N|f|-
+
+# ── MACRO ──
+G|/macro/calendar|macro|Y|f|-
+G|/macro/earnings|macro|Y|f|-
+G|/macro/insider|macro|Y|f|-
+G|/macro/fomc|macro|Y|f|-
+G|/api/v1/macro/events|macro|Y|f|-
+G|/api/v1/macro/earnings|macro|Y|f|-
+G|/api/v1/macro/insider|macro|Y|f|-
+G|/api/v1/macro/impact|macro|Y|f|-
+
+# ── MISC ──
+G|/glossary|glossary|N|f|-
+G|/faq|faq|N|f|-
+G|/api/v1/status|api_status|N|f|-
+G|/api/v1/docs|api_status|N|f|-
+G|/health|health|N|f|-
+G|/robots.txt|seo|N|f|-
+G|/llms.txt|seo|N|f|-
+G|/sitemap.xml|seo|N|f|-
+G|/og-image.svg|seo|N|f|-
+G|/favicon.svg|seo|N|f|-
+
+# TOTAL: ~148 endpoints | 41 route files
+# Route registration order matters! export before signals (see AGENTS.md gotchas)

@@ -1,0 +1,64 @@
+# CHANGE PROPAGATION RULES — if you change X, also update Y
+# Format: SOURCE_PATTERN -> TARGET1, TARGET2, ...
+# Prevents agents from forgetting mandatory co-changes
+
+# ── DATABASE SCHEMA ──
+database.py:CREATE_TABLE   -> CLAUDE.md#5(schema), rot.idx#TABLES, sql.h#INDEX
+database.py:_WIN_CASE_SQL  -> sql.h#WIN_CASE, backtest/engine.py:_compute_pnl_pct, CLAUDE.md#14
+database.py:_UNIFIED_CTE   -> sql.h#UNIFIED_CTE, feedback/analyzer.py(4 methods)
+database.py:new_method      -> rot.idx#TABLES(if schema), test_database.py
+database.py:migration       -> CLAUDE.md#5, rot.idx#TABLES
+
+# ── TIER GATING ──
+tier_gate.py:new_gate      -> tier.map, CLAUDE.md#8, route.tbl(if new route), test for gate
+tier_gate.py:change_tier   -> tier.map, CLAUDE.md#8, pricing.html(tier comparison table)
+tier_gate.py:new_flag      -> tier.map(key_flags), template({% if access.X %})
+
+# ── ROUTES ──
+routes/*.py:new_endpoint   -> route.tbl, CLAUDE.md#6, app.py(include_router), rot.idx#MODULES
+routes/*.py:new_file       -> app.py(import+include_router), route.tbl, CLAUDE.md#6+#15
+routes/*.py:auth_change    -> route.tbl(AUTH col), CLAUDE.md#6
+
+# ── TEMPLATES ──
+templates/*.html:new_file  -> base.html(nav if page), seo.py(sitemap.xml)
+templates/base.html:nav    -> all child templates inherit, CLAUDE.md#6
+
+# ── CONFIG ──
+config.py:new_class        -> CLAUDE.md#9, rot.idx#CONFIG, Dockerfile(if new dep)
+config.py:new_field        -> CLAUDE.md#9, rot.idx#CONFIG
+config.py:rename_field     -> all code refs, CLAUDE.md#9, rot.idx#CONFIG
+
+# ── PIPELINE ──
+runner.py:new_stage        -> CLAUDE.md#2(pipeline flow), AGENTS.md#gotchas(if tricky)
+runner.py:stage_order      -> CLAUDE.md#2, lineage.py(step order)
+
+# ── NLP ENGINE ──
+nlp/*.py:new_module        -> nlp/__init__.py(re-export), CLAUDE.md#4, rot.idx#MODULES
+nlp/lexicon.py:new_terms   -> (no propagation needed, self-contained)
+nlp/entities.py:blocklist  -> event_builder.py(imports blocklist), enricher.py
+
+# ── BACKGROUND LOOPS ──
+server.py:new_loop         -> AGENTS.md#10(background loops table), CLAUDE.md#3
+server.py:loop_interval    -> AGENTS.md#10, config.py(if configurable)
+
+# ── MODELS/TYPES ──
+types.py:new_dataclass     -> CLAUDE.md#11, rot.idx#MODULES
+types.py:field_change      -> all consumers (grep field name)
+
+# ── TESTS ──
+tests/new_file             -> rot.idx#TESTS, CLAUDE.md#13
+tests/conftest.py:fixture  -> all tests using that fixture
+
+# ── STATIC ASSETS ──
+static/js/*.js:new_file    -> base.html(<script>), Dockerfile(if CDN change)
+static/css/*.css:new_file  -> base.html(<link>)
+
+# ── DEPLOYMENT ──
+Dockerfile:new_dep         -> pyproject.toml(dependencies), CLAUDE.md#12
+pyproject.toml:new_dep     -> Dockerfile(pip install list)
+railway.toml:any_change    -> CLAUDE.md#12
+
+# ── DOCS (meta) ──
+CLAUDE.md:any_change       -> (self-contained, but check Change Log at bottom)
+AGENTS.md:any_change       -> MEMORY.md(if structural)
+.claude/*.file:any_change  -> MEMORY.md(file inventory)

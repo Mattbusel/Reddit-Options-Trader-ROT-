@@ -1,0 +1,177 @@
+# ROT CODEBASE INDEX — machine-only, grep-friendly
+# T=TEXT R=REAL I=INT $=JSON AI=AUTOINCREMENT PK=PRIMARY KEY FK=FOREIGN KEY UNQ=UNIQUE
+
+## TABLES
+signals|id:T(PK),run_id:T,created_at:R,ticker:T,event_type:T,stance:T,time_horizon:T,confidence:R,trend_score:R,quality_score:R,strategy:T,subreddit:T,post_title:T,post_url:T,market_data:$,reasoning:$,trade_idea:$,event_data:$,sector:T,sponsored:I,sponsored_by:T,author:T,author_karma:I,author_age_days:I,corroboration_count:I,corroboration_sources:$,post_mortem:T,ai_summary:T,sarcasm_score:R,conviction:R,consensus_score:R,actionability:R,nlp_polarity:R
+signal_performance|id:I(AI),signal_id:T(FK),ticker:T,price_at_signal:R,price_1h:R,price_4h:R,price_1d:R,price_1w:R,max_gain_pct:R,max_loss_pct:R,checked_at:R,created_at:R
+signal_archive|id:T(PK),created_at:R,ticker:T,event_type:T,stance:T,strategy:T,confidence:R,subreddit:T,quality_score:R,sector:T,post_title:T,price_at_signal:R,price_1h:R,price_4h:R,price_1d:R,max_gain_pct:R,max_loss_pct:R,archived_at:R
+users|id:T(PK),email:T(UNQ),password_hash:T,api_key_hash:T(UNQ),tier:T,created_at:R,settings:$
+subscriptions|id:T(PK),user_id:T(FK,UNQ),stripe_customer_id:T,stripe_subscription_id:T,tier:T,status:T,current_period_end:R,created_at:R,updated_at:R
+api_usage|id:I(AI),user_id:T,endpoint:T,called_at:R,ip_address:T
+email_alert_settings|user_id:T(PK,FK),enabled:I,digest_enabled:I,realtime_enabled:I,min_confidence:R,tickers:$,stances:$,event_types:$,last_digest_at:R,webhook_url:T
+paper_portfolios|user_id:T(PK,FK),balance:R,initial_balance:R,total_trades:I,winning_trades:I,total_pnl:R,last_trade_at:R
+paper_trades|id:T(PK),user_id:T(FK),signal_id:T,ticker:T,stance:T,entry_price:R,quantity:R,paper_balance_after:R,created_at:R,closed_at:R,exit_price:R,pnl_dollars:R,pnl_pct:R,status:T
+x_posts|id:I(AI),signal_id:T,ticker:T,tweet_id:T,tweet_text:T,posted_at:R
+referral_clicks|id:I(AI),ref_code:T,ip_address:T,clicked_at:R
+referral_conversions|id:I(AI),ref_code:T,referred_user_id:T,converted_at:R,tier:T,commission_amount:R,paid_out:I
+sponsored_signals|id:T(PK),user_id:T,company_name:T,ticker:T,press_url:T,press_content:T,priority:I,status:T,signal_id:T,created_at:R,analyzed_at:R,notes:T
+data_exports|id:I(AI),user_id:T,export_type:T,format:T,requested_at:R,completed_at:R,row_count:I,filters:$
+win_rate_snapshots|id:I(AI),snapshot_at:R,period_start:R,period_end:R,winners:I,losers:I,neutral:I,total_tracked:I,avg_gain_pct:R,avg_loss_pct:R,avg_1d_return_pct:R
+congress_trades|id:T(PK),politician:T,party:T,chamber:T,ticker:T,trade_type:T,amount_range:T,filed_at:R,disclosure_date:T,source_url:T,created_at:R
+backtest_runs|id:T(PK),user_id:T,name:T,config_json:$,result_json:$,monte_carlo_json:$,risk_json:$,created_at:R
+backtest_strategies|id:T(PK),user_id:T,name:T,description:T,config_json:$,last_result_json:$,last_run_at:R,created_at:R,is_active:I
+unusual_events|id:I(AI),ticker:T,event_type:T,score:R,details_json:$,signal_id:T,detected_at:R
+export_schedules|id:T(PK),user_id:T,format:T,frequency:T,filters_json:$,last_run_at:R,next_run_at:R,created_at:R
+macro_events|id:T(PK),event_type:T,name:T,scheduled_at:R,actual_at:R,country:T,importance:T,category:T,consensus_value:R,actual_value:R,previous_value:R,surprise_pct:R,affected_sectors:$,affected_tickers:$,source:T,meta:$,created_at:R,has_actual:I
+earnings_events|id:T(PK),ticker:T,report_date:R,fiscal_quarter:T,eps_estimate:R,eps_actual:R,revenue_estimate:R,revenue_actual:R,surprise_pct:R,expected_move_pct:R,actual_move_pct:R,iv_before:R,iv_after:R,iv_crush_pct:R,meta:$,created_at:R
+insider_trades|id:T(PK),ticker:T,insider_name:T,title:T,trade_type:T,shares:I,price:R,value:R,filing_date:R,transaction_date:R,source:T,meta:$,created_at:R
+fomc_meetings|id:T(PK),meeting_date:R,rate_decision:T,rate_before:R,rate_after:R,statement_text:T,statement_diff:T,hawkish_score:R,dovish_score:R,dot_plot_median:R,meta:$,created_at:R
+event_impact_cache|event_type:T(PK),avg_spy_move:R,avg_vix_change:R,sample_size:I,reactions_json:$,sector_sensitivity_json:$,computed_at:R
+trading_agents|id:T(PK),user_id:T(FK),name:T,agent_type:T,status:T,rules_json:$,config_json:$,min_confidence:R,max_daily_trades:I,max_position_dollars:R,max_portfolio_exposure_pct:R,stop_loss_pct:R,created_at:R,updated_at:R
+agent_trades|id:T(PK),agent_id:T(FK),user_id:T,signal_id:T,ticker:T,stance:T,entry_price:R,quantity:R,dollars:R,created_at:R,closed_at:R,exit_price:R,pnl_dollars:R,pnl_pct:R,status:T,paper_trade_id:T
+
+## MODULES c=core i=ingest t=trend n=nlp x=extract cr=credibility fb=feedback r=reasoner m=market bt=backtest u=unusual a=analysis ex=export s=storage al=alerts ap=app w=web
+c.config|Settings,*Config(26)
+c.types|Post,Comment,ThreadSnapshot,TrendCandidate,Event,ReasoningPacket,OptionLeg,TradeIdea
+c.logging|JsonlLogger
+i.reddit_ingestor|RedditIngestor
+i.rss_ingestor|RSSIngestor
+i.stocktwits_ingestor|StockTwitsIngestor
+i.twitter_ingestor|TwitterIngestor
+i.multi_ingestor|MultiSourceIngestor
+i.seen_store|SeenStore
+t.trend_engine|TrendEngine
+t.trend_store|TrendStore
+t.ranker|Ranker
+t.ticker_ranker|TickerRanker
+n.engine|NLPEngine
+n.types|NLPResult,SentimentResult,ResolvedEntity,ClassifiedEvent,TemporalResult,ThreadResult
+n.tokenizer|Tokenizer
+n.lexicon|LEXICON
+n.sentiment|SentimentAnalyzer
+n.entities|EntityResolver
+n.classifier|EventClassifier
+n.temporal|TemporalAnalyzer
+n.thread|ThreadAnalyzer
+x.event_builder|EventBuilder
+x.enricher|TICKER_ALIASES,BLOCKLIST
+cr.scorer|CredibilityScorer
+cr.ml_scorer|MLCredibilityScorer
+cr.features|extract_features(32-vec)
+cr.train|train_model
+fb.analyzer|FeedbackAnalyzer
+fb.suppressor|SignalSuppressor
+r.reasoner|Reasoner
+r.llm_client|LLMClient
+r.prompts|system_prompt,event_prompt
+r.parser|parse_reasoning
+r.ai_summary|backfill_ai_summaries
+m.trade_builder|TradeBuilder
+m.enricher|MarketEnricher
+m.symbol_validator|SymbolValidator
+m.price_checker|PriceChecker
+m.gates|check_gates
+bt.config|BacktestConfig
+bt.engine|BacktestEngine
+bt.result|BacktestResult,TradeRecord,EquityPoint,DrawdownPeriod
+bt.metrics|sharpe,sortino,calmar,max_drawdown,profit_factor,var,cvar
+bt.monte_carlo|MonteCarloResult,run_monte_carlo
+bt.risk|RiskMetrics,compute_risk_metrics
+bt.walk_forward|WalkForwardResult,run_walk_forward
+bt.optimizer|OptimizationResult,optimize
+bt.benchmark|BenchmarkComparison,compare_to_benchmark
+bt.comparator|ComparisonResult,compare_strategies
+bt.report|generate_csv_trades,generate_html_report
+u.types|UnusualEvent,UnusualScore,UnusualSummary
+u.detector|UnusualDetector
+u.history|UnusualHistory
+a.sector|SectorAnalyzer
+a.sector_types|SectorMomentum,RotationEvent,SectorRanking,CapitalFlow
+a.correlations|CorrelationAnalyzer
+a.correlation_types|CorrelationPair,TickerCluster,LeadLagPair,NetworkGraph
+ex.types|ExportJob,ExportResult,SignalLineage,ScheduleConfig
+ex.scheduler|ExportScheduler
+ex.lineage|LineageBuilder
+s.database|Database
+al.dispatcher|AlertDispatcher
+al.discord|DiscordAlert
+al.email|EmailAlert
+al.twitter|TwitterPoster
+al.webhook|WebhookAlert
+ap.runner|PipelineRunner
+ap.server|_run_server
+w.auth|get_current_user_optional,require_user,require_tier
+w.query_cache|QueryCache
+w.tier_gate|gate_*(30 funcs)
+w.rate_limit|check_rate_limit
+
+## CONFIG 26 classes, ROT_ prefix
+Reddit|client_id,client_secret,user_agent,subreddits[],listing,limit_per_sub:50,include_comments:F,top_comments:10,poll_interval_s:20
+LLM|provider:openai,api_key,model:gpt-4o-mini,base_url,max_tokens:1024,temperature:0.3
+Market|cache_ttl_s:3600,symbol_cache_ttl_s:604800,min_market_cap:1e8,price_check_interval_s:300,enable_options_chain:T,options_cache_ttl_s:1800
+Trend|window_s:1800,threshold:0.01,comment_weight:2.0,top_n:10
+Alert|discord_webhook_url,min_confidence:0.6
+Web|host:0.0.0.0,port:8000,secret_key
+RSS|enabled:F,poll_interval_s:300,max_age_s:3600,synthetic_trend_score:0.5,max_entries_per_feed:50,feeds[13]
+StockTwits|enabled:F,symbols[8],trending_enabled:T,poll_interval_s:180
+TwitterIngest|enabled:F,bearer_token,cashtags[5],accounts[3],poll_interval_s:180,max_results:20
+TwitterPoster|api_key,api_secret,access_token,access_secret,enabled:F,interval_s:10800,min_confidence:0.5,dashboard_url
+Email|resend_api_key,smtp_host,smtp_port:587,smtp_user,smtp_password,use_ssl:F,from_address,enabled:F
+Auth|jwt_secret,jwt_algorithm:HS256,jwt_expire_minutes:1440,admin_emails[]
+Stripe|secret_key,webhook_secret,pro_price_id,premium_price_id,ultra_price_id,enterprise_price_id,success_url,cancel_url
+Tier|free_signal_delay_s:900,free_page_limit:10,free_api_limit_day:0,pro:1000,premium:5000,ultra:25000,enterprise:100000
+Sponsored|enabled:F,max_pending_per_user:10,auto_analyze:T,label_text
+ML|enabled:T,model_path,min_training_samples:100,retrain_interval_s:86400,min_class_samples:30
+Feedback|enabled:T,analysis_interval_s:21600,suppress_enabled:T,suppress_threshold:0.20,suppress_source_threshold:0.15,min_signals_for_suppression:30,quality_trend_window_days:30
+UnusualActivity|scan_interval_s:300,iv_rank_threshold:80,volume_surge_multiplier:2.0,oi_surge_pct:20,skew_std_threshold:2.0,composite_min_score:40,history_window_days:20,purge_keep_days:90
+Sector|min_signals:2,momentum_window_days:30
+ExportScheduler|scheduler_interval_s:3600,max_rows_per_export:1000000
+BacktestServer|max_signals:5000,monte_carlo_sims:1000,walk_forward_folds:5,optimizer_max_combos:500
+Agent|enabled:F,eval_interval_s:60,max_agents_per_user:5,max_daily_trades:20
+Archive|keep_days:365
+Macro|enabled:T,calendar_poll_interval_s:3600,earnings_poll_interval_s:14400,insider_poll_interval_s:7200,fomc_poll_interval_s:86400,impact_cache_ttl_s:86400,sec_edgar_user_agent,earnings_lookback_quarters:12,insider_min_value:50000,seasonal_lookback_years:10,purge_keep_days:365
+Global|storage_root:storage,db_path
+
+## TESTS 42 files
+test_event_builder|EventBuilder NLP+legacy paths
+test_credibility|12-factor heuristic scoring
+test_ml_credibility|ML feature extraction,scorer fallback
+test_trade_builder|strategy selection,liquidity gates
+test_database|schema,migrations,CRUD
+test_parser|LLM JSON parsing
+test_trend_engine_rss|RSS trend detection
+test_rss_ingestor|RSS feed parsing,dedup
+test_multi_ingestor|multi-source aggregation
+test_query_cache|TTL,invalidation,thundering herd
+test_feedback|analyzer+suppressor+tier gates
+test_backtest_types|config,result,dataclass
+test_backtest_metrics|sharpe,sortino,calmar,drawdown,VaR
+test_backtest_engine|position sizing,stop/take profit
+test_backtest_monte_carlo|bootstrap,percentiles
+test_backtest_risk|VaR,CVaR,MAE/MFE,ulcer
+test_backtest_walk_forward|fold gen,IS/OOS,stability
+test_backtest_optimizer|grid gen,heatmap,sharpe rank
+test_backtest_benchmark|alpha,beta,info ratio
+test_backtest_comparator|correlation matrix,rankings
+test_backtest_tier_gate|tier access hierarchy
+test_backtest_report|CSV,HTML generation
+test_unusual_types|dataclass creation
+test_unusual_detector|IV,volume,OI,skew,sweep,composite
+test_unusual_history|rolling stats,percentile,cold start
+test_unusual_db|save/query/purge,timeline,summary
+test_sector_types|dataclass tests
+test_sector_analysis|momentum,rotation,capital flow
+test_sector_db|time series,drill-down,ranking
+test_correlation_types|dataclass tests
+test_correlation_analysis|co-fire,clustering,lead-lag
+test_correlation_db|matrix,ticker,signal pairs
+test_export_types|dataclass tests
+test_export_scheduler|schedule,pending,generation
+test_export_lineage|chain,batch,step ordering
+test_enterprise_db|schedule CRUD,analytics,lineage
+test_signal_archive|retention,unified CTE,14 query integration
+test_terminal_tier_gate|terminal tier access
+test_agent_types|agent dataclass tests
+test_agent_engine|agent engine evaluation
+test_agent_db|agent CRUD,trades,performance
+test_agent_tier_gate|agent tier gating
