@@ -133,10 +133,10 @@ class InsiderFeed:
         }
 
         # Use EDGAR full-text search API
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
-        end_date = datetime.utcnow().strftime("%Y-%m-%d")
-        start_date = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+        end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        start_date = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
 
         if tickers:
             for ticker in tickers[:20]:  # Limit to avoid rate limiting
@@ -230,7 +230,7 @@ class InsiderFeed:
 
             # Parse filing date
             try:
-                from datetime import datetime
+                from datetime import datetime, timezone
 
                 dt = datetime.strptime(filing_date_str, "%Y-%m-%d")
                 filing_ts = dt.timestamp()

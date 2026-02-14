@@ -621,9 +621,9 @@ async def _macro_data_loop(
         # 1. Economic calendar: seed recurring events + ingest RSS
         try:
             from rot.macro.calendar import EconomicCalendar
-            from datetime import datetime
+            from datetime import datetime, timezone
             cal = EconomicCalendar(db=db)
-            now_dt = datetime.utcnow()
+            now_dt = datetime.now(timezone.utc)
             # Seed current and next month recurring events
             next_month = now_dt.month % 12 + 1
             next_year = now_dt.year + (1 if next_month == 1 else 0)

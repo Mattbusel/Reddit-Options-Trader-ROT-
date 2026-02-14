@@ -6,7 +6,7 @@ import logging
 import secrets
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from rot.affiliates.types import Affiliate, Commission, Payout, ReferralStats
@@ -215,7 +215,7 @@ class AffiliateEngine:
 
         # Default to current month if no period specified
         if not period_start or not period_end:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             period_start = now.strftime("%Y-%m-01")
             # Last day of month
             next_month = now.replace(day=28) + timedelta(days=4)
@@ -261,7 +261,7 @@ class AffiliateEngine:
             int: Number of commissions created
         """
         if not month:
-            month = datetime.utcnow().strftime("%Y-%m")
+            month = datetime.now(timezone.utc).strftime("%Y-%m")
 
         log.info("Processing monthly commissions for %s", month)
 

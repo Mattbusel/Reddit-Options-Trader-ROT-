@@ -62,10 +62,10 @@ async def macro_calendar_page(request: Request):
 
         if access["has_seasonal"]:
             from rot.macro.seasonal import SeasonalAnalyzer
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             analyzer = SeasonalAnalyzer()
-            current_month = datetime.utcnow().month
+            current_month = datetime.now(timezone.utc).month
             seasonal_bias = analyzer.get_current_bias(current_month)
 
     return templates.TemplateResponse("macro_calendar.html", {
