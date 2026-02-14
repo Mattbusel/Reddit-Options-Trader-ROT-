@@ -295,7 +295,7 @@
             <h2 class="text-lg font-semibold text-white">Strategy Breakdown</h2>
             <span class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-400 border border-purple-700">Premium</span>
         </div>
-        <canvas id="strategyChart" height="100"></canvas>
+        <div style="position:relative; height:200px;"><canvas id="strategyChart"></canvas></div>
     </div>
     {% endif %}
 
@@ -424,7 +424,7 @@
             datasets: [{ data: Object.values(strategyCounts), backgroundColor: 'rgba(168,85,247,0.6)', borderColor: 'rgba(168,85,247,1)', borderWidth: 2, borderRadius: 4 }]
         },
         options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: darkTooltip },
             scales: {
                 x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: darkGrid },
