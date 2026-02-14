@@ -49,7 +49,7 @@ def hash_api_key(api_key: str) -> str:
 
 def _maybe_elevate_admin(user: dict, settings) -> dict:
     """If user email is in admin_emails list, elevate tier to 'admin'."""
-    admin_emails = settings.auth.admin_emails
+    admin_emails = settings.auth.get_admin_emails()
     if admin_emails and user.get("email", "").lower() in [e.lower() for e in admin_emails]:
         user = dict(user)  # copy to avoid mutating cached row
         user["tier"] = "admin"

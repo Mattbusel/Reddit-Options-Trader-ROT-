@@ -224,7 +224,25 @@ class AuthConfig(BaseSettings):
     jwt_secret: str = ""  # falls back to web.secret_key if empty
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
-    admin_emails: List[str] = Field(default_factory=list)  # emails auto-elevated to admin tier
+    admin_emails: str = ""  # JSON list or comma-separated emails; empty = no admins
+
+    def get_admin_emails(self) -> List[str]:
+        """Parse admin_emails string into a list.
+
+        Accepts JSON array ('["a@b.com"]') or comma-separated ('a@b.com,c@d.com').
+        Empty string or unset → empty list.
+        """
+        import json
+        raw = self.admin_emails.strip()
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(e) for e in parsed]
+            return []
+        except (json.JSONDecodeError, TypeError):
+            return [e.strip() for e in raw.split(",") if e.strip()]
 
 
 class StripeConfig(BaseSettings):
