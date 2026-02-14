@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from typing import Any, Dict, List
 
@@ -343,10 +344,18 @@ def gate_signal_quality_access(tier: str) -> dict:
     }
 
 
-def _redact_reasoning(reasoning: dict) -> dict:
+def _redact_reasoning(reasoning: dict | str) -> dict:
     """Free users see thesis only, rest is locked."""
     if not reasoning:
         return {}
+
+    # Handle case where reasoning is still a JSON string
+    if isinstance(reasoning, str):
+        try:
+            reasoning = json.loads(reasoning)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+
     return {
         "thesis": reasoning.get("thesis", ""),
         "_locked": True,
@@ -759,10 +768,18 @@ def gate_tradingview_access(tier: str) -> dict:
     }
 
 
-def _redact_trade_idea(idea: dict) -> dict:
+def _redact_trade_idea(idea: dict | str) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:
         return {}
+
+    # Handle case where trade_idea is still a JSON string
+    if isinstance(idea, str):
+        try:
+            idea = json.loads(idea)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+
     return {
         "strategy": idea.get("strategy", "none"),
         "thesis": idea.get("thesis", ""),
