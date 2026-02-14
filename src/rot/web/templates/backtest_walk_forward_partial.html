@@ -71,10 +71,10 @@
                     <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(fold.is_win_rate * 100) }}%</td>
                     <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(fold.oos_win_rate * 100) }}%</td>
                     <td class="py-2 px-3 text-right text-gray-300">
-                        {% if fold.is_sharpe is not none %}{{ "%.2f"|format(fold.is_sharpe) }}{% else %}&mdash;{% endif %}
+                        {% if fold.is_sharpe is not none %}{{ "%.2f"|format(fold.is_sharpe) }}{% else %} - {% endif %}
                     </td>
                     <td class="py-2 px-3 text-right text-gray-300">
-                        {% if fold.oos_sharpe is not none %}{{ "%.2f"|format(fold.oos_sharpe) }}{% else %}&mdash;{% endif %}
+                        {% if fold.oos_sharpe is not none %}{{ "%.2f"|format(fold.oos_sharpe) }}{% else %} - {% endif %}
                     </td>
                     <td class="py-2 px-3 text-right {{ 'text-green-400' if fold.degradation_pct <= 20 else 'text-yellow-400' if fold.degradation_pct <= 50 else 'text-red-400' }}">
                         {{ "%.0f"|format(fold.degradation_pct) }}%

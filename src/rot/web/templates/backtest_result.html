@@ -21,7 +21,7 @@
 
     {% set rd = result_dict if result_dict is defined else {} %}
 
-    <!-- ── KPI Cards ── -->
+    <!-- â”€â”€ KPI Cards â”€â”€ -->
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8 stagger-children">
         <div class="stat-card rounded-lg p-4">
             <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Total Trades</div>
@@ -50,7 +50,7 @@
         <div class="stat-card rounded-lg p-4">
             <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sharpe</div>
             <div class="text-2xl font-bold text-white">
-                {% if rd.get('sharpe_ratio') is not none %}{{ "%.2f"|format(rd.get('sharpe_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+                {% if rd.get('sharpe_ratio') is not none %}{{ "%.2f"|format(rd.get('sharpe_ratio', 0) or 0) }}{% else %} - {% endif %}
             </div>
         </div>
         <div class="stat-card rounded-lg p-4">
@@ -61,18 +61,18 @@
         </div>
     </div>
 
-    <!-- ── Secondary Metrics ── -->
+    <!-- â”€â”€ Secondary Metrics â”€â”€ -->
     <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
         <div class="stat-card rounded-lg p-3">
             <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Sortino</div>
             <div class="text-lg font-bold text-white">
-                {% if rd.get('sortino_ratio') is not none %}{{ "%.2f"|format(rd.get('sortino_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+                {% if rd.get('sortino_ratio') is not none %}{{ "%.2f"|format(rd.get('sortino_ratio', 0) or 0) }}{% else %} - {% endif %}
             </div>
         </div>
         <div class="stat-card rounded-lg p-3">
             <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Calmar</div>
             <div class="text-lg font-bold text-white">
-                {% if rd.get('calmar_ratio') is not none %}{{ "%.2f"|format(rd.get('calmar_ratio', 0) or 0) }}{% else %}&mdash;{% endif %}
+                {% if rd.get('calmar_ratio') is not none %}{{ "%.2f"|format(rd.get('calmar_ratio', 0) or 0) }}{% else %} - {% endif %}
             </div>
         </div>
         <div class="stat-card rounded-lg p-3">
@@ -95,7 +95,7 @@
         </div>
     </div>
 
-    <!-- ── Charts Row ── -->
+    <!-- â”€â”€ Charts Row â”€â”€ -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- Equity Curve -->
         <div class="chart-container">
@@ -136,7 +136,7 @@
         </div>
     </div>
 
-    <!-- ── Risk Metrics ── -->
+    <!-- â”€â”€ Risk Metrics â”€â”€ -->
     {% if risk is defined and risk %}
     <div class="chart-container mb-8">
         <h2 class="text-lg font-semibold text-white mb-4">Risk Analytics <span class="text-xs text-blue-400">Premium</span></h2>
@@ -205,7 +205,7 @@
     </div>
     {% endif %}
 
-    <!-- ── Strategy Breakdown ── -->
+    <!-- â”€â”€ Strategy Breakdown â”€â”€ -->
     {% set breakdown = rd.get('strategy_breakdown', {}) %}
     {% if breakdown %}
     <div class="chart-container mb-8">
@@ -243,7 +243,7 @@
     </div>
     {% endif %}
 
-    <!-- ── Action Buttons (Monte Carlo / Walk-Forward) ── -->
+    <!-- â”€â”€ Action Buttons (Monte Carlo / Walk-Forward) â”€â”€ -->
     {% if run_id %}
     <div class="flex flex-wrap gap-3 mb-8">
         {% if access is defined and access.get('has_monte_carlo') %}
@@ -329,7 +329,7 @@
     <div id="wf-results"></div>
     {% endif %}
 
-    <!-- ── Trade Log ── -->
+    <!-- â”€â”€ Trade Log â”€â”€ -->
     <div class="chart-container mb-8">
         <h2 class="text-lg font-semibold text-white mb-4">Trade Log</h2>
         <div class="overflow-x-auto -mx-2 px-2">
@@ -382,11 +382,11 @@
                 </tbody>
             </table>
         </div>
-        <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns →</p>
+        <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns â†’</p>
     </div>
 </div>
 
-<!-- ── Chart.js: Equity Curve ── -->
+<!-- â”€â”€ Chart.js: Equity Curve â”€â”€ -->
 <script>
 (function() {
     const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };

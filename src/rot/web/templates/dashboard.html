@@ -13,7 +13,7 @@
 <div class="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
     <div class="flex items-center space-x-3">
         <span class="text-orange-400 text-sm">&#9888;</span>
-        <span class="text-orange-300 text-sm">Free tier &mdash; signals are delayed 15 minutes and details are limited.</span>
+        <span class="text-orange-300 text-sm">Free tier - signals are delayed 15 minutes and details are limited.</span>
     </div>
     <a href="/pricing" class="flex-shrink-0 px-3 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition w-full sm:w-auto text-center">Upgrade</a>
 </div>
@@ -159,25 +159,25 @@
                 <span class="text-[10px] font-bold w-8 text-right {{ 'text-green-400' if wr >= 55 else 'text-yellow-400' if wr >= 40 else 'text-red-400' }}">{{ wr }}%</span>
                 {% else %}
                 <div class="flex-1"></div>
-                <span class="text-[10px] text-gray-600 w-8 text-right">&mdash;</span>
+                <span class="text-[10px] text-gray-600 w-8 text-right"> - </span>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
         {% else %}
-        <div class="text-3xl font-bold text-gray-600">&mdash;</div>
+        <div class="text-3xl font-bold text-gray-600"> - </div>
         <div class="text-xs text-gray-500 mt-1">Awaiting price movement...</div>
         {% endif %}
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- VISUALIZATION SECTION — Tiered by plan                        -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- VISUALIZATION SECTION â€” Tiered by plan                        -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 
 {% if tier == 'free' %}
-<!-- ── FREE TIER: Simple stance bar chart + upgrade CTA ── -->
+<!-- â”€â”€ FREE TIER: Simple stance bar chart + upgrade CTA â”€â”€ -->
 <div class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
     <div class="chart-container">
         <div class="flex items-center justify-between mb-3">
@@ -223,7 +223,7 @@
 {% endif %}
 
 {% if chart_access and chart_access.has_quadrant %}
-<!-- ── PAID TIERS: Quadrant Bubble + Timeline ── -->
+<!-- â”€â”€ PAID TIERS: Quadrant Bubble + Timeline â”€â”€ -->
 <div class="mb-8">
     {% if chart_access.has_custom_time_range %}
     <!-- Ultra: time range selector -->
@@ -324,7 +324,7 @@
     const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1 };
     const darkGrid = { color: 'rgba(75,85,99,0.2)' };
 
-    // ── Quadrant Bubble Chart ──
+    // â”€â”€ Quadrant Bubble Chart â”€â”€
     const BUBBLE_RADIUS = 8;  // Fixed bubble size in pixels
 
     function makeBubbles(stance, color, borderColor) {
@@ -380,7 +380,7 @@
         }
     });
 
-    // ── Timeline Chart ──
+    // â”€â”€ Timeline Chart â”€â”€
     const labels = timeSeries.map(d => {
         const dt = new Date(d.hour_bucket * 1000);
         return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -407,7 +407,7 @@
     });
 
     {% if chart_access.has_strategy_breakdown %}
-    // ── Strategy Breakdown ──
+    // â”€â”€ Strategy Breakdown â”€â”€
     const strategyCounts = {};
     chartData.forEach(d => {
         (d.strategies || 'none').split(',').forEach(s => {
@@ -435,7 +435,7 @@
     {% endif %}
 
     {% if chart_access.has_chart_export %}
-    // ── Chart Export ──
+    // â”€â”€ Chart Export â”€â”€
     window.exportChart = function(canvasId, name) {
         const canvas = document.getElementById(canvasId);
         const link = document.createElement('a');
@@ -448,9 +448,9 @@
 </script>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- SEARCH & FILTER BAR                                            -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="mb-6">
     <form id="filter-form" method="get" action="/dashboard" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap md:items-end gap-3">
         <!-- Ticker Search -->
@@ -537,9 +537,9 @@
     </form>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- SIGNAL FEED + SIDEBAR                                          -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
     <!-- Main Signal Feed -->
@@ -787,9 +787,9 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- WATCHLIST: add/remove tickers via API                          -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 {% if user %}
 <script>
 async function addWatchlistTicker() {
@@ -839,9 +839,9 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 </script>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- AUTO-REFRESH: polls for new signals every 30s                  -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <style>
 @keyframes signal-flash {
     0% { background-color: rgba(0,180,255,0.12); box-shadow: inset 0 0 20px rgba(0,180,255,0.1); }
@@ -981,7 +981,7 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
             // Back off after repeated failures
             if (consecutiveErrors >= 5) {
                 if (refreshDot) refreshDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
-                if (refreshStatus) refreshStatus.textContent = 'Connection lost — refresh page';
+                if (refreshStatus) refreshStatus.textContent = 'Connection lost â€” refresh page';
                 return; // stop polling
             }
         }
@@ -993,7 +993,7 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
     setTimeout(pollSignals, POLL_INTERVAL);
 })();
 
-// ── Toast Notifications (pro+) ──
+// â”€â”€ Toast Notifications (pro+) â”€â”€
 {% if tier != 'free' %}
 function showToast(message) {
     const toast = document.createElement('div');
@@ -1004,7 +1004,7 @@ function showToast(message) {
 }
 {% endif %}
 
-// ── Filter Presets (ultra) ──
+// â”€â”€ Filter Presets (ultra) â”€â”€
 {% if filter_access.has_saved_presets %}
 const filterPresets = {{ filter_presets|tojson|safe }};
 
@@ -1050,7 +1050,7 @@ async function saveCurrentPreset() {
 }
 {% endif %}
 
-// ── Animated number counting ──
+// â”€â”€ Animated number counting â”€â”€
 document.querySelectorAll('.tick-up').forEach(el => {
     const text = el.textContent.trim();
     const match = text.match(/^([\d,]+)/);
@@ -1072,7 +1072,7 @@ document.querySelectorAll('.tick-up').forEach(el => {
     requestAnimationFrame(tick);
 });
 
-// ── Filtered CSV Export ──
+// â”€â”€ Filtered CSV Export â”€â”€
 function exportFilteredCSV() {
     const form = document.getElementById('filter-form');
     const fd = new FormData(form);

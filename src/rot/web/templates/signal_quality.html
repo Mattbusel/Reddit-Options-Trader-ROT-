@@ -11,7 +11,7 @@
     <p class="text-sm text-gray-500 mt-1">
         Historical performance analysis by category, source, and confidence calibration
         {% if analysis_timestamp %}
-            &mdash; Last updated: <span id="analysisTs">{{ analysis_timestamp }}</span>
+            - Last updated: <span id="analysisTs">{{ analysis_timestamp }}</span>
         {% endif %}
     </p>
 </div>
@@ -25,9 +25,9 @@
 </div>
 {% else %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- 1. CATEGORY PERFORMANCE HEATMAP                                -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 {% if access.has_category_heatmap and category_performance %}
 <div class="chart-container mb-8">
     <h2 class="text-lg font-semibold text-white mb-4">Category Performance</h2>
@@ -68,7 +68,7 @@
                             {% else %}rgba(248,113,113,0.15){% endif %}
                         {% else %}transparent{% endif %}">
                         <span class="{% if row.win_rate is not none %}{% if row.win_rate >= 50 %}text-green-400{% elif row.win_rate >= 30 %}text-yellow-400{% else %}text-red-400{% endif %}{% else %}text-gray-500{% endif %}">
-                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %}&mdash;{% endif %}
+                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %} - {% endif %}
                         </span>
                     </td>
                     <td class="py-2 px-3 text-right">
@@ -76,7 +76,7 @@
                         <span class="text-red-400">{{ row.losers }}</span>
                     </td>
                     <td class="py-2 px-3 text-right text-gray-400">
-                        {% if row.avg_confidence %}{{ "%.0f"|format(row.avg_confidence * 100) }}%{% else %}&mdash;{% endif %}
+                        {% if row.avg_confidence %}{{ "%.0f"|format(row.avg_confidence * 100) }}%{% else %} - {% endif %}
                     </td>
                 </tr>
                 {% endif %}
@@ -87,9 +87,9 @@
 </div>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- 2. QUALITY TREND + 3. SOURCE RELIABILITY (side by side)        -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
     <!-- Quality Trend -->
@@ -123,9 +123,9 @@
     {% endif %}
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- 4. FEATURE IMPORTANCE + 5. CALIBRATION (side by side)          -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
     <!-- Feature Importance -->
@@ -151,9 +151,9 @@
     {% endif %}
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- 6. SUPPRESSION CANDIDATES TABLE                                -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 {% if access.has_suppression_view and suppression_candidates %}
 <div class="chart-container mb-8">
     <h2 class="text-lg font-semibold text-white mb-4">Suppression Candidates</h2>
@@ -178,7 +178,7 @@
                         </span>
                     </td>
                     <td class="py-2 px-3 text-white">{{ c.event_type|replace('_', ' ')|title }}</td>
-                    <td class="py-2 px-3 text-gray-400">{{ c.source or c.stance or '&mdash;' }}</td>
+                    <td class="py-2 px-3 text-gray-400">{{ c.source or c.stance or ' - ' }}</td>
                     <td class="py-2 px-3 text-right text-red-400 font-bold">{{ "%.1f"|format(c.win_rate) }}%</td>
                     <td class="py-2 px-3 text-right text-gray-300">{{ c.decided }}</td>
                 </tr>
@@ -191,15 +191,15 @@
 
 {% endif %}{# end has_data #}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- CHART.JS SCRIPTS                                               -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <script>
 (function() {
     const darkTooltip = { backgroundColor: 'rgba(31,31,51,0.95)', titleColor: '#e0e0e0', bodyColor: '#e0e0e0' };
     const darkGrid = { color: 'rgba(75,85,99,0.2)' };
 
-    /* ── 1. Quality Trend Line Chart ───────────────────────────── */
+    /* â”€â”€ 1. Quality Trend Line Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     const trendEl = document.getElementById('qualityTrendChart');
     if (trendEl) {
         const trend = {{ quality_trend|tojson|safe if quality_trend else '{}' }};
@@ -245,7 +245,7 @@
         });
     }
 
-    /* ── 2. Source Reliability Bar Chart ────────────────────────── */
+    /* â”€â”€ 2. Source Reliability Bar Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     const sourceEl = document.getElementById('sourceChart');
     if (sourceEl) {
         const srcData = {{ source_reliability|tojson|safe if source_reliability else '[]' }};
@@ -288,7 +288,7 @@
         });
     }
 
-    /* ── 3. Feature Importance Bar Chart ────────────────────────── */
+    /* â”€â”€ 3. Feature Importance Bar Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     const featEl = document.getElementById('featureChart');
     if (featEl) {
         const features = {{ feature_importance|tojson|safe if feature_importance else '[]' }};
@@ -317,7 +317,7 @@
         });
     }
 
-    /* ── 4. Confidence Calibration Scatter ──────────────────────── */
+    /* â”€â”€ 4. Confidence Calibration Scatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     const calEl = document.getElementById('calibrationChart');
     if (calEl) {
         const cal = {{ calibration|tojson|safe if calibration else '[]' }};
@@ -370,7 +370,7 @@
         });
     }
 
-    /* ── Format analysis timestamp ─────────────────────────────── */
+    /* â”€â”€ Format analysis timestamp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     const tsEl = document.getElementById('analysisTs');
     if (tsEl && tsEl.textContent) {
         const ts = parseFloat(tsEl.textContent);

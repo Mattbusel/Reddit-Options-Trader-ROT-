@@ -54,7 +54,7 @@
                             {{ "%+.1f"|format(pt.total_return_pct) }}%
                         </td>
                         <td class="py-2 px-3 text-right text-white">
-                            {% if pt.sharpe_ratio is not none %}{{ "%.3f"|format(pt.sharpe_ratio) }}{% else %}&mdash;{% endif %}
+                            {% if pt.sharpe_ratio is not none %}{{ "%.3f"|format(pt.sharpe_ratio) }}{% else %} - {% endif %}
                         </td>
                         <td class="py-2 px-3 text-right text-red-400">{{ "%.1f"|format(pt.max_drawdown_pct) }}%</td>
                         <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format(pt.win_rate * 100) }}%</td>
@@ -104,7 +104,7 @@
                                 {{ "%.2f"|format(val) }}
                             </span>
                             {% else %}
-                            <span class="text-gray-600">&mdash;</span>
+                            <span class="text-gray-600"> - </span>
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -121,6 +121,6 @@
         <strong class="text-gray-300">Interpretation:</strong>
         The optimizer tests {{ opt.total_combos_tested }} parameter combinations and ranks them by Sharpe ratio.
         Green cells in the heatmap indicate higher risk-adjusted returns. Look for clusters of green to identify robust parameter regions.
-        Be cautious of isolated optimal points &mdash; they may indicate curve-fitting. Use walk-forward analysis to validate.
+        Be cautious of isolated optimal points - they may indicate curve-fitting. Use walk-forward analysis to validate.
     </div>
 </div>

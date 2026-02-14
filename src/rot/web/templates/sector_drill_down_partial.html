@@ -1,6 +1,6 @@
 <!-- HTMX partial: ticker breakdown within a sector -->
 <div class="p-4">
-    <h3 class="text-lg font-semibold text-white mb-3">{{ sector }} &mdash; Ticker Breakdown</h3>
+    <h3 class="text-lg font-semibold text-white mb-3">{{ sector }} - Ticker Breakdown</h3>
     {% if tickers %}
     <table class="w-full text-sm">
         <thead>
@@ -28,7 +28,7 @@
                 <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((t.avg_confidence or 0) * 100) }}%</td>
                 {% if t.win_rate is defined %}
                 <td class="py-2 px-3 text-right {{ 'text-green-400' if (t.win_rate or 0) >= 50 else 'text-red-400' if (t.win_rate or 0) > 0 else 'text-gray-500' }} font-bold">
-                    {% if t.win_rate is not none %}{{ "%.1f"|format(t.win_rate) }}%{% else %}&mdash;{% endif %}
+                    {% if t.win_rate is not none %}{{ "%.1f"|format(t.win_rate) }}%{% else %} - {% endif %}
                 </td>
                 {% endif %}
             </tr>

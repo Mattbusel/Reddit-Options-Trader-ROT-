@@ -9,12 +9,12 @@
     <div class="text-center mb-6">
         <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-900/30 border border-green-700/40 text-green-300 text-sm mb-4">
             <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            Live — 20+ sources, refreshes every 5 min
+            Live â€” 20+ sources, refreshes every 5 min
         </div>
         <h1 class="text-4xl font-bold mb-2">
             <span class="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Betting Edge</span>
         </h1>
-        <p class="text-gray-400 text-lg">Sports Betting Intelligence — Line-moving news before the lines move</p>
+        <p class="text-gray-400 text-lg">Sports Betting Intelligence â€” Line-moving news before the lines move</p>
         <p class="text-gray-600 text-sm mt-1">Injuries, trades, suspensions &amp; lineups with AI-powered Line Mover Scores</p>
     </div>
 
@@ -105,7 +105,7 @@
             </select>
             {% else %}
             <span class="px-3 py-1 rounded-full text-xs text-gray-600 bg-gray-800/50 border border-gray-700/50 cursor-not-allowed">
-                &#128274; Team filtering — <a href="/pricing" class="text-blue-500 hover:underline">Upgrade to Pro</a>
+                &#128274; Team filtering â€” <a href="/pricing" class="text-blue-500 hover:underline">Upgrade to Pro</a>
             </span>
             {% endif %}
         </div>
@@ -124,7 +124,7 @@
             </a>
             {% else %}
             <span class="px-3 py-1 rounded-full text-xs text-gray-600 bg-gray-800/50 border border-gray-700/50 cursor-not-allowed">
-                &#128274; Sort by Score — <a href="/pricing" class="text-blue-500 hover:underline">Pro</a>
+                &#128274; Sort by Score â€” <a href="/pricing" class="text-blue-500 hover:underline">Pro</a>
             </span>
             {% endif %}
         </div>
@@ -151,7 +151,7 @@
         <h3 class="text-base font-semibold text-white mb-1">AI Betting Analysis</h3>
         <p class="text-gray-400 text-sm mb-3">Get AI-generated betting impact summaries for every high-urgency news item. Which lines move, which direction, and by how much.</p>
         <a href="/pricing" class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold transition">
-            Upgrade to Premium &mdash; $29.99/mo
+            Upgrade to Premium - $29.99/mo
         </a>
     </div>
     {% endif %}
@@ -166,7 +166,7 @@
                 {% if selected_category != 'all' %}{{ selected_category }}{% endif %}
                 {% if selected_team != 'all' %}{{ selected_team }}{% endif %}
                 {% if selected_league == 'all' and selected_category == 'all' and selected_team == 'all' %}all leagues{% endif %}
-                &mdash; showing {{ items|length }} of {{ total_items }}
+                - showing {{ items|length }} of {{ total_items }}
             </span>
         </h2>
 
@@ -286,10 +286,10 @@
             {% if loop.index % 5 == 0 and not gate.has_line_mover_scores %}
             <div class="rounded-xl p-4 border border-green-800/40 bg-green-900/10 text-center">
                 <p class="text-sm text-gray-300 mb-2">
-                    &#128200; <strong class="text-green-400">Unlock Line Mover Scores</strong> — see which news items actually move betting lines
+                    &#128200; <strong class="text-green-400">Unlock Line Mover Scores</strong> â€” see which news items actually move betting lines
                 </p>
                 <a href="/pricing" class="px-5 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition">
-                    Upgrade to Pro &mdash; $9.99/mo
+                    Upgrade to Pro - $9.99/mo
                 </a>
             </div>
             {% endif %}
@@ -320,7 +320,7 @@
                     {% if selected_league != 'all' or selected_category != 'all' or selected_team != 'all' %}
                     Try changing your filters or check back soon.
                     {% else %}
-                    News feeds are loading &mdash; check back in a minute.
+                    News feeds are loading - check back in a minute.
                     {% endif %}
                 </p>
                 <a href="/sports-tracker" class="inline-block mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition">
@@ -335,7 +335,7 @@
         {% if not gate.has_line_mover_scores %}
         <div class="stat-card rounded-xl p-5 border-blue-800/40 text-center">
             <div class="text-2xl mb-2">&#128200;</div>
-            <h3 class="text-base font-semibold text-white mb-1">Pro — $9.99/mo</h3>
+            <h3 class="text-base font-semibold text-white mb-1">Pro â€” $9.99/mo</h3>
             <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
                 <li>&#10003; Line Mover Scores (0-100)</li>
                 <li>&#10003; Team-level filtering</li>
@@ -349,7 +349,7 @@
         {% if not gate.has_ai_summaries %}
         <div class="stat-card rounded-xl p-5 border-purple-800/40 text-center">
             <div class="text-2xl mb-2">&#129504;</div>
-            <h3 class="text-base font-semibold text-white mb-1">Premium — $29.99/mo</h3>
+            <h3 class="text-base font-semibold text-white mb-1">Premium â€” $29.99/mo</h3>
             <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
                 <li>&#10003; AI Betting Analysis</li>
                 <li>&#10003; Email alerts (high urgency)</li>
@@ -363,7 +363,7 @@
         {% if not gate.has_csv_export %}
         <div class="stat-card rounded-xl p-5 border-amber-800/40 text-center">
             <div class="text-2xl mb-2">&#9889;</div>
-            <h3 class="text-base font-semibold text-white mb-1">Ultra — $49.99/mo</h3>
+            <h3 class="text-base font-semibold text-white mb-1">Ultra â€” $49.99/mo</h3>
             <ul class="text-xs text-gray-400 space-y-1 mb-3 text-left">
                 <li>&#10003; 200 items / 7-day lookback</li>
                 <li>&#10003; Custom alert rules</li>

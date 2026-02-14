@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ROT Dashboard v2.1 — 1980s Manhattan Neon Edition -->
+<!-- ROT Dashboard v2.1 â€” 1980s Manhattan Neon Edition -->
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -49,10 +49,10 @@
     <script src="/static/js/htmx.min.js"></script>
     <script src="/static/js/htmx-ws.js"></script>
     <style>
-        /* ═══════════════════════════════════════════════════════════
-           1980s MANHATTAN AT NIGHT — SNOW & NEON
+        /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+           1980s MANHATTAN AT NIGHT â€” SNOW & NEON
            Wet streets, neon reflections, snow drifting past skyscrapers
-           ═══════════════════════════════════════════════════════════ */
+           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
         body {
             background: linear-gradient(180deg, #060613 0%, #0a0a1a 30%, #0d0b1e 60%, #111028 100%);
@@ -63,7 +63,7 @@
         }
         h1, h2, h3 { letter-spacing: -0.025em; font-weight: 600; }
 
-        /* ── Cityscape ambient glow behind everything ── */
+        /* â”€â”€ Cityscape ambient glow behind everything â”€â”€ */
         body::before {
             content: '';
             position: fixed;
@@ -86,7 +86,7 @@
         }
         body > * { position: relative; z-index: 1; }
 
-        /* ── Wet street reflection line at bottom ── */
+        /* â”€â”€ Wet street reflection line at bottom â”€â”€ */
         body::after {
             content: '';
             position: fixed;
@@ -106,7 +106,7 @@
             100% { opacity: 0.6; }
         }
 
-        /* ── Stat Cards: frosted glass with neon border glow ── */
+        /* â”€â”€ Stat Cards: frosted glass with neon border glow â”€â”€ */
         .stat-card {
             background: linear-gradient(135deg, rgba(15, 15, 40, 0.85), rgba(10, 10, 30, 0.95));
             border: 1px solid rgba(100, 120, 180, 0.2);
@@ -133,7 +133,7 @@
 
         .badge { font-weight: 600; font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 0.375rem; }
 
-        /* ── Core animations ── */
+        /* â”€â”€ Core animations â”€â”€ */
         .pulse { animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .fade-in { animation: fadeIn 0.6s ease-out both; }
@@ -141,7 +141,7 @@
         .locked-overlay { position: relative; }
         .locked-overlay::after { content: ''; position: absolute; inset: 0; background: rgba(6,6,19,0.9); backdrop-filter: blur(8px); border-radius: 0.5rem; z-index: 1; }
 
-        /* ── Floating / bobbing — like snowflakes caught in an updraft ── */
+        /* â”€â”€ Floating / bobbing â€” like snowflakes caught in an updraft â”€â”€ */
         .float { animation: float 7s ease-in-out infinite; }
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -149,7 +149,7 @@
             66% { transform: translateY(-3px) translateX(-1px); }
         }
 
-        /* ── Gentle sway — wind through the canyon streets ── */
+        /* â”€â”€ Gentle sway â€” wind through the canyon streets â”€â”€ */
         .sway { animation: sway 6s ease-in-out infinite; }
         @keyframes sway {
             0%, 100% { transform: rotate(0deg) translateX(0); }
@@ -157,7 +157,7 @@
             75% { transform: rotate(-1deg) translateX(-2px); }
         }
 
-        /* ── Neon shimmer for ROT logo — hot pink to electric blue ── */
+        /* â”€â”€ Neon shimmer for ROT logo â€” hot pink to electric blue â”€â”€ */
         .shimmer {
             background: linear-gradient(90deg,
                 #ff3264 0%,
@@ -178,7 +178,7 @@
             100% { background-position: -100% 0; }
         }
 
-        /* ── Neon border glow — cycles through city colors ── */
+        /* â”€â”€ Neon border glow â€” cycles through city colors â”€â”€ */
         .border-glow {
             animation: neonBorderCycle 6s ease-in-out infinite;
         }
@@ -188,34 +188,34 @@
             66% { border-color: rgba(180, 50, 255, 0.3); }
         }
 
-        /* ── Slide in from left / right ── */
+        /* â”€â”€ Slide in from left / right â”€â”€ */
         .slide-in-left { animation: slideInLeft 0.7s ease-out both; }
         @keyframes slideInLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
         .slide-in-right { animation: slideInRight 0.7s ease-out both; }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
 
-        /* ── Scale pop with neon flash ── */
+        /* â”€â”€ Scale pop with neon flash â”€â”€ */
         .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
         @keyframes popIn {
             from { opacity: 0; transform: scale(0.8); filter: brightness(1.5); }
             to { opacity: 1; transform: scale(1); filter: brightness(1); }
         }
 
-        /* ── Staggered children — cascade like snowflakes ── */
+        /* â”€â”€ Staggered children â€” cascade like snowflakes â”€â”€ */
         .stagger-children > *:nth-child(1) { animation-delay: 0s; }
         .stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
         .stagger-children > *:nth-child(3) { animation-delay: 0.2s; }
         .stagger-children > *:nth-child(4) { animation-delay: 0.3s; }
         .stagger-children > *:nth-child(5) { animation-delay: 0.4s; }
 
-        /* ── Nav: frosted glass with neon underline ── */
+        /* â”€â”€ Nav: frosted glass with neon underline â”€â”€ */
         nav.border-b {
             border-image: linear-gradient(90deg, transparent 5%, rgba(255,50,100,0.4) 30%, rgba(0,180,255,0.4) 50%, rgba(180,50,255,0.3) 70%, transparent 95%) 1;
             background: linear-gradient(180deg, rgba(6,6,19,0.9), rgba(10,10,26,0.85));
             backdrop-filter: blur(16px);
         }
 
-        /* ── Blinking neon sign effect ── */
+        /* â”€â”€ Blinking neon sign effect â”€â”€ */
         .blink { animation: neonBlink 2s ease-in-out infinite; }
         @keyframes neonBlink {
             0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(74,222,128,0.6)); }
@@ -227,11 +227,11 @@
             84% { opacity: 1; filter: drop-shadow(0 0 4px rgba(74,222,128,0.6)); }
         }
 
-        /* ── Number counter tick ── */
+        /* â”€â”€ Number counter tick â”€â”€ */
         .tick-up { animation: tickUp 0.8s ease-out both; }
         @keyframes tickUp { from { opacity: 0; transform: translateY(12px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-        /* ── Signal cards: wet pavement reflection style ── */
+        /* â”€â”€ Signal cards: wet pavement reflection style â”€â”€ */
         .signal-card {
             transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             background: linear-gradient(135deg, rgba(15, 15, 40, 0.75), rgba(8, 8, 25, 0.85));
@@ -247,7 +247,7 @@
             border-color: rgba(0,180,255,0.3);
         }
 
-        /* ── Chart containers: glass panels ── */
+        /* â”€â”€ Chart containers: glass panels â”€â”€ */
         .chart-container {
             background: linear-gradient(135deg, rgba(15, 15, 40, 0.7), rgba(8, 8, 25, 0.8));
             border: 1px solid rgba(100, 120, 180, 0.2);
@@ -261,7 +261,7 @@
             100% { box-shadow: 0 0 25px rgba(0,180,255,0.05), 0 0 10px rgba(180,50,255,0.03), 0 4px 20px rgba(0,0,0,0.4); }
         }
 
-        /* ── Fire emoji: flickering neon sign ── */
+        /* â”€â”€ Fire emoji: flickering neon sign â”€â”€ */
         .fire-bounce {
             display: inline-block;
             animation: neonFireFlicker 3s ease-in-out infinite;
@@ -278,11 +278,11 @@
             74% { filter: drop-shadow(0 0 8px rgba(255,100,50,0.6)); }
         }
 
-        /* ── Progress bar fill animation ── */
+        /* â”€â”€ Progress bar fill animation â”€â”€ */
         .animate-bar { animation: barFill 1.5s ease-out both; }
         @keyframes barFill { from { width: 0%; } }
 
-        /* ── Neon glow hover for buttons ── */
+        /* â”€â”€ Neon glow hover for buttons â”€â”€ */
         button, a.bg-orange-600, a.bg-blue-600 {
             transition: all 0.3s ease;
         }
@@ -293,7 +293,7 @@
             box-shadow: 0 0 15px rgba(0,180,255,0.3), 0 0 30px rgba(0,180,255,0.1);
         }
 
-        /* ── Nav link hover: neon underline sweep ── */
+        /* â”€â”€ Nav link hover: neon underline sweep â”€â”€ */
         nav a.text-gray-400 { position: relative; }
         nav a.text-gray-400::after {
             content: '';
@@ -312,17 +312,17 @@
             text-shadow: 0 0 10px rgba(200,200,255,0.3);
         }
 
-        /* ── Neon text glow utility ── */
+        /* â”€â”€ Neon text glow utility â”€â”€ */
         .neon-text-pink { text-shadow: 0 0 7px rgba(255,50,100,0.5), 0 0 20px rgba(255,50,100,0.2); }
         .neon-text-blue { text-shadow: 0 0 7px rgba(0,180,255,0.5), 0 0 20px rgba(0,180,255,0.2); }
         .neon-text-green { text-shadow: 0 0 7px rgba(74,222,128,0.5), 0 0 20px rgba(74,222,128,0.2); }
 
-        /* ── Dropdown menus: frosted glass ── */
+        /* â”€â”€ Dropdown menus: frosted glass â”€â”€ */
         .group-hover\:visible {
             backdrop-filter: blur(16px);
         }
 
-        /* ── Scrollbar: neon themed ── */
+        /* â”€â”€ Scrollbar: neon themed â”€â”€ */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #060613; }
         ::-webkit-scrollbar-thumb {
@@ -331,14 +331,14 @@
         }
         ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(255,50,100,0.6), rgba(0,180,255,0.6)); }
 
-        /* ── Selection highlight ── */
+        /* â”€â”€ Selection highlight â”€â”€ */
         ::selection { background: rgba(255,50,100,0.3); color: #fff; }
 
-        /* ═══════════════════════════════════════════════════════════
+        /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
            MOBILE RESPONSIVENESS
-           ═══════════════════════════════════════════════════════════ */
+           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-        /* ── Disable hover transforms on touch devices (prevents sticky hover) ── */
+        /* â”€â”€ Disable hover transforms on touch devices (prevents sticky hover) â”€â”€ */
         @media (hover: none) {
             .stat-card:hover {
                 transform: none;
@@ -353,7 +353,7 @@
             nav a.text-gray-400::after { display: none; }
         }
 
-        /* ── Mobile menu ── */
+        /* â”€â”€ Mobile menu â”€â”€ */
         body.mobile-menu-open { overflow: hidden; }
         #mobile-menu-overlay {
             transition: opacity 0.3s ease;
@@ -364,18 +364,18 @@
         #mobile-menu-panel.translate-x-full { transform: translateX(100%); }
         #mobile-menu-panel.translate-x-0 { transform: translateX(0); }
 
-        /* ── Responsive chart heights ── */
+        /* â”€â”€ Responsive chart heights â”€â”€ */
         .chart-h-responsive { height: 200px; }
         @media (min-width: 640px) { .chart-h-responsive { height: 280px; } }
         @media (min-width: 768px) { .chart-h-responsive { height: 320px; } }
 
-        /* ── Tighter padding on mobile ── */
+        /* â”€â”€ Tighter padding on mobile â”€â”€ */
         @media (max-width: 639px) {
             main > .max-w-7xl, main.max-w-7xl { padding-left: 0.75rem; padding-right: 0.75rem; }
             .chart-container { padding: 0.75rem; }
         }
 
-        /* ── Mobile nav dropdown sections ── */
+        /* â”€â”€ Mobile nav dropdown sections â”€â”€ */
         .mobile-dropdown-content {
             max-height: 0;
             overflow: hidden;
@@ -495,7 +495,7 @@
         </div>
     </nav>
 
-    <!-- ── Mobile Menu Overlay ── -->
+    <!-- â”€â”€ Mobile Menu Overlay â”€â”€ -->
     <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 md:hidden" style="backdrop-filter: blur(4px);"></div>
     <div id="mobile-menu-panel" class="fixed top-0 right-0 bottom-0 w-72 bg-gray-900/98 border-l border-gray-700 z-50 translate-x-full md:hidden overflow-y-auto" style="backdrop-filter: blur(20px);">
         <div class="p-4">
@@ -608,7 +608,7 @@
     </main>
 
     <footer class="border-t mt-12 py-6 text-center text-gray-500 text-xs" style="border-image: linear-gradient(90deg, transparent 5%, rgba(255,50,100,0.3) 30%, rgba(0,180,255,0.3) 50%, rgba(180,50,255,0.2) 70%, transparent 95%) 1;">
-        <span class="fire-bounce inline-block">&#128293;</span> <span style="text-shadow: 0 0 10px rgba(255,50,100,0.3);">ROT v0.1.0</span> &mdash; Signal intelligence, not financial advice.
+        <span class="fire-bounce inline-block">&#128293;</span> <span style="text-shadow: 0 0 10px rgba(255,50,100,0.3);">ROT v0.1.0</span> - Signal intelligence, not financial advice.
     </footer>
 
     <script>
@@ -724,7 +724,7 @@
         {% endif %}
     </script>
 
-    <!-- ── Mobile Menu Logic ── -->
+    <!-- â”€â”€ Mobile Menu Logic â”€â”€ -->
     <script>
     (function() {
         const btn = document.getElementById('mobile-menu-btn');
@@ -769,7 +769,7 @@
     })();
     </script>
 
-    <!-- ── Floating Out-of-Focus Bokeh Bubbles (site-wide) ── -->
+    <!-- â”€â”€ Floating Out-of-Focus Bokeh Bubbles (site-wide) â”€â”€ -->
     <script>
     (function() {
         // Prevent double-init if a page already created the canvas
@@ -785,7 +785,7 @@
         resize();
         window.addEventListener('resize', resize);
 
-        // Neon palette — matches the Manhattan neon theme
+        // Neon palette â€” matches the Manhattan neon theme
         const palette = [
             '255,50,100',   // hot pink
             '0,180,255',    // electric blue
@@ -801,9 +801,9 @@
         const bubbleCount = isMobile ? 10 : 30;
 
         const bubbles = Array.from({length: bubbleCount}, () => {
-            const r = Math.random() * 52 + 8; // radius 8–60px
+            const r = Math.random() * 52 + 8; // radius 8â€“60px
             // Larger bubbles are more transparent (further out of focus)
-            const alphaBase = 0.03 + (1 - r / 60) * 0.09; // 0.03–0.12
+            const alphaBase = 0.03 + (1 - r / 60) * 0.09; // 0.03â€“0.12
             return {
                 x: Math.random() * w,
                 y: Math.random() * h,
@@ -855,7 +855,7 @@
                 const alphaPulse = Math.sin(t * b.alphaPulseSpeed * 60 + b.alphaPulseOffset) * 0.3 + 0.7;
                 const alpha = b.alphaBase * alphaPulse;
 
-                // Draw the out-of-focus bokeh bubble — soft radial gradient, no hard edge
+                // Draw the out-of-focus bokeh bubble â€” soft radial gradient, no hard edge
                 const grd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
                 grd.addColorStop(0, 'rgba(' + b.color + ',' + (alpha * 1.2) + ')');
                 grd.addColorStop(0.4, 'rgba(' + b.color + ',' + (alpha * 0.6) + ')');

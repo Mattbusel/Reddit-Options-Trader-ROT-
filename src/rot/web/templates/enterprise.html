@@ -13,9 +13,9 @@
     </div>
 
     {% if is_enterprise %}
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- ENTERPRISE DASHBOARD                            -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-white mb-2">Enterprise Dashboard</h1>
@@ -57,7 +57,7 @@
             <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Win Rate</div>
             {% set wr = ps.get('win_rate') %}
             <div class="text-3xl font-bold {{ 'text-green-400' if wr and wr >= 0.5 else 'text-red-400' if wr else 'text-gray-500' }}">
-                {% if wr is not none %}{{ "%.1f"|format(wr * 100) }}%{% else %}&mdash;{% endif %}
+                {% if wr is not none %}{{ "%.1f"|format(wr * 100) }}%{% else %} - {% endif %}
             </div>
         </div>
         <div class="stat-card rounded-lg p-5">
@@ -195,7 +195,7 @@
                 <div class="space-y-2">
                     {% for ss in sponsored_signals[:5] %}
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-300">${{ ss.ticker }} &mdash; {{ ss.company_name }}</span>
+                        <span class="text-gray-300">${{ ss.ticker }} - {{ ss.company_name }}</span>
                         {% if ss.status == 'pending' %}
                         <span class="px-2 py-0.5 bg-amber-900/50 text-amber-400 rounded text-xs">Pending</span>
                         {% elif ss.status == 'analyzing' %}
@@ -225,9 +225,9 @@
     </div>
 
     {% else %}
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- ENTERPRISE SALES PAGE                           -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="text-center mb-12">
         <h1 class="text-4xl font-bold text-white mb-4">Enterprise</h1>
         <p class="text-gray-400 text-lg max-w-2xl mx-auto">Data licensing, sponsored signal analysis, and institutional-grade API access for quant funds, researchers, and financial data providers.</p>

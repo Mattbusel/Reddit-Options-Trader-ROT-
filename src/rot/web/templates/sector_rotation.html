@@ -36,7 +36,7 @@
         <div class="text-xl font-bold text-green-400 truncate">{{ best_wr.sector }}</div>
         <div class="text-xs text-gray-500 mt-1">{{ "%.1f"|format(best_wr.win_rate) }}%</div>
         {% else %}
-        <div class="text-xl font-bold text-gray-500">&mdash;</div>
+        <div class="text-xl font-bold text-gray-500"> - </div>
         {% endif %}
     </div>
 </div>
@@ -76,7 +76,7 @@
                         <td class="py-2 px-3 text-right text-gray-300">{{ "%.0f"|format((row.avg_confidence or 0) * 100) }}%</td>
                         {% if row.win_rate is defined %}
                         <td class="py-2 px-3 text-right {{ 'text-green-400' if (row.win_rate or 0) >= 50 else 'text-red-400' if (row.win_rate or 0) > 0 else 'text-gray-500' }} font-bold">
-                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %}&mdash;{% endif %}
+                            {% if row.win_rate is not none %}{{ "%.1f"|format(row.win_rate) }}%{% else %} - {% endif %}
                         </td>
                         {% endif %}
                     </tr>
