@@ -733,6 +733,32 @@ def gate_strategy_access(tier: str) -> dict:
         }
 
 
+def gate_tradingview_access(tier: str) -> dict:
+    """Return TradingView integration feature access flags based on tier.
+
+    Free: Public page, basic info
+    Pro+: Pine Script generator, full integration
+    Ultra+: Enhanced features (future)
+    """
+    return {
+        "has_access": True,  # All tiers can view the TradingView page
+        "has_pine_script_generator": tier in _PAID_TIERS,  # Pro+ only
+        "has_signal_feed": tier in _PAID_TIERS,  # JSON feed requires Pro+
+        "has_webhook": tier in _PAID_TIERS,  # Incoming webhooks require Pro+
+        "max_script_signals": (
+            0 if tier == "free"
+            else 50 if tier == "pro"
+            else 100
+        ),
+        "max_days_history": (
+            0 if tier == "free"
+            else 30 if tier == "pro"
+            else 90 if tier == "premium"
+            else 365
+        ),
+    }
+
+
 def _redact_trade_idea(idea: dict) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:

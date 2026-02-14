@@ -83,6 +83,17 @@ async def login(body: LoginRequest, request: Request):
     settings = request.app.state.settings
     token = create_access_token(user["id"], user["email"], user["tier"], settings)
 
+    # Track login for gamification (async, fire-and-forget)
+    try:
+        from rot.gamification import BadgeTracker
+
+        tracker = BadgeTracker(db)
+        await tracker.record_login(user["id"])
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning("Badge tracking failed for login: %s", e)
+
     response = JSONResponse(content={
         "user": {"id": user["id"], "email": user["email"], "tier": user["tier"]},
         "token": token,

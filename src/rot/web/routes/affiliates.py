@@ -3,14 +3,14 @@
 Provides:
   - /affiliates — public affiliate program page
   - /api/v1/affiliates/register — sign up as affiliate
-  - /api/v1/affiliates/dashboard — view commissions + stats
+  - /api/v1/affiliates/stats — view commissions + stats
+  - /api/v1/affiliates/request-payout — request payout
   - /api/v1/affiliates/widget — embeddable widget code
   - /ref/{code} — referral landing redirect
 """
 from __future__ import annotations
 
 import logging
-import secrets
 import time
 from typing import Optional
 
@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from rot.web.auth import get_current_user_optional, require_user
+from rot.affiliates import AffiliateEngine
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +34,10 @@ REFERRAL_REWARD_DAYS = 7  # 7 days free Pro for both sides
 
 class AffiliateRegisterRequest(BaseModel):
     payment_email: str = ""  # PayPal/Stripe email for payouts
+
+
+class PayoutRequest(BaseModel):
+    payment_method: str = "paypal"  # paypal, stripe, bank_transfer
 
 
 # ── Public affiliate page ──
@@ -66,73 +71,99 @@ async def affiliates_page(request: Request):
 async def register_affiliate(body: AffiliateRegisterRequest, request: Request):
     """Register current user as an affiliate. Generates a unique referral code."""
     user = await require_user(request)
-
     db = request.app.state.db
-    current_settings = user.get("settings", {})
-    if not isinstance(current_settings, dict):
-        current_settings = {}
+    engine = AffiliateEngine(db)
 
-    # Check if already registered
-    if current_settings.get("affiliate"):
-        return {
-            "ok": True,
-            "already_registered": True,
-            "affiliate": current_settings["affiliate"],
-        }
+    try:
+        # Check if already registered
+        existing = await db.get_affiliate_by_user(user["id"])
+        if existing:
+            return {
+                "ok": True,
+                "already_registered": True,
+                "affiliate": existing,
+            }
 
-    # Generate unique referral code
-    ref_code = _generate_ref_code(user.get("email", ""))
+        # Register new affiliate
+        affiliate = await engine.register_affiliate(
+            user_id=user["id"],
+            payment_email=body.payment_email or user.get("email", ""),
+        )
 
-    affiliate_data = {
-        "ref_code": ref_code,
-        "payment_email": body.payment_email or user.get("email", ""),
-        "registered_at": time.time(),
-        "total_referrals": 0,
-        "total_conversions": 0,
-        "total_earned": 0.0,
-        "pending_payout": 0.0,
-    }
+        return {"ok": True, "affiliate": affiliate.to_dict()}
 
-    current_settings["affiliate"] = affiliate_data
-    await db.update_user_settings(user["id"], current_settings)
-
-    log.info("New affiliate registered: user=%s code=%s", user["id"], ref_code)
-
-    return {"ok": True, "affiliate": affiliate_data}
+    except Exception as e:
+        log.error("Error registering affiliate: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Affiliate dashboard ──
+# ── Affiliate stats ──
 
-@router.get("/api/v1/affiliates/dashboard")
-async def affiliate_dashboard(request: Request):
+@router.get("/api/v1/affiliates/stats")
+async def affiliate_stats(request: Request, days: int = 30):
     """Get affiliate stats and commission data."""
     user = await require_user(request)
+    db = request.app.state.db
+    engine = AffiliateEngine(db)
 
-    settings = user.get("settings", {})
-    if not isinstance(settings, dict):
-        settings = {}
-
-    affiliate = settings.get("affiliate")
+    # Get affiliate record
+    affiliate = await db.get_affiliate_by_user(user["id"])
     if not affiliate:
         raise HTTPException(status_code=400, detail="Not registered as affiliate. Register first.")
 
-    # Get referral stats from DB
-    db = request.app.state.db
-    ref_code = affiliate.get("ref_code", "")
-    referral_count = await db.count_referrals(ref_code)
-    conversion_count = await db.count_referral_conversions(ref_code)
+    try:
+        # Get statistics
+        stats = await engine.get_referral_stats(affiliate["id"], days=days)
 
-    return {
-        "ok": True,
-        "ref_code": ref_code,
-        "referral_link": f"{request.base_url}ref/{ref_code}",
-        "total_clicks": referral_count,
-        "total_conversions": conversion_count,
-        "commission_rate": COMMISSION_RATE,
-        "total_earned": affiliate.get("total_earned", 0),
-        "pending_payout": affiliate.get("pending_payout", 0),
-        "recent_referrals": await db.get_recent_referrals(ref_code, limit=20),
-    }
+        # Get payout report
+        payout_report = await engine.generate_payout_report(affiliate["id"])
+
+        return {
+            "ok": True,
+            "affiliate": affiliate,
+            "referral_link": f"{request.base_url}ref/{affiliate['referral_code']}",
+            "stats": stats.to_dict(),
+            "payout_report": payout_report,
+            "commission_rate": COMMISSION_RATE,
+        }
+
+    except Exception as e:
+        log.error("Error fetching affiliate stats: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Request payout ──
+
+@router.post("/api/v1/affiliates/request-payout")
+async def request_payout(body: PayoutRequest, request: Request):
+    """Request a payout for accumulated commissions."""
+    user = await require_user(request)
+    db = request.app.state.db
+    engine = AffiliateEngine(db)
+
+    # Get affiliate record
+    affiliate = await db.get_affiliate_by_user(user["id"])
+    if not affiliate:
+        raise HTTPException(status_code=400, detail="Not registered as affiliate.")
+
+    try:
+        # Request payout
+        payout = await engine.request_payout(
+            affiliate_id=affiliate["id"],
+            payment_method=body.payment_method,
+        )
+
+        return {
+            "ok": True,
+            "payout": payout.to_dict(),
+            "message": f"Payout request submitted for ${payout.amount_usd:.2f}",
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        log.error("Error requesting payout: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Embeddable widget code ──
@@ -195,12 +226,18 @@ async def affiliate_widget(request: Request):
 # ── Referral redirect ──
 
 @router.get("/ref/{ref_code}")
-async def referral_redirect(ref_code: str, request: Request):
+async def referral_redirect(ref_code: str, request: Request, source: str = ""):
     """Track referral click and redirect to signup/dashboard."""
     db = request.app.state.db
+    engine = AffiliateEngine(db)
 
     # Record the referral click
-    await db.record_referral_click(ref_code, request.client.host if request.client else "")
+    ip_address = request.client.host if request.client else ""
+    await engine.track_click(
+        referral_code=ref_code,
+        source=source,
+        ip_address=ip_address,
+    )
 
     # Redirect to signup page with ref code in query
     base_url = str(request.base_url).rstrip("/")
@@ -208,13 +245,3 @@ async def referral_redirect(ref_code: str, request: Request):
         url=f"{base_url}/dashboard?ref={ref_code}",
         status_code=302,
     )
-
-
-# ── Helpers ──
-
-def _generate_ref_code(email: str) -> str:
-    """Generate a short, memorable referral code."""
-    # Take first part of email + random suffix
-    prefix = email.split("@")[0][:6].lower() if email else "rot"
-    suffix = secrets.token_hex(3)  # 6 hex chars
-    return f"{prefix}_{suffix}"

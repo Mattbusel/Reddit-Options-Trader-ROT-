@@ -4,6 +4,7 @@ Provides:
   - /tradingview — public page with Pine Script code + setup instructions
   - /api/v1/tradingview/signals — JSON feed for TradingView external data
   - /api/v1/tradingview/webhook — incoming webhook from TradingView alerts
+  - /api/v1/tradingview/script — Pine Script generator (Pro+ tier)
 """
 from __future__ import annotations
 
@@ -12,10 +13,12 @@ import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
+from rot.integrations import PineScriptConfig, PineScriptGenerator, TVSignalOverlay
 from rot.web.auth import get_current_user_optional, require_user
 from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
+from rot.web.tier_gate import gate_tradingview_access
 
 log = logging.getLogger(__name__)
 
@@ -143,3 +146,120 @@ async def tradingview_webhook(request: Request):
             "confidence": confidence,
         },
     }
+
+
+# ── Pine Script generator ──
+
+@router.get("/api/v1/tradingview/script")
+async def tradingview_script(
+    request: Request,
+    ticker: Optional[str] = None,
+    days: int = Query(30, ge=1, le=365),
+    min_confidence: float = Query(0.0, ge=0.0, le=1.0),
+    script_type: str = Query("signal_overlay", regex="^(signal_overlay|confidence_heatmap|watchlist_indicator|strategy_backtest|alert_conditions)$"),
+    show_labels: bool = Query(True),
+    show_lines: bool = Query(False),
+):
+    """Generate Pine Script v5 code from ROT signals.
+
+    Tier gate: Free blocked, Pro+ full access.
+
+    Query params:
+        ticker: Filter to single ticker (optional)
+        days: Number of days of history (1-365, default 30)
+        min_confidence: Minimum confidence threshold (0.0-1.0, default 0.0)
+        script_type: Type of script (default signal_overlay)
+        show_labels: Show text labels on chart (default true)
+        show_lines: Draw vertical lines at signals (default false)
+
+    Returns:
+        PlainTextResponse with Pine Script v5 code
+    """
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
+
+    tier = (user or {}).get("tier", "free")
+
+    # Tier gating: Free blocked, Pro+ allowed
+    access = gate_tradingview_access(tier)
+    if not access["has_pine_script_generator"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Pine Script generator requires Pro tier or higher. Upgrade at /pricing",
+        )
+
+    db = request.app.state.db
+
+    # Calculate cutoff timestamp
+    cutoff_ts = int(time.time()) - (days * 86400)
+
+    # Fetch signals
+    signals = await db.get_signals(
+        limit=1000,  # Fetch more, will filter client-side
+        ticker=ticker,
+    )
+
+    # Filter by time and confidence
+    filtered_signals = [
+        s for s in signals
+        if s.get("created_at", 0) >= cutoff_ts
+        and s.get("confidence", 0) >= min_confidence
+    ]
+
+    # Convert to TVSignalOverlay objects
+    tv_signals = []
+    for sig in filtered_signals[:100]:  # Limit to 100 for Pine Script performance
+        tv_signals.append(
+            TVSignalOverlay(
+                timestamp=int(sig.get("created_at", 0)),
+                ticker=sig.get("ticker", "UNKNOWN"),
+                stance=sig.get("stance", "unknown"),
+                confidence=sig.get("confidence", 0.0),
+                event_type=sig.get("event_type", "other"),
+                strategy=sig.get("strategy", "none"),
+                time_horizon=sig.get("time_horizon", "unknown"),
+                trend_score=sig.get("trend_score", 0.0),
+                signal_id=sig.get("id", ""),
+            )
+        )
+
+    # Build configuration
+    config = PineScriptConfig(
+        ticker=ticker,
+        min_confidence=min_confidence,
+        days=days,
+        max_signals=100,
+        show_labels=show_labels,
+        show_lines=show_lines,
+        script_name=f"ROT Signals - {ticker}" if ticker else "ROT Signals",
+        script_description=f"Reddit Options Trader signals ({'filtered to ' + ticker if ticker else 'all tickers'})",
+    )
+
+    # Generate script
+    generator = PineScriptGenerator(config)
+    try:
+        script_code = generator.generate(tv_signals, script_type=script_type)  # type: ignore
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Validate syntax
+    is_valid, error_msg = PineScriptGenerator.validate_pine_script(script_code)
+    if not is_valid:
+        log.error("Generated invalid Pine Script: %s", error_msg)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Script generation failed validation: {error_msg}",
+        )
+
+    log.info(
+        "Generated Pine Script: type=%s ticker=%s signals=%d user=%s",
+        script_type, ticker or "all", len(tv_signals),
+        user["id"] if user else "anonymous",
+    )
+
+    return PlainTextResponse(
+        content=script_code,
+        headers=rate_limit_headers(user),
+        media_type="text/plain",
+    )

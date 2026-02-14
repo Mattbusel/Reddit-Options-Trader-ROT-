@@ -274,6 +274,30 @@ class DatabaseBase:
         except Exception as e:
             log.warning("Initial signal archive migration skipped: %s", e)
 
+        # Initialize gamification tables if they exist (via GamificationMixin)
+        if hasattr(self, '_init_gamification_tables'):
+            try:
+                await self._init_gamification_tables()
+                log.info("Gamification tables initialized")
+            except Exception as e:
+                log.warning("Gamification tables init skipped: %s", e)
+
+        # Initialize sports tables (via SportsMixin)
+        if hasattr(self, '_create_sports_tables'):
+            try:
+                await self._create_sports_tables()
+                log.info("Sports betting tables initialized")
+            except Exception as e:
+                log.warning("Sports betting tables init skipped: %s", e)
+
+        # Initialize affiliates tables (via AffiliatesMixin)
+        if hasattr(self, '_init_affiliates_tables'):
+            try:
+                await self._init_affiliates_tables()
+                log.info("Affiliates tables initialized")
+            except Exception as e:
+                log.warning("Affiliates tables init skipped: %s", e)
+
     async def close(self) -> None:
         """
         Close the database connection.
@@ -303,3 +327,13 @@ class DatabaseBase:
         if not self._db:
             raise RuntimeError("Database not connected. Call connect() first.")
         return self._db
+
+    async def execute_fetchone(self, sql: str, parameters: tuple = ()):
+        """Execute SQL and fetch one row."""
+        cursor = await self.db.execute(sql, parameters)
+        return await cursor.fetchone()
+
+    async def execute_fetchall(self, sql: str, parameters: tuple = ()):
+        """Execute SQL and fetch all rows."""
+        cursor = await self.db.execute(sql, parameters)
+        return await cursor.fetchall()

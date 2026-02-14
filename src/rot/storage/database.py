@@ -23,6 +23,7 @@ Architecture:
 - SocialMixin: Author profiles, manipulation alerts, propagation, clusters
 - BacktestMixin: Backtesting runs and saved strategies
 - StrategyMixin: Strategy builder, marketplace, regimes, discovery
+- SportsMixin: Sports news, line mover scores, betting opportunities
 """
 
 from __future__ import annotations
@@ -41,6 +42,8 @@ from .macro_db import MacroMixin
 from .agents_db import AgentsMixin
 from .flow_db import FlowMixin
 from .social_db import SocialMixin
+from .sports_db import SportsMixin
+from .affiliates_db import AffiliatesMixin
 
 # Import backtest and strategy mixins (to be created)
 try:
@@ -57,6 +60,14 @@ except ImportError:
     # Temporary fallback until strategy_db.py is created
     class StrategyMixin:
         """Placeholder for strategy builder methods."""
+        pass
+
+try:
+    from .gamification_db import GamificationMixin
+except ImportError:
+    # Temporary fallback until gamification_db.py is created
+    class GamificationMixin:
+        """Placeholder for gamification methods."""
         pass
 
 
@@ -76,6 +87,9 @@ class Database(
     SocialMixin,
     BacktestMixin,
     StrategyMixin,
+    GamificationMixin,
+    SportsMixin,
+    AffiliatesMixin,
 ):
     """
     Main database class composed of domain-specific mixins.
@@ -101,8 +115,9 @@ class Database(
     - SocialMixin: 18 (save_author, save_prediction, save_manipulation_alert, etc.)
     - BacktestMixin: 8 (save_backtest_run, save_backtest_strategy, etc.)
     - StrategyMixin: 26 (save_strategy, get_strategy, marketplace, regimes, discovery, etc.)
+    - SportsMixin: 9 (insert_sports_news, get_sports_news, get_sports_news_by_team, etc.)
 
-    Total: ~222 methods across 15 mixins
+    Total: ~231 methods across 16 mixins
 
     Design rationale:
     - Multiple inheritance works because mixins are stateless and all delegate to self.db
