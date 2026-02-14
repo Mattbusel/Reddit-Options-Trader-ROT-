@@ -181,6 +181,16 @@ async def _async_signal_handler(
         cache.invalidate("leaderboard_")
         cache.invalidate("landing_stats")
 
+    # Evaluate signal against active trading agents
+    agent_engine = getattr(app.state, "agent_engine", None)
+    if agent_engine and signal_id:
+        try:
+            agent_trades = await agent_engine.evaluate_signal(signal_data, signal_id)
+            if agent_trades:
+                log.info("Agent engine: %d trades executed for signal %s", len(agent_trades), signal_id)
+        except Exception as e:
+            log.error("Agent engine error: %s", e)
+
     # Dispatch alerts
     if dispatcher and dispatcher.has_channels:
         try:
@@ -932,6 +942,20 @@ async def _run_server(cfg: Settings):
     else:
         app.state.feedback_analyzer = None
         log.info("Feedback analysis: DISABLED (set ROT_FEEDBACK_ENABLED=true)")
+
+    # Initialize trading agent engine (Ultra+ feature)
+    if cfg.agent.enabled:
+        from rot.agents.engine import AgentEngine
+        agent_engine = AgentEngine(db=app.state.db)
+        app.state.agent_engine = agent_engine
+        log.info(
+            "Agent engine: ACTIVE (max_agents_per_user=%d, max_daily_trades=%d)",
+            cfg.agent.max_agents_per_user,
+            cfg.agent.max_daily_trades,
+        )
+    else:
+        app.state.agent_engine = None
+        log.info("Agent engine: DISABLED (set ROT_AGENT_ENABLED=true)")
 
     # Start unusual activity scan loop (always active — scans signals for IV spikes, volume surges)
     unusual_task = asyncio.create_task(

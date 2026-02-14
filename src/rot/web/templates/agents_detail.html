@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ agent.name }} — Trading Agent — ROT{% endblock %}
+
+{% block content %}
+<div class="space-y-6 fade-in">
+    <!-- Breadcrumb -->
+    <div class="text-sm text-gray-500">
+        <a href="/agents" class="hover:text-white transition">Agents</a>
+        <span class="mx-2">/</span>
+        <span class="text-white">{{ agent.name }}</span>
+    </div>
+
+    <!-- Agent Header -->
+    <div class="stat-card rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">
+                    {% if agent.agent_type == 'signal_follower' %}&#127919;{% elif agent.agent_type == 'contrarian' %}&#128260;{% elif agent.agent_type == 'momentum_rider' %}&#128640;{% else %}&#128736;{% endif %}
+                </span>
+                <div>
+                    <h1 class="text-xl font-bold text-white">{{ agent.name }}</h1>
+                    <span class="text-xs text-gray-500">{{ agent.agent_type|replace('_', ' ')|title }}</span>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded {% if agent.status == 'active' %}bg-green-900 text-green-400{% elif agent.status == 'paused' %}bg-yellow-900 text-yellow-400{% else %}bg-red-900 text-red-400{% endif %}">{{ agent.status }}</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                {% if agent.status == 'active' %}
+                <button onclick="agentAction('pause')" class="px-3 py-1.5 rounded bg-yellow-900 text-yellow-400 text-xs hover:bg-yellow-800 transition">Pause</button>
+                {% elif agent.status == 'paused' %}
+                <button onclick="agentAction('resume')" class="px-3 py-1.5 rounded bg-green-900 text-green-400 text-xs hover:bg-green-800 transition">Resume</button>
+                {% endif %}
+                <button onclick="if(confirm('Delete this agent?')) agentAction('delete')" class="px-3 py-1.5 rounded bg-red-900 text-red-400 text-xs hover:bg-red-800 transition">Delete</button>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="p-3 rounded-lg border border-gray-800">
+                <div class="text-xs text-gray-500">Total Trades</div>
+                <div class="text-lg font-bold text-white">{{ perf.total_trades|default(0) }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-gray-800">
+                <div class="text-xs text-gray-500">Win Rate</div>
+                <div class="text-lg font-bold text-white">{{ (perf.win_rate|default(0) * 100)|round(1) }}%</div>
+            </div>
+            <div class="p-3 rounded-lg border border-gray-800">
+                <div class="text-xs text-gray-500">Total P&L</div>
+                <div class="text-lg font-bold {% if (perf.total_pnl|default(0)) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">${{ perf.total_pnl|default(0)|round(2) }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-gray-800">
+                <div class="text-xs text-gray-500">Trades Today</div>
+                <div class="text-lg font-bold text-white">{{ perf.trades_today|default(0) }}</div>
+            </div>
+        </div>
+
+        <!-- Config Summary -->
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-500">
+            <div>Min Confidence: <span class="text-gray-300">{{ agent.min_confidence }}</span></div>
+            <div>Max Daily: <span class="text-gray-300">{{ agent.max_daily_trades }}</span></div>
+            <div>Position: <span class="text-gray-300">${{ agent.max_position_dollars }}</span></div>
+            <div>Stop Loss: <span class="text-gray-300">{{ agent.stop_loss_pct }}%</span></div>
+        </div>
+    </div>
+
+    <!-- Trade History -->
+    <div class="stat-card rounded-xl p-4">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Trade History</h2>
+        {% if trades %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-xs text-gray-500 uppercase border-b border-gray-800">
+                        <th class="py-2 text-left">Ticker</th>
+                        <th class="py-2 text-left">Stance</th>
+                        <th class="py-2 text-right">Entry</th>
+                        <th class="py-2 text-right">Exit</th>
+                        <th class="py-2 text-right">P&L</th>
+                        <th class="py-2 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in trades %}
+                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+                        <td class="py-2 font-bold text-white">{{ t.ticker }}</td>
+                        <td class="py-2">
+                            <span class="text-xs px-1.5 py-0.5 rounded {% if t.stance == 'bullish' %}bg-green-900 text-green-400{% else %}bg-red-900 text-red-400{% endif %}">{{ t.stance }}</span>
+                        </td>
+                        <td class="py-2 text-right text-gray-300">${{ t.entry_price|round(2) }}</td>
+                        <td class="py-2 text-right text-gray-300">{% if t.exit_price %}${{ t.exit_price|round(2) }}{% else %}-{% endif %}</td>
+                        <td class="py-2 text-right font-bold {% if (t.pnl_dollars|default(0)) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">{% if t.pnl_dollars is not none %}${{ t.pnl_dollars|round(2) }}{% else %}-{% endif %}</td>
+                        <td class="py-2 text-xs {% if t.status == 'open' %}text-blue-400{% else %}text-gray-500{% endif %}">{{ t.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-600 text-sm">No trades yet. This agent will auto-trade when matching signals arrive.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+async function agentAction(action) {
+    const agentId = '{{ agent.id }}';
+    let url, method;
+    if (action === 'delete') {
+        url = `/api/v1/agents/${agentId}`;
+        method = 'DELETE';
+    } else {
+        url = `/api/v1/agents/${agentId}/${action}`;
+        method = 'POST';
+    }
+    const res = await fetch(url, {method});
+    if (res.ok) {
+        if (action === 'delete') window.location.href = '/agents';
+        else window.location.reload();
+    } else {
+        const err = await res.json();
+        alert(err.error || 'Failed');
+    }
+}
+</script>
+{% endblock %}

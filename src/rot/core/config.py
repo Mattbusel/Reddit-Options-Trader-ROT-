@@ -333,6 +333,17 @@ class BacktestServerConfig(BaseSettings):
     optimizer_max_combos: int = 500  # max parameter combinations for grid search
 
 
+class AgentConfig(BaseSettings):
+    """Config for autonomous trading agents."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_AGENT_")
+
+    enabled: bool = False  # master switch for agent engine
+    eval_interval_s: int = 60  # fallback polling interval (primary path is signal callback)
+    max_agents_per_user: int = 5  # max agents a single user can create
+    max_daily_trades: int = 20  # global daily trade cap across all agents
+
+
 class ArchiveConfig(BaseSettings):
     """Config for signal archive retention."""
 
@@ -390,6 +401,7 @@ class Settings(BaseSettings):
     export_scheduler: ExportSchedulerConfig = Field(default_factory=ExportSchedulerConfig)
     archive: ArchiveConfig = Field(default_factory=ArchiveConfig)
     macro: MacroConfig = Field(default_factory=MacroConfig)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

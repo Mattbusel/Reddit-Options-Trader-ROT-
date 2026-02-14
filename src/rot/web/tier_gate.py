@@ -516,6 +516,53 @@ def gate_macro_access(tier: str) -> dict:
         }
 
 
+def gate_terminal_access(tier: str) -> dict:
+    """Return Bloomberg-lite terminal feature access flags based on tier.
+
+    Premium+ gets the full multi-panel terminal experience.
+    Ultra+ gets options flow panel and watchlist alerts.
+    """
+    return {
+        "has_access": tier in ("premium", "ultra", "enterprise"),
+        "has_options_flow": tier in ("ultra", "enterprise"),
+        "has_news_wire": tier in ("premium", "ultra", "enterprise"),
+        "has_watchlist_alerts": tier in ("ultra", "enterprise"),
+        "has_heatmap": tier in ("premium", "ultra", "enterprise"),
+        "refresh_interval_s": (
+            0 if tier not in ("premium", "ultra", "enterprise")
+            else 60 if tier == "premium"
+            else 30
+        ),
+        "max_signals_feed": (
+            0 if tier not in ("premium", "ultra", "enterprise")
+            else 25 if tier == "premium"
+            else 50
+        ),
+    }
+
+
+def gate_agent_access(tier: str) -> dict:
+    """Return autonomous trading agent feature access flags based on tier.
+
+    Ultra+ gets AI trading agents that auto-execute paper trades.
+    Enterprise gets custom rule agents, more agents, and API access.
+    """
+    return {
+        "has_access": tier in ("ultra", "enterprise"),
+        "max_agents": (
+            0 if tier not in ("ultra", "enterprise")
+            else 3 if tier == "ultra"
+            else 10
+        ),
+        "has_signal_follower": tier in ("ultra", "enterprise"),
+        "has_contrarian": tier in ("ultra", "enterprise"),
+        "has_momentum_rider": tier in ("ultra", "enterprise"),
+        "has_custom_rules": tier == "enterprise",
+        "has_performance_export": tier == "enterprise",
+        "has_api": tier == "enterprise",
+    }
+
+
 def _redact_trade_idea(idea: dict) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:

@@ -1,0 +1,15 @@
+<div class="flex items-center space-x-6 overflow-x-auto whitespace-nowrap py-1 text-sm" style="scrollbar-width: none;">
+    {% for t in trending %}
+    <div class="flex items-center space-x-2 flex-shrink-0">
+        <span class="font-bold text-white">{{ t.ticker }}</span>
+        <span class="text-gray-400">{{ t.signal_count }} signals</span>
+        {% if t.avg_confidence %}
+        <span class="text-xs px-1.5 py-0.5 rounded {% if t.avg_confidence > 0.6 %}bg-green-900 text-green-400{% else %}bg-gray-800 text-gray-400{% endif %}">{{ (t.avg_confidence * 100)|int }}%</span>
+        {% endif %}
+    </div>
+    {% if not loop.last %}<span class="text-gray-700">|</span>{% endif %}
+    {% endfor %}
+    {% if not trending %}
+    <span class="text-gray-500">No trending tickers yet</span>
+    {% endif %}
+</div>

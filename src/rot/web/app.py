@@ -156,6 +156,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(paper_leaderboard.router, tags=["leaderboard"])
     app.include_router(api_status.router, tags=["api-status"])
 
+    # Terminal and Agents routes
+    from rot.web.routes import terminal, agents
+    app.include_router(terminal.router, tags=["terminal"])
+    app.include_router(agents.router, tags=["agents"])
+
     # Dashboard routes (HTML)
     from rot.web.routes import (
         dashboard, performance, backtest, raid_tracker, sports_tracker,

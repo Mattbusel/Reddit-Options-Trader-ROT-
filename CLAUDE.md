@@ -15,9 +15,9 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~952 tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~1040+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
-| **DB** | SQLite with aiosqlite (WAL mode), 18+ tables |
+| **DB** | SQLite with aiosqlite (WAL mode), 20+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
 
 ---
@@ -289,10 +289,18 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `seasonal.py` | SeasonalAnalyzer: sector seasonal baselines (10 sectors), monthly SPY averages, current bias, rotation calendar |
 | `impact.py` | EventImpactAnalyzer: historical reaction analysis, impact prediction, sector sensitivity, surprise correlation |
 
+### `src/rot/agents/` (Autonomous Trading Agents — 4 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Exports AgentRule, AgentPerformance, RuleEngine, AgentEngine |
+| `types.py` | Frozen dataclasses: AgentRule (9 operators, to_dict/from_dict), AgentPerformance |
+| `rules.py` | RuleEngine: evaluate_all (AND), evaluate_any (OR), evaluate_custom, agent type logic (contrarian flips stance), confidence gate |
+| `engine.py` | AgentEngine: evaluate_signal against active agents, execute_trade, safety rails (daily cap, exposure, stop-loss auto-pause), performance computation (Sharpe, max drawdown) |
+
 ### `src/rot/storage/`
 | File | Purpose |
 |------|---------|
-| `database.py` | Async SQLite (aiosqlite), WAL mode, 18+ tables, migration system |
+| `database.py` | Async SQLite (aiosqlite), WAL mode, 20+ tables, migration system |
 
 ### `src/rot/alerts/`
 | File | Purpose |
@@ -470,6 +478,8 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `insider_trades` | Insider & congressional trades (id, ticker, insider_name, trade_type, filing_date, source, title, shares, price, value, transaction_date, meta JSON, created_at) |
 | `fomc_meetings` | FOMC meeting records (id, meeting_date, rate_decision, rate_before, rate_after, statement_text, statement_diff, hawkish_score, dovish_score, dot_plot_median, meta JSON, created_at) |
 | `event_impact_cache` | Cached event impact analysis (event_type PK, avg_spy_move, avg_vix_change, sample_size, reactions_json, sector_sensitivity_json, computed_at) |
+| `trading_agents` | Autonomous trading agents (id, user_id, name, agent_type, status, rules_json, config_json, min_confidence, max_daily_trades, max_position_dollars, max_portfolio_exposure_pct, stop_loss_pct, created_at, updated_at). Types: signal_follower, contrarian, momentum_rider, custom_rule |
+| `agent_trades` | Trades executed by agents (id, agent_id, user_id, signal_id, ticker, stance, entry_price, quantity, dollars, created_at, closed_at, exit_price, pnl_dollars, pnl_pct, status, paper_trade_id) |
 
 ---
 
@@ -607,6 +617,27 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | GET | `/api/v1/macro/insider` | JSON API for insider trades |
 | GET | `/api/v1/macro/impact` | JSON API for event impact analysis |
 
+#### Bloomberg-lite Terminal (Premium+)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/terminal` | Multi-panel real-time market intelligence dashboard |
+| GET | `/api/v1/terminal/ticker-bar` | HTMX partial: scrolling ticker bar |
+| GET | `/api/v1/terminal/quick-stats` | HTMX partial: quick stats panel |
+| GET | `/api/v1/terminal/watchlist` | HTMX partial: watchlist panel |
+
+#### Autonomous Trading Agents (Ultra+)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/agents` | Agent dashboard (list, create) |
+| GET | `/agents/{id}` | Agent detail (trades, performance) |
+| POST | `/api/v1/agents/create` | Create agent |
+| PUT | `/api/v1/agents/{id}` | Update agent config |
+| POST | `/api/v1/agents/{id}/pause` | Pause agent |
+| POST | `/api/v1/agents/{id}/resume` | Resume agent |
+| DELETE | `/api/v1/agents/{id}` | Delete agent |
+| GET | `/api/v1/agents/{id}/trades` | Agent trade history JSON |
+| GET | `/api/v1/agents/{id}/performance` | Agent performance JSON |
+
 #### Misc
 | Method | Path | Description |
 |--------|------|-------------|
@@ -689,6 +720,8 @@ Each returns a dict of boolean/numeric flags:
 - `gate_signal_quality_access()` — signal quality analytics dashboard
 - `gate_backtest_access()` — backtest engine features: Pro (basic, 30d, 200 signals), Premium (+MC, walk-forward, risk, benchmark, 90d, 1000 signals), Ultra (+optimizer, comparison, saved strategies, export, 365d, 5000 signals)
 - `gate_macro_access()` — macro events: Free (3 upcoming, no history), Pro (+full calendar, earnings, insider, FOMC), Premium (+impact, IV crush, seasonal, strategy), Ultra/Enterprise (+full history, cross-ref, statement diffs, export)
+- `gate_terminal_access()` — Bloomberg-lite terminal: Premium+ (access, heatmap, news wire), Ultra+ (options flow, watchlist alerts, 30s refresh), Premium (60s refresh, 25 signals), Ultra+ (30s refresh, 50 signals)
+- `gate_agent_access()` — Trading agents: Ultra+ (access, signal_follower, contrarian, momentum_rider, 3 agents), Enterprise (custom_rules, performance_export, API, 10 agents)
 
 ---
 
@@ -874,6 +907,14 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | `INSIDER_MIN_VALUE` | `50000` | Min $ value for notable insider trades |
 | `SEASONAL_LOOKBACK_YEARS` | `10` | Years of seasonal data for analysis |
 | `PURGE_KEEP_DAYS` | `365` | Days to keep macro data before purging |
+
+### Agents (`ROT_AGENT_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLED` | `False` | Master switch for agent engine |
+| `EVAL_INTERVAL_S` | `60` | Fallback polling interval (primary path is signal callback) |
+| `MAX_AGENTS_PER_USER` | `5` | Max agents a single user can create |
+| `MAX_DAILY_TRADES` | `20` | Global daily trade cap across all agents |
 
 ### Archive (`ROT_ARCHIVE_*`)
 | Variable | Default | Description |
@@ -1119,6 +1160,11 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_macro_fomc.py` | FOMCTracker: hawkish/dovish scoring, rate decision classification, statement diff, rate probabilities, row conversion, query methods |
 | `test_macro_seasonal.py` | SeasonalAnalyzer: seasonal pattern computation, sector patterns (10 sectors), current bias, rotation calendar, yfinance ticker seasonals |
 | `test_macro_db.py` | Macro DB CRUD: macro_events, earnings_events, insider_trades, fomc_meetings upsert/query/filter, event_impact_cache round-trip, purge operations |
+| `test_terminal.py` | Terminal tier gate tests (all 5 tiers, panel access, refresh intervals) |
+| `test_agent_types.py` | AgentRule operators, matches, to_dict/from_dict, AgentPerformance, RuleEngine evaluate_all/any/custom, agent type logic |
+| `test_agent_engine.py` | AgentEngine evaluate_signal, execute_trade, safety rails, performance computation, _flatten_signal |
+| `test_agent_db.py` | Agent CRUD, trade insert/close, performance queries, exposure, dedup |
+| `test_agent_tier_gate.py` | Agent tier gate (all 5 tiers, agent types, feature access) |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1223,6 +1269,25 @@ The dashboard loads 12+ database queries per page view. To avoid hammering the D
 ```
 rot/
 ├── CLAUDE.md                          ← YOU ARE HERE
+├── docs/                              # ★ SPLIT DOCUMENTATION (17 focused docs)
+│   ├── architecture.md                # Pipeline, patterns, design decisions
+│   ├── database.md                    # Schema, SQL helpers, migrations
+│   ├── web-layer.md                   # Routes, auth, tier gating
+│   ├── nlp-engine.md                  # Custom NLP pipeline, lexicon, sarcasm
+│   ├── config.md                      # All ROT_* env vars
+│   ├── testing.md                     # Test patterns, running tests
+│   ├── deployment.md                  # Docker, Railway, dependencies
+│   ├── types.md                       # All dataclass definitions
+│   └── features/
+│       ├── backtest.md                # Backtesting engine details
+│       ├── unusual-activity.md        # Unusual activity detection
+│       ├── sector-rotation.md         # Sector analysis
+│       ├── correlations.md            # Correlation engine
+│       ├── enterprise.md              # Enterprise features
+│       ├── feedback.md                # Feedback engine + suppressor
+│       ├── credibility.md             # ML + heuristic credibility
+│       ├── terminal.md                # Bloomberg-lite terminal
+│       └── agents.md                  # Autonomous trading agents
 ├── Dockerfile                         # Multi-stage Docker build
 ├── Procfile                           # Railway: web: python -m rot.app.server
 ├── pyproject.toml                     # Package config, dependencies, tool config
@@ -1318,8 +1383,13 @@ rot/
 │       │   ├── types.py               # ExportJob, ExportResult, SignalLineage, ScheduleConfig
 │       │   ├── scheduler.py           # Scheduled recurring exports (daily/weekly/on-demand)
 │       │   └── lineage.py             # Signal provenance chain (9-step lineage)
+│       ├── agents/                      # ★ AUTONOMOUS TRADING AGENTS (4 modules)
+│       │   ├── __init__.py            # Exports AgentRule, AgentPerformance, RuleEngine, AgentEngine
+│       │   ├── types.py               # Frozen dataclasses (AgentRule, AgentPerformance)
+│       │   ├── rules.py              # Rule evaluation engine (AND/OR logic, agent type behavior)
+│       │   └── engine.py             # Agent engine (signal eval, trade execution, safety rails)
 │       ├── storage/
-│       │   └── database.py            # aiosqlite, 18+ tables, migrations
+│       │   └── database.py            # aiosqlite, 20+ tables, migrations
 │       ├── alerts/
 │       │   ├── dispatcher.py          # Multi-channel alert router
 │       │   ├── discord.py             # Discord webhooks
@@ -1336,7 +1406,7 @@ rot/
 │           ├── query_cache.py         # Async TTL cache for dashboard queries
 │           ├── tier_gate.py           # 5-tier feature gating (30+ gates)
 │           ├── rate_limit.py          # Per-tier rate limiting
-│           ├── routes/                # 35+ route files (50+ endpoints)
+│           ├── routes/                # 37+ route files (65+ endpoints)
 │           │   ├── dashboard.py       # Main dashboard + auth pages
 │           │   ├── signals.py         # Signal CRUD API
 │           │   ├── auth_routes.py     # Auth endpoints
@@ -1490,7 +1560,8 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Memory & network optimization — Estimated ~150-200MB memory savings + ~260KB/page network savings. **Market enricher**: cache size 2000→500, options chain disabled by default, `t.info` skipped by default (new `fetch_full_info` flag). **Symbol validator**: cache 5000→1000. **Query cache**: max 100 entries, periodic lock cleanup (prevents lock dict leak), evicts expired+oldest on overflow. **UnusualHistory**: LRU eviction at 500 tickers max. **Pipeline dedup**: 10K→2K threshold. **SeenStore**: 5000 entry cap. **TrendStore**: evicts every 20 updates (was 100), truncates selftext to 500 chars. **Self-hosted CDN**: Chart.js, HTMX, HTMX-ws served from `/static/js/` (saves ~260KB external CDN fetches per page). **GZip middleware**: added `GZipMiddleware(minimum_size=500)` for ~70% response compression. **Dashboard**: signal limit 50→25. **Cleanup loop**: 1h→30m interval, market cache max age 7d→3d. | Claude Agent |
 | 2026-02 | Simplified win/loss trade counting — Only **bullish** and **bearish** signals count as trades for win/loss evaluation. Mixed and unknown stances are always neutral. Removed strategy-dependent logic for mixed signals (straddle/strangle/iron_condor special cases eliminated). `_WIN_CASE_SQL`, `_LOSS_CASE_SQL`, `_NEUTRAL_CASE_SQL` simplified in `database.py`. Backtest engine `_compute_pnl_pct` updated to match. `tradeable_signals` count in `get_performance_summary` now uses `stance IN ('bullish','bearish')` instead of `strategy != 'none'`. FAQ updated. Old win_rate_snapshots cleared on deploy (migration re-runs). Applies retroactively to all existing signals since win/loss is computed dynamically via SQL at query time. | Claude Agent |
 | 2026-02 | Signal archive for long-term backtesting & analytics — `signal_archive` table: flat denormalized table preserving per-signal data from `signals` + `signal_performance` before 14-day purge. `archive_before_purge(keep_days=14)` called in `run_full_cleanup()` before signal deletion. `purge_old_archives(keep_days=365)` bounds archive growth. `_UNIFIED_CTE`: SQL CTE that UNIONs live data with archive for seamless querying. `_A_WIN_SQL`/`_A_LOSS_SQL`/`_A_NEUTRAL_SQL`: archive-compatible SQL macros (unqualified column names). Modified 10 query methods in `database.py` + 4 in `feedback/analyzer.py` to use unified CTE (backtest, accuracy, calibration, strategy P&L, event type, confidence, ticker performance, CSV export, quality trend, source reliability). One-time migration in `connect()` seeds archive with existing resolved signals. `ArchiveConfig` with `keep_days=365` (env: `ROT_ARCHIVE_KEEP_DAYS`). 19 new tests (689 total). | Claude Agent |
-| 2026-02 | Macro Events & Economic Calendar Engine — `src/rot/macro/`: 7 modules (types, calendar, earnings, insider, fomc, seasonal, impact). **Types**: 7 frozen dataclasses (MacroEvent, EarningsEvent, InsiderTrade, FOMCMeeting, EventImpact, HistoricalReaction, SeasonalPattern) + 40+ event type constants + category/importance/sector sensitivity mappings. **EconomicCalendar**: deterministic recurring event generation (13 event types with scheduling rules — first Friday, second Tuesday, etc.), FOMC 2026 schedule, Fed RSS ingestion, seed/query/filter methods. **EarningsCalendar**: yfinance earnings date ingestion, IV crush history computation, expected move formula, pre-earnings strategy recommendation (iron_condor/straddle/credit_spread/none). **InsiderFeed**: SEC EDGAR Form 4 full-text search, congressional trade stub, cross-reference with bullish ROT signals. **FOMCTracker**: 18 hawkish + 22 dovish keyword scoring with intensity weights, HTML statement diff, rate decision classification, rate probability estimation. **SeasonalAnalyzer**: pre-computed sector baselines (10 sectors × 12 months), SPY monthly averages, current month bias with narrative, full rotation calendar. **EventImpactAnalyzer**: historical reaction analysis, Pearson correlation of surprise vs move, sector sensitivity, impact prediction with confidence. 5 new DB tables (macro_events, earnings_events, insider_trades, fomc_meetings, event_impact_cache) with ~20 query methods (upsert, query with filters, purge). `MacroConfig` (11 settings, env: `ROT_MACRO_*`). `gate_macro_access()` tier gate (Free: 3 events, Pro: +earnings/insider/FOMC, Premium: +impact/IV crush/seasonal/strategy, Ultra: +full history/cross-ref/diffs). 8 route endpoints (4 HTML pages + 4 JSON APIs). 4 Jinja2 templates (macro_calendar, macro_earnings, macro_insider, macro_fomc) with Chart.js hawk/dove trend chart. Nav links added to desktop + mobile menus. `_macro_data_loop` background task in server.py (seeds calendar, ingests earnings/insider, purges stale data). 263 new tests across 6 test files (952 total). | Claude Agent |
+| 2026-02 | Macro Events & Economic Calendar Engine — `src/rot/macro/`: 7 modules (types, calendar, earnings, insider, fomc, seasonal, impact). **Types**: 7 frozen dataclasses (MacroEvent, EarningsEvent, InsiderTrade, FOMCMeeting, EventImpact, HistoricalReaction, SeasonalPattern) + 40+ event type constants + category/importance/sector sensitivity mappings. **EconomicCalendar**: deterministic recurring event generation (13 event types with scheduling rules — first Friday, second Tuesday, etc.), FOMC 2026 schedule, Fed RSS ingestion, seed/query/filter methods. **EarningsCalendar**: yfinance earnings date ingestion, IV crush history computation, expected move formula, pre-earnings strategy recommendation (iron_condor/straddle/credit_spread/none). **InsiderFeed**: SEC EDGAR Form 4 full-text search, congressional trade stub, cross-reference with bullish ROT signals. **FOMCTracker**: 18 hawkish + 22 dovish keyword scoring with intensity weights, HTML statement diff, rate decision classification, rate probability estimation. **SeasonalAnalyzer**: pre-computed sector baselines (10 sectors x 12 months), SPY monthly averages, current month bias with narrative, full rotation calendar. **EventImpactAnalyzer**: historical reaction analysis, Pearson correlation of surprise vs move, sector sensitivity, impact prediction with confidence. 5 new DB tables (macro_events, earnings_events, insider_trades, fomc_meetings, event_impact_cache) with ~20 query methods (upsert, query with filters, purge). `MacroConfig` (11 settings, env: `ROT_MACRO_*`). `gate_macro_access()` tier gate (Free: 3 events, Pro: +earnings/insider/FOMC, Premium: +impact/IV crush/seasonal/strategy, Ultra: +full history/cross-ref/diffs). 8 route endpoints (4 HTML pages + 4 JSON APIs). 4 Jinja2 templates (macro_calendar, macro_earnings, macro_insider, macro_fomc) with Chart.js hawk/dove trend chart. Nav links added to desktop + mobile menus. `_macro_data_loop` background task in server.py (seeds calendar, ingests earnings/insider, purges stale data). 263 new tests across 6 test files (952 total). | Claude Agent |
+| 2026-02 | Bloomberg-lite Terminal + Autonomous Trading Agents + Doc Restructuring — **Bloomberg-lite Terminal** (`/terminal`, Premium+): 6-panel real-time market intelligence dashboard (signal feed with WebSocket, market heatmap, watchlist, news wire, options flow, quick stats with sentiment gauge). HTMX auto-refresh (60s Premium, 30s Ultra+). Ticker bar partial. `gate_terminal_access()` tier gate. 4 routes, 4 templates. **Autonomous Trading Agents** (`src/rot/agents/`, Ultra+): 4 modules (types, rules, engine). 4 agent types (signal_follower, contrarian flips stance, momentum_rider, custom_rule Enterprise-only). AgentRule with 9 operators (eq/neq/gt/gte/lt/lte/in/not_in/contains) + AND/OR/custom boolean logic. AgentEngine: real-time signal evaluation via `_async_signal_handler()` callback, position sizing, safety rails (daily trade cap, max exposure %, stop-loss auto-pause). `trading_agents` + `agent_trades` DB tables, 16 CRUD methods. `gate_agent_access()` tier gate. `AgentConfig` (4 env vars). 9 CRUD routes, 2 templates. **Documentation Restructuring**: CLAUDE.md split into 17 focused docs (`docs/` directory): 8 core docs (architecture, database, web-layer, nlp-engine, config, testing, deployment, types) + 9 feature docs (backtest, unusual-activity, sector-rotation, correlations, enterprise, feedback, credibility, terminal, agents). Optimized for agent consumption — each doc is self-contained, agents only load what they need. ~90 new tests (780+ total). | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.
