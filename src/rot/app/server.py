@@ -688,7 +688,7 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
     """
     from rot.core.logging import JsonlLogger
-    from rot.market.enricher import cleanup_market_cache
+    from rot.core.logging import cleanup_market_cache
 
     CLEANUP_INTERVAL = 1800  # 30 minutes
     log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
@@ -778,7 +778,7 @@ async def _run_server(cfg: Settings):
         from rot.alerts.dispatcher import AlertDispatcher
         from rot.market.price_checker import PriceChecker
         from rot.core.logging import JsonlLogger
-        from rot.market.enricher import cleanup_market_cache
+        from rot.core.logging import cleanup_market_cache
 
         log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
 
