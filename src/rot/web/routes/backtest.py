@@ -55,7 +55,7 @@ async def backtest_page(request: Request):
     # Get saved runs and strategies
     user_id = (user or {}).get("id", "")
     saved_runs = await db.get_user_backtests(user_id) if user_id else []
-    saved_strategies = await db.get_user_strategies(user_id) if user_id and access["has_saved_strategies"] else []
+    saved_strategies = await db.get_user_backtest_strategies(user_id) if user_id and access["has_saved_strategies"] else []
 
     from rot.web.routes.dashboard import _base_context
     ctx = _base_context(request, user)

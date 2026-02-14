@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Strategy Marketplace - ROT{% endblock %}
+{% block meta_description %}Discover and subscribe to community-published trading strategies with verified performance metrics.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">&#127979; Strategy Marketplace</h1>
+        <p class="text-gray-400">Discover and subscribe to community-published trading strategies with verified backtests and live performance metrics.</p>
+    </div>
+
+    {% if not access.get('has_marketplace') %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#127979;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Strategy Marketplace</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Premium to access community strategies, publish your own, and earn from subscriptions.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── Sort Controls ── #}
+    <div class="flex flex-wrap gap-2 mb-6 items-center">
+        <span class="text-sm text-gray-400">Sort by:</span>
+        <a href="?sort_by=rating" class="px-3 py-1.5 rounded-lg text-sm font-medium transition
+            {% if request.args.get('sort_by', 'rating') == 'rating' %}bg-blue-600 text-white{% else %}bg-gray-700/60 text-gray-300 hover:bg-gray-700{% endif %}">
+            &#11088; Rating
+        </a>
+        <a href="?sort_by=subscribers" class="px-3 py-1.5 rounded-lg text-sm font-medium transition
+            {% if request.args.get('sort_by') == 'subscribers' %}bg-blue-600 text-white{% else %}bg-gray-700/60 text-gray-300 hover:bg-gray-700{% endif %}">
+            &#128101; Subscribers
+        </a>
+        <a href="?sort_by=newest" class="px-3 py-1.5 rounded-lg text-sm font-medium transition
+            {% if request.args.get('sort_by') == 'newest' %}bg-blue-600 text-white{% else %}bg-gray-700/60 text-gray-300 hover:bg-gray-700{% endif %}">
+            &#128197; Newest
+        </a>
+    </div>
+
+    {# ── Strategy Grid ── #}
+    {% if entries %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for entry in entries %}
+        <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition flex flex-col">
+            {# Strategy Name & Author #}
+            <div class="mb-3">
+                <h3 class="text-lg font-bold text-white mb-1">{{ entry.name }}</h3>
+                <p class="text-xs text-gray-500">by {{ entry.author_id }}</p>
+            </div>
+
+            {# Description #}
+            <p class="text-sm text-gray-300 mb-4 line-clamp-3">{{ entry.description }}</p>
+
+            {# Rating & Subscribers Row #}
+            <div class="flex items-center justify-between mb-3 text-sm">
+                <div class="flex items-center gap-1">
+                    {% if entry.rating %}
+                    <span class="text-yellow-400">&#11088;</span>
+                    <span class="text-white font-semibold">{{ entry.rating|round(1) }}</span>
+                    <span class="text-gray-500">/5.0</span>
+                    {% else %}
+                    <span class="text-gray-500">No ratings yet</span>
+                    {% endif %}
+                </div>
+                <div class="text-gray-400">
+                    {% if entry.subscriber_count %}
+                    <span class="text-blue-400 font-semibold">{{ entry.subscriber_count }}</span> <span class="text-gray-500">subs</span>
+                    {% else %}
+                    <span class="text-gray-500">0 subs</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Performance Stats #}
+            {% if entry.performance %}
+            <div class="bg-gray-700/30 rounded-lg p-3 mb-4 border border-gray-700/50">
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                        <div class="text-gray-500 uppercase tracking-wider mb-0.5">Win Rate</div>
+                        <div class="text-white font-bold">
+                            {% if entry.performance.win_rate is not none %}
+                            <span class="{% if entry.performance.win_rate >= 0.55 %}text-green-400{% elif entry.performance.win_rate >= 0.45 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                                {{ (entry.performance.win_rate * 100)|round(1) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500 uppercase tracking-wider mb-0.5">Sharpe</div>
+                        <div class="text-white font-bold">
+                            {% if entry.performance.sharpe is not none %}
+                            <span class="{% if entry.performance.sharpe > 1.0 %}text-green-400{% elif entry.performance.sharpe > 0.0 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                                {{ entry.performance.sharpe|round(2) }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500 uppercase tracking-wider mb-0.5">Trades</div>
+                        <div class="text-white font-bold">
+                            {% if entry.performance.total_trades %}
+                            {{ entry.performance.total_trades }}
+                            {% else %}
+                            <span class="text-gray-500">0</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Creation Date #}
+            <div class="text-xs text-gray-500 mb-4">
+                Published {{ entry.created_at|strftime('%b %d, %Y') if entry.created_at else 'recently' }}
+            </div>
+
+            {# Subscribe Button #}
+            <button class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition mt-auto">
+                Subscribe
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+
+    {# Empty State #}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">📊</div>
+        <h2 class="text-xl font-semibold text-white mb-2">No Strategies Published Yet</h2>
+        <p class="text-gray-400">Be the first to publish and share your winning strategy with the community.</p>
+        {% if user %}
+        <a href="/marketplace/publish" class="inline-block mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">
+            Publish Strategy
+        </a>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

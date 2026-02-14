@@ -677,6 +677,398 @@ async def _macro_data_loop(
     log.info("Macro data loop stopped")
 
 
+async def _flow_scan_loop(
+    db,
+    cfg_flow,
+    stop_event: threading.Event,
+):
+    """Background task that scans recent signals for institutional flow events.
+
+    Runs every ``cfg_flow.scan_interval_s`` seconds.  Detects block trades,
+    sweeps, dark pool prints, accumulation/distribution patterns, and checks
+    convergence with social signals.  Stores events/patterns/convergences in
+    the ``flow_*`` tables.
+    """
+    from rot.flow.detector import FlowDetector
+    from rot.flow.patterns import FlowPatternRecognizer
+    from rot.flow.convergence import ConvergenceDetector, ConvergenceConfig
+
+    log.info(
+        "Flow scan loop starting (interval=%ds)",
+        cfg_flow.scan_interval_s,
+    )
+
+    detector = FlowDetector(
+        block_premium_threshold=cfg_flow.block_premium_threshold,
+        sweep_volume_threshold=cfg_flow.sweep_volume_threshold,
+    )
+    pattern_recognizer = FlowPatternRecognizer()
+    convergence_detector = ConvergenceDetector(
+        config=ConvergenceConfig(
+            window_hours=cfg_flow.convergence_window_hours,
+            min_score=cfg_flow.composite_min_score,
+        )
+    )
+
+    # Wait 90s on startup for DB/pipeline to initialize
+    for _ in range(90):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        try:
+            # Fetch recent signals with market data (last 2 scan intervals)
+            cutoff = time.time() - cfg_flow.scan_interval_s * 2
+            async with db.db.execute(
+                """SELECT id, ticker, stance, market_data, created_at
+                   FROM signals WHERE created_at > ? ORDER BY created_at DESC LIMIT 200""",
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                signals = [dict(r) for r in rows]
+
+            if signals:
+                # Detect flow events from signal market data
+                flow_events = detector.scan_batch(signals)
+
+                if flow_events:
+                    # Save flow events
+                    await db.save_flow_events_batch(flow_events)
+                    log.info(
+                        "Flow scan: %d events from %d signals",
+                        len(flow_events), len(signals),
+                    )
+
+                    # Detect patterns across flow events
+                    patterns = pattern_recognizer.find_patterns(flow_events)
+                    for pat in patterns:
+                        await db.save_flow_pattern(pat)
+
+                    # Check convergence with recent signals
+                    convergences = convergence_detector.find_convergences(
+                        flow_events, signals,
+                    )
+                    for conv in convergences:
+                        await db.save_flow_convergence(conv)
+
+                    if patterns:
+                        log.info("Flow scan: %d patterns detected", len(patterns))
+                    if convergences:
+                        log.info("Flow scan: %d convergences detected", len(convergences))
+
+            # Periodic purge of old flow data
+            await db.purge_old_flow_data(keep_days=cfg_flow.purge_keep_days)
+
+        except Exception as e:
+            log.error("Flow scan error: %s", e, exc_info=True)
+
+        for _ in range(cfg_flow.scan_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Flow scan loop stopped")
+
+
+async def _social_resolution_loop(db, cfg_social, stop_event: threading.Event):
+    """Background loop: resolve pending author predictions every hour.
+
+    Checks signal_performance for price data, resolves pending predictions
+    with outcome (win/loss/neutral) based on stance vs actual price move.
+    Also purges old social data beyond retention window.
+    """
+    import threading as _thr  # noqa: already imported at module level
+
+    # Wait 120s before first run — let pipeline + price checker populate first
+    for _ in range(120):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    log.info("Social resolution loop started (interval=%ds)", 3600)
+
+    while not stop_event.is_set():
+        try:
+            # 1. Fetch pending predictions
+            pending = await db.get_pending_predictions(min_age_hours=1)
+            resolved_count = 0
+
+            for pred in pending:
+                signal_id = pred.get("signal_id")
+                if not signal_id:
+                    continue
+
+                # Lookup price performance for this signal
+                async with db.db.execute(
+                    "SELECT * FROM signal_performance WHERE signal_id = ?",
+                    (signal_id,),
+                ) as cur:
+                    perf = await cur.fetchone()
+                if not perf:
+                    continue
+
+                perf = dict(perf)
+                price_at = perf.get("price_at_signal")
+                if not price_at or price_at <= 0:
+                    continue
+
+                # Use best available price: 1d > 4h > 1h
+                current_price = perf.get("price_1d") or perf.get("price_4h") or perf.get("price_1h")
+                if not current_price or current_price <= 0:
+                    continue
+
+                pnl_pct = ((current_price - price_at) / price_at) * 100.0
+                stance = pred.get("stance", "unknown")
+
+                # Determine outcome
+                if stance in ("mixed", "unknown"):
+                    outcome = "neutral"
+                elif abs(pnl_pct) < 0.5:
+                    outcome = "neutral"
+                elif stance == "bullish":
+                    outcome = "win" if pnl_pct > 0 else "loss"
+                elif stance == "bearish":
+                    outcome = "win" if pnl_pct < 0 else "loss"
+                else:
+                    outcome = "neutral"
+
+                await db.resolve_author_prediction(pred["id"], outcome, pnl_pct)
+                resolved_count += 1
+
+                # Update author profile stats
+                author_id = pred.get("author_id")
+                if author_id and outcome in ("win", "loss"):
+                    profile = await db.get_author_profile(author_id)
+                    if profile:
+                        new_wins = profile["win_count"] + (1 if outcome == "win" else 0)
+                        new_losses = profile["loss_count"] + (1 if outcome == "loss" else 0)
+                        decided = new_wins + new_losses
+                        accuracy = new_wins / decided if decided > 0 else None
+                        profile["win_count"] = new_wins
+                        profile["loss_count"] = new_losses
+                        profile["accuracy"] = accuracy
+                        await db.save_author_profile(profile)
+
+            if resolved_count > 0:
+                log.info("Social resolution: resolved %d predictions", resolved_count)
+
+            # 2. Purge old social data
+            purged = await db.purge_old_social_data(keep_days=cfg_social.purge_keep_days)
+            if purged > 0:
+                log.info("Social purge: removed %d old records", purged)
+
+        except Exception as e:
+            log.error("Social resolution loop error: %s", e)
+
+        for _ in range(3600):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Social resolution loop stopped")
+
+
+async def _manipulation_scan_loop(db, cfg_social, stop_event: threading.Event):
+    """Background loop: scan for manipulation patterns every 30 minutes.
+
+    Detects coordinated posting, bot networks, and pump-and-dump patterns
+    from recent signals. Saves alerts to DB.
+    """
+    # Wait 180s before first run
+    for _ in range(180):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    log.info("Manipulation scan loop started (interval=%ds)", cfg_social.manipulation_scan_interval_s)
+
+    while not stop_event.is_set():
+        try:
+            from rot.social.manipulation import ManipulationDetector, ManipulationConfig
+
+            detector = ManipulationDetector(ManipulationConfig(
+                coordination_window_s=cfg_social.coordination_window_hours * 3600,
+                bot_min_group_size=3,
+            ))
+
+            # Fetch recent signals from past window
+            window_s = cfg_social.coordination_window_hours * 3600
+            cutoff = time.time() - window_s
+            async with db.db.execute(
+                """SELECT id, ticker, stance, subreddit, created_at, confidence,
+                          post_title, event_data
+                   FROM signals WHERE created_at >= ?
+                   ORDER BY created_at DESC LIMIT 500""",
+                (cutoff,),
+            ) as cur:
+                rows = await cur.fetchall()
+
+            signals = []
+            for row in rows:
+                r = dict(row)
+                # Extract author from event_data JSON
+                ed = r.get("event_data", "{}")
+                if isinstance(ed, str):
+                    try:
+                        ed = json.loads(ed)
+                    except Exception:
+                        ed = {}
+                meta = ed.get("meta", {}) if isinstance(ed, dict) else {}
+                signals.append({
+                    "ticker": r.get("ticker", ""),
+                    "stance": r.get("stance", "unknown"),
+                    "author": meta.get("author", r.get("subreddit", "")),
+                    "subreddit": r.get("subreddit", ""),
+                    "created_at": r.get("created_at", 0),
+                    "confidence": r.get("confidence", 0.5),
+                    "post_title": r.get("post_title", ""),
+                })
+
+            if signals:
+                alerts = detector.detect_all(signals)
+                saved = 0
+                for alert in alerts:
+                    await db.save_manipulation_alert(alert.to_dict())
+                    saved += 1
+                if saved:
+                    log.info("Manipulation scan: found %d alerts from %d signals", saved, len(signals))
+
+        except Exception as e:
+            log.error("Manipulation scan loop error: %s", e)
+
+        for _ in range(cfg_social.manipulation_scan_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Manipulation scan loop stopped")
+
+
+async def _strategy_health_loop(db, cfg_strategy, stop_event: threading.Event):
+    """Background loop: check strategy health every 6 hours.
+
+    Evaluates rolling performance of active strategies, degrades health score
+    if underperforming, and auto-disables strategies with health < 0.3.
+    """
+    # Wait 300s before first run
+    for _ in range(300):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    log.info("Strategy health loop started (interval=%ds)", cfg_strategy.health_check_interval_s)
+
+    while not stop_event.is_set():
+        try:
+            # Get all active strategies
+            async with db.db.execute(
+                "SELECT * FROM strategies WHERE is_active = 1"
+            ) as cur:
+                rows = await cur.fetchall()
+
+            for row in rows:
+                strategy_id = row["id"]
+                # Get recent trades
+                trades = await db.get_strategy_trades(strategy_id, status="closed", limit=20)
+                if len(trades) < 5:
+                    continue  # Not enough data
+
+                # Compute rolling metrics
+                wins = sum(1 for t in trades if (t.get("pnl_pct") or 0) > 0)
+                win_rate = wins / len(trades) if trades else 0
+                pnls = [t.get("pnl_pct", 0) or 0 for t in trades]
+                avg_pnl = sum(pnls) / len(pnls) if pnls else 0
+
+                # Compute health score
+                health = 1.0
+                if win_rate < 0.4:
+                    health -= 0.3
+                if avg_pnl < 0:
+                    health -= 0.3
+                if win_rate < 0.3:
+                    health -= 0.2
+                health = max(0.0, min(1.0, health))
+
+                # Auto-disable if health critically low
+                should_disable = health < 0.3
+                new_active = not should_disable
+
+                await db.update_strategy_health(strategy_id, health, new_active)
+
+                # Update performance cache
+                total_pnl = sum(pnls)
+                perf = {
+                    "win_rate": round(win_rate, 3),
+                    "total_trades": len(trades),
+                    "avg_pnl_pct": round(avg_pnl, 3),
+                    "total_pnl_pct": round(total_pnl, 3),
+                }
+                await db.update_strategy_performance(strategy_id, perf)
+
+                if should_disable:
+                    log.warning(
+                        "Strategy %s auto-disabled: health=%.2f win_rate=%.2f",
+                        strategy_id, health, win_rate,
+                    )
+
+        except Exception as e:
+            log.error("Strategy health loop error: %s", e)
+
+        for _ in range(cfg_strategy.health_check_interval_s):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Strategy health loop stopped")
+
+
+async def _regime_detection_loop(db, cfg_strategy, stop_event: threading.Event):
+    """Background loop: detect market regime every hour.
+
+    Classifies the current market regime from recent signals and stores
+    regime history for strategy-regime mapping.
+    """
+    # Wait 240s before first run
+    for _ in range(240):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    log.info("Regime detection loop started (interval=3600s)")
+
+    while not stop_event.is_set():
+        try:
+            from rot.strategy.regime import RegimeDetector
+
+            detector = RegimeDetector(window_days=cfg_strategy.regime_window_days)
+
+            # Fetch recent signals
+            cutoff = time.time() - (cfg_strategy.regime_window_days * 86400)
+            async with db.db.execute(
+                """SELECT ticker, stance, confidence, subreddit, created_at,
+                          trend_score, sector, event_type
+                   FROM signals WHERE created_at >= ?
+                   ORDER BY created_at DESC LIMIT 1000""",
+                (cutoff,),
+            ) as cur:
+                rows = await cur.fetchall()
+
+            signals = [dict(r) for r in rows]
+            if len(signals) >= 5:
+                regime = detector.detect_regime(signals)
+                await db.save_market_regime(regime.to_dict())
+                log.info(
+                    "Regime detected: %s (confidence=%.2f, signals=%d)",
+                    regime.regime_type, regime.confidence, len(signals),
+                )
+
+        except Exception as e:
+            log.error("Regime detection loop error: %s", e)
+
+        for _ in range(3600):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Regime detection loop stopped")
+
+
 async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     """Background task that periodically purges old data to keep storage lean.
 
@@ -1052,6 +1444,59 @@ async def _run_server(cfg: Settings):
     # Schedule heavy init to run AFTER uvicorn binds the port
     init_task = asyncio.create_task(_heavy_init())
 
+    # Start flow intelligence scan loop (always active — scans for institutional flow)
+    flow_task = asyncio.create_task(
+        _flow_scan_loop(
+            db=app.state.db,
+            cfg_flow=cfg.flow,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Flow intelligence scan: ACTIVE (interval=%ds)",
+        cfg.flow.scan_interval_s,
+    )
+
+    # Start social intelligence background loops
+    social_resolution_task = asyncio.create_task(
+        _social_resolution_loop(
+            db=app.state.db,
+            cfg_social=cfg.social,
+            stop_event=stop_event,
+        )
+    )
+    social_manipulation_task = asyncio.create_task(
+        _manipulation_scan_loop(
+            db=app.state.db,
+            cfg_social=cfg.social,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Social intelligence: resolution (1h), manipulation scan (%ds)",
+        cfg.social.manipulation_scan_interval_s,
+    )
+
+    # Start strategy builder background loops
+    strategy_health_task = asyncio.create_task(
+        _strategy_health_loop(
+            db=app.state.db,
+            cfg_strategy=cfg.strategy,
+            stop_event=stop_event,
+        )
+    )
+    regime_detection_task = asyncio.create_task(
+        _regime_detection_loop(
+            db=app.state.db,
+            cfg_strategy=cfg.strategy,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Strategy builder: health check (%ds), regime detection (3600s)",
+        cfg.strategy.health_check_interval_s,
+    )
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -1077,6 +1522,12 @@ async def _run_server(cfg: Settings):
         cleanup_task = getattr(app.state, "_db_cleanup_task", None)
         if cleanup_task:
             cleanup_task.cancel()
+        # Cancel named background tasks from flow/social/strategy
+        flow_task.cancel()
+        social_resolution_task.cancel()
+        social_manipulation_task.cancel()
+        strategy_health_task.cancel()
+        regime_detection_task.cancel()
         # Close DB connection
         db = getattr(app.state, "db", None)
         if db:

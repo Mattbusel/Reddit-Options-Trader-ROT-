@@ -529,6 +529,232 @@ CREATE INDEX IF NOT EXISTS idx_agent_trades_agent ON agent_trades(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_trades_user ON agent_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_agent_trades_status ON agent_trades(status);
 CREATE INDEX IF NOT EXISTS idx_agent_trades_created ON agent_trades(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS flow_events (
+    id TEXT PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    flow_type TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    premium REAL NOT NULL DEFAULT 0.0,
+    volume INTEGER NOT NULL DEFAULT 0,
+    oi_change INTEGER NOT NULL DEFAULT 0,
+    score REAL NOT NULL DEFAULT 0.0,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    signal_id TEXT DEFAULT NULL,
+    detected_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_flow_events_ticker ON flow_events(ticker);
+CREATE INDEX IF NOT EXISTS idx_flow_events_type ON flow_events(flow_type);
+CREATE INDEX IF NOT EXISTS idx_flow_events_direction ON flow_events(direction);
+CREATE INDEX IF NOT EXISTS idx_flow_events_detected ON flow_events(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_flow_events_score ON flow_events(score DESC);
+CREATE INDEX IF NOT EXISTS idx_flow_events_signal ON flow_events(signal_id);
+
+CREATE TABLE IF NOT EXISTS flow_patterns (
+    id TEXT PRIMARY KEY,
+    pattern_type TEXT NOT NULL,
+    tickers_json TEXT NOT NULL DEFAULT '[]',
+    confidence REAL NOT NULL DEFAULT 0.0,
+    timeframe TEXT NOT NULL DEFAULT '',
+    event_count INTEGER NOT NULL DEFAULT 0,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    detected_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_flow_patterns_type ON flow_patterns(pattern_type);
+CREATE INDEX IF NOT EXISTS idx_flow_patterns_detected ON flow_patterns(detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS flow_convergences (
+    id TEXT PRIMARY KEY,
+    signal_id TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    flow_event_ids_json TEXT NOT NULL DEFAULT '[]',
+    convergence_score REAL NOT NULL DEFAULT 0.0,
+    convergence_type TEXT NOT NULL,
+    signal_stance TEXT NOT NULL DEFAULT '',
+    flow_direction TEXT NOT NULL DEFAULT '',
+    net_flow_premium REAL NOT NULL DEFAULT 0.0,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    detected_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_flow_conv_signal ON flow_convergences(signal_id);
+CREATE INDEX IF NOT EXISTS idx_flow_conv_ticker ON flow_convergences(ticker);
+CREATE INDEX IF NOT EXISTS idx_flow_conv_type ON flow_convergences(convergence_type);
+CREATE INDEX IF NOT EXISTS idx_flow_conv_detected ON flow_convergences(detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS flow_baselines (
+    ticker TEXT PRIMARY KEY,
+    net_premium REAL NOT NULL DEFAULT 0.0,
+    avg_premium REAL NOT NULL DEFAULT 0.0,
+    flow_count INTEGER NOT NULL DEFAULT 0,
+    last_direction TEXT NOT NULL DEFAULT 'neutral',
+    observations_json TEXT NOT NULL DEFAULT '{}',
+    last_updated REAL NOT NULL DEFAULT 0.0
+);
+
+-- ── Social Intelligence Tables ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS author_profiles (
+    id TEXT PRIMARY KEY,
+    platform TEXT NOT NULL,
+    username TEXT NOT NULL,
+    total_signals INTEGER NOT NULL DEFAULT 0,
+    win_count INTEGER NOT NULL DEFAULT 0,
+    loss_count INTEGER NOT NULL DEFAULT 0,
+    accuracy REAL,
+    roi_if_followed REAL,
+    sharpe REAL,
+    reputation_score REAL,
+    stats_json TEXT NOT NULL DEFAULT '{}',
+    first_seen REAL NOT NULL,
+    last_seen REAL,
+    updated_at REAL,
+    UNIQUE(platform, username)
+);
+CREATE INDEX IF NOT EXISTS idx_author_prof_platform ON author_profiles(platform);
+CREATE INDEX IF NOT EXISTS idx_author_prof_reputation ON author_profiles(reputation_score DESC);
+CREATE INDEX IF NOT EXISTS idx_author_prof_accuracy ON author_profiles(accuracy DESC);
+
+CREATE TABLE IF NOT EXISTS author_predictions (
+    id TEXT PRIMARY KEY,
+    author_id TEXT NOT NULL,
+    signal_id TEXT,
+    ticker TEXT NOT NULL,
+    stance TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 0.5,
+    outcome TEXT,
+    pnl_pct REAL,
+    created_at REAL NOT NULL,
+    resolved_at REAL
+);
+CREATE INDEX IF NOT EXISTS idx_author_pred_author ON author_predictions(author_id);
+CREATE INDEX IF NOT EXISTS idx_author_pred_signal ON author_predictions(signal_id);
+CREATE INDEX IF NOT EXISTS idx_author_pred_ticker ON author_predictions(ticker);
+CREATE INDEX IF NOT EXISTS idx_author_pred_outcome ON author_predictions(outcome);
+CREATE INDEX IF NOT EXISTS idx_author_pred_created ON author_predictions(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS manipulation_alerts (
+    id TEXT PRIMARY KEY,
+    alert_type TEXT NOT NULL,
+    tickers_json TEXT NOT NULL DEFAULT '[]',
+    authors_json TEXT NOT NULL DEFAULT '[]',
+    evidence_json TEXT NOT NULL DEFAULT '{}',
+    severity REAL NOT NULL DEFAULT 0.0,
+    detected_at REAL NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_manip_type ON manipulation_alerts(alert_type);
+CREATE INDEX IF NOT EXISTS idx_manip_detected ON manipulation_alerts(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_manip_severity ON manipulation_alerts(severity DESC);
+
+CREATE TABLE IF NOT EXISTS sentiment_propagation (
+    id TEXT PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    origin_sub TEXT NOT NULL,
+    spread_to TEXT NOT NULL,
+    origin_ts REAL NOT NULL,
+    spread_ts REAL NOT NULL,
+    lag_seconds REAL NOT NULL DEFAULT 0.0,
+    detected_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_prop_ticker ON sentiment_propagation(ticker);
+CREATE INDEX IF NOT EXISTS idx_prop_origin ON sentiment_propagation(origin_sub);
+CREATE INDEX IF NOT EXISTS idx_prop_spread ON sentiment_propagation(spread_ts DESC);
+
+CREATE TABLE IF NOT EXISTS author_clusters (
+    id TEXT PRIMARY KEY,
+    authors_json TEXT NOT NULL DEFAULT '[]',
+    similarity_score REAL NOT NULL DEFAULT 0.0,
+    common_tickers_json TEXT NOT NULL DEFAULT '[]',
+    detected_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cluster_similarity ON author_clusters(similarity_score DESC);
+CREATE INDEX IF NOT EXISTS idx_cluster_detected ON author_clusters(detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS strategies (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    rules_json TEXT NOT NULL DEFAULT '[]',
+    config_json TEXT NOT NULL DEFAULT '{}',
+    performance_json TEXT NOT NULL DEFAULT '{}',
+    health_score REAL NOT NULL DEFAULT 1.0,
+    is_active INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_strategy_user ON strategies(user_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_active ON strategies(is_active);
+CREATE INDEX IF NOT EXISTS idx_strategy_source ON strategies(source);
+
+CREATE TABLE IF NOT EXISTS strategy_trades (
+    id TEXT PRIMARY KEY,
+    strategy_id TEXT NOT NULL,
+    signal_id TEXT NOT NULL DEFAULT '',
+    ticker TEXT NOT NULL,
+    stance TEXT NOT NULL,
+    entry_price REAL NOT NULL,
+    exit_price REAL,
+    pnl_pct REAL,
+    created_at REAL NOT NULL,
+    resolved_at REAL
+);
+CREATE INDEX IF NOT EXISTS idx_strade_strategy ON strategy_trades(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_strade_ticker ON strategy_trades(ticker);
+CREATE INDEX IF NOT EXISTS idx_strade_created ON strategy_trades(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS strategy_portfolios (
+    strategy_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    balance REAL NOT NULL DEFAULT 10000.0,
+    total_trades INTEGER NOT NULL DEFAULT 0,
+    winning_trades INTEGER NOT NULL DEFAULT 0,
+    total_pnl REAL NOT NULL DEFAULT 0.0,
+    PRIMARY KEY (strategy_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS strategy_marketplace (
+    id TEXT PRIMARY KEY,
+    strategy_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    performance_json TEXT NOT NULL DEFAULT '{}',
+    subscriber_count INTEGER NOT NULL DEFAULT 0,
+    rating REAL NOT NULL DEFAULT 0.0,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_marketplace_author ON strategy_marketplace(author_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_rating ON strategy_marketplace(rating DESC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_subs ON strategy_marketplace(subscriber_count DESC);
+
+CREATE TABLE IF NOT EXISTS market_regimes (
+    id TEXT PRIMARY KEY,
+    regime_type TEXT NOT NULL,
+    start_ts REAL NOT NULL,
+    end_ts REAL,
+    indicators_json TEXT NOT NULL DEFAULT '{}',
+    confidence REAL NOT NULL DEFAULT 0.5,
+    detected_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_regime_type ON market_regimes(regime_type);
+CREATE INDEX IF NOT EXISTS idx_regime_start ON market_regimes(start_ts DESC);
+
+CREATE TABLE IF NOT EXISTS strategy_discoveries (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    search_config_json TEXT NOT NULL DEFAULT '{}',
+    result_json TEXT NOT NULL DEFAULT '{}',
+    strategies_found INTEGER NOT NULL DEFAULT 0,
+    elapsed_s REAL NOT NULL DEFAULT 0.0,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_discovery_user ON strategy_discoveries(user_id);
+CREATE INDEX IF NOT EXISTS idx_discovery_created ON strategy_discoveries(created_at DESC);
 """
 
 # Columns to add to existing tables (migration-safe)
@@ -3976,6 +4202,20 @@ class Database:
             log.warning("Purge old archives failed: %s", e)
             results["old_archives"] = 0
 
+        # Purge old flow data
+        try:
+            results["old_flow_events"] = await self.purge_old_flow_data(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old flow data failed: %s", e)
+            results["old_flow_events"] = 0
+
+        # Purge old strategy data
+        try:
+            results["old_strategy_data"] = await self.purge_old_strategy_data(keep_days=90)
+        except Exception as e:
+            log.warning("Purge old strategy data failed: %s", e)
+            results["old_strategy_data"] = 0
+
         # Reclaim disk space
         try:
             await self.vacuum()
@@ -4135,10 +4375,10 @@ class Database:
         await self.db.commit()
         return strat_id
 
-    async def get_user_strategies(
+    async def get_user_backtest_strategies(
         self, user_id: str, limit: int = 20
     ) -> List[Dict[str, Any]]:
-        """Get saved strategies for a user."""
+        """Get saved backtest strategies for a user."""
         async with self.db.execute(
             """SELECT id, name, description, config_json, last_run_at, created_at, is_active
                FROM backtest_strategies
@@ -4846,6 +5086,1053 @@ class Database:
             (agent_id, signal_id),
         ) as cursor:
             return await cursor.fetchone() is not None
+
+    # ── Flow Intelligence ──
+
+    async def save_flow_event(self, event: Dict[str, Any]) -> str:
+        """Save a single flow event. Returns the event ID."""
+        event_id = event.get("id") or str(uuid.uuid4())
+        await self.db.execute(
+            """INSERT OR IGNORE INTO flow_events
+               (id, ticker, flow_type, direction, premium, volume,
+                oi_change, score, details_json, signal_id, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                event_id,
+                event.get("ticker", ""),
+                event.get("flow_type", ""),
+                event.get("direction", "neutral"),
+                event.get("premium", 0.0),
+                event.get("volume", 0),
+                event.get("oi_change", 0),
+                event.get("score", 0.0),
+                json.dumps(event.get("details", {})),
+                event.get("signal_id"),
+                event.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+        return event_id
+
+    async def save_flow_events_batch(
+        self, events: List[Dict[str, Any]],
+    ) -> int:
+        """Batch insert flow events. Returns count inserted."""
+        if not events:
+            return 0
+        rows = []
+        for e in events:
+            rows.append((
+                e.get("id") or str(uuid.uuid4()),
+                e.get("ticker", ""),
+                e.get("flow_type", ""),
+                e.get("direction", "neutral"),
+                e.get("premium", 0.0),
+                e.get("volume", 0),
+                e.get("oi_change", 0),
+                e.get("score", 0.0),
+                json.dumps(e.get("details", {})),
+                e.get("signal_id"),
+                e.get("detected_at", time.time()),
+            ))
+        await self.db.executemany(
+            """INSERT OR IGNORE INTO flow_events
+               (id, ticker, flow_type, direction, premium, volume,
+                oi_change, score, details_json, signal_id, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        await self.db.commit()
+        return len(rows)
+
+    async def get_flow_events(
+        self,
+        hours: int = 24,
+        ticker: Optional[str] = None,
+        flow_type: Optional[str] = None,
+        direction: Optional[str] = None,
+        min_score: float = 0.0,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Query flow events with filters."""
+        cutoff = time.time() - (hours * 3600)
+        clauses = ["detected_at > ?"]
+        params: list = [cutoff]
+
+        if ticker:
+            clauses.append("ticker = ?")
+            params.append(ticker)
+        if flow_type:
+            clauses.append("flow_type = ?")
+            params.append(flow_type)
+        if direction:
+            clauses.append("direction = ?")
+            params.append(direction)
+        if min_score > 0:
+            clauses.append("score >= ?")
+            params.append(min_score)
+
+        where = " AND ".join(clauses)
+        query = f"""
+            SELECT * FROM flow_events
+            WHERE {where}
+            ORDER BY detected_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def get_flow_timeline(
+        self, ticker: str, days: int = 7,
+    ) -> List[Dict[str, Any]]:
+        """Get flow events timeline for a specific ticker."""
+        cutoff = time.time() - (days * 86400)
+        query = """
+            SELECT * FROM flow_events
+            WHERE ticker = ? AND detected_at > ?
+            ORDER BY detected_at ASC
+        """
+        async with self.db.execute(query, (ticker, cutoff)) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def get_flow_summary(
+        self, hours: int = 24,
+    ) -> Dict[str, Any]:
+        """Get aggregate flow stats for a time period."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                COUNT(*) as total_events,
+                COUNT(DISTINCT ticker) as unique_tickers,
+                COALESCE(SUM(premium), 0) as total_premium,
+                COALESCE(SUM(CASE WHEN direction='bullish' THEN premium ELSE 0 END), 0) as bullish_premium,
+                COALESCE(SUM(CASE WHEN direction='bearish' THEN premium ELSE 0 END), 0) as bearish_premium,
+                COALESCE(AVG(score), 0) as avg_score,
+                SUM(CASE WHEN direction='bullish' THEN 1 ELSE 0 END) as bullish_count,
+                SUM(CASE WHEN direction='bearish' THEN 1 ELSE 0 END) as bearish_count,
+                SUM(CASE WHEN direction='neutral' THEN 1 ELSE 0 END) as neutral_count
+            FROM flow_events
+            WHERE detected_at > ?
+        """
+        async with self.db.execute(query, (cutoff,)) as cursor:
+            row = await cursor.fetchone()
+
+        if row:
+            summary = dict(row)
+            for k in summary:
+                if summary[k] is None:
+                    summary[k] = 0
+        else:
+            summary = {
+                "total_events": 0, "unique_tickers": 0,
+                "total_premium": 0, "bullish_premium": 0, "bearish_premium": 0,
+                "avg_score": 0, "bullish_count": 0, "bearish_count": 0,
+                "neutral_count": 0,
+            }
+
+        summary["net_premium"] = summary.get("bullish_premium", 0) - summary.get("bearish_premium", 0)
+
+        # Type breakdown
+        type_query = """
+            SELECT flow_type, COUNT(*) as cnt, SUM(premium) as total_prem
+            FROM flow_events
+            WHERE detected_at > ?
+            GROUP BY flow_type
+            ORDER BY cnt DESC
+        """
+        async with self.db.execute(type_query, (cutoff,)) as cursor:
+            type_rows = await cursor.fetchall()
+        summary["type_breakdown"] = {
+            r["flow_type"]: {"count": r["cnt"], "premium": round(r["total_prem"] or 0, 2)}
+            for r in type_rows
+        }
+
+        # Top tickers by premium
+        ticker_query = """
+            SELECT ticker, COUNT(*) as cnt, SUM(premium) as total_prem,
+                   AVG(score) as avg_score
+            FROM flow_events
+            WHERE detected_at > ?
+            GROUP BY ticker
+            ORDER BY total_prem DESC
+            LIMIT 10
+        """
+        async with self.db.execute(ticker_query, (cutoff,)) as cursor:
+            ticker_rows = await cursor.fetchall()
+        summary["top_tickers"] = [
+            {"ticker": r["ticker"], "count": r["cnt"],
+             "premium": round(r["total_prem"] or 0, 2),
+             "avg_score": round(r["avg_score"] or 0, 1)}
+            for r in ticker_rows
+        ]
+
+        return summary
+
+    async def save_flow_pattern(self, pattern: Dict[str, Any]) -> str:
+        """Save a detected flow pattern. Returns pattern ID."""
+        pattern_id = pattern.get("id") or str(uuid.uuid4())
+        await self.db.execute(
+            """INSERT OR IGNORE INTO flow_patterns
+               (id, pattern_type, tickers_json, confidence, timeframe,
+                event_count, details_json, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                pattern_id,
+                pattern.get("pattern_type", ""),
+                json.dumps(pattern.get("tickers", [])),
+                pattern.get("confidence", 0.0),
+                pattern.get("timeframe", ""),
+                pattern.get("event_count", 0),
+                json.dumps(pattern.get("details", {})),
+                pattern.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+        return pattern_id
+
+    async def get_flow_patterns(
+        self,
+        hours: int = 24,
+        pattern_type: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Query flow patterns with optional type filter."""
+        cutoff = time.time() - (hours * 3600)
+        clauses = ["detected_at > ?"]
+        params: list = [cutoff]
+        if pattern_type:
+            clauses.append("pattern_type = ?")
+            params.append(pattern_type)
+
+        where = " AND ".join(clauses)
+        query = f"""
+            SELECT * FROM flow_patterns
+            WHERE {where}
+            ORDER BY detected_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["tickers"] = json.loads(d.pop("tickers_json", "[]"))
+            except (json.JSONDecodeError, TypeError):
+                d["tickers"] = []
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def save_flow_convergence(self, convergence: Dict[str, Any]) -> str:
+        """Save a flow-signal convergence. Returns convergence ID."""
+        conv_id = convergence.get("id") or str(uuid.uuid4())
+        await self.db.execute(
+            """INSERT OR IGNORE INTO flow_convergences
+               (id, signal_id, ticker, flow_event_ids_json, convergence_score,
+                convergence_type, signal_stance, flow_direction,
+                net_flow_premium, details_json, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                conv_id,
+                convergence.get("signal_id", ""),
+                convergence.get("ticker", ""),
+                json.dumps(convergence.get("flow_event_ids", [])),
+                convergence.get("convergence_score", 0.0),
+                convergence.get("convergence_type", ""),
+                convergence.get("signal_stance", ""),
+                convergence.get("flow_direction", ""),
+                convergence.get("net_flow_premium", 0.0),
+                json.dumps(convergence.get("details", {})),
+                convergence.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+        return conv_id
+
+    async def get_flow_convergences(
+        self,
+        hours: int = 24,
+        ticker: Optional[str] = None,
+        convergence_type: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Query flow convergences with filters."""
+        cutoff = time.time() - (hours * 3600)
+        clauses = ["detected_at > ?"]
+        params: list = [cutoff]
+        if ticker:
+            clauses.append("ticker = ?")
+            params.append(ticker)
+        if convergence_type:
+            clauses.append("convergence_type = ?")
+            params.append(convergence_type)
+
+        where = " AND ".join(clauses)
+        query = f"""
+            SELECT * FROM flow_convergences
+            WHERE {where}
+            ORDER BY convergence_score DESC, detected_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        async with self.db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["flow_event_ids"] = json.loads(d.pop("flow_event_ids_json", "[]"))
+            except (json.JSONDecodeError, TypeError):
+                d["flow_event_ids"] = []
+            try:
+                d["details"] = json.loads(d.pop("details_json", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                d["details"] = {}
+            results.append(d)
+        return results
+
+    async def purge_old_flow_data(self, keep_days: int = 90) -> int:
+        """Delete flow events, patterns, and convergences older than keep_days.
+        Returns total count deleted."""
+        cutoff = time.time() - (keep_days * 86400)
+        total = 0
+
+        for table in ("flow_events", "flow_patterns", "flow_convergences"):
+            async with self.db.execute(
+                f"SELECT COUNT(*) as cnt FROM {table} WHERE detected_at < ?",
+                (cutoff,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                count = row["cnt"] if row else 0
+            if count > 0:
+                await self.db.execute(
+                    f"DELETE FROM {table} WHERE detected_at < ?",
+                    (cutoff,),
+                )
+                total += count
+
+        if total > 0:
+            await self.db.commit()
+        return total
+
+    # ── Social Intelligence Methods ──────────────────────────────────────
+
+    async def save_author_profile(self, profile: dict) -> str:
+        """Upsert an author profile. Returns the profile id."""
+        pid = profile.get("id") or uuid.uuid4().hex[:16]
+        now = time.time()
+        stats_json = json.dumps(profile.get("stats", profile.get("stats_json", {})))
+        if isinstance(stats_json, dict):
+            stats_json = json.dumps(stats_json)
+        await self.db.execute(
+            """INSERT OR REPLACE INTO author_profiles
+               (id, platform, username, total_signals, win_count, loss_count,
+                accuracy, roi_if_followed, sharpe, reputation_score, stats_json,
+                first_seen, last_seen, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                pid,
+                profile.get("platform", "reddit"),
+                profile.get("username", ""),
+                profile.get("total_signals", 0),
+                profile.get("win_count", 0),
+                profile.get("loss_count", 0),
+                profile.get("accuracy"),
+                profile.get("roi_if_followed"),
+                profile.get("sharpe"),
+                profile.get("reputation_score"),
+                stats_json if isinstance(stats_json, str) else json.dumps(stats_json),
+                profile.get("first_seen", now),
+                profile.get("last_seen"),
+                now,
+            ),
+        )
+        await self.db.commit()
+        return pid
+
+    async def get_author_profile(self, author_id: str) -> dict | None:
+        """Get author profile by id."""
+        async with self.db.execute(
+            "SELECT * FROM author_profiles WHERE id = ?", (author_id,)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["stats"] = json.loads(d.pop("stats_json", "{}"))
+        return d
+
+    async def get_author_profile_by_username(self, platform: str, username: str) -> dict | None:
+        """Get author profile by platform + username."""
+        async with self.db.execute(
+            "SELECT * FROM author_profiles WHERE platform = ? AND username = ?",
+            (platform, username),
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["stats"] = json.loads(d.pop("stats_json", "{}"))
+        return d
+
+    async def get_author_leaderboard(
+        self, limit: int = 50, offset: int = 0, min_predictions: int = 10
+    ) -> list[dict]:
+        """Get author leaderboard sorted by reputation_score DESC."""
+        async with self.db.execute(
+            """SELECT * FROM author_profiles
+               WHERE (win_count + loss_count) >= ?
+               ORDER BY reputation_score DESC, accuracy DESC
+               LIMIT ? OFFSET ?""",
+            (min_predictions, limit, offset),
+        ) as cur:
+            rows = await cur.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["stats"] = json.loads(d.pop("stats_json", "{}"))
+            result.append(d)
+        return result
+
+    async def record_author_prediction(self, pred: dict) -> str:
+        """Save an author prediction. Returns prediction id."""
+        pid = pred.get("id") or uuid.uuid4().hex[:16]
+        await self.db.execute(
+            """INSERT OR IGNORE INTO author_predictions
+               (id, author_id, signal_id, ticker, stance, confidence,
+                outcome, pnl_pct, created_at, resolved_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                pid,
+                pred["author_id"],
+                pred.get("signal_id"),
+                pred["ticker"],
+                pred.get("stance", "unknown"),
+                pred.get("confidence", 0.5),
+                pred.get("outcome"),
+                pred.get("pnl_pct"),
+                pred.get("created_at", time.time()),
+                pred.get("resolved_at"),
+            ),
+        )
+        await self.db.commit()
+        return pid
+
+    async def resolve_author_prediction(
+        self, prediction_id: str, outcome: str, pnl_pct: float
+    ) -> None:
+        """Resolve a pending prediction with outcome and P&L."""
+        now = time.time()
+        await self.db.execute(
+            """UPDATE author_predictions
+               SET outcome = ?, pnl_pct = ?, resolved_at = ?
+               WHERE id = ? AND outcome IS NULL""",
+            (outcome, pnl_pct, now, prediction_id),
+        )
+        await self.db.commit()
+
+    async def get_author_predictions(
+        self, author_id: str, limit: int = 100, offset: int = 0
+    ) -> list[dict]:
+        """Get predictions for an author, newest first."""
+        async with self.db.execute(
+            """SELECT * FROM author_predictions
+               WHERE author_id = ?
+               ORDER BY created_at DESC
+               LIMIT ? OFFSET ?""",
+            (author_id, limit, offset),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def get_pending_predictions(self, min_age_hours: int = 1) -> list[dict]:
+        """Get unresolved predictions older than min_age_hours."""
+        cutoff = time.time() - (min_age_hours * 3600)
+        async with self.db.execute(
+            """SELECT * FROM author_predictions
+               WHERE outcome IS NULL AND created_at < ?
+               ORDER BY created_at ASC""",
+            (cutoff,),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def save_manipulation_alert(self, alert: dict) -> str:
+        """Save a manipulation alert. Returns alert id."""
+        aid = alert.get("id") or uuid.uuid4().hex[:16]
+        await self.db.execute(
+            """INSERT OR IGNORE INTO manipulation_alerts
+               (id, alert_type, tickers_json, authors_json, evidence_json,
+                severity, detected_at, resolved)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                aid,
+                alert["alert_type"],
+                json.dumps(alert.get("tickers", [])),
+                json.dumps(alert.get("authors", [])),
+                json.dumps(alert.get("evidence", {})),
+                alert.get("severity", 0.0),
+                alert.get("detected_at", time.time()),
+                1 if alert.get("resolved") else 0,
+            ),
+        )
+        await self.db.commit()
+        return aid
+
+    async def get_manipulation_alerts(
+        self, limit: int = 100, resolved: bool | None = None, hours: float | None = None
+    ) -> list[dict]:
+        """Get manipulation alerts, optionally filtered."""
+        sql = "SELECT * FROM manipulation_alerts WHERE 1=1"
+        params: list = []
+        if resolved is not None:
+            sql += " AND resolved = ?"
+            params.append(1 if resolved else 0)
+        if hours is not None:
+            sql += " AND detected_at >= ?"
+            params.append(time.time() - hours * 3600)
+        sql += " ORDER BY detected_at DESC LIMIT ?"
+        params.append(limit)
+        async with self.db.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["tickers"] = json.loads(d.pop("tickers_json", "[]"))
+            d["authors"] = json.loads(d.pop("authors_json", "[]"))
+            d["evidence"] = json.loads(d.pop("evidence_json", "{}"))
+            d["resolved"] = bool(d.get("resolved"))
+            result.append(d)
+        return result
+
+    async def record_sentiment_propagation(self, prop: dict) -> str:
+        """Save a sentiment propagation event. Returns id."""
+        pid = prop.get("id") or uuid.uuid4().hex[:16]
+        lag = prop.get("lag_seconds", prop.get("spread_ts", 0) - prop.get("origin_ts", 0))
+        await self.db.execute(
+            """INSERT OR IGNORE INTO sentiment_propagation
+               (id, ticker, origin_sub, spread_to, origin_ts, spread_ts, lag_seconds, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                pid,
+                prop["ticker"],
+                prop["origin_sub"],
+                prop["spread_to"],
+                prop["origin_ts"],
+                prop["spread_ts"],
+                lag,
+                prop.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+        return pid
+
+    async def get_propagation_timeline(self, ticker: str, hours: float = 48.0) -> list[dict]:
+        """Get propagation events for a ticker, sorted by origin_ts ASC."""
+        cutoff = time.time() - hours * 3600
+        async with self.db.execute(
+            """SELECT * FROM sentiment_propagation
+               WHERE ticker = ? AND origin_ts >= ?
+               ORDER BY origin_ts ASC""",
+            (ticker, cutoff),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def get_leading_sources(self, hours: float = 24.0) -> list[dict]:
+        """Get sources ranked by how often they originate propagation."""
+        cutoff = time.time() - hours * 3600
+        async with self.db.execute(
+            """SELECT origin_sub, COUNT(*) as lead_count
+               FROM sentiment_propagation
+               WHERE origin_ts >= ?
+               GROUP BY origin_sub
+               ORDER BY lead_count DESC""",
+            (cutoff,),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def save_author_cluster(self, cluster: dict) -> str:
+        """Save an author cluster. Returns cluster id."""
+        cid = cluster.get("id") or uuid.uuid4().hex[:16]
+        await self.db.execute(
+            """INSERT OR IGNORE INTO author_clusters
+               (id, authors_json, similarity_score, common_tickers_json, detected_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                cid,
+                json.dumps(cluster.get("authors", [])),
+                cluster.get("similarity_score", 0.0),
+                json.dumps(cluster.get("common_tickers", [])),
+                cluster.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+        return cid
+
+    async def get_author_clusters(self, min_similarity: float = 0.5) -> list[dict]:
+        """Get author clusters above similarity threshold."""
+        async with self.db.execute(
+            """SELECT * FROM author_clusters
+               WHERE similarity_score >= ?
+               ORDER BY similarity_score DESC""",
+            (min_similarity,),
+        ) as cur:
+            rows = await cur.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["authors"] = json.loads(d.pop("authors_json", "[]"))
+            d["common_tickers"] = json.loads(d.pop("common_tickers_json", "[]"))
+            result.append(d)
+        return result
+
+    async def purge_old_social_data(self, keep_days: int = 180) -> int:
+        """Delete social intelligence data older than keep_days. Returns total deleted."""
+        cutoff = time.time() - (keep_days * 86400)
+        total = 0
+        # Purge predictions
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM author_predictions WHERE created_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM author_predictions WHERE created_at < ?", (cutoff,)
+            )
+            total += count
+        # Purge alerts
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM manipulation_alerts WHERE detected_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM manipulation_alerts WHERE detected_at < ?", (cutoff,)
+            )
+            total += count
+        # Purge propagation
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM sentiment_propagation WHERE detected_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM sentiment_propagation WHERE detected_at < ?", (cutoff,)
+            )
+            total += count
+        # Purge clusters
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM author_clusters WHERE detected_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM author_clusters WHERE detected_at < ?", (cutoff,)
+            )
+            total += count
+        if total > 0:
+            await self.db.commit()
+        return total
+
+    # ------------------------------------------------------------------
+    # Strategy Builder DB methods
+    # ------------------------------------------------------------------
+
+    async def save_strategy(self, strategy: dict) -> None:
+        """Save or update a strategy."""
+        await self.db.execute(
+            """INSERT OR REPLACE INTO strategies
+               (id, user_id, name, description, rules_json, config_json,
+                performance_json, health_score, is_active, source, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                strategy["id"],
+                strategy["user_id"],
+                strategy["name"],
+                strategy.get("description", ""),
+                json.dumps(strategy.get("rules", [])),
+                json.dumps(strategy.get("config", {})),
+                json.dumps(strategy.get("performance", {})),
+                strategy.get("health_score", 1.0),
+                1 if strategy.get("is_active") else 0,
+                strategy.get("source", "manual"),
+                strategy.get("created_at", time.time()),
+                strategy.get("updated_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+
+    async def get_strategy(self, strategy_id: str) -> Optional[dict]:
+        """Get a strategy by ID."""
+        async with self.db.execute(
+            "SELECT * FROM strategies WHERE id = ?", (strategy_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return None
+            return self._strategy_row_to_dict(row)
+
+    async def get_user_strategies(
+        self, user_id: str, active_only: bool = False
+    ) -> list[dict]:
+        """Get all strategies for a user."""
+        sql = "SELECT * FROM strategies WHERE user_id = ?"
+        params: list = [user_id]
+        if active_only:
+            sql += " AND is_active = 1"
+        sql += " ORDER BY updated_at DESC"
+        async with self.db.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [self._strategy_row_to_dict(r) for r in rows]
+
+    async def delete_strategy(self, strategy_id: str, user_id: str) -> bool:
+        """Delete a strategy (must be owned by user). Returns True if deleted."""
+        async with self.db.execute(
+            "SELECT id FROM strategies WHERE id = ? AND user_id = ?",
+            (strategy_id, user_id),
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return False
+        await self.db.execute("DELETE FROM strategies WHERE id = ?", (strategy_id,))
+        await self.db.execute(
+            "DELETE FROM strategy_trades WHERE strategy_id = ?", (strategy_id,)
+        )
+        await self.db.execute(
+            "DELETE FROM strategy_portfolios WHERE strategy_id = ?", (strategy_id,)
+        )
+        await self.db.commit()
+        return True
+
+    async def update_strategy_health(
+        self, strategy_id: str, health_score: float, is_active: bool
+    ) -> None:
+        """Update a strategy's health score and active status."""
+        await self.db.execute(
+            "UPDATE strategies SET health_score = ?, is_active = ?, updated_at = ? WHERE id = ?",
+            (health_score, 1 if is_active else 0, time.time(), strategy_id),
+        )
+        await self.db.commit()
+
+    async def update_strategy_performance(
+        self, strategy_id: str, performance: dict
+    ) -> None:
+        """Update a strategy's cached performance stats."""
+        await self.db.execute(
+            "UPDATE strategies SET performance_json = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(performance), time.time(), strategy_id),
+        )
+        await self.db.commit()
+
+    async def save_strategy_trade(self, trade: dict) -> None:
+        """Save a strategy trade."""
+        await self.db.execute(
+            """INSERT OR REPLACE INTO strategy_trades
+               (id, strategy_id, signal_id, ticker, stance, entry_price,
+                exit_price, pnl_pct, created_at, resolved_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                trade["id"],
+                trade["strategy_id"],
+                trade.get("signal_id", ""),
+                trade["ticker"],
+                trade["stance"],
+                trade["entry_price"],
+                trade.get("exit_price"),
+                trade.get("pnl_pct"),
+                trade.get("created_at", time.time()),
+                trade.get("resolved_at"),
+            ),
+        )
+        await self.db.commit()
+
+    async def get_strategy_trades(
+        self,
+        strategy_id: str,
+        status: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Get trades for a strategy. status: 'open' (no exit_price), 'closed', or None (all)."""
+        sql = "SELECT * FROM strategy_trades WHERE strategy_id = ?"
+        params: list = [strategy_id]
+        if status == "open":
+            sql += " AND exit_price IS NULL"
+        elif status == "closed":
+            sql += " AND exit_price IS NOT NULL"
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        async with self.db.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+    async def resolve_strategy_trade(
+        self, trade_id: str, exit_price: float, pnl_pct: float
+    ) -> None:
+        """Close a strategy trade with exit price and P&L."""
+        await self.db.execute(
+            "UPDATE strategy_trades SET exit_price = ?, pnl_pct = ?, resolved_at = ? WHERE id = ?",
+            (exit_price, pnl_pct, time.time(), trade_id),
+        )
+        await self.db.commit()
+
+    async def get_strategy_portfolio(
+        self, strategy_id: str, user_id: str
+    ) -> Optional[dict]:
+        """Get portfolio for a strategy-user pair."""
+        async with self.db.execute(
+            "SELECT * FROM strategy_portfolios WHERE strategy_id = ? AND user_id = ?",
+            (strategy_id, user_id),
+        ) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+    async def save_strategy_portfolio(self, portfolio: dict) -> None:
+        """Save or update a strategy portfolio."""
+        await self.db.execute(
+            """INSERT OR REPLACE INTO strategy_portfolios
+               (strategy_id, user_id, balance, total_trades, winning_trades, total_pnl)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                portfolio["strategy_id"],
+                portfolio["user_id"],
+                portfolio.get("balance", 10000.0),
+                portfolio.get("total_trades", 0),
+                portfolio.get("winning_trades", 0),
+                portfolio.get("total_pnl", 0.0),
+            ),
+        )
+        await self.db.commit()
+
+    async def save_marketplace_entry(self, entry: dict) -> None:
+        """Save or update a marketplace entry."""
+        await self.db.execute(
+            """INSERT OR REPLACE INTO strategy_marketplace
+               (id, strategy_id, author_id, name, description,
+                performance_json, subscriber_count, rating, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                entry["id"],
+                entry["strategy_id"],
+                entry["author_id"],
+                entry["name"],
+                entry.get("description", ""),
+                json.dumps(entry.get("performance", {})),
+                entry.get("subscriber_count", 0),
+                entry.get("rating", 0.0),
+                entry.get("created_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+
+    async def get_marketplace_entries(
+        self, sort_by: str = "rating", limit: int = 20, offset: int = 0
+    ) -> list[dict]:
+        """Get marketplace entries sorted by specified metric."""
+        order_map = {
+            "rating": "rating DESC",
+            "subscribers": "subscriber_count DESC",
+            "newest": "created_at DESC",
+        }
+        order = order_map.get(sort_by, "rating DESC")
+        sql = f"SELECT * FROM strategy_marketplace ORDER BY {order} LIMIT ? OFFSET ?"
+        async with self.db.execute(sql, (limit, offset)) as cur:
+            rows = await cur.fetchall()
+            return [self._marketplace_row_to_dict(r) for r in rows]
+
+    async def get_marketplace_entry(self, entry_id: str) -> Optional[dict]:
+        """Get a single marketplace entry."""
+        async with self.db.execute(
+            "SELECT * FROM strategy_marketplace WHERE id = ?", (entry_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return self._marketplace_row_to_dict(row) if row else None
+
+    async def delete_marketplace_entry(
+        self, entry_id: str, author_id: str
+    ) -> bool:
+        """Delete marketplace entry (must be author). Returns True if deleted."""
+        async with self.db.execute(
+            "SELECT id FROM strategy_marketplace WHERE id = ? AND author_id = ?",
+            (entry_id, author_id),
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return False
+        await self.db.execute(
+            "DELETE FROM strategy_marketplace WHERE id = ?", (entry_id,)
+        )
+        await self.db.commit()
+        return True
+
+    async def save_market_regime(self, regime: dict) -> None:
+        """Save a detected market regime."""
+        await self.db.execute(
+            """INSERT OR REPLACE INTO market_regimes
+               (id, regime_type, start_ts, end_ts, indicators_json, confidence, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                regime["id"],
+                regime["regime_type"],
+                regime["start_ts"],
+                regime.get("end_ts"),
+                json.dumps(regime.get("indicators", {})),
+                regime.get("confidence", 0.5),
+                regime.get("detected_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+
+    async def get_market_regimes(
+        self, days: int = 90, regime_type: Optional[str] = None
+    ) -> list[dict]:
+        """Get market regimes within the last N days."""
+        cutoff = time.time() - (days * 86400)
+        sql = "SELECT * FROM market_regimes WHERE start_ts >= ?"
+        params: list = [cutoff]
+        if regime_type:
+            sql += " AND regime_type = ?"
+            params.append(regime_type)
+        sql += " ORDER BY start_ts DESC"
+        async with self.db.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                d["indicators"] = json.loads(d.pop("indicators_json", "{}"))
+                result.append(d)
+            return result
+
+    async def save_discovery_result(self, discovery: dict) -> None:
+        """Save a strategy discovery run result."""
+        await self.db.execute(
+            """INSERT INTO strategy_discoveries
+               (id, user_id, search_config_json, result_json, strategies_found, elapsed_s, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                discovery["id"],
+                discovery["user_id"],
+                json.dumps(discovery.get("search_config", {})),
+                json.dumps(discovery.get("best_strategies", [])),
+                discovery.get("strategies_found", 0),
+                discovery.get("elapsed_s", 0.0),
+                discovery.get("created_at", time.time()),
+            ),
+        )
+        await self.db.commit()
+
+    async def get_discovery_results(
+        self, user_id: str, limit: int = 10
+    ) -> list[dict]:
+        """Get discovery run results for a user."""
+        async with self.db.execute(
+            "SELECT * FROM strategy_discoveries WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ) as cur:
+            rows = await cur.fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                d["search_config"] = json.loads(d.pop("search_config_json", "{}"))
+                d["best_strategies"] = json.loads(d.pop("result_json", "[]"))
+                result.append(d)
+            return result
+
+    async def purge_old_strategy_data(self, keep_days: int = 90) -> int:
+        """Delete old strategy trades and discovery data. Returns total deleted."""
+        cutoff = time.time() - (keep_days * 86400)
+        total = 0
+        # Purge old resolved trades
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM strategy_trades WHERE resolved_at IS NOT NULL AND resolved_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM strategy_trades WHERE resolved_at IS NOT NULL AND resolved_at < ?",
+                (cutoff,),
+            )
+            total += count
+        # Purge old discovery runs
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM strategy_discoveries WHERE created_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM strategy_discoveries WHERE created_at < ?", (cutoff,)
+            )
+            total += count
+        # Purge old regime data
+        async with self.db.execute(
+            "SELECT COUNT(*) as cnt FROM market_regimes WHERE detected_at < ?",
+            (cutoff,),
+        ) as cur:
+            row = await cur.fetchone()
+            count = row["cnt"] if row else 0
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM market_regimes WHERE detected_at < ?", (cutoff,)
+            )
+            total += count
+        if total > 0:
+            await self.db.commit()
+        return total
+
+    def _strategy_row_to_dict(self, row) -> dict:
+        """Convert a strategy row to dict with JSON parsing."""
+        d = dict(row)
+        d["rules"] = json.loads(d.pop("rules_json", "[]"))
+        d["config"] = json.loads(d.pop("config_json", "{}"))
+        d["performance"] = json.loads(d.pop("performance_json", "{}"))
+        d["is_active"] = bool(d.get("is_active"))
+        return d
+
+    def _marketplace_row_to_dict(self, row) -> dict:
+        """Convert a marketplace row to dict with JSON parsing."""
+        d = dict(row)
+        d["performance"] = json.loads(d.pop("performance_json", "{}"))
+        return d
 
 
 def _to_dict(obj: Any) -> Dict[str, Any]:

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Social Intelligence - ROT{% endblock %}
+{% block meta_description %}Author tracking, manipulation detection, sentiment propagation, and contrarian signal intelligence.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">&#128101; Social Intelligence</h1>
+        <p class="text-gray-400">Author tracking, manipulation detection, and sentiment propagation analysis.</p>
+    </div>
+
+    {% if not access.get('has_access') %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128101;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Social Intelligence Network</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Pro to track author accuracy, detect manipulation, and monitor sentiment spread.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── KPI Summary Cards ── #}
+    {% if stats %}
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Tracked Authors</div>
+            <div class="text-2xl font-bold text-white">{{ stats.get('tracked_authors', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Pending Predictions</div>
+            <div class="text-2xl font-bold text-yellow-400">{{ stats.get('pending_predictions', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Active Alerts</div>
+            <div class="text-2xl font-bold {% if stats.get('active_alerts', 0) > 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                {{ stats.get('active_alerts', 0) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Manipulation Alerts ── #}
+    {% if access.get('has_alerts') and alerts %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-red-700/40 mb-8">
+        <h3 class="text-sm font-semibold text-red-300 uppercase tracking-wider mb-3">
+            &#9888; Active Manipulation Alerts
+            <span class="text-red-400 ml-2">({{ alerts|length }})</span>
+        </h3>
+        <div class="space-y-3">
+            {% for alert in alerts %}
+            <div class="bg-gray-700/40 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="px-2 py-0.5 rounded text-xs font-medium
+                        {% if alert.alert_type == 'pump_and_dump' %}bg-red-900/60 text-red-300
+                        {% elif alert.alert_type == 'coordinated_posting' %}bg-orange-900/60 text-orange-300
+                        {% else %}bg-yellow-900/60 text-yellow-300{% endif %}">
+                        {{ alert.alert_type.replace('_', ' ').title() }}
+                    </span>
+                    <span class="text-sm text-white">{{ alert.tickers|join(', ') }}</span>
+                    <span class="text-xs text-gray-400">{{ alert.authors|length }} authors involved</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-sm font-bold
+                    {% if alert.severity >= 70 %}bg-red-900/60 text-red-300
+                    {% elif alert.severity >= 50 %}bg-orange-900/60 text-orange-300
+                    {% else %}bg-yellow-900/60 text-yellow-300{% endif %}">
+                    {{ alert.severity|round(0)|int }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Author Leaderboard ── #}
+    {% if access.get('has_leaderboard') %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            &#127942; Author Leaderboard
+            <span class="text-blue-400 ml-2">({{ leaderboard|length }})</span>
+        </h3>
+        {% if leaderboard %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 px-2">#</th>
+                        <th class="text-left py-2 px-2">Author</th>
+                        <th class="text-left py-2 px-2">Platform</th>
+                        <th class="text-right py-2 px-2">Signals</th>
+                        <th class="text-right py-2 px-2">W/L</th>
+                        <th class="text-right py-2 px-2">Accuracy</th>
+                        <th class="text-right py-2 px-2">ROI</th>
+                        <th class="text-right py-2 px-2">Sharpe</th>
+                        <th class="text-right py-2 px-2">Reputation</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    {% for author in leaderboard %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-2 px-2 text-gray-500">{{ loop.index }}</td>
+                        <td class="py-2 px-2">
+                            {% if access.get('has_profiles') %}
+                            <a href="/social/author/{{ author.username }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ author.username }}</a>
+                            {% else %}
+                            <span class="text-white font-semibold">{{ author.username }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-gray-400 text-xs">{{ author.platform }}</td>
+                        <td class="py-2 px-2 text-right text-gray-300">{{ author.total_signals }}</td>
+                        <td class="py-2 px-2 text-right">
+                            <span class="text-green-400">{{ author.win_count }}</span>/<span class="text-red-400">{{ author.loss_count }}</span>
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            {% if author.accuracy is not none %}
+                            <span class="{% if author.accuracy >= 0.6 %}text-green-400{% elif author.accuracy >= 0.4 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                                {{ (author.accuracy * 100)|round(1) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            {% if author.roi_if_followed is not none %}
+                            <span class="{% if author.roi_if_followed > 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                                {% if author.roi_if_followed > 0 %}+{% endif %}{{ author.roi_if_followed|round(2) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-300">
+                            {% if author.sharpe is not none %}{{ author.sharpe|round(2) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            {% if author.reputation_score is not none %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold
+                                {% if author.reputation_score >= 70 %}bg-green-900/60 text-green-300
+                                {% elif author.reputation_score >= 50 %}bg-yellow-900/60 text-yellow-300
+                                {% else %}bg-gray-700 text-gray-400{% endif %}">
+                                {{ author.reputation_score|round(0)|int }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-8">No authors tracked yet. The tracker starts recording after signals are generated.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Propagation Leaders ── #}
+    {% if access.get('has_propagation') and propagation_leaders %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            &#128640; Sentiment Propagation Leaders (24h)
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {% for src in propagation_leaders[:8] %}
+            <div class="bg-gray-700/40 rounded-lg p-3 text-center">
+                <div class="text-white font-semibold">{{ src.origin_sub }}</div>
+                <div class="text-sm text-blue-400">{{ src.lead_count }} leads</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

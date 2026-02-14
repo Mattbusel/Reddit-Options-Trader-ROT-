@@ -389,6 +389,51 @@ class MacroConfig(BaseSettings):
     purge_keep_days: int = 365  # Keep macro events for 1 year
 
 
+class FlowConfig(BaseSettings):
+    """Config for options flow intelligence engine."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_FLOW_")
+
+    scan_interval_s: int = 300  # 5 minutes between scans
+    block_premium_threshold: float = 100_000.0  # $100k = block trade
+    sweep_volume_threshold: int = 1000  # contracts for sweep detection
+    accumulation_window_days: int = 7  # lookback for accumulation patterns
+    composite_min_score: float = 40.0  # minimum composite score to store
+    history_window_days: int = 20  # rolling window for baselines
+    purge_keep_days: int = 90  # days to keep flow events
+    convergence_window_hours: float = 6.0  # time window for signal-flow matching
+
+
+class SocialConfig(BaseSettings):
+    """Config for social intelligence network."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_SOCIAL_")
+
+    tracking_enabled: bool = True  # enable author tracking
+    manipulation_scan_interval_s: int = 1800  # 30 minutes between scans
+    min_predictions_for_score: int = 10  # minimum predictions for author scoring
+    coordination_window_hours: int = 4  # time window for coordinated posting detection
+    bot_detection_threshold: float = 0.7  # confidence threshold for bot detection
+    propagation_window_hours: int = 24  # time window for sentiment propagation
+    purge_keep_days: int = 180  # days to keep author data (6 months)
+
+
+class StrategyConfig(BaseSettings):
+    """Config for strategy builder & ML optimizer."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_STRATEGY_")
+
+    discovery_max_rules: int = 5  # max rules per discovered strategy
+    discovery_max_candidates: int = 1000  # max candidate strategies to evaluate
+    ml_min_signals: int = 200  # minimum signals for ML training
+    genetic_generations: int = 50  # number of GA generations
+    genetic_population_size: int = 100  # GA population size
+    auto_trade_enabled: bool = True  # enable auto paper trading
+    marketplace_enabled: bool = True  # enable strategy marketplace
+    regime_window_days: int = 30  # rolling window for regime detection
+    health_check_interval_s: int = 21600  # 6 hours between health checks
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -421,6 +466,9 @@ class Settings(BaseSettings):
     archive: ArchiveConfig = Field(default_factory=ArchiveConfig)
     macro: MacroConfig = Field(default_factory=MacroConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
+    flow: FlowConfig = Field(default_factory=FlowConfig)
+    social: SocialConfig = Field(default_factory=SocialConfig)
+    strategy: StrategyConfig = Field(default_factory=StrategyConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

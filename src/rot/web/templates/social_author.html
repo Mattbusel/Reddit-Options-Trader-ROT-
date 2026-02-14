@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{% if author %}{{ author.username }} - Social Intelligence{% else %}Author Not Found{% endif %} - ROT{% endblock %}
+{% block meta_description %}Author profile: prediction history, accuracy, ROI, and reputation scoring.{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+
+    {% if not access.get('has_profiles') %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128100;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Author Profiles</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Premium to view detailed author profiles and prediction history.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+
+    {% elif not author %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128533;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Author Not Found</h2>
+        <p class="text-gray-400 mb-4">This author hasn't been tracked yet.</p>
+        <a href="/social" class="text-blue-400 hover:text-blue-300">Back to Social Intelligence</a>
+    </div>
+
+    {% else %}
+
+    {# ── Author Profile Card ── #}
+    <div class="mb-6">
+        <a href="/social" class="text-blue-400 hover:text-blue-300 text-sm">&larr; Back to Social Intelligence</a>
+    </div>
+
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white">{{ author.username }}</h1>
+                <span class="text-gray-400 text-sm">{{ author.platform }} &middot; Tracked since {{ author.first_seen|int }}</span>
+            </div>
+            {% if author.reputation_score is not none %}
+            <div class="text-center">
+                <div class="text-3xl font-bold
+                    {% if author.reputation_score >= 70 %}text-green-400
+                    {% elif author.reputation_score >= 50 %}text-yellow-400
+                    {% else %}text-red-400{% endif %}">
+                    {{ author.reputation_score|round(0)|int }}
+                </div>
+                <div class="text-xs text-gray-400 uppercase">Reputation</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Signals</div>
+                <div class="text-xl font-bold text-white">{{ author.total_signals }}</div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Win/Loss</div>
+                <div class="text-xl font-bold">
+                    <span class="text-green-400">{{ author.win_count }}</span>
+                    /
+                    <span class="text-red-400">{{ author.loss_count }}</span>
+                </div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Accuracy</div>
+                <div class="text-xl font-bold {% if author.accuracy is not none and author.accuracy >= 0.5 %}text-green-400{% elif author.accuracy is not none %}text-red-400{% else %}text-gray-500{% endif %}">
+                    {% if author.accuracy is not none %}{{ (author.accuracy * 100)|round(1) }}%{% else %}-{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">ROI if Followed</div>
+                <div class="text-xl font-bold {% if author.roi_if_followed is not none and author.roi_if_followed > 0 %}text-green-400{% elif author.roi_if_followed is not none %}text-red-400{% else %}text-gray-500{% endif %}">
+                    {% if author.roi_if_followed is not none %}{% if author.roi_if_followed > 0 %}+{% endif %}{{ author.roi_if_followed|round(2) }}%{% else %}-{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Sharpe</div>
+                <div class="text-xl font-bold text-gray-300">
+                    {% if author.sharpe is not none %}{{ author.sharpe|round(2) }}{% else %}-{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Prediction History ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            Prediction History
+            <span class="text-blue-400 ml-2">({{ predictions|length }})</span>
+        </h3>
+        {% if predictions %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 px-2">Ticker</th>
+                        <th class="text-left py-2 px-2">Stance</th>
+                        <th class="text-right py-2 px-2">Confidence</th>
+                        <th class="text-left py-2 px-2">Outcome</th>
+                        <th class="text-right py-2 px-2">P&L</th>
+                        <th class="text-right py-2 px-2">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    {% for pred in predictions %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-2 px-2 font-semibold text-white">{{ pred.ticker }}</td>
+                        <td class="py-2 px-2">
+                            {% if pred.stance == 'bullish' %}
+                            <span class="text-green-400">&#9650; Bullish</span>
+                            {% elif pred.stance == 'bearish' %}
+                            <span class="text-red-400">&#9660; Bearish</span>
+                            {% else %}
+                            <span class="text-gray-400">{{ pred.stance }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-300">{{ (pred.confidence * 100)|round(0)|int }}%</td>
+                        <td class="py-2 px-2">
+                            {% if pred.outcome == 'win' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-900/60 text-green-300">WIN</span>
+                            {% elif pred.outcome == 'loss' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/60 text-red-300">LOSS</span>
+                            {% elif pred.outcome == 'neutral' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-400">NEUTRAL</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-xs bg-yellow-900/40 text-yellow-300">PENDING</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            {% if pred.pnl_pct is not none %}
+                            <span class="{% if pred.pnl_pct > 0 %}text-green-400{% elif pred.pnl_pct < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
+                                {% if pred.pnl_pct > 0 %}+{% endif %}{{ pred.pnl_pct|round(2) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-400 text-xs">
+                            {{ pred.created_at|int }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-8">No predictions recorded yet.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

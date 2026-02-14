@@ -177,7 +177,7 @@ async def test_get_user_strategies(db):
     await db.save_backtest_strategy("user-1", "Strat B", "", "{}")
     await db.save_backtest_strategy("user-2", "Other", "", "{}")
 
-    strats = await db.get_user_strategies("user-1")
+    strats = await db.get_user_backtest_strategies("user-1")
     assert len(strats) == 2
 
 
@@ -202,7 +202,7 @@ async def test_delete_strategy_soft(db):
     assert strat["is_active"] == 0
 
     # Not returned in user strategies list
-    strats = await db.get_user_strategies("user-1")
+    strats = await db.get_user_backtest_strategies("user-1")
     assert len(strats) == 0
 
 

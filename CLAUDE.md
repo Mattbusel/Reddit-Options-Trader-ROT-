@@ -15,9 +15,9 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~1040+ tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~2048+ tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
-| **DB** | SQLite with aiosqlite (WAL mode), 20+ tables |
+| **DB** | SQLite with aiosqlite (WAL mode), 33+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
 
 ---
@@ -57,7 +57,10 @@ ROT is a vertically integrated pipeline that turns social media chatter into str
 - **Multi-source ingestion** — Reddit (PRAW), RSS (feedparser), StockTwits (HTTP), Twitter/X (API v2)
 - **Dual-path event extraction** — NLP engine path + legacy regex fallback
 - **Tier-gated SaaS model** — 5 tiers (Free, Pro, Premium, Ultra, Enterprise) via Stripe
-- **SQLite persistence** — single-file DB with WAL mode, async via aiosqlite, 15+ tables
+- **SQLite persistence** — single-file DB with WAL mode, async via aiosqlite, 33+ tables
+- **Options flow intelligence** — Black-Scholes Greeks engine, block/sweep/dark pool detection, pattern recognition, social-flow convergence
+- **Social intelligence** — Author tracking, manipulation detection, sentiment propagation, co-mention network analysis
+- **Strategy builder** — Rule-based strategies, ML optimization, genetic evolution, market regime detection, auto paper trading, marketplace
 - **Real-time delivery** — WebSocket push, Discord webhooks, email (Resend/SMTP), Twitter posting
 
 ---
@@ -162,7 +165,7 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 ### `src/rot/core/`
 | File | Purpose |
 |------|---------|
-| `config.py` | Pydantic Settings — all `ROT_*` env vars, 15 config sections |
+| `config.py` | Pydantic Settings — all `ROT_*` env vars, 21 config sections |
 | `types.py` | Frozen dataclasses: Post, Comment, ThreadSnapshot, TrendCandidate, Event, ReasoningPacket, OptionLeg, TradeIdea |
 | `logging.py` | JsonlLogger — structured logging to JSONL files |
 
@@ -297,10 +300,45 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `rules.py` | RuleEngine: evaluate_all (AND), evaluate_any (OR), evaluate_custom, agent type logic (contrarian flips stance), confidence gate |
 | `engine.py` | AgentEngine: evaluate_signal against active agents, execute_trade, safety rails (daily cap, exposure, stop-loss auto-pause), performance computation (Sharpe, max drawdown) |
 
+### `src/rot/flow/` (Options Flow Intelligence — 7 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Re-exports FlowDetector, FlowEvent, FlowScore, GreeksEngine |
+| `types.py` | Frozen dataclasses: FlowEvent, FlowScore, FlowPattern, FlowSignalConvergence, GreeksSnapshot, FlowSummary (~300 lines) |
+| `greeks.py` | Black-Scholes pricing, delta/gamma/theta/vega/rho, IV bisection, portfolio Greeks (~500 lines) |
+| `detector.py` | FlowDetector: block trade, sweep, dark pool, accumulation/distribution detection (~800 lines) |
+| `patterns.py` | FlowPatternRecognizer: repeat buyer, accumulation sequence, hedging, rolling, cross-ticker (~600 lines) |
+| `history.py` | FlowHistory: rolling per-ticker baselines, LRU eviction at 500 tickers (~400 lines) |
+| `convergence.py` | ConvergenceDetector: cross-reference flow events with social signals (~500 lines) |
+
+### `src/rot/social/` (Social Intelligence Network — 7 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Re-exports AuthorTracker, ManipulationDetector, etc. |
+| `types.py` | Frozen dataclasses: AuthorProfile, AuthorPrediction, ManipulationAlert, SentimentPropagation, AuthorCluster, ContrarianSignal (~350 lines) |
+| `tracker.py` | AuthorTracker: record/resolve predictions, compute accuracy, leaderboard, history (~700 lines) |
+| `manipulation.py` | ManipulationDetector: coordinated posting, bot network, pump-and-dump detection (~800 lines) |
+| `propagation.py` | PropagationTracker: cross-subreddit/platform spread, virality velocity, leading/lagging subs (~500 lines) |
+| `network.py` | NetworkAnalyzer: co-mention graph, clustering, community detection, contrarian signal generation (~600 lines) |
+| `confidence.py` | AuthorConfidenceAdjuster: pipeline Stage 6 plugin, boost/penalize based on author accuracy (~300 lines) |
+
+### `src/rot/strategy/` (Strategy Builder & ML Optimizer — 9 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Re-exports StrategyEngine, RuleEngine, etc. |
+| `types.py` | Frozen dataclasses: StrategyRule, Strategy, StrategyResult, DiscoveryResult, MarketRegime, RegimeStrategy, MarketplaceEntry (~400 lines) |
+| `rules.py` | RuleEngine: evaluate signal against rules, 7 operators (gt, lt, gte, lte, eq, neq, in), nested field access, compiled rules (~670 lines) |
+| `discovery.py` | StrategyDiscoverer: enumerate candidates, exhaustive/random search, backtest each, walk-forward validate (~983 lines) |
+| `ml_optimizer.py` | MLStrategyOptimizer: 52-feature vector, GradientBoosting, feature importance → auto-generate rules (~700 lines) |
+| `regime.py` | RegimeDetector: market regime classification (bull/bear/sideways/volatile/crisis), per-strategy regime matrix (~802 lines) |
+| `genetic.py` | GeneticOptimizer: population → fitness → selection → crossover → mutation → evolve (~726 lines) |
+| `auto_trader.py` | AutoPaperTrader: evaluate signals vs active strategies, auto paper trade, health monitoring (~515 lines) |
+| `marketplace.py` | Marketplace: publish, subscribe, rate strategies, performance tracking (~400 lines) |
+
 ### `src/rot/storage/`
 | File | Purpose |
 |------|---------|
-| `database.py` | Async SQLite (aiosqlite), WAL mode, 20+ tables, migration system |
+| `database.py` | Async SQLite (aiosqlite), WAL mode, 33+ tables, migration system |
 
 ### `src/rot/alerts/`
 | File | Purpose |
@@ -322,11 +360,11 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 ### `src/rot/web/`
 | File | Purpose |
 |------|---------|
-| `routes/` | 35+ route files (see Section 6) |
-| `templates/` | 39+ Jinja2 HTML templates |
+| `routes/` | 38+ route files (see Section 6) |
+| `templates/` | 46+ Jinja2 HTML templates |
 | `auth.py` | JWT + API key + session cookie authentication |
 | `query_cache.py` | Async in-memory TTL cache for dashboard queries (per-key TTL, thundering-herd prevention, prefix invalidation) |
-| `tier_gate.py` | 5-tier feature gating (30+ gate functions) |
+| `tier_gate.py` | 5-tier feature gating (35+ gate functions) |
 | `rate_limit.py` | Per-tier API rate limiting |
 
 ---
@@ -480,6 +518,21 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `event_impact_cache` | Cached event impact analysis (event_type PK, avg_spy_move, avg_vix_change, sample_size, reactions_json, sector_sensitivity_json, computed_at) |
 | `trading_agents` | Autonomous trading agents (id, user_id, name, agent_type, status, rules_json, config_json, min_confidence, max_daily_trades, max_position_dollars, max_portfolio_exposure_pct, stop_loss_pct, created_at, updated_at). Types: signal_follower, contrarian, momentum_rider, custom_rule |
 | `agent_trades` | Trades executed by agents (id, agent_id, user_id, signal_id, ticker, stance, entry_price, quantity, dollars, created_at, closed_at, exit_price, pnl_dollars, pnl_pct, status, paper_trade_id) |
+| `flow_events` | Options flow events (id, ticker, flow_type, direction, premium, volume, oi_change, score, details_json, signal_id, detected_at). Types: block_trade, sweep, dark_pool, accumulation, distribution. Indexed on ticker, detected_at DESC, flow_type |
+| `flow_patterns` | Detected flow patterns (id, pattern_type, tickers_json, confidence, timeframe, events_json, details_json, detected_at). Types: repeat_buyer, accumulation_sequence, hedging, rolling, cross_ticker |
+| `flow_convergences` | Flow-social signal convergences (id, signal_id, flow_event_ids_json, convergence_score, convergence_type, details_json, detected_at) |
+| `flow_baselines` | Per-ticker flow baselines (ticker PK, net_premium, avg_premium, flow_count, last_direction, observations_json, last_updated) |
+| `author_profiles` | Social author profiles (id, platform, username, total_signals, win_count, loss_count, accuracy, roi_if_followed, sharpe, reputation_score, stats_json, first_seen, last_seen, updated_at) |
+| `author_predictions` | Author prediction tracking (id, author_id, signal_id, ticker, stance, confidence, outcome, pnl_pct, created_at, resolved_at) |
+| `manipulation_alerts` | Manipulation detection alerts (id, alert_type, tickers_json, authors_json, evidence_json, severity, detected_at, resolved). Types: coordinated_posting, bot_network, pump_and_dump |
+| `sentiment_propagation` | Cross-platform sentiment spread (id, ticker, origin_sub, spread_to, origin_ts, spread_ts, lag_seconds, detected_at) |
+| `author_clusters` | Author co-mention clusters (id, authors_json, similarity_score, common_tickers_json, detected_at) |
+| `strategies` | User strategies (id, user_id, name, description, rules_json, config_json, performance_json, health_score, is_active, source, created_at, updated_at). Source: manual/discovered/ml_optimized/genetic/marketplace |
+| `strategy_trades` | Strategy paper trades (id, strategy_id, signal_id, ticker, stance, entry_price, exit_price, pnl_pct, created_at, resolved_at) |
+| `strategy_portfolios` | Strategy portfolio balances (strategy_id, user_id, balance, total_trades, winning_trades, total_pnl) |
+| `strategy_marketplace` | Published strategies (id, strategy_id, author_id, name, description, performance_json, subscriber_count, rating, created_at) |
+| `market_regimes` | Detected market regimes (id, regime_type, start_ts, end_ts, indicators_json, confidence, detected_at). Types: bull, bear, sideways, volatile, crisis |
+| `strategy_discoveries` | Strategy discovery runs (id, user_id, search_config_json, result_json, strategies_found, elapsed_s, created_at) |
 
 ---
 
@@ -489,7 +542,7 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 
 **Factory:** `src/rot/web/server.py` creates the FastAPI app, mounts all route modules, serves static files, starts background pipeline loop.
 
-### Route Inventory (50+ endpoints across 35+ route files)
+### Route Inventory (80+ endpoints across 38+ route files)
 
 #### Core Dashboard
 | Method | Path | Description |
@@ -638,6 +691,45 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | GET | `/api/v1/agents/{id}/trades` | Agent trade history JSON |
 | GET | `/api/v1/agents/{id}/performance` | Agent performance JSON |
 
+#### Options Flow Intelligence (`/flow`, `/api/v1/flow/`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/flow` | Flow intelligence dashboard (events, patterns, convergences, Greeks) |
+| GET | `/api/v1/flow/events` | Flow events JSON API |
+| GET | `/api/v1/flow/summary` | Flow summary stats |
+| GET | `/api/v1/flow/timeline/{ticker}` | Per-ticker flow event timeline |
+| GET | `/api/v1/flow/convergences` | Flow-social convergences |
+| GET | `/api/v1/flow/patterns` | Detected flow patterns |
+| GET | `/api/v1/flow/greeks/{ticker}` | Greeks snapshot for ticker |
+
+#### Social Intelligence (`/social`, `/api/v1/social/`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/social` | Social intelligence dashboard |
+| GET | `/social/author/{username}` | Author profile page |
+| GET | `/api/v1/social/leaderboard` | Author accuracy leaderboard |
+| GET | `/api/v1/social/author/{username}` | Author profile JSON API |
+| GET | `/api/v1/social/manipulation` | Manipulation alerts |
+| GET | `/api/v1/social/propagation/{ticker}` | Sentiment propagation timeline |
+| GET | `/api/v1/social/contrarian` | Contrarian signals |
+
+#### Strategy Builder (`/strategies`, `/api/v1/strategies/`, `/marketplace`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/strategies` | Strategy builder dashboard |
+| GET | `/strategies/{id}` | Strategy detail page |
+| GET | `/marketplace` | Strategy marketplace |
+| GET | `/strategies/regimes` | Market regime dashboard |
+| POST | `/api/v1/strategies/create` | Create manual strategy |
+| POST | `/api/v1/strategies/{id}/activate` | Activate/deactivate strategy |
+| DELETE | `/api/v1/strategies/{id}` | Delete strategy |
+| POST | `/api/v1/strategies/discover` | Run strategy discovery |
+| POST | `/api/v1/strategies/ml-optimize` | Run ML optimization |
+| POST | `/api/v1/strategies/evolve` | Run genetic evolution |
+| GET | `/api/v1/strategies/regimes` | Market regimes JSON API |
+| GET | `/api/v1/marketplace` | Marketplace listings JSON API |
+| POST | `/api/v1/marketplace/publish` | Publish strategy to marketplace |
+
 #### Misc
 | Method | Path | Description |
 |--------|------|-------------|
@@ -699,7 +791,7 @@ The `admin` tier is a hidden master tier that grants full access to every featur
 - **Ultra**: Full feature access, custom time ranges, exports, 25000 API calls/day
 - **Enterprise**: Data licensing, sponsored signals, webhooks, bulk export, 100000 API calls/day
 
-### Gate Functions (30+)
+### Gate Functions (35+)
 Each returns a dict of boolean/numeric flags:
 - `gate_signal()` / `gate_signal_list()` — signal content gating
 - `gate_chart_access()` — chart features
@@ -727,6 +819,9 @@ Each returns a dict of boolean/numeric flags:
 - `gate_macro_access()` — macro events: Free (3 upcoming, no history), Pro (+full calendar, earnings, insider, FOMC), Premium (+impact, IV crush, seasonal, strategy), Ultra/Enterprise (+full history, cross-ref, statement diffs, export)
 - `gate_terminal_access()` — Bloomberg-lite terminal: Premium+ (access, heatmap, news wire), Ultra+ (options flow, watchlist alerts, 30s refresh), Premium (60s refresh, 25 signals), Ultra+ (30s refresh, 50 signals)
 - `gate_agent_access()` — Trading agents: Ultra+ (access, signal_follower, contrarian, momentum_rider, 3 agents), Enterprise (custom_rules, performance_export, API, 10 agents)
+- `gate_flow_access()` — options flow intelligence: Free (blocked), Pro (24h history), Premium (7d + patterns/convergences), Ultra (30d + Greeks + export)
+- `gate_social_access()` — social intelligence: Free (blocked), Pro (leaderboard only), Premium (author profiles + manipulation alerts), Ultra (propagation + contrarian + export)
+- `gate_strategy_access()` — strategy builder: Free (blocked), Pro (3 manual strategies), Premium (discovery + ML optimize + regimes, max 10), Ultra/Enterprise (genetic + marketplace + unlimited 999)
 
 ---
 
@@ -926,6 +1021,44 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `KEEP_DAYS` | `365` | How long to keep archived signals (1 year) |
+
+### Options Flow (`ROT_FLOW_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCAN_INTERVAL_S` | `300` | Seconds between background flow scans (5 min) |
+| `BLOCK_PREMIUM_THRESHOLD` | `100000` | Minimum premium ($) to flag as block trade |
+| `SWEEP_VOLUME_THRESHOLD` | `1000` | Minimum volume to flag as sweep |
+| `DARK_POOL_THRESHOLD` | `50000` | Minimum premium for dark pool detection |
+| `ACCUMULATION_WINDOW_S` | `3600` | Time window for accumulation/distribution detection |
+| `PATTERN_MIN_EVENTS` | `3` | Minimum flow events to form a pattern |
+| `CONVERGENCE_WINDOW_S` | `1800` | Time window for flow-social convergence matching |
+| `PURGE_KEEP_DAYS` | `90` | Days to keep flow events before purging |
+
+### Social Intelligence (`ROT_SOCIAL_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRACKING_ENABLED` | `True` | Enable author tracking |
+| `MANIPULATION_SCAN_INTERVAL_S` | `1800` | Seconds between manipulation scans (30 min) |
+| `AUTHOR_RESOLUTION_INTERVAL_S` | `3600` | Seconds between author prediction resolution (1h) |
+| `MIN_PREDICTIONS_FOR_SCORE` | `10` | Minimum predictions before scoring an author |
+| `BOT_DETECTION_THRESHOLD` | `0.8` | Bot detection confidence threshold |
+| `PUMP_DUMP_WINDOW_S` | `7200` | Time window for pump-and-dump detection (2h) |
+| `PROPAGATION_MAX_LAG_S` | `86400` | Max lag to track cross-platform spread (24h) |
+| `PURGE_KEEP_DAYS` | `180` | Days to keep social data before purging |
+
+### Strategy Builder (`ROT_STRATEGY_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DISCOVERY_MAX_RULES` | `5` | Max rules per discovered strategy |
+| `DISCOVERY_MAX_CANDIDATES` | `1000` | Max candidates to evaluate during discovery |
+| `ML_MIN_SIGNALS` | `200` | Minimum signals for ML optimizer training |
+| `GENETIC_GENERATIONS` | `50` | Number of generations for genetic optimizer |
+| `GENETIC_POPULATION_SIZE` | `100` | Population size for genetic optimizer |
+| `AUTO_TRADE_ENABLED` | `True` | Enable auto paper trading for active strategies |
+| `MARKETPLACE_ENABLED` | `True` | Enable strategy marketplace |
+| `REGIME_WINDOW_DAYS` | `30` | Rolling window for market regime detection |
+| `HEALTH_CHECK_INTERVAL_S` | `21600` | Seconds between strategy health checks (6h) |
+| `REGIME_DETECTION_INTERVAL_S` | `3600` | Seconds between regime detection runs (1h) |
 
 ### Global
 | Variable | Default | Description |
@@ -1171,6 +1304,29 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_agent_engine.py` | AgentEngine evaluate_signal, execute_trade, safety rails, performance computation, _flatten_signal |
 | `test_agent_db.py` | Agent CRUD, trade insert/close, performance queries, exposure, dedup |
 | `test_agent_tier_gate.py` | Agent tier gate (all 5 tiers, agent types, feature access) |
+| `test_flow_types.py` | FlowEvent, FlowScore, FlowPattern, FlowSignalConvergence, GreeksSnapshot, FlowSummary dataclass tests |
+| `test_flow_greeks.py` | Black-Scholes pricing, Greeks calculation, IV bisection, portfolio Greeks |
+| `test_flow_detector.py` | Block trade, sweep, dark pool, accumulation/distribution detection, composite scoring |
+| `test_flow_patterns.py` | Repeat buyer, accumulation sequence, hedging, rolling, cross-ticker pattern recognition |
+| `test_flow_convergence.py` | Flow-social convergence detection, cross-referencing, scoring |
+| `test_flow_history.py` | Rolling baselines, LRU eviction, cold start, baseline updates |
+| `test_flow_db.py` | save/query/purge flow events, patterns, convergences, baselines, timeline queries, summary aggregation |
+| `test_social_types.py` | AuthorProfile, AuthorPrediction, ManipulationAlert, SentimentPropagation, AuthorCluster, ContrarianSignal dataclass tests |
+| `test_social_tracker.py` | Author tracking, prediction recording/resolution, accuracy computation, leaderboard |
+| `test_social_manipulation.py` | Coordinated posting, bot network, pump-and-dump detection |
+| `test_social_propagation.py` | Cross-subreddit spread, virality velocity, leading/lagging sub detection |
+| `test_social_network.py` | Co-mention graph, clustering, community detection, contrarian signal generation |
+| `test_social_confidence.py` | Author confidence adjustment plugin, boost/penalize based on accuracy |
+| `test_social_db.py` | Author profiles, predictions, manipulation alerts, propagation, clusters DB operations |
+| `test_strategy_types.py` | StrategyRule, Strategy, StrategyResult, DiscoveryResult, MarketRegime, RegimeStrategy, MarketplaceEntry dataclass tests |
+| `test_strategy_rules.py` | Rule evaluation, 7 operators, nested field access, compiled rules |
+| `test_strategy_discovery.py` | Strategy discovery, candidate enumeration, exhaustive/random search, walk-forward validation |
+| `test_strategy_ml_optimizer.py` | 52-feature vector, GradientBoosting training, feature importance, auto-rule generation |
+| `test_strategy_regime.py` | Market regime classification (bull/bear/sideways/volatile/crisis), regime matrix |
+| `test_strategy_genetic.py` | Genetic optimizer: population, fitness, selection, crossover, mutation, evolution |
+| `test_strategy_auto_trader.py` | Auto paper trading, signal evaluation vs active strategies, health monitoring |
+| `test_strategy_marketplace.py` | Publish, subscribe, rate strategies, performance tracking |
+| `test_strategy_db.py` | Strategy CRUD, trades, portfolios, marketplace, regimes, discoveries DB operations |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1244,11 +1400,16 @@ Complex nested data (market data, reasoning, trade ideas, event metadata includi
 ### Precomputed Feedback Analysis
 The feedback engine (`src/rot/feedback/`) runs expensive DB queries in a background loop every 6h, caching results in memory. The Signal Quality dashboard reads cached results instantly (no DB query on page load). The suppressor reads the same cache from the sync pipeline thread (GIL-safe dict read, no locks needed). First deployment: no analysis cached = suppressor never suppresses = identical behavior to before.
 
-### Background Scan Loops (Unusual Activity + Export Scheduler + Macro Data)
+### Background Scan Loops (Unusual Activity + Export Scheduler + Macro Data + Flow + Social + Strategy)
 `server.py` runs background `asyncio` tasks alongside the main pipeline loop:
 - **Unusual Activity Scanner**: Every 5 min, fetches recent signals from DB, runs `UnusualDetector.scan_batch()`, saves detected events to `unusual_events` table, purges old events.
 - **Export Scheduler**: Every 1 hour, checks `export_schedules` table for pending exports and runs them.
 - **Macro Data Loop**: Every 1 hour (configurable), seeds recurring economic calendar events + FOMC for current/next month, ingests Fed RSS, fetches earnings dates from yfinance for top tickers, ingests SEC EDGAR Form 4 insider trades + congressional disclosures, purges stale data per retention config.
+- **Flow Scanner**: Every 5 min, fetches recent signals, runs `FlowDetector.scan_batch()`, saves flow events/patterns/convergences, purges old data.
+- **Author Resolution**: Every 1 hour, resolves pending author predictions against actual price outcomes, updates author profiles.
+- **Manipulation Scanner**: Every 30 min, runs `ManipulationDetector.scan()` to detect coordinated posting, bot networks, pump-and-dump patterns.
+- **Strategy Health Check**: Every 6 hours, evaluates active strategy health scores, deactivates consistently underperforming strategies.
+- **Regime Detection**: Every 1 hour, runs `RegimeDetector.detect()` to classify current market regime and update regime matrix.
 All loops follow the pattern: initial delay → `while not stop_event.is_set()` → try/except with logging → `asyncio.sleep()`.
 
 ### On-Demand Analysis (Sector + Correlation)
@@ -1267,6 +1428,21 @@ The dashboard loads 12+ database queries per page view. To avoid hammering the D
 - **Invalidation**: When a new signal arrives, fast-changing caches (trending, leaderboard) are invalidated via prefix matching. Slow-changing caches (accuracy, heatmaps) expire naturally via TTL.
 - **Thundering herd prevention**: Per-key `asyncio.Lock` ensures only one coroutine fetches when multiple requests arrive for the same stale key.
 - **Bounded**: Max 100 entries (evicts oldest when full). Lock dict cleaned up every 5 minutes (prevents stale lock leak).
+
+### Rule-Based Strategy Evaluation
+The strategy builder uses a compiled rule engine pattern. Rules are defined as `StrategyRule` dataclasses with field path, operator, and value. At evaluation time, rules are compiled into fast-lookup functions. Nested field access (e.g., `meta.nlp.conviction`) is resolved at compile time. The 7 operators (gt, lt, gte, lte, eq, neq, in) cover all comparison needs. Strategies are evaluated against incoming signals to decide whether to auto-trade.
+
+### Genetic Algorithm for Strategy Evolution
+`GeneticOptimizer` evolves trading strategies through selection pressure. Population of strategy rule sets → fitness evaluation (backtest Sharpe) → tournament selection → crossover (combine rules from two parents) → mutation (random rule changes) → new generation. Converges toward profitable rule combinations without exhaustive search.
+
+### Author Confidence Adjustment (Pipeline Plugin)
+`AuthorConfidenceAdjuster` hooks into the credibility scoring pipeline (Stage 6). For each signal, it looks up the author's historical accuracy from `author_profiles`. High-accuracy authors (>60% win rate, 10+ predictions) get a confidence boost; low-accuracy authors (<30% win rate) get penalized. This creates a feedback loop where signals from proven authors are weighted higher.
+
+### Flow-Social Convergence
+The `ConvergenceDetector` cross-references options flow events (block trades, sweeps) with social signals (Reddit posts, StockTwits mentions) within a configurable time window. When unusual flow activity coincides with social buzz on the same ticker, the convergence score amplifies signal confidence. This multi-source corroboration reduces false positives.
+
+### Market Regime-Aware Strategy Selection
+`RegimeDetector` classifies the current market environment (bull/bear/sideways/volatile/crisis) using signal patterns, win rates, and volatility indicators. Each strategy has a regime performance matrix tracking how it performs in each regime. Active strategies can be automatically adjusted or deactivated based on regime changes.
 
 ---
 
@@ -1301,7 +1477,7 @@ rot/
 │   └── rot/
 │       ├── __init__.py
 │       ├── core/
-│       │   ├── config.py              # Pydantic Settings (18 config sections)
+│       │   ├── config.py              # Pydantic Settings (21 config sections)
 │       │   ├── types.py               # Frozen dataclasses (10 types)
 │       │   └── logging.py             # JSONL structured logging
 │       ├── ingest/
@@ -1394,8 +1570,34 @@ rot/
 │       │   ├── types.py               # Frozen dataclasses (AgentRule, AgentPerformance)
 │       │   ├── rules.py              # Rule evaluation engine (AND/OR logic, agent type behavior)
 │       │   └── engine.py             # Agent engine (signal eval, trade execution, safety rails)
+│       ├── flow/                        # ★ OPTIONS FLOW INTELLIGENCE (7 modules)
+│       │   ├── __init__.py            # Re-exports FlowDetector, FlowEvent, FlowScore, GreeksEngine
+│       │   ├── types.py               # Frozen dataclasses (FlowEvent, FlowScore, FlowPattern, etc.)
+│       │   ├── greeks.py              # Black-Scholes pricing, Greeks, IV bisection
+│       │   ├── detector.py            # Block trade, sweep, dark pool detection
+│       │   ├── patterns.py            # Pattern recognition (repeat buyer, accumulation, hedging)
+│       │   ├── history.py             # Rolling per-ticker flow baselines
+│       │   └── convergence.py         # Flow-social signal convergence
+│       ├── social/                     # ★ SOCIAL INTELLIGENCE NETWORK (7 modules)
+│       │   ├── __init__.py            # Re-exports AuthorTracker, ManipulationDetector, etc.
+│       │   ├── types.py               # AuthorProfile, ManipulationAlert, etc.
+│       │   ├── tracker.py             # Author prediction tracking + accuracy
+│       │   ├── manipulation.py        # Coordinated posting, bot, pump-dump detection
+│       │   ├── propagation.py         # Cross-platform sentiment spread tracking
+│       │   ├── network.py             # Co-mention graph, clustering, contrarian signals
+│       │   └── confidence.py          # Author confidence pipeline plugin
+│       ├── strategy/                   # ★ STRATEGY BUILDER & ML OPTIMIZER (9 modules)
+│       │   ├── __init__.py            # Re-exports StrategyEngine, RuleEngine, etc.
+│       │   ├── types.py               # StrategyRule, Strategy, MarketRegime, etc.
+│       │   ├── rules.py               # Rule engine (7 operators, nested field access)
+│       │   ├── discovery.py           # Strategy discovery (exhaustive/random search)
+│       │   ├── ml_optimizer.py        # ML optimizer (52 features, GradientBoosting)
+│       │   ├── regime.py              # Market regime detection (bull/bear/sideways/volatile/crisis)
+│       │   ├── genetic.py             # Genetic optimizer (population, crossover, mutation)
+│       │   ├── auto_trader.py         # Auto paper trading for active strategies
+│       │   └── marketplace.py         # Strategy marketplace (publish, subscribe, rate)
 │       ├── storage/
-│       │   └── database.py            # aiosqlite, 20+ tables, migrations
+│       │   └── database.py            # aiosqlite, 33+ tables, migrations
 │       ├── alerts/
 │       │   ├── dispatcher.py          # Multi-channel alert router
 │       │   ├── discord.py             # Discord webhooks
@@ -1410,9 +1612,9 @@ rot/
 │       └── web/
 │           ├── auth.py                # JWT + API key + session auth
 │           ├── query_cache.py         # Async TTL cache for dashboard queries
-│           ├── tier_gate.py           # 5-tier feature gating (30+ gates)
+│           ├── tier_gate.py           # 5-tier feature gating (35+ gates)
 │           ├── rate_limit.py          # Per-tier rate limiting
-│           ├── routes/                # 37+ route files (65+ endpoints)
+│           ├── routes/                # 40+ route files (100+ endpoints)
 │           │   ├── dashboard.py       # Main dashboard + auth pages
 │           │   ├── signals.py         # Signal CRUD API
 │           │   ├── auth_routes.py     # Auth endpoints
@@ -1428,8 +1630,11 @@ rot/
 │           │   ├── news_feed.py       # News feed
 │           │   ├── websocket.py       # WebSocket real-time stream
 │           │   ├── macro.py           # Macro events routes (4 HTML + 4 JSON)
+│           │   ├── flow.py            # Options flow intelligence
+│           │   ├── social.py          # Social intelligence network
+│           │   ├── strategy.py        # Strategy builder & marketplace
 │           │   └── ... (20+ more)
-│           └── templates/             # 39+ Jinja2 HTML templates
+│           └── templates/             # 46+ Jinja2 HTML templates
 │               ├── base.html          # Base layout (Tailwind + Chart.js + HTMX)
 │               ├── dashboard.html     # Main dashboard
 │               ├── signal_detail.html # Signal detail view
@@ -1444,6 +1649,13 @@ rot/
 │               ├── macro_earnings.html # Earnings calendar page
 │               ├── macro_insider.html  # Insider trades page
 │               ├── macro_fomc.html     # FOMC tracker page
+│               ├── flow.html              # Options flow intelligence dashboard
+│               ├── social.html            # Social intelligence dashboard
+│               ├── social_author.html     # Author profile page
+│               ├── strategies.html        # Strategy builder dashboard
+│               ├── strategy_detail.html   # Strategy detail page
+│               ├── marketplace.html       # Strategy marketplace
+│               ├── regimes.html           # Market regime dashboard
 │               └── ... (35+ more)
 └── tests/
     ├── conftest.py                    # Shared fixtures
@@ -1488,7 +1700,30 @@ rot/
     ├── test_macro_earnings.py         # EarningsCalendar tests
     ├── test_macro_fomc.py             # FOMCTracker tests
     ├── test_macro_seasonal.py         # SeasonalAnalyzer tests
-    └── test_macro_db.py               # Macro DB CRUD tests
+    ├── test_macro_db.py               # Macro DB CRUD tests
+    ├── test_flow_types.py             # Flow dataclass tests
+    ├── test_flow_greeks.py            # Black-Scholes, Greeks, IV tests
+    ├── test_flow_detector.py          # Flow detection algorithm tests
+    ├── test_flow_patterns.py          # Flow pattern recognition tests
+    ├── test_flow_convergence.py       # Flow-social convergence tests
+    ├── test_flow_history.py           # Flow rolling baseline tests
+    ├── test_flow_db.py                # Flow DB operation tests
+    ├── test_social_types.py           # Social dataclass tests
+    ├── test_social_tracker.py         # Author tracking tests
+    ├── test_social_manipulation.py    # Manipulation detection tests
+    ├── test_social_propagation.py     # Propagation tracking tests
+    ├── test_social_network.py         # Network analysis tests
+    ├── test_social_confidence.py      # Author confidence adjustment tests
+    ├── test_social_db.py              # Social DB operation tests
+    ├── test_strategy_types.py         # Strategy dataclass tests
+    ├── test_strategy_rules.py         # Rule engine tests
+    ├── test_strategy_discovery.py     # Strategy discovery tests
+    ├── test_strategy_ml_optimizer.py  # ML optimizer tests
+    ├── test_strategy_regime.py        # Market regime tests
+    ├── test_strategy_genetic.py       # Genetic optimizer tests
+    ├── test_strategy_auto_trader.py   # Auto paper trading tests
+    ├── test_strategy_marketplace.py   # Marketplace tests
+    └── test_strategy_db.py            # Strategy DB operation tests
 ```
 
 ---
@@ -1569,6 +1804,9 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Macro Events & Economic Calendar Engine — `src/rot/macro/`: 7 modules (types, calendar, earnings, insider, fomc, seasonal, impact). **Types**: 7 frozen dataclasses (MacroEvent, EarningsEvent, InsiderTrade, FOMCMeeting, EventImpact, HistoricalReaction, SeasonalPattern) + 40+ event type constants + category/importance/sector sensitivity mappings. **EconomicCalendar**: deterministic recurring event generation (13 event types with scheduling rules — first Friday, second Tuesday, etc.), FOMC 2026 schedule, Fed RSS ingestion, seed/query/filter methods. **EarningsCalendar**: yfinance earnings date ingestion, IV crush history computation, expected move formula, pre-earnings strategy recommendation (iron_condor/straddle/credit_spread/none). **InsiderFeed**: SEC EDGAR Form 4 full-text search, congressional trade stub, cross-reference with bullish ROT signals. **FOMCTracker**: 18 hawkish + 22 dovish keyword scoring with intensity weights, HTML statement diff, rate decision classification, rate probability estimation. **SeasonalAnalyzer**: pre-computed sector baselines (10 sectors x 12 months), SPY monthly averages, current month bias with narrative, full rotation calendar. **EventImpactAnalyzer**: historical reaction analysis, Pearson correlation of surprise vs move, sector sensitivity, impact prediction with confidence. 5 new DB tables (macro_events, earnings_events, insider_trades, fomc_meetings, event_impact_cache) with ~20 query methods (upsert, query with filters, purge). `MacroConfig` (11 settings, env: `ROT_MACRO_*`). `gate_macro_access()` tier gate (Free: 3 events, Pro: +earnings/insider/FOMC, Premium: +impact/IV crush/seasonal/strategy, Ultra: +full history/cross-ref/diffs). 8 route endpoints (4 HTML pages + 4 JSON APIs). 4 Jinja2 templates (macro_calendar, macro_earnings, macro_insider, macro_fomc) with Chart.js hawk/dove trend chart. Nav links added to desktop + mobile menus. `_macro_data_loop` background task in server.py (seeds calendar, ingests earnings/insider, purges stale data). 263 new tests across 6 test files (952 total). | Claude Agent |
 | 2026-02 | Bloomberg-lite Terminal + Autonomous Trading Agents + Doc Restructuring — **Bloomberg-lite Terminal** (`/terminal`, Premium+): 6-panel real-time market intelligence dashboard (signal feed with WebSocket, market heatmap, watchlist, news wire, options flow, quick stats with sentiment gauge). HTMX auto-refresh (60s Premium, 30s Ultra+). Ticker bar partial. `gate_terminal_access()` tier gate. 4 routes, 4 templates. **Autonomous Trading Agents** (`src/rot/agents/`, Ultra+): 4 modules (types, rules, engine). 4 agent types (signal_follower, contrarian flips stance, momentum_rider, custom_rule Enterprise-only). AgentRule with 9 operators (eq/neq/gt/gte/lt/lte/in/not_in/contains) + AND/OR/custom boolean logic. AgentEngine: real-time signal evaluation via `_async_signal_handler()` callback, position sizing, safety rails (daily trade cap, max exposure %, stop-loss auto-pause). `trading_agents` + `agent_trades` DB tables, 16 CRUD methods. `gate_agent_access()` tier gate. `AgentConfig` (4 env vars). 9 CRUD routes, 2 templates. **Documentation Restructuring**: CLAUDE.md split into 17 focused docs (`docs/` directory): 8 core docs (architecture, database, web-layer, nlp-engine, config, testing, deployment, types) + 9 feature docs (backtest, unusual-activity, sector-rotation, correlations, enterprise, feedback, credibility, terminal, agents). Optimized for agent consumption — each doc is self-contained, agents only load what they need. ~90 new tests (780+ total). | Claude Agent |
 | 2026-02 | Admin/master tier — Hidden `admin` tier for site owner. `ROT_AUTH_ADMIN_EMAILS` env var (JSON list of emails). Users with matching emails are auto-elevated to `admin` at auth time via `_maybe_elevate_admin()` in `auth.py` (not stored in DB — invisible to Stripe). Admin bypasses all `require_tier()` checks. All 30+ gate functions in `tier_gate.py` updated to include `_ADMIN_TIER` in every tier check (boolean flags AND numeric values). Admin gets enterprise-level access across all features + unlimited API rate limits (999999/day). Red badge styling (`bg-red-*`) added to `_tier_badge_class()` in dashboard.py and `badge_map` in 10 route files. `rate_limit.py` updated with admin limits. No DB migration needed. | Claude Agent |
+| 2026-02 | Options Flow Intelligence Engine — `src/rot/flow/`: 7 modules (types, greeks, detector, patterns, history, convergence). Black-Scholes Greeks engine (delta/gamma/theta/vega/rho, IV bisection, portfolio Greeks). FlowDetector: block trade, sweep, dark pool, accumulation/distribution detection with composite scoring. FlowPatternRecognizer: repeat buyer, accumulation sequence, hedging, rolling, cross-ticker patterns. ConvergenceDetector: cross-reference flow events with social signals for multi-source corroboration. FlowHistory: rolling per-ticker baselines with LRU eviction. 4 new DB tables (`flow_events`, `flow_patterns`, `flow_convergences`, `flow_baselines`). 7 new routes (`/flow` dashboard + 6 API endpoints). `flow.html` template. `gate_flow_access()` tier gate (Pro: 24h, Premium: 7d + patterns, Ultra: 30d + Greeks). `FlowConfig` with `ROT_FLOW_*` prefix. Background `_flow_scan_loop()` every 5 min. 7 new test files. | Claude Agent |
+| 2026-02 | Social Intelligence Network — `src/rot/social/`: 7 modules (types, tracker, manipulation, propagation, network, confidence). AuthorTracker: record/resolve predictions, compute accuracy/ROI/Sharpe, leaderboard, history. ManipulationDetector: coordinated posting, bot network, pump-and-dump detection. PropagationTracker: cross-subreddit/platform sentiment spread, virality velocity, leading/lagging subs. NetworkAnalyzer: co-mention graph, hierarchical clustering, community detection, contrarian signal generation. AuthorConfidenceAdjuster: pipeline Stage 6 plugin, boost/penalize confidence based on author accuracy. 5 new DB tables (`author_profiles`, `author_predictions`, `manipulation_alerts`, `sentiment_propagation`, `author_clusters`). 7 new routes (`/social` dashboard + author profile + 5 API endpoints). `social.html` + `social_author.html` templates. `gate_social_access()` tier gate (Pro: leaderboard, Premium: profiles + alerts, Ultra: propagation + contrarian). `SocialConfig` with `ROT_SOCIAL_*` prefix. Background `_author_resolution_loop()` (1h) + `_manipulation_scan_loop()` (30min). 7 new test files. | Claude Agent |
+| 2026-02 | Strategy Builder & ML Optimizer — `src/rot/strategy/`: 9 modules (types, rules, discovery, ml_optimizer, regime, genetic, auto_trader, marketplace). RuleEngine: 7 operators (gt/lt/gte/lte/eq/neq/in), nested field access, compiled rules. StrategyDiscoverer: exhaustive/random search, backtest each candidate, walk-forward validate. MLStrategyOptimizer: 52-feature vector, GradientBoosting, feature importance → auto-generate rules. RegimeDetector: market regime classification (bull/bear/sideways/volatile/crisis), per-strategy regime matrix. GeneticOptimizer: population → fitness → selection → crossover → mutation → evolve. AutoPaperTrader: evaluate signals vs active strategies, auto paper trade, health monitoring. Marketplace: publish, subscribe, rate strategies. 6 new DB tables (`strategies`, `strategy_trades`, `strategy_portfolios`, `strategy_marketplace`, `market_regimes`, `strategy_discoveries`). Renamed `get_user_strategies` → `get_user_backtest_strategies` for backtest module. 13 new routes (`/strategies` + `/marketplace` + `/strategies/regimes` + 10 API endpoints). 4 templates (`strategies.html`, `strategy_detail.html`, `marketplace.html`, `regimes.html`). `gate_strategy_access()` tier gate (Pro: 3 manual, Premium: discovery + ML + regimes max 10, Ultra: genetic + marketplace + unlimited). `StrategyConfig` with `ROT_STRATEGY_*` prefix. Background `_strategy_health_loop()` (6h) + `_regime_detection_loop()` (1h). 9 new test files. Total tests: ~2048 passed. | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

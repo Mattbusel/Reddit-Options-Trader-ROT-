@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Flow Intelligence - ROT{% endblock %}
+{% block meta_description %}Institutional options flow intelligence: block trades, sweeps, dark pool prints, accumulation patterns, and signal-flow convergence detection.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">&#128200; Flow Intelligence</h1>
+        <p class="text-gray-400">Institutional options flow detection: block trades, sweeps, dark pool prints, and signal-flow convergence.</p>
+    </div>
+
+    {% if not access.has_access %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128200;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Flow Intelligence Engine</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Pro to detect institutional options flow and convergence with social signals.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── KPI Summary Cards ── #}
+    {% if summary %}
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Events</div>
+            <div class="text-2xl font-bold text-white">{{ summary.get('total_events', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Unique Tickers</div>
+            <div class="text-2xl font-bold text-white">{{ summary.get('unique_tickers', 0) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Premium</div>
+            <div class="text-2xl font-bold text-white">${{ "{:,.0f}".format(summary.get('total_premium', 0)) }}</div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Net Premium</div>
+            {% set net = summary.get('net_premium', 0) %}
+            <div class="text-2xl font-bold {% if net > 0 %}text-green-400{% elif net < 0 %}text-red-400{% else %}text-gray-300{% endif %}">
+                {% if net > 0 %}+{% endif %}${{ "{:,.0f}".format(net) }}
+            </div>
+        </div>
+        <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Avg Score</div>
+            <div class="text-2xl font-bold
+                {% if summary.get('avg_score', 0) >= 70 %}text-red-400
+                {% elif summary.get('avg_score', 0) >= 50 %}text-orange-400
+                {% elif summary.get('avg_score', 0) >= 30 %}text-yellow-400
+                {% else %}text-gray-300{% endif %}">
+                {{ summary.get('avg_score', 0)|round(1) }}
+            </div>
+        </div>
+    </div>
+
+    {# ── Direction Gauge ── #}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Flow Direction</h3>
+            {% set bull = summary.get('bullish_count', 0) %}
+            {% set bear = summary.get('bearish_count', 0) %}
+            {% set total_dir = bull + bear %}
+            {% if total_dir > 0 %}
+            <div class="flex items-center gap-3 mb-2">
+                <div class="flex-1 bg-gray-700 rounded-full h-4 overflow-hidden">
+                    <div class="bg-green-500 h-full rounded-full" style="width: {{ (bull / total_dir * 100)|round(0) }}%"></div>
+                </div>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-green-400">&#9650; Bullish {{ bull }} ({{ (bull / total_dir * 100)|round(0) }}%)</span>
+                <span class="text-red-400">&#9660; Bearish {{ bear }} ({{ (bear / total_dir * 100)|round(0) }}%)</span>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No directional flow data yet</p>
+            {% endif %}
+        </div>
+
+        {# ── Type Breakdown ── #}
+        <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Flow Type Breakdown</h3>
+            {% if summary.get('type_breakdown') %}
+            <div class="flex flex-wrap gap-2">
+                {% for ftype, info in summary.type_breakdown.items() %}
+                <div class="bg-gray-700/60 rounded-lg px-3 py-2 text-center">
+                    <div class="text-xs text-gray-400">{{ ftype.replace('_', ' ').title() }}</div>
+                    <div class="text-white font-semibold">{{ info.count if info is mapping else info }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No flow type data</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Convergence Highlights ── #}
+    {% if access.has_convergences and convergences %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            &#127919; Signal-Flow Convergences
+            <span class="text-blue-400 ml-2">({{ convergences|length }})</span>
+        </h3>
+        <div class="space-y-3">
+            {% for conv in convergences[:10] %}
+            <div class="bg-gray-700/40 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-lg font-bold text-white">{{ conv.ticker }}</span>
+                    <span class="px-2 py-0.5 rounded text-xs font-medium
+                        {% if conv.convergence_type == 'amplified' %}bg-purple-900/60 text-purple-300
+                        {% elif conv.convergence_type == 'aligned' %}bg-green-900/60 text-green-300
+                        {% else %}bg-red-900/60 text-red-300{% endif %}">
+                        {{ conv.convergence_type }}
+                    </span>
+                    <span class="text-xs text-gray-400">
+                        Signal: <span class="{% if conv.signal_stance == 'bullish' %}text-green-400{% else %}text-red-400{% endif %}">{{ conv.signal_stance }}</span>
+                        | Flow: <span class="{% if conv.flow_direction == 'bullish' %}text-green-400{% else %}text-red-400{% endif %}">{{ conv.flow_direction }}</span>
+                    </span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-400">${{ "{:,.0f}".format(conv.get('net_flow_premium', 0)) }}</span>
+                    <span class="px-2 py-0.5 rounded text-sm font-bold
+                        {% if conv.convergence_score >= 70 %}bg-green-900/60 text-green-300
+                        {% elif conv.convergence_score >= 50 %}bg-yellow-900/60 text-yellow-300
+                        {% else %}bg-gray-700 text-gray-300{% endif %}">
+                        {{ conv.convergence_score }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Flow Patterns ── #}
+    {% if access.has_patterns and patterns %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            &#128269; Detected Patterns
+            <span class="text-blue-400 ml-2">({{ patterns|length }})</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for pat in patterns[:10] %}
+            <div class="bg-gray-700/40 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-semibold text-white">{{ pat.pattern_type.replace('_', ' ').title() }}</span>
+                    <span class="text-xs text-gray-400">{{ pat.timeframe }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400">
+                    <span>Tickers: {{ pat.tickers|join(', ') }}</span>
+                    <span>|</span>
+                    <span>Conf: {{ (pat.confidence * 100)|round(0) }}%</span>
+                    <span>|</span>
+                    <span>{{ pat.event_count }} events</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Flow Events Table ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            Flow Events
+            <span class="text-blue-400 ml-2">({{ events|length }})</span>
+        </h3>
+        {% if events %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 px-2">Ticker</th>
+                        <th class="text-left py-2 px-2">Type</th>
+                        <th class="text-left py-2 px-2">Direction</th>
+                        <th class="text-right py-2 px-2">Premium</th>
+                        <th class="text-right py-2 px-2">Volume</th>
+                        <th class="text-right py-2 px-2">Score</th>
+                        <th class="text-right py-2 px-2">Time</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    {% for event in events %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-2 px-2 font-semibold text-white">{{ event.ticker }}</td>
+                        <td class="py-2 px-2">
+                            <span class="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-300">
+                                {{ event.flow_type.replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td class="py-2 px-2">
+                            {% if event.direction == 'bullish' %}
+                            <span class="text-green-400">&#9650; Bullish</span>
+                            {% elif event.direction == 'bearish' %}
+                            <span class="text-red-400">&#9660; Bearish</span>
+                            {% else %}
+                            <span class="text-gray-400">&#9644; Neutral</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-white">${{ "{:,.0f}".format(event.premium) }}</td>
+                        <td class="py-2 px-2 text-right text-gray-300">{{ "{:,}".format(event.volume) }}</td>
+                        <td class="py-2 px-2 text-right">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold
+                                {% if event.score >= 70 %}bg-red-900/60 text-red-300
+                                {% elif event.score >= 50 %}bg-orange-900/60 text-orange-300
+                                {% elif event.score >= 30 %}bg-yellow-900/60 text-yellow-300
+                                {% else %}bg-gray-700 text-gray-400{% endif %}">
+                                {{ event.score|round(1) }}
+                            </span>
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-400 text-xs">
+                            {% set age = now - event.detected_at %}
+                            {% if age < 3600 %}{{ (age / 60)|round(0)|int }}m ago
+                            {% elif age < 86400 %}{{ (age / 3600)|round(1) }}h ago
+                            {% else %}{{ (age / 86400)|round(1) }}d ago{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-8">No flow events detected yet. The scanner runs every 5 minutes.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

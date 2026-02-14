@@ -564,6 +564,175 @@ def gate_agent_access(tier: str) -> dict:
     }
 
 
+def gate_flow_access(tier: str) -> dict:
+    """Return options flow intelligence feature access flags based on tier.
+
+    Tier breakdown:
+      - Free: No access
+      - Pro: Flow events (24h), basic convergence
+      - Premium: + patterns, convergence details, Greeks (7d)
+      - Ultra/Enterprise: + full history (30d), export, portfolio Greeks
+    """
+    if tier == "free":
+        return {
+            "has_access": False,
+            "has_events": False,
+            "has_patterns": False,
+            "has_convergences": False,
+            "has_greeks": False,
+            "has_portfolio_greeks": False,
+            "has_export": False,
+            "max_hours": 0,
+        }
+    elif tier == "pro":
+        return {
+            "has_access": True,
+            "has_events": True,
+            "has_patterns": False,
+            "has_convergences": True,
+            "has_greeks": False,
+            "has_portfolio_greeks": False,
+            "has_export": False,
+            "max_hours": 24,
+        }
+    elif tier == "premium":
+        return {
+            "has_access": True,
+            "has_events": True,
+            "has_patterns": True,
+            "has_convergences": True,
+            "has_greeks": True,
+            "has_portfolio_greeks": False,
+            "has_export": False,
+            "max_hours": 168,  # 7 days
+        }
+    else:
+        # ultra / enterprise
+        return {
+            "has_access": True,
+            "has_events": True,
+            "has_patterns": True,
+            "has_convergences": True,
+            "has_greeks": True,
+            "has_portfolio_greeks": True,
+            "has_export": True,
+            "max_hours": 720,  # 30 days
+        }
+
+
+def gate_social_access(tier: str) -> dict:
+    """Return social intelligence feature access flags based on tier.
+
+    Tier breakdown:
+      - Free: No access
+      - Pro: Leaderboard only
+      - Premium: + author profiles, manipulation alerts
+      - Ultra/Enterprise: + propagation, contrarian, export
+    """
+    if tier == "free":
+        return {
+            "has_access": False,
+            "has_leaderboard": False,
+            "has_profiles": False,
+            "has_alerts": False,
+            "has_propagation": False,
+            "has_contrarian": False,
+            "has_export": False,
+        }
+    elif tier == "pro":
+        return {
+            "has_access": True,
+            "has_leaderboard": True,
+            "has_profiles": False,
+            "has_alerts": False,
+            "has_propagation": False,
+            "has_contrarian": False,
+            "has_export": False,
+        }
+    elif tier == "premium":
+        return {
+            "has_access": True,
+            "has_leaderboard": True,
+            "has_profiles": True,
+            "has_alerts": True,
+            "has_propagation": False,
+            "has_contrarian": False,
+            "has_export": False,
+        }
+    else:
+        # ultra / enterprise
+        return {
+            "has_access": True,
+            "has_leaderboard": True,
+            "has_profiles": True,
+            "has_alerts": True,
+            "has_propagation": True,
+            "has_contrarian": True,
+            "has_export": True,
+        }
+
+
+def gate_strategy_access(tier: str) -> dict:
+    """Return strategy builder feature access flags based on tier.
+
+    Tier breakdown:
+      - Free: No access
+      - Pro: 3 manual strategies only
+      - Premium: + discovery, ML optimize
+      - Ultra: + genetic, marketplace, unlimited strategies
+      - Enterprise: Full API + bulk
+    """
+    if tier == "free":
+        return {
+            "has_access": False,
+            "max_strategies": 0,
+            "has_discovery": False,
+            "has_ml_optimize": False,
+            "has_genetic": False,
+            "has_marketplace": False,
+            "has_auto_trade": False,
+            "has_regimes": False,
+            "has_export": False,
+        }
+    elif tier == "pro":
+        return {
+            "has_access": True,
+            "max_strategies": 3,
+            "has_discovery": False,
+            "has_ml_optimize": False,
+            "has_genetic": False,
+            "has_marketplace": False,
+            "has_auto_trade": True,
+            "has_regimes": False,
+            "has_export": False,
+        }
+    elif tier == "premium":
+        return {
+            "has_access": True,
+            "max_strategies": 10,
+            "has_discovery": True,
+            "has_ml_optimize": True,
+            "has_genetic": False,
+            "has_marketplace": False,
+            "has_auto_trade": True,
+            "has_regimes": True,
+            "has_export": False,
+        }
+    else:
+        # ultra / enterprise
+        return {
+            "has_access": True,
+            "max_strategies": 999,
+            "has_discovery": True,
+            "has_ml_optimize": True,
+            "has_genetic": True,
+            "has_marketplace": True,
+            "has_auto_trade": True,
+            "has_regimes": True,
+            "has_export": True,
+        }
+
+
 def _redact_trade_idea(idea: dict) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:

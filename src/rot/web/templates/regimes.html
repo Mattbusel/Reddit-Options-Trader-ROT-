@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Market Regimes - ROT{% endblock %}
+{% block meta_description %}Real-time market regime detection with bullish, bearish, sideways, volatile, and crisis indicators.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">📊 Market Regimes</h1>
+        <p class="text-gray-400">Real-time market regime detection and historical regime transitions.</p>
+    </div>
+
+    {% if not access.get('has_regimes') %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">📈</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Market Regime Analysis</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Pro to access market regime detection, including bullish, bearish, sideways, volatile, and crisis regimes.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── Current Regime Card ── #}
+    {% if regimes and regimes|length > 0 %}
+    {% set current_regime = regimes[0] %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-white">Current Market Regime</h2>
+            <div class="px-4 py-1 rounded-full text-sm font-semibold
+                {% if current_regime.regime_type == 'bull' %}bg-green-900/60 text-green-300
+                {% elif current_regime.regime_type == 'bear' %}bg-red-900/60 text-red-300
+                {% elif current_regime.regime_type == 'sideways' %}bg-yellow-900/60 text-yellow-300
+                {% elif current_regime.regime_type == 'volatile' %}bg-orange-900/60 text-orange-300
+                {% elif current_regime.regime_type == 'crisis' %}bg-purple-900/60 text-purple-300
+                {% else %}bg-gray-700 text-gray-300{% endif %}">
+                {{ current_regime.regime_type.replace('_', ' ').title() }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Regime Confidence</div>
+                <div class="text-3xl font-bold
+                    {% if current_regime.confidence >= 0.7 %}text-green-400
+                    {% elif current_regime.confidence >= 0.5 %}text-yellow-400
+                    {% else %}text-orange-400{% endif %}">
+                    {{ (current_regime.confidence * 100)|round(1) }}%
+                </div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Start Time</div>
+                <div class="text-lg font-semibold text-white">
+                    {% if current_regime.start_ts %}
+                        {{ (current_regime.start_ts | timestamp_to_local_date) }}
+                    {% else %}
+                        <span class="text-gray-500">-</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Regime Duration</div>
+                <div class="text-lg font-semibold text-white">
+                    {% if current_regime.start_ts and current_regime.end_ts %}
+                        {% set duration_hours = ((current_regime.end_ts - current_regime.start_ts) / 3600) | int %}
+                        {% if duration_hours >= 24 %}
+                            {{ (duration_hours / 24) | int }}d {{ duration_hours % 24 }}h
+                        {% else %}
+                            {{ duration_hours }}h
+                        {% endif %}
+                    {% elif current_regime.start_ts %}
+                        <span class="text-blue-400">Ongoing</span>
+                    {% else %}
+                        <span class="text-gray-500">-</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if current_regime.indicators %}
+        <div class="mt-6 pt-6 border-t border-gray-700">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-3">Key Indicators</div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {% if current_regime.indicators.get('bullish_ratio') is not none %}
+                <div class="bg-gray-700/40 rounded-lg p-3">
+                    <div class="text-gray-400 text-xs mb-1">Bullish Ratio</div>
+                    <div class="text-lg font-semibold text-green-400">{{ (current_regime.indicators.bullish_ratio * 100)|round(1) }}%</div>
+                </div>
+                {% endif %}
+                {% if current_regime.indicators.get('signal_velocity') is not none %}
+                <div class="bg-gray-700/40 rounded-lg p-3">
+                    <div class="text-gray-400 text-xs mb-1">Signal Velocity</div>
+                    <div class="text-lg font-semibold {% if current_regime.indicators.signal_velocity > 0 %}text-blue-400{% else %}text-gray-400{% endif %}">
+                        {% if current_regime.indicators.signal_velocity > 0 %}+{% endif %}{{ current_regime.indicators.signal_velocity|round(2) }}
+                    </div>
+                </div>
+                {% endif %}
+                {% if current_regime.indicators.get('stance_volatility') is not none %}
+                <div class="bg-gray-700/40 rounded-lg p-3">
+                    <div class="text-gray-400 text-xs mb-1">Stance Volatility</div>
+                    <div class="text-lg font-semibold {% if current_regime.indicators.stance_volatility < 0.3 %}text-green-400{% elif current_regime.indicators.stance_volatility < 0.6 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                        {{ (current_regime.indicators.stance_volatility)|round(2) }}
+                    </div>
+                </div>
+                {% endif %}
+                {% if current_regime.indicators.get('signal_count') is not none %}
+                <div class="bg-gray-700/40 rounded-lg p-3">
+                    <div class="text-gray-400 text-xs mb-1">Signals (24h)</div>
+                    <div class="text-lg font-semibold text-white">{{ current_regime.indicators.signal_count }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center mb-8">
+        <div class="text-4xl mb-4">📭</div>
+        <h2 class="text-xl font-semibold text-white mb-2">No Regime Data</h2>
+        <p class="text-gray-400">Market regime detection is initializing. Check back soon.</p>
+    </div>
+    {% endif %}
+
+    {# ── Regime Timeline ── #}
+    {% if regimes and regimes|length > 0 %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            ⏱️ Regime Timeline
+            <span class="text-blue-400 ml-2">({{ regimes|length }})</span>
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 px-3">Regime Type</th>
+                        <th class="text-left py-2 px-3">Start Date</th>
+                        <th class="text-left py-2 px-3">End Date</th>
+                        <th class="text-right py-2 px-3">Duration</th>
+                        <th class="text-right py-2 px-3">Confidence</th>
+                        <th class="text-right py-2 px-3">Bullish Ratio</th>
+                        <th class="text-right py-2 px-3">Signal Velocity</th>
+                        <th class="text-right py-2 px-3">Stance Vol</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    {% for regime in regimes %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-3 px-3">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                {% if regime.regime_type == 'bull' %}bg-green-900/60 text-green-300
+                                {% elif regime.regime_type == 'bear' %}bg-red-900/60 text-red-300
+                                {% elif regime.regime_type == 'sideways' %}bg-yellow-900/60 text-yellow-300
+                                {% elif regime.regime_type == 'volatile' %}bg-orange-900/60 text-orange-300
+                                {% elif regime.regime_type == 'crisis' %}bg-purple-900/60 text-purple-300
+                                {% else %}bg-gray-700 text-gray-400{% endif %}">
+                                {{ regime.regime_type.replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-gray-300">
+                            {% if regime.start_ts %}
+                                {{ (regime.start_ts | timestamp_to_local_date) }}
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-gray-300">
+                            {% if regime.end_ts %}
+                                {{ (regime.end_ts | timestamp_to_local_date) }}
+                            {% else %}
+                                <span class="text-blue-400">Ongoing</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-right text-gray-300">
+                            {% if regime.start_ts and regime.end_ts %}
+                                {% set duration_hours = ((regime.end_ts - regime.start_ts) / 3600) | int %}
+                                {% if duration_hours >= 24 %}
+                                    {{ (duration_hours / 24) | int }}d {{ duration_hours % 24 }}h
+                                {% else %}
+                                    {{ duration_hours }}h
+                                {% endif %}
+                            {% elif regime.start_ts %}
+                                <span class="text-blue-400">Ongoing</span>
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-right">
+                            <span class="{% if regime.confidence >= 0.7 %}text-green-400{% elif regime.confidence >= 0.5 %}text-yellow-400{% else %}text-orange-400{% endif %}">
+                                {{ (regime.confidence * 100)|round(1) }}%
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right text-gray-300">
+                            {% if regime.indicators and regime.indicators.get('bullish_ratio') is not none %}
+                                {{ (regime.indicators.bullish_ratio * 100)|round(1) }}%
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-right">
+                            {% if regime.indicators and regime.indicators.get('signal_velocity') is not none %}
+                                <span class="{% if regime.indicators.signal_velocity > 0 %}text-blue-400{% else %}text-gray-400{% endif %}">
+                                    {% if regime.indicators.signal_velocity > 0 %}+{% endif %}{{ regime.indicators.signal_velocity|round(2) }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-right text-gray-300">
+                            {% if regime.indicators and regime.indicators.get('stance_volatility') is not none %}
+                                <span class="{% if regime.indicators.stance_volatility < 0.3 %}text-green-400{% elif regime.indicators.stance_volatility < 0.6 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                                    {{ (regime.indicators.stance_volatility)|round(2) }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">📊</div>
+        <h2 class="text-xl font-semibold text-white mb-2">No Regime History</h2>
+        <p class="text-gray-400">Regime detection and historical transitions will appear here.</p>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

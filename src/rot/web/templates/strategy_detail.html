@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}{{ strategy.name }} - Strategy Detail - ROT{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+
+    {% if not access.get('has_strategies') %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128202;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Strategy Detail</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Pro to view strategy details and performance.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+
+    {% elif not strategy %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128533;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Strategy Not Found</h2>
+        <p class="text-gray-400 mb-4">This strategy does not exist or has been removed.</p>
+        <a href="/strategies" class="text-blue-400 hover:text-blue-300">Back to Strategies</a>
+    </div>
+
+    {% else %}
+
+    {# ── Back Link ── #}
+    <div class="mb-6">
+        <a href="/strategies" class="text-blue-400 hover:text-blue-300 text-sm">&larr; Back to Strategies</a>
+    </div>
+
+    {# ── Strategy Header Card ── #}
+    <div class="bg-gray-800/60 rounded-xl p-6 border border-gray-700 mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <h1 class="text-2xl font-bold text-white">{{ strategy.name }}</h1>
+                {% if strategy.description %}
+                <p class="text-gray-400 text-sm mt-1">{{ strategy.description }}</p>
+                {% endif %}
+            </div>
+            <div class="flex items-center space-x-3">
+                {% if strategy.source %}
+                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-900/60 text-blue-300 border border-blue-700/50">{{ strategy.source }}</span>
+                {% endif %}
+                {% if strategy.is_active %}
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-900/60 text-green-300 border border-green-700/50">Active</span>
+                {% else %}
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-400 border border-gray-600">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="text-xs text-gray-500">
+            Created {{ strategy.created_at }}
+            {% if strategy.updated_at %}
+            &middot; Updated {{ strategy.updated_at }}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Health Meter ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-6">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Strategy Health</h3>
+        {% set health = strategy.health_score if strategy.health_score is not none else 0 %}
+        {% set health_pct = (health * 100)|round(0)|int %}
+        <div class="flex items-center space-x-4">
+            <div class="flex-1">
+                <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+                    <div class="h-4 rounded-full animate-bar
+                        {% if health >= 0.7 %}bg-green-500
+                        {% elif health >= 0.4 %}bg-yellow-500
+                        {% else %}bg-red-500{% endif %}"
+                        style="width: {{ health_pct }}%;">
+                    </div>
+                </div>
+            </div>
+            <div class="text-xl font-bold
+                {% if health >= 0.7 %}text-green-400
+                {% elif health >= 0.4 %}text-yellow-400
+                {% else %}text-red-400{% endif %}">
+                {{ health_pct }}%
+            </div>
+        </div>
+        <div class="text-xs text-gray-500 mt-2">
+            {% if health >= 0.7 %}Healthy &mdash; strategy is performing well
+            {% elif health >= 0.4 %}Fair &mdash; performance could improve
+            {% else %}Poor &mdash; consider reviewing or deactivating{% endif %}
+        </div>
+    </div>
+
+    {# ── Performance KPIs ── #}
+    {% set perf = strategy.performance or {} %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 stagger-children">
+        <div class="stat-card rounded-xl p-4 fade-in">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Win Rate</div>
+            <div class="text-xl font-bold {% if perf.get('win_rate', 0) >= 50 %}text-green-400{% elif perf.get('win_rate') is not none %}text-red-400{% else %}text-gray-500{% endif %}">
+                {% if perf.get('win_rate') is not none %}{{ perf.win_rate|round(1) }}%{% else %}-{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-xl p-4 fade-in">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Trades</div>
+            <div class="text-xl font-bold text-white">
+                {{ perf.get('total_trades', 0) }}
+            </div>
+        </div>
+        <div class="stat-card rounded-xl p-4 fade-in">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Sharpe Ratio</div>
+            <div class="text-xl font-bold text-gray-300">
+                {% if perf.get('sharpe_ratio') is not none %}{{ perf.sharpe_ratio|round(2) }}{% else %}-{% endif %}
+            </div>
+        </div>
+        <div class="stat-card rounded-xl p-4 fade-in">
+            <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total P&L</div>
+            <div class="text-xl font-bold {% if perf.get('total_pnl', 0) > 0 %}text-green-400{% elif perf.get('total_pnl', 0) < 0 %}text-red-400{% else %}text-gray-500{% endif %}">
+                {% if perf.get('total_pnl') is not none %}{% if perf.total_pnl > 0 %}+{% endif %}{{ perf.total_pnl|round(2) }}%{% else %}-{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ── Rules Display ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-6">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Rules</h3>
+        {% set op_map = {'gt': '>', 'lt': '<', 'gte': '>=', 'lte': '<=', 'eq': '=', 'neq': '!=', 'in': 'in'} %}
+        {% if strategy.rules %}
+        <div class="space-y-2">
+            {% for rule in strategy.rules %}
+            <div class="flex items-center space-x-3 bg-gray-900/50 rounded-lg px-4 py-2.5 border border-gray-700/50">
+                <span class="text-blue-400 font-mono text-sm font-semibold">{{ rule.field }}</span>
+                <span class="text-yellow-400 font-mono text-sm">{{ op_map.get(rule.operator, rule.operator) }}</span>
+                <span class="text-white font-mono text-sm">{{ rule.value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">No rules defined.</p>
+        {% endif %}
+    </div>
+
+    {# ── Config Display ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-6">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Configuration</h3>
+        {% set cfg = strategy.config or {} %}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-900/50 rounded-lg px-4 py-3 border border-gray-700/50">
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Position Sizing</div>
+                <div class="text-white font-semibold">
+                    {% if cfg.get('position_sizing') %}{{ cfg.position_sizing }}{% else %}-{% endif %}
+                </div>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg px-4 py-3 border border-gray-700/50">
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Stop Loss</div>
+                <div class="text-white font-semibold">
+                    {% if cfg.get('stop_loss') is not none %}{{ cfg.stop_loss }}%{% else %}-{% endif %}
+                </div>
+            </div>
+            <div class="bg-gray-900/50 rounded-lg px-4 py-3 border border-gray-700/50">
+                <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Take Profit</div>
+                <div class="text-white font-semibold">
+                    {% if cfg.get('take_profit') is not none %}{{ cfg.take_profit }}%{% else %}-{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Trades Table ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+            Trade History
+            <span class="text-blue-400 ml-2">({{ trades|length }})</span>
+        </h3>
+        {% if trades %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 px-2">Ticker</th>
+                        <th class="text-left py-2 px-2">Stance</th>
+                        <th class="text-right py-2 px-2">Entry</th>
+                        <th class="text-right py-2 px-2">Exit</th>
+                        <th class="text-right py-2 px-2">P&L%</th>
+                        <th class="text-left py-2 px-2">Status</th>
+                        <th class="text-right py-2 px-2">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    {% for trade in trades %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-2 px-2 font-semibold text-white">{{ trade.ticker }}</td>
+                        <td class="py-2 px-2">
+                            {% if trade.stance == 'bullish' %}
+                            <span class="text-green-400">&#9650; Bullish</span>
+                            {% elif trade.stance == 'bearish' %}
+                            <span class="text-red-400">&#9660; Bearish</span>
+                            {% else %}
+                            <span class="text-gray-400">{{ trade.stance }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-300">
+                            {% if trade.entry_price is not none %}${{ trade.entry_price|round(2) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-300">
+                            {% if trade.exit_price is not none %}${{ trade.exit_price|round(2) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            {% if trade.pnl_pct is not none %}
+                            <span class="{% if trade.pnl_pct > 0 %}text-green-400{% elif trade.pnl_pct < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
+                                {% if trade.pnl_pct > 0 %}+{% endif %}{{ trade.pnl_pct|round(2) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2">
+                            {% if trade.exit_price is not none %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-300">Closed</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-900/60 text-blue-300">Open</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-2 text-right text-gray-400 text-xs">
+                            {{ trade.created_at }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-8">No trades recorded yet.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}
