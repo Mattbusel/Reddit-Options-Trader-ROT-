@@ -262,12 +262,9 @@ class BadgeTracker:
             user_id: User identifier
 
         Returns:
-            List of BadgeProgress objects for locked badges
+            List of BadgeProgress objects for all badges (locked and unlocked)
         """
         stats = await self.db.get_user_stats(user_id)
-        if stats is None:
-            return []
-
         unlocked_badges = await self.db.get_user_badges(user_id)
         progress_list = []
 
@@ -288,27 +285,42 @@ class BadgeTracker:
                 )
             else:
                 # Calculate progress
-                current_value = await self._get_metric_value(user_id, badge, stats)
-                threshold = badge.unlock_criteria.get("threshold", 1)
-
-                if isinstance(threshold, str):
-                    # String comparison (e.g., tier badges)
-                    progress_pct = 100.0 if current_value == threshold else 0.0
-                else:
-                    # Numeric comparison
-                    progress_pct = min(100.0, (float(current_value) / float(threshold)) * 100)
-
-                progress_list.append(
-                    BadgeProgress(
-                        badge_id=badge.id,
-                        user_id=user_id,
-                        current_value=current_value,
-                        threshold=threshold,
-                        progress_pct=progress_pct,
-                        unlocked=False,
-                        unlocked_at=None,
+                if stats is None:
+                    # No stats yet - show all badges at 0% progress
+                    threshold = badge.unlock_criteria.get("threshold", 1)
+                    progress_list.append(
+                        BadgeProgress(
+                            badge_id=badge.id,
+                            user_id=user_id,
+                            current_value=0,
+                            threshold=threshold,
+                            progress_pct=0.0,
+                            unlocked=False,
+                            unlocked_at=None,
+                        )
                     )
-                )
+                else:
+                    current_value = await self._get_metric_value(user_id, badge, stats)
+                    threshold = badge.unlock_criteria.get("threshold", 1)
+
+                    if isinstance(threshold, str):
+                        # String comparison (e.g., tier badges)
+                        progress_pct = 100.0 if current_value == threshold else 0.0
+                    else:
+                        # Numeric comparison
+                        progress_pct = min(100.0, (float(current_value) / float(threshold)) * 100)
+
+                    progress_list.append(
+                        BadgeProgress(
+                            badge_id=badge.id,
+                            user_id=user_id,
+                            current_value=current_value,
+                            threshold=threshold,
+                            progress_pct=progress_pct,
+                            unlocked=False,
+                            unlocked_at=None,
+                        )
+                    )
 
         return progress_list
 
