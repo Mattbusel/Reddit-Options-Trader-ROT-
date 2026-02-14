@@ -389,7 +389,7 @@ class GamificationMixin:
             """
             SELECT COUNT(*)
             FROM paper_trades
-            WHERE user_id = ? AND entry_time >= ?
+            WHERE user_id = ? AND created_at >= ?
             """,
             (user_id, today_start_ts),
         ) as cursor:
