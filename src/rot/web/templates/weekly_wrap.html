@@ -33,7 +33,7 @@
         <!-- Share Buttons -->
         <div class="mt-4 flex justify-center">
             {% set share_url = request.url|string %}
-            {% set share_text = "ROT Weekly Wrap — " ~ week_label %}
+            {% set share_text = "ROT Weekly Wrap - " ~ week_label %}
             {% include "components/share_buttons.html" %}
         </div>
     </div>
@@ -283,7 +283,7 @@
     <div class="text-center py-16 text-gray-500">
         <div class="text-5xl mb-4">&#128240;</div>
         <p class="text-xl font-semibold text-gray-400">No signals this week</p>
-        <p class="text-sm mt-2">Check back later — ROT generates wraps as signals come in.</p>
+        <p class="text-sm mt-2">Check back later - ROT generates wraps as signals come in.</p>
         {% if selected_week != "0" %}
         <a href="/weekly-wrap" class="inline-block mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg transition">
             View Current Week

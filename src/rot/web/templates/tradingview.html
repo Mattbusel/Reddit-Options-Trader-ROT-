@@ -45,19 +45,19 @@
         <pre id="pine-script" class="bg-gray-900 rounded-lg p-4 overflow-x-auto text-sm font-mono text-green-400 leading-relaxed"><code>//@version=5
 indicator("ROT Signal Overlay", overlay=true, max_labels_count=500)
 
-// ── Configuration ──
+// -- Configuration --
 var string API_URL = "{{ base_url }}/signals"
 min_confidence = input.float(0.5, "Min Confidence", minval=0.1, maxval=1.0, step=0.05)
 show_bullish   = input.bool(true, "Show Bullish Signals")
 show_bearish   = input.bool(true, "Show Bearish Signals")
 show_mixed     = input.bool(false, "Show Mixed Signals")
 
-// ── Signal data (manual input from ROT API) ──
+// -- Signal data (manual input from ROT API) --
 // TradingView Pine Script cannot make HTTP requests directly.
 // Use TradingView Alerts + Webhooks to bridge the gap:
 //
-// Option A: Manual — Check ROT dashboard, add signals as notes
-// Option B: Webhook — Set up a TradingView alert that calls:
+// Option A: Manual - Check ROT dashboard, add signals as notes
+// Option B: Webhook - Set up a TradingView alert that calls:
 //   POST {{ base_url }}/webhook
 //   with your API key in the payload
 //
@@ -65,13 +65,13 @@ show_mixed     = input.bool(false, "Show Mixed Signals")
 //   GET {{ base_url }}/signals?ticker=AAPL&limit=20
 // and a middleware script to convert to Pine-compatible format.
 
-// ── Visual Styling ──
+// -- Visual Styling --
 bullish_color = color.new(#4ade80, 0)
 bearish_color = color.new(#f87171, 0)
 mixed_color   = color.new(#facc15, 0)
 
-// ── Plot example signal markers ──
-// These are placeholders — in production, use external data or alerts
+// -- Plot example signal markers --
+// These are placeholders - in production, use external data or alerts
 // to trigger label creation based on ROT signal timestamps.
 
 // Example: Plot labels when conditions are met via alert
@@ -80,7 +80,7 @@ if barstate.isrealtime
     // Configure alerts via the ROT webhook integration
     label.new(na, na, "")  // placeholder
 
-// ── Alert Conditions ──
+// -- Alert Conditions --
 // Set these up as TradingView alerts pointing to the ROT webhook
 alertcondition(true, "ROT Bullish Signal",
     '{"ticker": "{{ticker}}", "action": "bullish", "confidence": {{close}}, "api_key": "YOUR_ROT_API_KEY"}')
@@ -117,11 +117,11 @@ alertcondition(true, "ROT Bearish Signal",
 
         <div class="space-y-4">
             <div class="bg-gray-900 rounded-lg p-4">
-                <p class="text-sm text-gray-500 mb-1">GET — All signals</p>
+                <p class="text-sm text-gray-500 mb-1">GET - All signals</p>
                 <code class="text-indigo-400 text-sm">{{ base_url }}/signals?limit=50</code>
             </div>
             <div class="bg-gray-900 rounded-lg p-4">
-                <p class="text-sm text-gray-500 mb-1">GET — Filtered by ticker</p>
+                <p class="text-sm text-gray-500 mb-1">GET - Filtered by ticker</p>
                 <code class="text-indigo-400 text-sm">{{ base_url }}/signals?ticker=TSLA&limit=20</code>
             </div>
             <div class="bg-gray-900 rounded-lg p-4">

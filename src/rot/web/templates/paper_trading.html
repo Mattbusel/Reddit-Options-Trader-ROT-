@@ -38,7 +38,7 @@
         <div class="bg-gray-800/60 rounded-xl p-4 border border-gray-700 text-center">
             <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Win Rate</p>
             <p class="text-2xl font-bold text-white">
-                {% if portfolio.total_trades > 0 %}{{ ((portfolio.winning_trades / portfolio.total_trades) * 100)|round(1) }}%{% else %}—{% endif %}
+                {% if portfolio.total_trades > 0 %}{{ ((portfolio.winning_trades / portfolio.total_trades) * 100)|round(1) }}%{% else %}-{% endif %}
             </p>
         </div>
     </div>

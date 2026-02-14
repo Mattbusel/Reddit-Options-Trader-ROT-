@@ -51,11 +51,67 @@
 </script>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* Hero aurora: breathing neon glow behind headline */
+.hero-aurora::before {
+    content: '';
+    position: absolute;
+    inset: -40% -20%;
+    background: radial-gradient(ellipse at 50% 60%,
+        rgba(255,50,100,0.12) 0%,
+        rgba(0,180,255,0.08) 25%,
+        rgba(180,50,255,0.06) 45%,
+        rgba(50,255,180,0.03) 65%,
+        transparent 80%);
+    animation: auroraShift 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(40px);
+}
+@keyframes auroraShift {
+    0%, 100% { opacity: 0.6; transform: scale(1) rotate(0deg); }
+    25% { opacity: 0.8; transform: scale(1.05) rotate(1deg); }
+    50% { opacity: 1; transform: scale(1.1) rotate(0deg); }
+    75% { opacity: 0.7; transform: scale(1.03) rotate(-1deg); }
+}
+
+/* Icon hover micro-animations */
+.feature-icon {
+    display: inline-block;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+.group:hover .feature-icon {
+    transform: scale(1.25) translateY(-4px);
+    filter: drop-shadow(0 0 12px rgba(255,50,100,0.5));
+}
+.macro-icon {
+    display: inline-block;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+.group:hover .macro-icon,
+a:hover .macro-icon {
+    transform: scale(1.2) translateY(-3px);
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.4));
+}
+.source-icon {
+    display: inline-block;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+.group:hover .source-icon,
+a:hover .source-icon,
+div:hover > .source-icon {
+    transform: scale(1.2) rotate(5deg);
+    filter: drop-shadow(0 0 8px rgba(180,50,255,0.4));
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- ============================================================
-     SECTION 1: HERO â€” The Sucker Punch
+     SECTION 1: HERO
      ============================================================ -->
-<section class="text-center pt-8 md:pt-16 pb-8 relative">
+<section class="text-center pt-8 md:pt-16 pb-8 relative hero-aurora">
     <!-- Floating live badge -->
     <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-900/30 border border-orange-700/40 text-orange-300 text-sm mb-6 float">
         <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -95,9 +151,9 @@
 </section>
 
 <!-- ============================================================
-     SECTION 2: COMPETITOR KILL ZONE â€” Animated Price Destruction
+     SECTION 2: COMPETITOR KILL ZONE
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="max-w-5xl mx-auto rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg, rgba(127,29,29,0.4) 0%, rgba(30,30,30,0.6) 40%, rgba(20,83,45,0.4) 100%); border: 1px solid rgba(239,68,68,0.2);">
         <div class="p-6 md:p-10">
             <h2 class="text-center text-sm font-bold text-gray-400 mb-2 uppercase tracking-widest">The Math Is Embarrassing</h2>
@@ -155,9 +211,9 @@
 </section>
 
 <!-- ============================================================
-     SECTION 3: LIVE PROOF â€” Real-Time Signal Stats
+     SECTION 3: LIVE PROOF
      ============================================================ -->
-<section class="border-y border-gray-800 py-8 mb-20">
+<section class="border-y border-gray-800 py-8 mb-20 reveal reveal-up">
     <div class="text-center mb-6">
         <span class="text-xs text-gray-500 uppercase tracking-widest">Other tools hide their win rate. We publish ours in real-time.</span>
     </div>
@@ -190,9 +246,9 @@
 </section>
 
 <!-- ============================================================
-     SECTION 4: FEATURE SHOWCASE â€” 9 Features, Each Killing a Competitor
+     SECTION 4: FEATURE SHOWCASE
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="text-center mb-12">
         <h2 class="text-3xl md:text-4xl font-black text-white mb-3">9 Premium Features. <span class="neon-text-pink">One Subscription.</span></h2>
         <p class="text-gray-400 max-w-2xl mx-auto">Wall Street charges hedge funds $50K/year for tools like these. You get them for less than a Netflix subscription.</p>
@@ -203,7 +259,7 @@
         <!-- Bloomberg-lite Terminal -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-900/50 text-purple-300 border border-purple-700/40">Premium+</div>
-            <div class="text-3xl mb-3 float">&#128187;</div>
+            <div class="text-3xl mb-3 float feature-icon">&#128187;</div>
             <h3 class="text-lg font-bold text-white mb-2">Bloomberg-lite Terminal</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 6-panel real-time market intelligence dashboard. Signals, heatmaps, unusual activity, correlations, macro events - one screen. Like Bloomberg, but $2,490/mo cheaper.
@@ -215,7 +271,7 @@
         <!-- Autonomous Trading Agents -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.1s;">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-900/50 text-orange-300 border border-orange-700/40">Ultra+</div>
-            <div class="text-3xl mb-3 sway">&#129302;</div>
+            <div class="text-3xl mb-3 sway feature-icon">&#129302;</div>
             <h3 class="text-lg font-bold text-white mb-2">Autonomous Trading Agents</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 AI agents that auto-execute paper trades based on your rules. Set confidence thresholds, ticker filters, strategy preferences. The robot trades while you sleep.
@@ -226,7 +282,7 @@
         <!-- Backtesting Engine -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.2s;">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-900/50 text-blue-300 border border-blue-700/40">Pro+</div>
-            <div class="text-3xl mb-3 float">&#128201;</div>
+            <div class="text-3xl mb-3 float feature-icon">&#128201;</div>
             <h3 class="text-lg font-bold text-white mb-2">Backtesting Engine</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 Full portfolio simulation. Monte Carlo confidence intervals. Walk-forward validation. Parameter optimization. Sharpe, Sortino, VaR, CVaR. SPY benchmark comparison.
@@ -238,7 +294,7 @@
         <!-- Macro Events Calendar -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-900/50 text-blue-300 border border-blue-700/40">Pro+</div>
-            <div class="text-3xl mb-3 sway">&#128197;</div>
+            <div class="text-3xl mb-3 sway feature-icon">&#128197;</div>
             <h3 class="text-lg font-bold text-white mb-2">Macro Events Calendar</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 Economic calendar, earnings tracker, FOMC meeting countdown, insider trade alerts. Never get blindsided by a rate decision or earnings report again.
@@ -249,7 +305,7 @@
         <!-- Unusual Activity Detection -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.1s;">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-900/50 text-red-300 border border-red-800/40">Kills BlackBox $149/mo</div>
-            <div class="text-3xl mb-3 fire-bounce">&#128680;</div>
+            <div class="text-3xl mb-3 fire-bounce feature-icon">&#128680;</div>
             <h3 class="text-lg font-bold text-white mb-2">Unusual Activity Detection</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 IV spikes, volume surges, OI surges, put/call skew shifts, sweep detection. 5 event types with composite scoring 0-100. Rolling baselines on 20-day windows.
@@ -261,7 +317,7 @@
         <!-- Sector Rotation -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.2s;">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-900/50 text-blue-300 border border-blue-700/40">Pro+</div>
-            <div class="text-3xl mb-3 float">&#128260;</div>
+            <div class="text-3xl mb-3 float feature-icon">&#128260;</div>
             <h3 class="text-lg font-bold text-white mb-2">Sector Rotation Analysis</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 Momentum scoring, rotation detection, capital flow visualization, sector rankings. See where smart money is moving before the headlines catch up.
@@ -271,7 +327,7 @@
 
         <!-- Correlation Engine -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group">
-            <div class="text-3xl mb-3 sway">&#128279;</div>
+            <div class="text-3xl mb-3 sway feature-icon">&#128279;</div>
             <h3 class="text-lg font-bold text-white mb-2">Correlation Engine</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 Signal co-fire analysis, hierarchical clustering, lead-lag detection, network graph visualization. Find which tickers move together - and which one moves first.
@@ -281,7 +337,7 @@
 
         <!-- Signal Quality Dashboard -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.1s;">
-            <div class="text-3xl mb-3 float">&#128300;</div>
+            <div class="text-3xl mb-3 float feature-icon">&#128300;</div>
             <h3 class="text-lg font-bold text-white mb-2">Signal Quality Dashboard</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 Category performance breakdowns, source reliability scores, quality trend lines, confidence calibration curves. We grade our own signals so you don't have to.
@@ -292,7 +348,7 @@
         <!-- Sports Betting Intelligence -->
         <div class="signal-card rounded-xl p-6 relative overflow-hidden border-glow fade-in group" style="animation-delay: 0.2s;">
             <div class="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-900/50 text-amber-300 border border-amber-700/40">Bonus</div>
-            <div class="text-3xl mb-3 sway">&#127944;</div>
+            <div class="text-3xl mb-3 sway feature-icon">&#127944;</div>
             <h3 class="text-lg font-bold text-white mb-2">Sports Betting Intelligence</h3>
             <p class="text-gray-400 text-sm leading-relaxed mb-3">
                 NFL, NBA, MLB, NHL, NCAA, Soccer. AI-powered Line Mover Scores (0-100). Injury tracking, trade alerts, lineup changes. Know which news moves lines.
@@ -306,7 +362,7 @@
 <!-- ============================================================
      SECTION 5: BLOOMBERG TERMINAL PREVIEW
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="text-center mb-8">
         <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/30 border border-purple-700/40 text-purple-300 text-xs font-bold uppercase mb-4">
             &#128187; Premium Feature
@@ -397,7 +453,7 @@
 <!-- ============================================================
      SECTION 6: TRADING AGENTS SHOWCASE
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="max-w-5xl mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div class="slide-in-left">
@@ -451,29 +507,29 @@
 <!-- ============================================================
      SECTION 7: MACRO INTELLIGENCE
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="text-center mb-10">
         <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Never Get Blindsided Again</h2>
         <p class="text-gray-400 max-w-2xl mx-auto">Earnings, FOMC, CPI, insider trades - all tracked. Know what's coming before the market reacts.</p>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 max-w-5xl mx-auto stagger-children">
         <a href="/macro/calendar" class="signal-card rounded-xl p-6 block hover:border-blue-700 transition fade-in">
-            <div class="text-2xl mb-3 sway">&#128197;</div>
+            <div class="text-2xl mb-3 sway macro-icon">&#128197;</div>
             <h3 class="text-base font-bold text-white mb-2">Economic Calendar</h3>
             <p class="text-gray-400 text-xs leading-relaxed">CPI, PPI, NFP, GDP, Fed speeches. Impact ratings. Countdown timers. Never trade into a surprise again.</p>
         </a>
         <a href="/macro/earnings" class="signal-card rounded-xl p-6 block hover:border-green-700 transition fade-in" style="animation-delay: 0.1s;">
-            <div class="text-2xl mb-3 float">&#128200;</div>
+            <div class="text-2xl mb-3 float macro-icon">&#128200;</div>
             <h3 class="text-base font-bold text-white mb-2">Earnings Tracker</h3>
             <p class="text-gray-400 text-xs leading-relaxed">Upcoming earnings with expected moves, whisper numbers, and historical surprise data. IV crush alerts.</p>
         </a>
         <a href="/macro/fomc" class="signal-card rounded-xl p-6 block hover:border-purple-700 transition fade-in" style="animation-delay: 0.2s;">
-            <div class="text-2xl mb-3 sway">&#127970;</div>
+            <div class="text-2xl mb-3 sway macro-icon">&#127970;</div>
             <h3 class="text-base font-bold text-white mb-2">FOMC Tracker</h3>
             <p class="text-gray-400 text-xs leading-relaxed">Meeting dates, dot plot analysis, rate probability tracker. Fed Funds futures implied probabilities.</p>
         </a>
         <a href="/macro/insider" class="signal-card rounded-xl p-6 block hover:border-amber-700 transition fade-in" style="animation-delay: 0.3s;">
-            <div class="text-2xl mb-3 float">&#128373;</div>
+            <div class="text-2xl mb-3 float macro-icon">&#128373;</div>
             <h3 class="text-base font-bold text-white mb-2">Insider Trades</h3>
             <p class="text-gray-400 text-xs leading-relaxed">SEC Form 4 filings. C-suite buys and sells. Cluster buy detection. Follow the insiders, not the headlines.</p>
         </a>
@@ -483,7 +539,7 @@
 <!-- ============================================================
      SECTION 8: BACKTESTING ENGINE PREVIEW
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="max-w-5xl mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <!-- Equity curve mockup -->
@@ -543,30 +599,30 @@
 </section>
 
 <!-- ============================================================
-     SECTION 9: DATA SOURCES â€” Authority Building
+     SECTION 9: DATA SOURCES
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="text-center mb-10">
         <h2 class="text-3xl md:text-4xl font-black text-white mb-3">15+ Data Sources. <span class="neon-text-blue">Not Just Reddit.</span></h2>
         <p class="text-gray-400 max-w-2xl mx-auto">Monitoring FDA, SEC, Federal Reserve, DoD in real-time. The kind of sources that move markets - not just memes.</p>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-w-4xl mx-auto stagger-children">
-        <div class="signal-card rounded-xl p-4 text-center pop-in"><div class="text-2xl mb-1">&#128293;</div><div class="text-xs font-bold text-white">Reddit</div><div class="text-[9px] text-gray-500">WSB, options, investing, thetagang</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.05s"><div class="text-2xl mb-1">&#128138;</div><div class="text-xs font-bold text-white">FDA</div><div class="text-[9px] text-gray-500">Drug approvals, trials, safety</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.1s"><div class="text-2xl mb-1">&#128737;</div><div class="text-xs font-bold text-white">DoD / Defense</div><div class="text-[9px] text-gray-500">Contract awards, spending</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.15s"><div class="text-2xl mb-1">&#128200;</div><div class="text-xs font-bold text-white">SEC Filings</div><div class="text-[9px] text-gray-500">8-K, insider trades</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.2s"><div class="text-2xl mb-1">&#127963;</div><div class="text-xs font-bold text-white">Congress</div><div class="text-[9px] text-gray-500">Stock disclosures</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.25s"><div class="text-2xl mb-1">&#127970;</div><div class="text-xs font-bold text-white">Federal Reserve</div><div class="text-[9px] text-gray-500">Rate decisions, FOMC</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.3s"><div class="text-2xl mb-1">&#128240;</div><div class="text-xs font-bold text-white">News Wires</div><div class="text-[9px] text-gray-500">MarketWatch, CNBC, SA</div></div>
-        <div class="signal-card rounded-xl p-4 text-center pop-in" style="animation-delay:0.35s"><div class="text-2xl mb-1">&#128172;</div><div class="text-xs font-bold text-white">StockTwits + X</div><div class="text-[9px] text-gray-500">Social sentiment</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group"><div class="text-2xl mb-1 source-icon">&#128293;</div><div class="text-xs font-bold text-white">Reddit</div><div class="text-[9px] text-gray-500">WSB, options, investing, thetagang</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.05s"><div class="text-2xl mb-1 source-icon">&#128138;</div><div class="text-xs font-bold text-white">FDA</div><div class="text-[9px] text-gray-500">Drug approvals, trials, safety</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.1s"><div class="text-2xl mb-1 source-icon">&#128737;</div><div class="text-xs font-bold text-white">DoD / Defense</div><div class="text-[9px] text-gray-500">Contract awards, spending</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.15s"><div class="text-2xl mb-1 source-icon">&#128200;</div><div class="text-xs font-bold text-white">SEC Filings</div><div class="text-[9px] text-gray-500">8-K, insider trades</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.2s"><div class="text-2xl mb-1 source-icon">&#127963;</div><div class="text-xs font-bold text-white">Congress</div><div class="text-[9px] text-gray-500">Stock disclosures</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.25s"><div class="text-2xl mb-1 source-icon">&#127970;</div><div class="text-xs font-bold text-white">Federal Reserve</div><div class="text-[9px] text-gray-500">Rate decisions, FOMC</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.3s"><div class="text-2xl mb-1 source-icon">&#128240;</div><div class="text-xs font-bold text-white">News Wires</div><div class="text-[9px] text-gray-500">MarketWatch, CNBC, SA</div></div>
+        <div class="signal-card rounded-xl p-4 text-center pop-in group" style="animation-delay:0.35s"><div class="text-2xl mb-1 source-icon">&#128172;</div><div class="text-xs font-bold text-white">StockTwits + X</div><div class="text-[9px] text-gray-500">Social sentiment</div></div>
     </div>
 </section>
 
 
 <!-- ============================================================
-     SECTION 11: PRICING SUMMARY â€” 3-Card Comparison
+     SECTION 11: PRICING SUMMARY
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <div class="text-center mb-10">
         <h2 class="text-3xl md:text-4xl font-black text-white mb-3">
             Replace <span class="text-red-400 line-through">$638/mo</span>. Start at <span class="text-green-400 neon-text-green">$0</span>.
@@ -637,29 +693,29 @@
 </section>
 
 <!-- ============================================================
-     SECTION 12: FREE CONTENT â€” Reciprocity
+     SECTION 12: FREE CONTENT
      ============================================================ -->
-<section class="mb-20">
+<section class="mb-20 reveal reveal-up">
     <h2 class="text-2xl font-bold text-white text-center mb-3">Free Tools - No Account Required</h2>
     <p class="text-gray-500 text-center mb-8 text-sm">We give away more than most platforms charge for.</p>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto stagger-children">
-        <a href="/news" class="signal-card rounded-xl p-5 block hover:border-blue-700 transition text-center fade-in">
-            <div class="text-2xl mb-2">&#128240;</div>
+        <a href="/news" class="signal-card rounded-xl p-5 block hover:border-blue-700 transition text-center fade-in group">
+            <div class="text-2xl mb-2 source-icon">&#128240;</div>
             <div class="text-sm font-bold text-white">News Feed</div>
             <div class="text-[10px] text-gray-500">Real-time financial news</div>
         </a>
-        <a href="/leaderboard" class="signal-card rounded-xl p-5 block hover:border-green-700 transition text-center fade-in" style="animation-delay: 0.1s;">
-            <div class="text-2xl mb-2">&#127942;</div>
+        <a href="/leaderboard" class="signal-card rounded-xl p-5 block hover:border-green-700 transition text-center fade-in group" style="animation-delay: 0.1s;">
+            <div class="text-2xl mb-2 source-icon">&#127942;</div>
             <div class="text-sm font-bold text-white">Leaderboard</div>
             <div class="text-[10px] text-gray-500">Top paper traders</div>
         </a>
-        <a href="/hall-of-legends" class="signal-card rounded-xl p-5 block hover:border-yellow-700 transition text-center fade-in" style="animation-delay: 0.2s;">
-            <div class="text-2xl mb-2">&#127942;</div>
+        <a href="/hall-of-legends" class="signal-card rounded-xl p-5 block hover:border-yellow-700 transition text-center fade-in group" style="animation-delay: 0.2s;">
+            <div class="text-2xl mb-2 source-icon">&#127942;</div>
             <div class="text-sm font-bold text-white">Hall of Legends</div>
             <div class="text-[10px] text-gray-500">27 greatest trades ever</div>
         </a>
-        <a href="/glossary" class="signal-card rounded-xl p-5 block hover:border-purple-700 transition text-center fade-in" style="animation-delay: 0.3s;">
-            <div class="text-2xl mb-2">&#128218;</div>
+        <a href="/glossary" class="signal-card rounded-xl p-5 block hover:border-purple-700 transition text-center fade-in group" style="animation-delay: 0.3s;">
+            <div class="text-2xl mb-2 source-icon">&#128218;</div>
             <div class="text-sm font-bold text-white">Trading Glossary</div>
             <div class="text-[10px] text-gray-500">75 WSB terms explained</div>
         </a>
@@ -667,9 +723,9 @@
 </section>
 
 <!-- ============================================================
-     SECTION 13: FINAL CTA â€” Urgency & Loss Aversion
+     SECTION 13: FINAL CTA
      ============================================================ -->
-<section class="text-center py-16 border-t border-gray-800 relative overflow-hidden">
+<section class="text-center py-16 border-t border-gray-800 relative overflow-hidden reveal reveal-up">
     <!-- Background glow -->
     <div class="absolute inset-0 opacity-30" style="background: radial-gradient(ellipse at 50% 50%, rgba(34,197,94,0.15) 0%, transparent 70%);"></div>
 

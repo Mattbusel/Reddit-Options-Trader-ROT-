@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Terminal — ROT Bloomberg-lite{% endblock %}
+{% block title %}Terminal - ROT Bloomberg-lite{% endblock %}
 
 {% block content %}
 <div class="space-y-4 fade-in">
@@ -13,7 +13,7 @@
         {% if access.has_access %}
         <div class="flex items-center space-x-2 text-xs text-gray-500">
             <span class="w-2 h-2 rounded-full bg-green-500 blink"></span>
-            <span>Live — refreshes every {{ access.refresh_interval_s }}s</span>
+            <span>Live - refreshes every {{ access.refresh_interval_s }}s</span>
         </div>
         {% endif %}
     </div>
@@ -45,7 +45,7 @@
             {% if not loop.last %}<span class="text-gray-700">|</span>{% endif %}
             {% endfor %}
             {% if not trending %}
-            <span class="text-gray-500">No trending tickers yet — signals will appear as they arrive</span>
+            <span class="text-gray-500">No trending tickers yet - signals will appear as they arrive</span>
             {% endif %}
         </div>
     </div>

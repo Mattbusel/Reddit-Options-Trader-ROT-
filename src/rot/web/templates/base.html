@@ -331,8 +331,59 @@
         }
         ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(255,50,100,0.6), rgba(0,180,255,0.6)); }
 
-        /* â”€â”€ Selection highlight â”€â”€ */
+        /* â"€â"€ Selection highlight â"€â"€ */
         ::selection { background: rgba(255,50,100,0.3); color: #fff; }
+
+        /* â"€â"€ Cursor-reactive glow (desktop only) â"€â"€ */
+        #cursor-glow {
+            position: fixed;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                rgba(255,50,100,0.07) 0%,
+                rgba(0,180,255,0.04) 30%,
+                rgba(180,50,255,0.02) 50%,
+                transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: screen;
+            will-change: left, top;
+            transition: opacity 0.3s;
+        }
+
+        /* â"€â"€ Scroll-triggered reveal animations â"€â"€ */
+        .reveal { opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; will-change: opacity, transform; }
+        .reveal-up { transform: translateY(40px); }
+        .reveal-left { transform: translateX(-40px); }
+        .reveal-right { transform: translateX(40px); }
+        .reveal-scale { transform: scale(0.92); }
+        .reveal.revealed { opacity: 1; transform: translateY(0) translateX(0) scale(1); }
+        .reveal-stagger > .reveal:nth-child(1) { transition-delay: 0s; }
+        .reveal-stagger > .reveal:nth-child(2) { transition-delay: 0.08s; }
+        .reveal-stagger > .reveal:nth-child(3) { transition-delay: 0.16s; }
+        .reveal-stagger > .reveal:nth-child(4) { transition-delay: 0.24s; }
+        .reveal-stagger > .reveal:nth-child(5) { transition-delay: 0.32s; }
+        .reveal-stagger > .reveal:nth-child(6) { transition-delay: 0.40s; }
+        .reveal-stagger > .reveal:nth-child(7) { transition-delay: 0.48s; }
+        .reveal-stagger > .reveal:nth-child(8) { transition-delay: 0.56s; }
+        .reveal-stagger > .reveal:nth-child(9) { transition-delay: 0.64s; }
+
+        /* â"€â"€ Card tilt: specular highlight overlay â"€â"€ */
+        .stat-card, .signal-card { transform-style: preserve-3d; }
+        .tilt-highlight {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+                rgba(255,255,255,0.06) 0%,
+                transparent 60%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .stat-card:hover .tilt-highlight,
+        .signal-card:hover .tilt-highlight { opacity: 1; }
 
         /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
            MOBILE RESPONSIVENESS
@@ -391,8 +442,11 @@
             transform: rotate(180deg);
         }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="min-h-screen">
+    <!-- Cursor-reactive glow (desktop only, injected by JS) -->
+    <div id="cursor-glow" style="opacity:0;"></div>
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <a href="/" class="flex items-center space-x-2">
@@ -772,10 +826,9 @@
     })();
     </script>
 
-    <!-- â”€â”€ Floating Out-of-Focus Bokeh Bubbles (site-wide) â”€â”€ -->
+    <!-- â"€â"€ Floating Out-of-Focus Bokeh Bubbles (site-wide) + Cursor Interaction â"€â"€ -->
     <script>
     (function() {
-        // Prevent double-init if a page already created the canvas
         if (document.getElementById('bokeh-bubbles')) return;
 
         const canvas = document.createElement('canvas');
@@ -788,40 +841,33 @@
         resize();
         window.addEventListener('resize', resize);
 
-        // Neon palette â€” matches the Manhattan neon theme
         const palette = [
-            '255,50,100',   // hot pink
-            '0,180,255',    // electric blue
-            '180,50,255',   // purple
-            '50,255,180',   // teal
-            '255,180,50',   // warm amber
-            '100,120,255',  // soft indigo
-            '255,100,180',  // rose
+            '255,50,100', '0,180,255', '180,50,255', '50,255,180',
+            '255,180,50', '100,120,255', '255,100,180',
         ];
 
-        // Reduce bubble count on mobile for performance (10 vs 30)
         const isMobile = window.innerWidth < 768;
+        const isTouch = 'ontouchstart' in window;
         const bubbleCount = isMobile ? 10 : 30;
 
+        // Shared cursor position for all effects
+        window._rotCursor = { x: -9999, y: -9999 };
+        if (!isTouch) {
+            document.addEventListener('mousemove', function(e) {
+                window._rotCursor.x = e.clientX;
+                window._rotCursor.y = e.clientY;
+            });
+        }
+
         const bubbles = Array.from({length: bubbleCount}, () => {
-            const r = Math.random() * 52 + 8; // radius 8â€“60px
-            // Larger bubbles are more transparent (further out of focus)
-            const alphaBase = 0.03 + (1 - r / 60) * 0.09; // 0.03â€“0.12
+            const r = Math.random() * 52 + 8;
+            const alphaBase = 0.03 + (1 - r / 60) * 0.09;
             return {
-                x: Math.random() * w,
-                y: Math.random() * h,
-                r: r,
-                // Slow drift in a random direction
-                dx: (Math.random() - 0.5) * 0.3,
-                dy: (Math.random() - 0.5) * 0.3,
-                // Gentle sine wobble for organic movement
-                wobbleAmpX: Math.random() * 0.4 + 0.1,
-                wobbleAmpY: Math.random() * 0.4 + 0.1,
-                wobbleSpeedX: Math.random() * 0.008 + 0.003,
-                wobbleSpeedY: Math.random() * 0.008 + 0.003,
-                wobbleOffsetX: Math.random() * Math.PI * 2,
-                wobbleOffsetY: Math.random() * Math.PI * 2,
-                // Slow alpha pulse so they breathe
+                x: Math.random() * w, y: Math.random() * h, r: r,
+                dx: (Math.random() - 0.5) * 0.3, dy: (Math.random() - 0.5) * 0.3,
+                wobbleAmpX: Math.random() * 0.4 + 0.1, wobbleAmpY: Math.random() * 0.4 + 0.1,
+                wobbleSpeedX: Math.random() * 0.008 + 0.003, wobbleSpeedY: Math.random() * 0.008 + 0.003,
+                wobbleOffsetX: Math.random() * Math.PI * 2, wobbleOffsetY: Math.random() * Math.PI * 2,
                 alphaBase: alphaBase,
                 alphaPulseSpeed: Math.random() * 0.005 + 0.002,
                 alphaPulseOffset: Math.random() * Math.PI * 2,
@@ -829,36 +875,52 @@
             };
         });
 
-        // On mobile, throttle to ~30fps by skipping every other frame
         let frameCount = 0;
+        const cursorRadius = 150;
+
         function draw() {
             frameCount++;
-            if (isMobile && frameCount % 2 !== 0) {
-                requestAnimationFrame(draw);
-                return;
-            }
+            if (isMobile && frameCount % 2 !== 0) { requestAnimationFrame(draw); return; }
 
             ctx.clearRect(0, 0, w, h);
             const t = Date.now() * 0.001;
+            const mx = window._rotCursor.x;
+            const my = window._rotCursor.y;
 
             bubbles.forEach(b => {
-                // Wobble movement
                 const wx = Math.sin(t * b.wobbleSpeedX * 60 + b.wobbleOffsetX) * b.wobbleAmpX;
                 const wy = Math.cos(t * b.wobbleSpeedY * 60 + b.wobbleOffsetY) * b.wobbleAmpY;
                 b.x += b.dx + wx * 0.05;
                 b.y += b.dy + wy * 0.05;
 
-                // Wrap around screen edges seamlessly
+                // Cursor interaction: soft repulsion + alpha boost
+                if (!isTouch && mx > -999) {
+                    const ddx = b.x - mx, ddy = b.y - my;
+                    const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+                    if (dist < cursorRadius && dist > 0) {
+                        const force = (1 - dist / cursorRadius) * 0.4;
+                        b.x += (ddx / dist) * force;
+                        b.y += (ddy / dist) * force;
+                    }
+                }
+
                 if (b.x > w + b.r * 2) b.x = -b.r * 2;
                 if (b.x < -b.r * 2) b.x = w + b.r * 2;
                 if (b.y > h + b.r * 2) b.y = -b.r * 2;
                 if (b.y < -b.r * 2) b.y = h + b.r * 2;
 
-                // Breathing alpha pulse
                 const alphaPulse = Math.sin(t * b.alphaPulseSpeed * 60 + b.alphaPulseOffset) * 0.3 + 0.7;
-                const alpha = b.alphaBase * alphaPulse;
+                let alpha = b.alphaBase * alphaPulse;
 
-                // Draw the out-of-focus bokeh bubble â€” soft radial gradient, no hard edge
+                // Brighten bubbles near cursor
+                if (!isTouch && mx > -999) {
+                    const ddx2 = b.x - mx, ddy2 = b.y - my;
+                    const dist2 = Math.sqrt(ddx2 * ddx2 + ddy2 * ddy2);
+                    if (dist2 < cursorRadius) {
+                        alpha *= 1 + (1 - dist2 / cursorRadius) * 1.5;
+                    }
+                }
+
                 const grd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
                 grd.addColorStop(0, 'rgba(' + b.color + ',' + (alpha * 1.2) + ')');
                 grd.addColorStop(0.4, 'rgba(' + b.color + ',' + (alpha * 0.6) + ')');
@@ -867,6 +929,194 @@
                 ctx.fillStyle = grd;
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+    })();
+    </script>
+
+    <!-- Cursor Glow - ambient light that follows the mouse -->
+    <script>
+    (function() {
+        if ('ontouchstart' in window) return;
+        const glow = document.getElementById('cursor-glow');
+        if (!glow) return;
+        let gx = -300, gy = -300;
+        glow.style.opacity = '1';
+
+        function tick() {
+            const mx = window._rotCursor ? window._rotCursor.x : -9999;
+            const my = window._rotCursor ? window._rotCursor.y : -9999;
+            gx += (mx - gx) * 0.08;
+            gy += (my - gy) * 0.08;
+            glow.style.left = gx + 'px';
+            glow.style.top = gy + 'px';
+            requestAnimationFrame(tick);
+        }
+        tick();
+    })();
+    </script>
+
+    <!-- Card Tilt - cards subtly rotate toward cursor -->
+    <script>
+    (function() {
+        if ('ontouchstart' in window) return;
+        const maxTilt = 4;
+
+        function initTilt(card) {
+            // Add specular highlight overlay
+            if (!card.querySelector('.tilt-highlight')) {
+                const hl = document.createElement('div');
+                hl.className = 'tilt-highlight';
+                card.style.position = card.style.position || 'relative';
+                card.appendChild(hl);
+            }
+
+            card.addEventListener('mousemove', function(e) {
+                const r = card.getBoundingClientRect();
+                const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+                const px = (e.clientX - cx) / (r.width / 2);
+                const py = (e.clientY - cy) / (r.height / 2);
+                card.style.transform = 'perspective(800px) rotateY(' + (px * maxTilt) + 'deg) rotateX(' + (-py * maxTilt) + 'deg) translateY(-2px)';
+                card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+                card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+            });
+            card.addEventListener('mouseleave', function() {
+                card.style.transform = '';
+                card.style.transition = 'transform 0.5s ease';
+                setTimeout(() => { card.style.transition = ''; }, 500);
+            });
+        }
+
+        // Init on existing cards + observe for new ones (HTMX dynamic content)
+        function initAll() {
+            document.querySelectorAll('.stat-card, .signal-card').forEach(initTilt);
+        }
+        initAll();
+        const obs = new MutationObserver(initAll);
+        obs.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
+
+    <!-- â"€â"€ Scroll-Triggered Reveal Observer â"€â"€ -->
+    <script>
+    (function() {
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+
+        function observe() {
+            document.querySelectorAll('.reveal:not(.revealed)').forEach(function(el) {
+                observer.observe(el);
+            });
+        }
+        observe();
+        // Re-scan after HTMX swaps
+        document.body.addEventListener('htmx:afterSwap', observe);
+    })();
+    </script>
+
+    <!-- Neural Grid - ambient pulse network behind content -->
+    <script>
+    (function() {
+        if (document.getElementById('neural-grid')) return;
+        const canvas = document.createElement('canvas');
+        canvas.id = 'neural-grid';
+        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+        // Insert after bokeh canvas
+        const bokeh = document.getElementById('bokeh-bubbles');
+        if (bokeh && bokeh.nextSibling) bokeh.parentNode.insertBefore(canvas, bokeh.nextSibling);
+        else document.body.prepend(canvas);
+
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const isMobile = window.innerWidth < 768;
+        const isTouch = 'ontouchstart' in window;
+        const nodeCount = isMobile ? 15 : 40;
+        const connectDist = isMobile ? 120 : 180;
+        const cursorBoostDist = 250;
+
+        const nodes = Array.from({length: nodeCount}, () => ({
+            x: Math.random() * w, y: Math.random() * h,
+            dx: (Math.random() - 0.5) * 0.25,
+            dy: (Math.random() - 0.5) * 0.25,
+            pulseOffset: Math.random() * Math.PI * 2,
+            pulseSpeed: Math.random() * 0.003 + 0.001,
+        }));
+
+        let frameCount = 0;
+        function draw() {
+            frameCount++;
+            if (isMobile && frameCount % 2 !== 0) { requestAnimationFrame(draw); return; }
+
+            ctx.clearRect(0, 0, w, h);
+            const t = Date.now() * 0.001;
+            const mx = window._rotCursor ? window._rotCursor.x : -9999;
+            const my = window._rotCursor ? window._rotCursor.y : -9999;
+
+            // Update positions
+            nodes.forEach(n => {
+                n.x += n.dx;
+                n.y += n.dy;
+                if (n.x < 0 || n.x > w) n.dx *= -1;
+                if (n.y < 0 || n.y > h) n.dy *= -1;
+                n.x = Math.max(0, Math.min(w, n.x));
+                n.y = Math.max(0, Math.min(h, n.y));
+            });
+
+            // Draw connections
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const ddx = nodes[i].x - nodes[j].x;
+                    const ddy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+                    if (dist < connectDist) {
+                        let lineAlpha = (1 - dist / connectDist) * 0.06;
+                        // Brighten near cursor
+                        if (!isTouch && mx > -999) {
+                            const midX = (nodes[i].x + nodes[j].x) / 2;
+                            const midY = (nodes[i].y + nodes[j].y) / 2;
+                            const cdist = Math.sqrt((midX - mx) ** 2 + (midY - my) ** 2);
+                            if (cdist < cursorBoostDist) {
+                                lineAlpha += (1 - cdist / cursorBoostDist) * 0.08;
+                            }
+                        }
+                        ctx.strokeStyle = 'rgba(100,140,255,' + lineAlpha + ')';
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw nodes
+            nodes.forEach(n => {
+                const pulse = Math.sin(t * n.pulseSpeed * 60 + n.pulseOffset) * 0.5 + 0.5;
+                let nodeAlpha = 0.08 + pulse * 0.10;
+                // Brighten near cursor
+                if (!isTouch && mx > -999) {
+                    const cdist = Math.sqrt((n.x - mx) ** 2 + (n.y - my) ** 2);
+                    if (cdist < cursorBoostDist) {
+                        nodeAlpha += (1 - cdist / cursorBoostDist) * 0.20;
+                    }
+                }
+                ctx.fillStyle = 'rgba(150,180,255,' + nodeAlpha + ')';
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, 1.5, 0, Math.PI * 2);
                 ctx.fill();
             });
 
