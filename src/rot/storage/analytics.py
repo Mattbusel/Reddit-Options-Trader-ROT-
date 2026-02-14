@@ -541,3 +541,27 @@ class AnalyticsMixin:
 
         results.sort(key=lambda x: x["co_fires"], reverse=True)
         return results[:limit]
+
+    async def get_co_occurring_tickers(
+        self, hours: int = 24, min_co_occurrence: int = 2
+    ) -> List[Dict[str, Any]]:
+        """Find tickers that appear in signals within the same run/batch."""
+        cutoff = time.time() - (hours * 3600)
+        query = """
+            SELECT
+                a.ticker as ticker_a,
+                b.ticker as ticker_b,
+                COUNT(*) as co_occurrences,
+                AVG(a.confidence + b.confidence) / 2 as avg_joint_confidence
+            FROM signals a
+            JOIN signals b ON a.run_id = b.run_id AND a.ticker < b.ticker
+            WHERE a.created_at > ?
+                  AND a.ticker != 'UNKNOWN' AND b.ticker != 'UNKNOWN'
+            GROUP BY a.ticker, b.ticker
+            HAVING co_occurrences >= ?
+            ORDER BY co_occurrences DESC
+            LIMIT 50
+        """
+        async with self.db.execute(query, (cutoff, min_co_occurrence)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(row) for row in rows]

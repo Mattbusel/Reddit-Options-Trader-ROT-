@@ -622,7 +622,7 @@
                     <span class="font-medium text-purple-400">&#128202; StockTwits</span>
                     {% elif s.subreddit == 'twitter' %}
                     <span class="font-medium text-cyan-400">&#128038; Twitter/X</span>
-                    {% elif s.get('event_data', {}).get('flair') == 'rss' or s.subreddit in ('marketwatch-top', 'marketwatch-realtime', 'investing-com-stocks', 'yahoo-finance-top', 'cnbc-market', 'seekingalpha-currents') %}
+                    {% elif (s.event_data is mapping and s.event_data.get('flair') == 'rss') or s.subreddit in ('marketwatch-top', 'marketwatch-realtime', 'investing-com-stocks', 'yahoo-finance-top', 'cnbc-market', 'seekingalpha-currents') %}
                     <span class="font-medium text-blue-400">&#128240; {{ s.subreddit }}</span>
                     {% set lag = format_lag(s) %}
                     {% if lag %}
