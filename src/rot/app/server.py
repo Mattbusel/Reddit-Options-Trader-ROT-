@@ -6,6 +6,14 @@ import threading
 import time
 from typing import Any, Dict
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+log = logging.getLogger(__name__)
+
+_MODULE_LOAD_START = time.monotonic()
+
 import uvicorn
 
 from rot.core.config import Settings
@@ -14,11 +22,8 @@ from rot.core.config import Settings
 # This lets uvicorn bind the port before scikit-learn, yfinance, PRAW, etc.
 # are imported, so Railway health checks pass during cold start.
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
-log = logging.getLogger(__name__)
+log.info("server.py module loaded — uvicorn+Settings import took %.0fms",
+         (time.monotonic() - _MODULE_LOAD_START) * 1000)
 
 
 def _create_pipeline(cfg: Settings, on_signal=None):
@@ -739,11 +744,15 @@ async def _run_server(cfg: Settings):
     heavy imports like scikit-learn/yfinance/PRAW) happens in _heavy_init()
     which runs as an asyncio task AFTER the server is already listening.
     """
+    _t0 = time.monotonic()
     from rot.web.app import create_app, connect_db, register_routes
+    log.info("import create_app: %.0fms", (time.monotonic() - _t0) * 1000)
 
     # Create MINIMAL FastAPI app — just /health endpoint, no DB, no routes
     # This lets uvicorn bind the port in <1s so Railway health checks pass
+    _t1 = time.monotonic()
     app = create_app(cfg)
+    log.info("create_app(): %.0fms", (time.monotonic() - _t1) * 1000)
 
     # Placeholders for resources created in _heavy_init — needed for cleanup
     stop_event = threading.Event()
@@ -765,8 +774,12 @@ async def _run_server(cfg: Settings):
         log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
 
         # Phase 1: Connect DB + register all routes
+        _ti = time.monotonic()
         await connect_db(app)
+        log.info("connect_db(): %.0fms", (time.monotonic() - _ti) * 1000)
+        _ti = time.monotonic()
         register_routes(app)
+        log.info("register_routes(): %.0fms", (time.monotonic() - _ti) * 1000)
 
         # Create email alerter if configured
         email_alerter = None
@@ -1035,6 +1048,7 @@ async def _run_server(cfg: Settings):
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
 
     # Run uvicorn as an awaitable inside the CURRENT event loop (no new loop created)
+    _t2 = time.monotonic()
     config = uvicorn.Config(
         app,
         host=cfg.web.host,
@@ -1042,6 +1056,7 @@ async def _run_server(cfg: Settings):
         log_level="info",
     )
     server = uvicorn.Server(config)
+    log.info("uvicorn.Config: %.0fms — about to call server.serve()", (time.monotonic() - _t2) * 1000)
     try:
         await server.serve()
     finally:
@@ -1067,11 +1082,13 @@ async def _run_server(cfg: Settings):
 
 def main():
     import os
+    _t0 = time.monotonic()
     cfg = Settings()
     # Railway sets PORT env var dynamically — override config if present
     railway_port = os.environ.get("PORT")
     if railway_port:
         cfg.web.port = int(railway_port)
+    log.info("Server main() entry — Settings loaded in %.1fms", (time.monotonic() - _t0) * 1000)
     asyncio.run(_run_server(cfg))
 
 

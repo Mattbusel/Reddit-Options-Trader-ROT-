@@ -58,4 +58,4 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
-CMD python -m rot.app.server
+CMD ["python", "-m", "rot.app.server"]
