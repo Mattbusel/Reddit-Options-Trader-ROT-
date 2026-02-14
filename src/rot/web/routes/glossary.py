@@ -109,6 +109,7 @@ def _base_context(request: Request, user: dict | None) -> dict:
         "pro": "bg-blue-700/60 text-blue-200",
         "premium": "bg-purple-700/60 text-purple-200",
         "ultra": "bg-orange-700/60 text-orange-200",
+        "admin": "bg-red-700/60 text-red-200",
     }
     return {
         "request": request,

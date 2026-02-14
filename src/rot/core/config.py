@@ -224,6 +224,7 @@ class AuthConfig(BaseSettings):
     jwt_secret: str = ""  # falls back to web.secret_key if empty
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
+    admin_emails: List[str] = Field(default_factory=list)  # emails auto-elevated to admin tier
 
 
 class StripeConfig(BaseSettings):

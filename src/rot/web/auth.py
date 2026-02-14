@@ -47,10 +47,20 @@ def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
 
+def _maybe_elevate_admin(user: dict, settings) -> dict:
+    """If user email is in admin_emails list, elevate tier to 'admin'."""
+    admin_emails = settings.auth.admin_emails
+    if admin_emails and user.get("email", "").lower() in [e.lower() for e in admin_emails]:
+        user = dict(user)  # copy to avoid mutating cached row
+        user["tier"] = "admin"
+    return user
+
+
 async def get_current_user_optional(request: Request) -> Optional[dict]:
     """
     Try to extract user from: 1) JWT Bearer token, 2) X-API-Key header, 3) session cookie.
     Returns None if no auth provided (anonymous = free tier).
+    Admin emails (ROT_AUTH_ADMIN_EMAILS) are auto-elevated to 'admin' tier.
     """
     settings = request.app.state.settings
     db = request.app.state.db
@@ -65,7 +75,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
             payload = jwt.decode(token, secret, algorithms=[algorithm])
             user = await db.get_user_by_id(payload["sub"])
             if user:
-                return user
+                return _maybe_elevate_admin(user, settings)
         except JWTError:
             pass
 
@@ -75,7 +85,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
         key_hash = hash_api_key(api_key)
         user = await db.get_user_by_api_key_hash(key_hash)
         if user:
-            return user
+            return _maybe_elevate_admin(user, settings)
 
     # 3. Try session cookie (for dashboard)
     session_token = request.cookies.get("rot_session")
@@ -84,7 +94,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
             payload = jwt.decode(session_token, secret, algorithms=[algorithm])
             user = await db.get_user_by_id(payload["sub"])
             if user:
-                return user
+                return _maybe_elevate_admin(user, settings)
         except JWTError:
             pass
 
@@ -100,9 +110,11 @@ async def require_user(request: Request) -> dict:
 
 
 def require_tier(*allowed_tiers: str):
-    """Factory for a dependency that checks user tier."""
+    """Factory for a dependency that checks user tier. Admin always passes."""
     async def check_tier(request: Request) -> dict:
         user = await require_user(request)
+        if user["tier"] == "admin":
+            return user  # admin bypasses all tier checks
         if user["tier"] not in allowed_tiers:
             raise HTTPException(
                 status_code=403,

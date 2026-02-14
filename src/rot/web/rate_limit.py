@@ -26,6 +26,7 @@ _DEFAULT_LIMITS = {
     "premium": 5000,
     "ultra": 25000,
     "enterprise": 100000,
+    "admin": 999999,   # Effectively unlimited
 }
 
 _BURST_LIMITS = {
@@ -34,6 +35,7 @@ _BURST_LIMITS = {
     "premium": 200,    # 200 calls/minute
     "ultra": 500,      # 500 calls/minute
     "enterprise": 2000,  # 2,000 calls/minute
+    "admin": 99999,    # Effectively unlimited
 }
 
 

@@ -3,7 +3,8 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List
 
-_PAID_TIERS = ("pro", "premium", "ultra", "enterprise")
+_PAID_TIERS = ("pro", "premium", "ultra", "enterprise", "admin")
+_ADMIN_TIER = "admin"  # Master tier — full access to every feature
 
 
 def gate_signal(signal: Dict[str, Any], tier: str, delay_s: int = 900) -> Dict[str, Any]:
@@ -60,25 +61,25 @@ def gate_chart_access(tier: str) -> dict:
     return {
         "has_quadrant": tier in _PAID_TIERS,
         "has_timeline": tier in _PAID_TIERS,
-        "has_strategy_breakdown": tier in ("premium", "ultra", "enterprise"),
-        "has_realtime_badge": tier in ("ultra", "enterprise"),
-        "has_custom_time_range": tier in ("ultra", "enterprise"),
-        "has_chart_export": tier in ("ultra", "enterprise"),
-        "chart_hours": 24 if tier == "pro" else 48 if tier in ("premium", "ultra", "enterprise") else 0,
-        "chart_limit": 50 if tier == "pro" else 100 if tier in ("premium", "ultra", "enterprise") else 0,
+        "has_strategy_breakdown": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_realtime_badge": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_custom_time_range": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_chart_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "chart_hours": 24 if tier == "pro" else 48 if tier in ("premium", "ultra", "enterprise", _ADMIN_TIER) else 0,
+        "chart_limit": 50 if tier == "pro" else 100 if tier in ("premium", "ultra", "enterprise", _ADMIN_TIER) else 0,
     }
 
 
 def gate_filter_access(tier: str) -> dict:
     """Return filter feature access flags based on tier."""
     return {
-        "has_date_range": tier in ("premium", "ultra", "enterprise"),
+        "has_date_range": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "has_confidence_range": True,  # all tiers have min_confidence
         "has_ticker_filter": tier in _PAID_TIERS,     # Pro+ only
         "has_stance_filter": tier in _PAID_TIERS,     # Pro+ only
         "has_source_filter": tier in _PAID_TIERS,     # Pro+ only
-        "has_saved_presets": tier in ("ultra", "enterprise"),
-        "max_presets": 10 if tier in ("ultra", "enterprise") else 0,
+        "has_saved_presets": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "max_presets": 10 if tier in ("ultra", "enterprise", _ADMIN_TIER) else 0,
     }
 
 
@@ -87,13 +88,13 @@ def gate_performance_access(tier: str) -> dict:
     return {
         "has_aggregate_accuracy": tier in _PAID_TIERS,  # Pro+ only (monetization)
         "has_per_signal_pnl": tier in _PAID_TIERS,
-        "has_roi_history_chart": tier in ("premium", "ultra", "enterprise"),
-        "has_performance_export": tier in ("ultra", "enterprise"),
-        "has_performance_dashboard": tier in ("premium", "ultra", "enterprise"),
-        "has_strategy_pnl": tier in ("ultra", "enterprise"),
+        "has_roi_history_chart": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_performance_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_performance_dashboard": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_strategy_pnl": tier in ("ultra", "enterprise", _ADMIN_TIER),
         "has_accuracy_breakdown": tier in _PAID_TIERS,  # Pro+ feature
         "has_confidence_calibration": tier in _PAID_TIERS,  # Pro+ feature
-        "has_post_mortem": tier in ("premium", "ultra", "enterprise"),  # Premium+ feature
+        "has_post_mortem": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),  # Premium+ feature
         "accuracy_days": 7 if tier == "free" else 30 if tier == "pro" else 90 if tier == "premium" else 365,
     }
 
@@ -103,8 +104,8 @@ def gate_email_access(tier: str) -> dict:
     return {
         "has_daily_digest": True,  # all tiers
         "has_realtime_email": tier in _PAID_TIERS,
-        "has_custom_filters": tier in ("premium", "ultra", "enterprise"),
-        "has_webhook": tier in ("ultra", "enterprise"),
+        "has_custom_filters": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_webhook": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -112,8 +113,8 @@ def gate_heatmap_access(tier: str) -> dict:
     """Return sector heatmap feature access flags based on tier."""
     return {
         "has_heatmap": tier in _PAID_TIERS,
-        "has_drill_down": tier in ("premium", "ultra", "enterprise"),
-        "has_historical_replay": tier in ("ultra", "enterprise"),
+        "has_drill_down": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_historical_replay": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -123,10 +124,10 @@ def gate_leaderboard_access(tier: str) -> dict:
         "has_leaderboard": tier in _PAID_TIERS,  # Pro+ only (monetization)
         "leaderboard_limit": 0 if tier == "free" else 20,
         "has_sorting": tier in _PAID_TIERS,
-        "has_historical": tier in ("premium", "ultra", "enterprise"),
-        "has_performance_column": tier in ("premium", "ultra", "enterprise"),
-        "has_custom_range": tier in ("ultra", "enterprise"),
-        "has_leaderboard_export": tier in ("ultra", "enterprise"),
+        "has_historical": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_performance_column": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_custom_range": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_leaderboard_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -134,8 +135,8 @@ def gate_market_context(tier: str) -> dict:
     """Return market context card feature access flags based on tier."""
     return {
         "has_price_badge": tier in _PAID_TIERS,
-        "has_extended_market": tier in ("premium", "ultra", "enterprise"),
-        "has_options_chain": tier in ("ultra", "enterprise"),
+        "has_extended_market": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_options_chain": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -143,8 +144,8 @@ def gate_correlation_access(tier: str) -> dict:
     """Return correlation view feature access flags based on tier."""
     return {
         "has_correlation": tier in _PAID_TIERS,
-        "has_strength_scores": tier in ("premium", "ultra", "enterprise"),
-        "has_matrix_export": tier in ("ultra", "enterprise"),
+        "has_strength_scores": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_matrix_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -154,8 +155,8 @@ def gate_sentiment_access(tier: str) -> dict:
         "max_tickers": 3 if tier == "free" else 50,   # 3 tickers for free (was 10)
         "max_hours": 12 if tier == "free" else 168 if tier == "pro" else 720 if tier == "premium" else 2160,  # 12h for free (was 24h)
         "has_drill_down": tier in _PAID_TIERS,
-        "has_sector_group": tier in ("premium", "ultra", "enterprise"),
-        "has_export": tier in ("premium", "ultra", "enterprise"),
+        "has_sector_group": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -164,10 +165,10 @@ def gate_ticker_dive_access(tier: str) -> dict:
     return {
         "max_signals": 5 if tier == "free" else 50 if tier == "pro" else 100 if tier == "premium" else 9999,
         "has_chart": tier in _PAID_TIERS,
-        "has_performance": tier in ("premium", "ultra", "enterprise"),
-        "has_sector_compare": tier in ("premium", "ultra", "enterprise"),
-        "has_correlation": tier in ("ultra", "enterprise"),
-        "has_export": tier in ("ultra", "enterprise"),
+        "has_performance": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_sector_compare": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_correlation": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -176,8 +177,8 @@ def gate_weekly_wrap_access(tier: str) -> dict:
     return {
         "max_weeks_back": 1 if tier == "free" else 4 if tier == "pro" else 12 if tier == "premium" else 52,  # 1 week preview for free (was 0)
         "has_charts": tier in _PAID_TIERS,
-        "has_strategy_breakdown": tier in ("premium", "ultra", "enterprise"),
-        "has_export": tier in ("ultra", "enterprise"),
+        "has_strategy_breakdown": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -186,9 +187,9 @@ def gate_replay_access(tier: str) -> dict:
     return {
         "has_access": tier in _PAID_TIERS,
         "max_hours": 0 if tier == "free" else 24 if tier == "pro" else 168 if tier == "premium" else 720,
-        "has_price_overlay": tier in ("premium", "ultra", "enterprise"),
-        "has_export": tier in ("ultra", "enterprise"),
-        "has_step_controls": tier in ("ultra", "enterprise"),
+        "has_price_overlay": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_step_controls": tier in ("ultra", "enterprise", _ADMIN_TIER),
     }
 
 
@@ -197,20 +198,20 @@ def gate_replay_access(tier: str) -> dict:
 def gate_data_licensing(tier: str) -> dict:
     """Return data licensing feature access flags."""
     return {
-        "has_access": tier == "enterprise",
-        "has_full_history": tier == "enterprise",
-        "has_json_export": tier == "enterprise",
-        "has_csv_export": tier == "enterprise",
-        "max_rows_per_export": 1000000 if tier == "enterprise" else 0,
+        "has_access": tier in ("enterprise", _ADMIN_TIER),
+        "has_full_history": tier in ("enterprise", _ADMIN_TIER),
+        "has_json_export": tier in ("enterprise", _ADMIN_TIER),
+        "has_csv_export": tier in ("enterprise", _ADMIN_TIER),
+        "max_rows_per_export": 1000000 if tier in ("enterprise", _ADMIN_TIER) else 0,
     }
 
 
 def gate_sponsored_access(tier: str) -> dict:
     """Return sponsored signal submission access flags."""
     return {
-        "can_submit": tier == "enterprise",
-        "can_view_status": tier == "enterprise",
-        "max_pending": 10 if tier == "enterprise" else 0,
+        "can_submit": tier in ("enterprise", _ADMIN_TIER),
+        "can_view_status": tier in ("enterprise", _ADMIN_TIER),
+        "max_pending": 10 if tier in ("enterprise", _ADMIN_TIER) else 0,
     }
 
 
@@ -218,9 +219,9 @@ def gate_sector_rotation_access(tier: str) -> dict:
     """Return sector rotation insights feature access flags based on tier."""
     return {
         "has_access": tier in _PAID_TIERS,  # Pro+ feature
-        "has_performance_overlay": tier in ("premium", "ultra", "enterprise"),
-        "has_export": tier in ("ultra", "enterprise"),
-        "max_days": 30 if tier in ("pro", "premium") else 90 if tier in ("ultra", "enterprise") else 0,
+        "has_performance_overlay": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "max_days": 30 if tier in ("pro", "premium") else 90 if tier in ("ultra", "enterprise", _ADMIN_TIER) else 0,
     }
 
 
@@ -228,8 +229,8 @@ def gate_unusual_activity(tier: str) -> dict:
     """Return unusual activity feed access flags based on tier."""
     return {
         "has_access": tier in _PAID_TIERS,
-        "has_detail": tier in ("premium", "ultra", "enterprise"),
-        "has_history": tier in ("ultra", "enterprise"),
+        "has_detail": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_history": tier in ("ultra", "enterprise", _ADMIN_TIER),
         "max_hours": 0 if tier == "free" else 24 if tier == "pro" else 48 if tier == "premium" else 168 if tier == "ultra" else 720,
     }
 
@@ -240,7 +241,7 @@ def gate_news_feed_access(tier: str) -> dict:
         "has_access": True,  # Free users see delayed/limited feed — great acquisition funnel
         "has_realtime": tier in _PAID_TIERS,  # Pro+ gets real-time
         "has_source_filter": tier in _PAID_TIERS,  # Pro+ can filter by source
-        "has_ai_summary": tier in ("premium", "ultra", "enterprise"),  # Premium+ sees AI summaries
+        "has_ai_summary": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),  # Premium+ sees AI summaries
         "max_hours": 6 if tier == "free" else 24 if tier == "pro" else 72 if tier == "premium" else 168,
         "max_items": 15 if tier == "free" else 50 if tier == "pro" else 100,
     }
@@ -250,10 +251,10 @@ def gate_congress_tracker_access(tier: str) -> dict:
     """Return congressional trading tracker access flags based on tier."""
     return {
         "has_access": tier in _PAID_TIERS,  # Pro+ feature
-        "has_amount_detail": tier in ("premium", "ultra", "enterprise"),  # Premium+ sees dollar ranges
-        "has_ticker_filter": tier in ("premium", "ultra", "enterprise"),
-        "has_export": tier in ("ultra", "enterprise"),
-        "max_days": 14 if tier == "pro" else 30 if tier == "premium" else 90 if tier in ("ultra", "enterprise") else 0,
+        "has_amount_detail": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),  # Premium+ sees dollar ranges
+        "has_ticker_filter": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "max_days": 14 if tier == "pro" else 30 if tier == "premium" else 90 if tier in ("ultra", "enterprise", _ADMIN_TIER) else 0,
     }
 
 
@@ -262,7 +263,7 @@ def gate_paper_leaderboard_access(tier: str) -> dict:
     return {
         "has_access": True,  # Public — drives registrations
         "has_full_stats": tier in _PAID_TIERS,  # Pro+ sees win rate, return %
-        "has_trade_history": tier in ("premium", "ultra", "enterprise"),
+        "has_trade_history": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "max_entries": 10 if tier == "free" else 25,
     }
 
@@ -296,14 +297,14 @@ def gate_sports_betting_access(tier: str) -> dict:
         "has_category_filter": tier in _PAID_TIERS,
         "has_betting_categories": tier in _PAID_TIERS,
         # AI features
-        "has_ai_summaries": tier in ("premium", "ultra", "enterprise"),
-        "has_injury_analysis": tier in ("premium", "ultra", "enterprise"),
+        "has_ai_summaries": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_injury_analysis": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         # Alerts
-        "has_email_alerts": tier in ("premium", "ultra", "enterprise"),
-        "has_custom_alerts": tier in ("ultra", "enterprise"),
-        "has_websocket_push": tier in ("ultra", "enterprise"),
+        "has_email_alerts": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_custom_alerts": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_websocket_push": tier in ("ultra", "enterprise", _ADMIN_TIER),
         # API
-        "has_api": tier in ("premium", "ultra", "enterprise"),
+        "has_api": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "api_daily_limit": (
             0 if tier in ("free", "pro")
             else 100 if tier == "premium"
@@ -311,9 +312,9 @@ def gate_sports_betting_access(tier: str) -> dict:
             else 10000  # enterprise
         ),
         # Export & Data
-        "has_csv_export": tier in ("ultra", "enterprise"),
-        "has_bulk_data": tier == "enterprise",
-        "has_webhook_feed": tier == "enterprise",
+        "has_csv_export": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_bulk_data": tier in ("enterprise", _ADMIN_TIER),
+        "has_webhook_feed": tier in ("enterprise", _ADMIN_TIER),
         # Sort options
         "has_score_sort": tier in _PAID_TIERS,  # sort by line mover score
     }
@@ -329,11 +330,11 @@ def gate_signal_quality_access(tier: str) -> dict:
     return {
         "has_access": tier in _PAID_TIERS,
         "has_category_heatmap": tier in _PAID_TIERS,
-        "has_source_reliability": tier in ("premium", "ultra", "enterprise"),
-        "has_feature_importance": tier in ("premium", "ultra", "enterprise"),
+        "has_source_reliability": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_feature_importance": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "has_quality_trend": tier in _PAID_TIERS,
-        "has_suppression_view": tier in ("ultra", "enterprise"),
-        "has_calibration_detail": tier in ("premium", "ultra", "enterprise"),
+        "has_suppression_view": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_calibration_detail": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "quality_days": (
             30 if tier in ("free", "pro")
             else 90 if tier == "premium"
@@ -523,18 +524,18 @@ def gate_terminal_access(tier: str) -> dict:
     Ultra+ gets options flow panel and watchlist alerts.
     """
     return {
-        "has_access": tier in ("premium", "ultra", "enterprise"),
-        "has_options_flow": tier in ("ultra", "enterprise"),
-        "has_news_wire": tier in ("premium", "ultra", "enterprise"),
-        "has_watchlist_alerts": tier in ("ultra", "enterprise"),
-        "has_heatmap": tier in ("premium", "ultra", "enterprise"),
+        "has_access": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_options_flow": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_news_wire": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
+        "has_watchlist_alerts": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_heatmap": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),
         "refresh_interval_s": (
-            0 if tier not in ("premium", "ultra", "enterprise")
+            0 if tier not in ("premium", "ultra", "enterprise", _ADMIN_TIER)
             else 60 if tier == "premium"
             else 30
         ),
         "max_signals_feed": (
-            0 if tier not in ("premium", "ultra", "enterprise")
+            0 if tier not in ("premium", "ultra", "enterprise", _ADMIN_TIER)
             else 25 if tier == "premium"
             else 50
         ),
@@ -548,18 +549,18 @@ def gate_agent_access(tier: str) -> dict:
     Enterprise gets custom rule agents, more agents, and API access.
     """
     return {
-        "has_access": tier in ("ultra", "enterprise"),
+        "has_access": tier in ("ultra", "enterprise", _ADMIN_TIER),
         "max_agents": (
-            0 if tier not in ("ultra", "enterprise")
+            0 if tier not in ("ultra", "enterprise", _ADMIN_TIER)
             else 3 if tier == "ultra"
             else 10
         ),
-        "has_signal_follower": tier in ("ultra", "enterprise"),
-        "has_contrarian": tier in ("ultra", "enterprise"),
-        "has_momentum_rider": tier in ("ultra", "enterprise"),
-        "has_custom_rules": tier == "enterprise",
-        "has_performance_export": tier == "enterprise",
-        "has_api": tier == "enterprise",
+        "has_signal_follower": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_contrarian": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_momentum_rider": tier in ("ultra", "enterprise", _ADMIN_TIER),
+        "has_custom_rules": tier in ("enterprise", _ADMIN_TIER),
+        "has_performance_export": tier in ("enterprise", _ADMIN_TIER),
+        "has_api": tier in ("enterprise", _ADMIN_TIER),
     }
 
 

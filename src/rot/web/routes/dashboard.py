@@ -117,6 +117,7 @@ def _tier_badge_class(tier: str) -> str:
         "premium": "bg-purple-900/50 text-purple-400 border border-purple-700",
         "ultra": "bg-amber-900/50 text-amber-400 border border-amber-700",
         "enterprise": "bg-emerald-900/50 text-emerald-400 border border-emerald-700",
+        "admin": "bg-red-900/50 text-red-400 border border-red-700",
     }.get(tier, "bg-gray-700 text-gray-400 border border-gray-600")
 
 
