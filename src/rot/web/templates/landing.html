@@ -92,12 +92,6 @@
     </div>
     <p class="text-xs text-gray-600">No credit card. Free tier actually works - not crippled bait.</p>
 
-    <!-- Live savings counter -->
-    <div class="mt-8 inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-green-900/20 border border-green-700/30">
-        <span class="text-xs text-gray-400 uppercase tracking-wider">Traders have saved</span>
-        <span class="text-2xl font-black text-green-400 neon-text-green" id="savings-counter">$0</span>
-        <span class="text-xs text-gray-400 uppercase tracking-wider">by switching to ROT</span>
-    </div>
 </section>
 
 <!-- ============================================================
@@ -705,39 +699,10 @@
             </a>
         </div>
         <p class="text-xs text-gray-600 mb-2">No credit card required. Free tier is actually useful. Upgrade when you're ready.</p>
-        <p class="text-xs text-gray-700">Join traders saving $7,536/year by switching to ROT.</p>
     </div>
 </section>
 
 <!-- ============================================================
      INLINE SCRIPTS â€” Savings Counter Animation
      ============================================================ -->
-<script>
-// Animated savings counter (simulated based on signal count and time)
-(function() {
-    const counter = document.getElementById('savings-counter');
-    if (!counter) return;
-
-    // Base savings = $628.01 per user per month savings, estimate based on signals
-    const totalSignals = {{ stats.total_signals }};
-    // Rough estimate: every 100 signals â‰ˆ 1 user-month of value delivered
-    const estimatedUserMonths = Math.floor(totalSignals / 50);
-    const baseSavings = estimatedUserMonths * 628.01;
-    let currentSavings = baseSavings;
-
-    function formatMoney(n) {
-        if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
-        if (n >= 1000) return '$' + Math.floor(n).toLocaleString();
-        return '$' + Math.floor(n);
-    }
-
-    counter.textContent = formatMoney(currentSavings);
-
-    // Increment every few seconds for visual effect
-    setInterval(function() {
-        currentSavings += 0.71; // $21.27/day / 30 ticks = ~$0.71 per tick
-        counter.textContent = formatMoney(currentSavings);
-    }, 3000);
-})();
-</script>
 {% endblock %}
