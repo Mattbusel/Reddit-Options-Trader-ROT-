@@ -9,20 +9,10 @@ from typing import Any, Dict
 import uvicorn
 
 from rot.core.config import Settings
-from rot.core.logging import JsonlLogger, cleanup_market_cache
-from rot.ingest.reddit_ingestor import RedditIngestor
-from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
-from rot.ingest.multi_ingestor import MultiSourceIngestor
-from rot.trend.trend_store import TrendStore
-from rot.trend.trend_engine import TrendEngine
-from rot.extract.event_builder import EventBuilder
-from rot.credibility.ml_scorer import MLCredibilityScorer
-from rot.reasoner.reasoner import Reasoner
-from rot.market.trade_builder import TradeBuilder
-from rot.app.runner import PipelineRunner
-from rot.web.app import create_app
-from rot.alerts.dispatcher import AlertDispatcher
-from rot.market.price_checker import PriceChecker
+
+# Heavy imports are deferred to function scope to speed up module load time.
+# This lets uvicorn bind the port before scikit-learn, yfinance, PRAW, etc.
+# are imported, so Railway health checks pass during cold start.
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +21,19 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
-def _create_pipeline(cfg: Settings, on_signal=None) -> PipelineRunner:
+def _create_pipeline(cfg: Settings, on_signal=None):
+    from rot.core.logging import JsonlLogger
+    from rot.ingest.reddit_ingestor import RedditIngestor
+    from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
+    from rot.ingest.multi_ingestor import MultiSourceIngestor
+    from rot.trend.trend_store import TrendStore
+    from rot.trend.trend_engine import TrendEngine
+    from rot.extract.event_builder import EventBuilder
+    from rot.credibility.ml_scorer import MLCredibilityScorer
+    from rot.reasoner.reasoner import Reasoner
+    from rot.market.trade_builder import TradeBuilder
+    from rot.app.runner import PipelineRunner
+
     logger = JsonlLogger(root=cfg.storage_root)
 
     # Reddit ingestor (always created)
@@ -680,6 +682,9 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
       - VACUUM SQLite to reclaim disk space
     NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
     """
+    from rot.core.logging import JsonlLogger
+    from rot.market.enricher import cleanup_market_cache
+
     CLEANUP_INTERVAL = 1800  # 30 minutes
     log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
 
@@ -727,255 +732,269 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
 
 
 async def _run_server(cfg: Settings):
-    """Run the full server: pipeline thread + uvicorn, sharing ONE event loop."""
-    # Create FastAPI app
+    """Run the full server: pipeline thread + uvicorn, sharing ONE event loop.
+
+    IMPORTANT: We start uvicorn FIRST so the port binds quickly and Railway
+    health checks pass. All heavy initialization (pipeline, background loops,
+    heavy imports like scikit-learn/yfinance/PRAW) happens in _heavy_init()
+    which runs as an asyncio task AFTER the server is already listening.
+    """
+    from rot.web.app import create_app
+
+    # Create FastAPI app — this is lightweight (route registration only)
     app = create_app(cfg)
 
-    # Create email alerter if configured
-    email_alerter = None
-    if cfg.email.enabled and (cfg.email.resend_api_key or cfg.email.smtp_host):
-        from rot.alerts.email import EmailAlerter
-        email_alerter = EmailAlerter(
-            smtp_host=cfg.email.smtp_host,
-            smtp_port=cfg.email.smtp_port,
-            smtp_user=cfg.email.smtp_user,
-            smtp_password=cfg.email.smtp_password,
-            from_address=cfg.email.from_address,
-            use_ssl=cfg.email.use_ssl,
-            resend_api_key=cfg.email.resend_api_key,
-        )
-        if cfg.email.resend_api_key:
-            log.info("Email alerter: ACTIVE (backend=Resend HTTP API, from=%s)", cfg.email.from_address)
-        else:
-            ssl_mode = "SSL" if cfg.email.use_ssl or cfg.email.smtp_port == 465 else "STARTTLS"
-            log.info("Email alerter: ACTIVE (backend=SMTP %s:%d mode=%s)", cfg.email.smtp_host, cfg.email.smtp_port, ssl_mode)
-    else:
-        log.info("Email alerter: DISABLED (set ROT_EMAIL_ENABLED=true + ROT_EMAIL_RESEND_API_KEY)")
-
-    # Store email alerter on app state so routes can send emails (e.g. password reset)
-    app.state.email_alerter = email_alerter
-
-    # Create alert dispatcher
-    dispatcher = AlertDispatcher(
-        discord_webhook_url=cfg.alert.discord_webhook_url,
-        min_confidence=cfg.alert.min_confidence,
-        dashboard_url=f"http://{cfg.web.host}:{cfg.web.port}",
-        db=app.state.db,
-        email_alerter=email_alerter,
-    )
-
-    if dispatcher.has_channels:
-        log.info("Alert dispatching: ACTIVE (min_confidence=%.2f)", cfg.alert.min_confidence)
-    else:
-        log.info("Alert dispatching: DISABLED (no channels configured)")
-
-    # Create price checker for performance tracking
-    price_checker = PriceChecker(
-        db=app.state.db,
-        batch_size=cfg.market.price_check_batch_size,
-    )
-    log.info("Price checker: ACTIVE (interval=%ds, batch=%d)",
-             cfg.market.price_check_interval_s, cfg.market.price_check_batch_size)
-
-    # Capture the RUNNING event loop — uvicorn.Server.serve() will use this same loop
-    loop = asyncio.get_running_loop()
-
-    # Signal callback: bridge sync pipeline thread -> async handlers on the running loop
-    def on_signal(signal_data: Dict[str, Any]):
-        try:
-            asyncio.run_coroutine_threadsafe(
-                _async_signal_handler(signal_data, app, dispatcher, price_checker),
-                loop,
-            )
-        except Exception as e:
-            log.error("Signal handler error: %s", e)
-
-    # Create pipeline
-    runner = _create_pipeline(cfg, on_signal=on_signal)
-
-    # Start pipeline in background thread
+    # Placeholders for resources created in _heavy_init — needed for cleanup
     stop_event = threading.Event()
-    pipeline_thread = threading.Thread(
-        target=run_pipeline_loop,
-        args=(runner, cfg.reddit.poll_interval_s, stop_event),
-        daemon=True,
-        name="pipeline-loop",
-    )
-    pipeline_thread.start()
+    background_tasks: list = []
+    pipeline_thread = None
 
-    # Start price check background task
-    price_check_task = asyncio.create_task(
-        _price_check_loop(price_checker, cfg.market.price_check_interval_s, stop_event)
-    )
+    async def _heavy_init():
+        """All heavy startup work — runs AFTER uvicorn binds the port."""
+        nonlocal pipeline_thread
 
-    # Start daily digest email background task
-    digest_task = None
-    if email_alerter and email_alerter.is_configured:
-        digest_task = asyncio.create_task(
-            _digest_email_loop(app.state.db, email_alerter, stop_event)
+        # Yield to event loop so uvicorn can bind the port first
+        await asyncio.sleep(1)
+
+        from rot.alerts.dispatcher import AlertDispatcher
+        from rot.market.price_checker import PriceChecker
+        from rot.core.logging import JsonlLogger
+        from rot.market.enricher import cleanup_market_cache
+
+        log.info("Starting heavy initialization (pipeline, background loops)...")
+
+        # Create email alerter if configured
+        email_alerter = None
+        if cfg.email.enabled and (cfg.email.resend_api_key or cfg.email.smtp_host):
+            from rot.alerts.email import EmailAlerter
+            email_alerter = EmailAlerter(
+                smtp_host=cfg.email.smtp_host,
+                smtp_port=cfg.email.smtp_port,
+                smtp_user=cfg.email.smtp_user,
+                smtp_password=cfg.email.smtp_password,
+                from_address=cfg.email.from_address,
+                use_ssl=cfg.email.use_ssl,
+                resend_api_key=cfg.email.resend_api_key,
+            )
+            if cfg.email.resend_api_key:
+                log.info("Email alerter: ACTIVE (backend=Resend HTTP API, from=%s)", cfg.email.from_address)
+            else:
+                ssl_mode = "SSL" if cfg.email.use_ssl or cfg.email.smtp_port == 465 else "STARTTLS"
+                log.info("Email alerter: ACTIVE (backend=SMTP %s:%d mode=%s)", cfg.email.smtp_host, cfg.email.smtp_port, ssl_mode)
+        else:
+            log.info("Email alerter: DISABLED (set ROT_EMAIL_ENABLED=true + ROT_EMAIL_RESEND_API_KEY)")
+
+        app.state.email_alerter = email_alerter
+
+        # Create alert dispatcher
+        dispatcher = AlertDispatcher(
+            discord_webhook_url=cfg.alert.discord_webhook_url,
+            min_confidence=cfg.alert.min_confidence,
+            dashboard_url=f"http://{cfg.web.host}:{cfg.web.port}",
+            db=app.state.db,
+            email_alerter=email_alerter,
         )
-        log.info("Digest email loop: ACTIVE")
-    else:
-        log.info("Digest email loop: DISABLED (no email alerter configured)")
 
-    # Start X/Twitter posting background task
-    x_post_task = None
-    if cfg.twitter.enabled:
-        from rot.alerts.twitter import XPoster
-        x_poster = XPoster(
-            api_key=cfg.twitter.api_key,
-            api_secret=cfg.twitter.api_secret,
-            access_token=cfg.twitter.access_token,
-            access_secret=cfg.twitter.access_secret,
+        if dispatcher.has_channels:
+            log.info("Alert dispatching: ACTIVE (min_confidence=%.2f)", cfg.alert.min_confidence)
+        else:
+            log.info("Alert dispatching: DISABLED (no channels configured)")
+
+        # Create price checker for performance tracking
+        price_checker = PriceChecker(
+            db=app.state.db,
+            batch_size=cfg.market.price_check_batch_size,
         )
-        if x_poster.is_configured:
-            x_post_task = asyncio.create_task(
-                _x_posting_loop(
-                    db=app.state.db,
-                    x_poster=x_poster,
-                    interval_s=cfg.twitter.interval_s,
-                    min_confidence=cfg.twitter.min_confidence,
-                    dashboard_url=cfg.twitter.dashboard_url,
+        log.info("Price checker: ACTIVE (interval=%ds, batch=%d)",
+                 cfg.market.price_check_interval_s, cfg.market.price_check_batch_size)
+
+        # Capture the RUNNING event loop
+        loop = asyncio.get_running_loop()
+
+        # Signal callback: bridge sync pipeline thread -> async handlers
+        def on_signal(signal_data: Dict[str, Any]):
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    _async_signal_handler(signal_data, app, dispatcher, price_checker),
+                    loop,
+                )
+            except Exception as e:
+                log.error("Signal handler error: %s", e)
+
+        # Create pipeline (triggers heavy imports: scikit-learn, yfinance, PRAW, etc.)
+        runner = _create_pipeline(cfg, on_signal=on_signal)
+
+        # Start pipeline in background thread
+        pipeline_thread = threading.Thread(
+            target=run_pipeline_loop,
+            args=(runner, cfg.reddit.poll_interval_s, stop_event),
+            daemon=True,
+            name="pipeline-loop",
+        )
+        pipeline_thread.start()
+
+        # Start price check background task
+        background_tasks.append(asyncio.create_task(
+            _price_check_loop(price_checker, cfg.market.price_check_interval_s, stop_event)
+        ))
+
+        # Start daily digest email background task
+        if email_alerter and email_alerter.is_configured:
+            background_tasks.append(asyncio.create_task(
+                _digest_email_loop(app.state.db, email_alerter, stop_event)
+            ))
+            log.info("Digest email loop: ACTIVE")
+        else:
+            log.info("Digest email loop: DISABLED (no email alerter configured)")
+
+        # Start X/Twitter posting background task
+        if cfg.twitter.enabled:
+            from rot.alerts.twitter import XPoster
+            x_poster = XPoster(
+                api_key=cfg.twitter.api_key,
+                api_secret=cfg.twitter.api_secret,
+                access_token=cfg.twitter.access_token,
+                access_secret=cfg.twitter.access_secret,
+            )
+            if x_poster.is_configured:
+                background_tasks.append(asyncio.create_task(
+                    _x_posting_loop(
+                        db=app.state.db,
+                        x_poster=x_poster,
+                        interval_s=cfg.twitter.interval_s,
+                        min_confidence=cfg.twitter.min_confidence,
+                        dashboard_url=cfg.twitter.dashboard_url,
+                        stop_event=stop_event,
+                    )
+                ))
+                log.info("X posting loop: ACTIVE (interval=%ds)", cfg.twitter.interval_s)
+            else:
+                log.warning("X posting: ENABLED but credentials missing")
+        else:
+            log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
+
+        # Start storage cleanup background task (always active)
+        background_tasks.append(asyncio.create_task(
+            _cleanup_loop(app.state.db, cfg.storage_root, stop_event)
+        ))
+        log.info("Cleanup loop: ACTIVE (every 30m — purge old data, rotate logs, VACUUM)")
+
+        # Start ML credibility retrain loop
+        if cfg.ml.enabled:
+            ml_model_path = cfg.ml.model_path or f"{cfg.storage_root}/credibility_model.pkl"
+            background_tasks.append(asyncio.create_task(
+                _ml_retrain_loop(
+                    db_path=cfg.db_path,
+                    model_path=ml_model_path,
+                    scorer=runner.cred,
+                    cfg_ml=cfg.ml,
                     stop_event=stop_event,
                 )
-            )
-            log.info("X posting loop: ACTIVE (interval=%ds)", cfg.twitter.interval_s)
-        else:
-            log.warning("X posting: ENABLED but credentials missing")
-    else:
-        log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
-
-    # Start storage cleanup background task (always active)
-    cleanup_task = asyncio.create_task(
-        _cleanup_loop(app.state.db, cfg.storage_root, stop_event)
-    )
-    log.info("Cleanup loop: ACTIVE (every 30m — purge old data, rotate logs, VACUUM)")
-
-    # Start ML credibility retrain loop (trains from live data, hot-reloads model)
-    ml_retrain_task = None
-    if cfg.ml.enabled:
-        ml_model_path = cfg.ml.model_path or f"{cfg.storage_root}/credibility_model.pkl"
-        ml_retrain_task = asyncio.create_task(
-            _ml_retrain_loop(
-                db_path=cfg.db_path,
-                model_path=ml_model_path,
-                scorer=runner.cred,
-                cfg_ml=cfg.ml,
-                stop_event=stop_event,
-            )
-        )
-        log.info(
-            "ML retrain loop: ACTIVE (interval=%ds, model=%s)",
-            cfg.ml.retrain_interval_s,
-            ml_model_path,
-        )
-    else:
-        log.info("ML retrain loop: DISABLED (set ROT_ML_ENABLED=true)")
-
-    # Start signal feedback analysis loop (quality analytics + adaptive suppression)
-    feedback_task = None
-    if cfg.feedback.enabled:
-        from rot.feedback.analyzer import FeedbackAnalyzer
-        from rot.feedback.suppressor import SignalSuppressor
-
-        feedback_analyzer = FeedbackAnalyzer(db=app.state.db)
-        app.state.feedback_analyzer = feedback_analyzer
-
-        if cfg.feedback.suppress_enabled:
-            suppressor = SignalSuppressor(
-                analyzer=feedback_analyzer,
-                threshold=cfg.feedback.suppress_threshold,
-                source_threshold=cfg.feedback.suppress_source_threshold,
-                min_signals=cfg.feedback.min_signals_for_suppression,
-                enabled=True,
-            )
-            runner.suppressor = suppressor
+            ))
             log.info(
-                "Signal suppressor: ACTIVE (threshold=%.0f%%, source_threshold=%.0f%%, min_signals=%d)",
-                cfg.feedback.suppress_threshold * 100,
-                cfg.feedback.suppress_source_threshold * 100,
-                cfg.feedback.min_signals_for_suppression,
+                "ML retrain loop: ACTIVE (interval=%ds, model=%s)",
+                cfg.ml.retrain_interval_s,
+                ml_model_path,
             )
         else:
-            log.info("Signal suppressor: DISABLED (set ROT_FEEDBACK_SUPPRESS_ENABLED=true)")
+            log.info("ML retrain loop: DISABLED (set ROT_ML_ENABLED=true)")
 
-        feedback_task = asyncio.create_task(
-            _feedback_analysis_loop(
-                analyzer=feedback_analyzer,
-                ml_scorer=runner.cred,
-                cfg_feedback=cfg.feedback,
+        # Start signal feedback analysis loop
+        if cfg.feedback.enabled:
+            from rot.feedback.analyzer import FeedbackAnalyzer
+            from rot.feedback.suppressor import SignalSuppressor
+
+            feedback_analyzer = FeedbackAnalyzer(db=app.state.db)
+            app.state.feedback_analyzer = feedback_analyzer
+
+            if cfg.feedback.suppress_enabled:
+                suppressor = SignalSuppressor(
+                    analyzer=feedback_analyzer,
+                    threshold=cfg.feedback.suppress_threshold,
+                    source_threshold=cfg.feedback.suppress_source_threshold,
+                    min_signals=cfg.feedback.min_signals_for_suppression,
+                    enabled=True,
+                )
+                runner.suppressor = suppressor
+                log.info(
+                    "Signal suppressor: ACTIVE (threshold=%.0f%%, source_threshold=%.0f%%, min_signals=%d)",
+                    cfg.feedback.suppress_threshold * 100,
+                    cfg.feedback.suppress_source_threshold * 100,
+                    cfg.feedback.min_signals_for_suppression,
+                )
+            else:
+                log.info("Signal suppressor: DISABLED (set ROT_FEEDBACK_SUPPRESS_ENABLED=true)")
+
+            background_tasks.append(asyncio.create_task(
+                _feedback_analysis_loop(
+                    analyzer=feedback_analyzer,
+                    ml_scorer=runner.cred,
+                    cfg_feedback=cfg.feedback,
+                    stop_event=stop_event,
+                )
+            ))
+            log.info(
+                "Feedback analysis loop: ACTIVE (interval=%ds)",
+                cfg.feedback.analysis_interval_s,
+            )
+        else:
+            app.state.feedback_analyzer = None
+            log.info("Feedback analysis: DISABLED (set ROT_FEEDBACK_ENABLED=true)")
+
+        # Initialize trading agent engine (Ultra+ feature)
+        if cfg.agent.enabled:
+            from rot.agents.engine import AgentEngine
+            agent_engine = AgentEngine(db=app.state.db)
+            app.state.agent_engine = agent_engine
+            log.info(
+                "Agent engine: ACTIVE (max_agents_per_user=%d, max_daily_trades=%d)",
+                cfg.agent.max_agents_per_user,
+                cfg.agent.max_daily_trades,
+            )
+        else:
+            app.state.agent_engine = None
+            log.info("Agent engine: DISABLED (set ROT_AGENT_ENABLED=true)")
+
+        # Start unusual activity scan loop
+        background_tasks.append(asyncio.create_task(
+            _unusual_activity_scan_loop(
+                db=app.state.db,
+                cfg_unusual=cfg.unusual,
                 stop_event=stop_event,
             )
-        )
+        ))
         log.info(
-            "Feedback analysis loop: ACTIVE (interval=%ds)",
-            cfg.feedback.analysis_interval_s,
+            "Unusual activity scan: ACTIVE (interval=%ds)",
+            cfg.unusual.scan_interval_s,
         )
-    else:
-        app.state.feedback_analyzer = None
-        log.info("Feedback analysis: DISABLED (set ROT_FEEDBACK_ENABLED=true)")
 
-    # Initialize trading agent engine (Ultra+ feature)
-    if cfg.agent.enabled:
-        from rot.agents.engine import AgentEngine
-        agent_engine = AgentEngine(db=app.state.db)
-        app.state.agent_engine = agent_engine
+        # Start export scheduler loop
+        background_tasks.append(asyncio.create_task(
+            _export_scheduler_loop(
+                db=app.state.db,
+                cfg_export=cfg.export_scheduler,
+                stop_event=stop_event,
+            )
+        ))
         log.info(
-            "Agent engine: ACTIVE (max_agents_per_user=%d, max_daily_trades=%d)",
-            cfg.agent.max_agents_per_user,
-            cfg.agent.max_daily_trades,
+            "Export scheduler: ACTIVE (interval=%ds)",
+            cfg.export_scheduler.scheduler_interval_s,
         )
-    else:
-        app.state.agent_engine = None
-        log.info("Agent engine: DISABLED (set ROT_AGENT_ENABLED=true)")
 
-    # Start unusual activity scan loop (always active — scans signals for IV spikes, volume surges)
-    unusual_task = asyncio.create_task(
-        _unusual_activity_scan_loop(
-            db=app.state.db,
-            cfg_unusual=cfg.unusual,
-            stop_event=stop_event,
+        # Start macro data refresh loop
+        background_tasks.append(asyncio.create_task(
+            _macro_data_loop(
+                db=app.state.db,
+                cfg_macro=cfg.macro,
+                stop_event=stop_event,
+            )
+        ))
+        log.info(
+            "Macro data loop: ACTIVE (interval=%ds)",
+            cfg.macro.calendar_poll_interval_s,
         )
-    )
-    log.info(
-        "Unusual activity scan: ACTIVE (interval=%ds)",
-        cfg.unusual.scan_interval_s,
-    )
 
-    # Start export scheduler loop (always active — processes scheduled Enterprise exports)
-    export_sched_task = asyncio.create_task(
-        _export_scheduler_loop(
-            db=app.state.db,
-            cfg_export=cfg.export_scheduler,
-            stop_event=stop_event,
-        )
-    )
-    log.info(
-        "Export scheduler: ACTIVE (interval=%ds)",
-        cfg.export_scheduler.scheduler_interval_s,
-    )
-
-    # Start macro data refresh loop (economic calendar, earnings, insider trades)
-    macro_task = asyncio.create_task(
-        _macro_data_loop(
-            db=app.state.db,
-            cfg_macro=cfg.macro,
-            stop_event=stop_event,
-        )
-    )
-    log.info(
-        "Macro data loop: ACTIVE (interval=%ds)",
-        cfg.macro.calendar_poll_interval_s,
-    )
-
-    # Deferred startup tasks — run AFTER server starts accepting connections
-    # so Railway health checks pass immediately while heavy work runs in background
-    async def _deferred_startup():
-        """Heavy startup work that runs after the server is already listening."""
-        await asyncio.sleep(5)  # Let uvicorn bind the port first
-        log.info("Running deferred startup tasks...")
-
-        # One-time recalculation of stance-aware gains
+        # One-time startup tasks
         try:
             recalc_count = await app.state.db.recalculate_stance_aware_gains()
             if recalc_count > 0:
@@ -983,14 +1002,12 @@ async def _run_server(cfg: Settings):
         except Exception as e:
             log.warning("Startup recalculation failed: %s", e)
 
-        # DB cleanup to reclaim space on Railway restarts
         try:
             startup_summary = await app.state.db.run_full_cleanup()
             log.info("Startup cleanup (DB): %s", startup_summary)
         except Exception as e:
             log.warning("Startup cleanup (DB) failed: %s", e)
 
-        # JSONL + JSON state file cleanup
         try:
             jsonl_logger = JsonlLogger(root=cfg.storage_root)
             rotation_results = jsonl_logger.rotate(max_age_days=3)
@@ -1003,9 +1020,10 @@ async def _run_server(cfg: Settings):
         except Exception as e:
             log.warning("Startup cleanup (files) failed: %s", e)
 
-        log.info("Deferred startup tasks complete")
+        log.info("Heavy initialization complete — all background loops running")
 
-    deferred_task = asyncio.create_task(_deferred_startup())
+    # Schedule heavy init to run AFTER uvicorn binds the port
+    init_task = asyncio.create_task(_heavy_init())
 
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
@@ -1023,21 +1041,11 @@ async def _run_server(cfg: Settings):
         await server.serve()
     finally:
         stop_event.set()
-        deferred_task.cancel()
-        price_check_task.cancel()
-        cleanup_task.cancel()
-        unusual_task.cancel()
-        export_sched_task.cancel()
-        macro_task.cancel()
-        if digest_task:
-            digest_task.cancel()
-        if x_post_task:
-            x_post_task.cancel()
-        if ml_retrain_task:
-            ml_retrain_task.cancel()
-        if feedback_task:
-            feedback_task.cancel()
-        pipeline_thread.join(timeout=5)
+        init_task.cancel()
+        for task in background_tasks:
+            task.cancel()
+        if pipeline_thread:
+            pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
 
 
