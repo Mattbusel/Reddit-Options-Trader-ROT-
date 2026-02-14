@@ -436,6 +436,11 @@
                             <a href="/sector-rotation" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128260; Sector Rotation {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             <a href="/signal-quality" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128300; Signal Quality {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             <a href="/congress-tracker" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127963; Congress Tracker {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <div class="border-t border-gray-700 my-1"></div>
+                            <a href="/macro/calendar" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128197; Macro Calendar <span class="text-xs text-green-400">New</span></a>
+                            <a href="/macro/earnings" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128200; Earnings Calendar {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <a href="/macro/fomc" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#127970; FOMC Tracker {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
+                            <a href="/macro/insider" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition">&#128373; Insider Trades {% if user.tier not in ('pro', 'premium', 'ultra', 'enterprise') %}<span class="text-xs text-blue-400">Pro</span>{% endif %}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -553,6 +558,10 @@
                         <a href="/sector-rotation" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128260; Sectors</a>
                         <a href="/signal-quality" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128300; Signal Quality</a>
                         <a href="/congress-tracker" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127963; Congress</a>
+                        <a href="/macro/calendar" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128197; Macro Calendar</a>
+                        <a href="/macro/earnings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128200; Earnings</a>
+                        <a href="/macro/fomc" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#127970; FOMC Tracker</a>
+                        <a href="/macro/insider" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition text-sm">&#128373; Insider Trades</a>
                         {% endif %}
                     </div>
                 </div>

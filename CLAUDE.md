@@ -15,7 +15,7 @@
 | **Entry Points** | `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous) |
 | **Deployment** | Railway (Docker, persistent volume for SQLite) |
 | **Package Layout** | `src/rot/` — all source under setuptools src-layout |
-| **Tests** | `tests/` — pytest with pytest-asyncio, ~689 tests |
+| **Tests** | `tests/` — pytest with pytest-asyncio, ~952 tests |
 | **Config** | All via `ROT_*` environment variables (Pydantic Settings) |
 | **DB** | SQLite with aiosqlite (WAL mode), 18+ tables |
 | **Python Version** | >=3.10 (deployed on 3.12) |
@@ -277,6 +277,18 @@ The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each
 | `scheduler.py` | ExportScheduler: scheduled recurring exports (daily/weekly/on-demand), background job runner, CSV/JSON generation |
 | `lineage.py` | LineageBuilder: full signal provenance chain (source → trend → NLP → credibility → LLM → trade → outcome) |
 
+### `src/rot/macro/` (Macro Events & Economic Calendar — 7 modules)
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Exports all macro types and classes |
+| `types.py` | Frozen dataclasses: MacroEvent, EarningsEvent, InsiderTrade, FOMCMeeting, EventImpact, HistoricalReaction, SeasonalPattern. Constants: ALL_EVENT_TYPES, EVENT_TYPE_CATEGORY, EVENT_TYPE_IMPORTANCE, CATEGORY_SECTOR_SENSITIVITY |
+| `calendar.py` | EconomicCalendar: recurring event generation (13 event types), FOMC schedule, RSS ingestion, seed/query/filter methods |
+| `earnings.py` | EarningsCalendar: yfinance earnings ingestion, IV crush history, expected move computation, pre-earnings strategy recommendation |
+| `insider.py` | InsiderFeed: SEC EDGAR Form 4 parsing, congressional trade tracking, cross-reference with ROT signals |
+| `fomc.py` | FOMCTracker: hawkish/dovish keyword scoring, statement diff (HTML), rate decision classification, rate probability estimation |
+| `seasonal.py` | SeasonalAnalyzer: sector seasonal baselines (10 sectors), monthly SPY averages, current bias, rotation calendar |
+| `impact.py` | EventImpactAnalyzer: historical reaction analysis, impact prediction, sector sensitivity, surprise correlation |
+
 ### `src/rot/storage/`
 | File | Purpose |
 |------|---------|
@@ -453,6 +465,11 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | `unusual_events` | Unusual activity events (id, ticker, event_type, score, details_json, signal_id, detected_at). Types: iv_spike, volume_surge, oi_surge, skew_shift, sweep |
 | `export_schedules` | Scheduled enterprise exports (id, user_id, format, frequency, filters_json, last_run_at, next_run_at, created_at) |
 | `signal_archive` | Denormalized archive of purged signals for long-term backtesting & analytics (id, created_at, ticker, event_type, stance, strategy, confidence, subreddit, quality_score, sector, post_title, price_at_signal, price_1h, price_4h, price_1d, max_gain_pct, max_loss_pct, archived_at). Populated by `archive_before_purge()` before signal deletion. 365-day retention (configurable via `ROT_ARCHIVE_KEEP_DAYS`) |
+| `macro_events` | Economic calendar events (id, event_type, name, scheduled_at, category, importance, country, actual_at, consensus_value, actual_value, previous_value, surprise_pct, affected_sectors JSON, affected_tickers JSON, source, meta JSON, created_at) |
+| `earnings_events` | Earnings calendar (id, ticker, report_date, fiscal_quarter, eps_estimate, eps_actual, revenue_estimate, revenue_actual, surprise_pct, expected_move_pct, actual_move_pct, iv_before, iv_after, iv_crush_pct, meta JSON, created_at) |
+| `insider_trades` | Insider & congressional trades (id, ticker, insider_name, trade_type, filing_date, source, title, shares, price, value, transaction_date, meta JSON, created_at) |
+| `fomc_meetings` | FOMC meeting records (id, meeting_date, rate_decision, rate_before, rate_after, statement_text, statement_diff, hawkish_score, dovish_score, dot_plot_median, meta JSON, created_at) |
+| `event_impact_cache` | Cached event impact analysis (event_type PK, avg_spy_move, avg_vix_change, sample_size, reactions_json, sector_sensitivity_json, computed_at) |
 
 ---
 
@@ -578,6 +595,18 @@ SQLite with WAL mode, managed by `src/rot/storage/database.py`. All tables use a
 | GET | `/api/v1/enterprise/analytics/overview` | Analytics overview (7d signals, confidence, win rate) |
 | GET | `/api/v1/enterprise/lineage/{signal_id}` | Signal lineage/provenance chain |
 
+#### Macro Events & Economic Calendar
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/macro/calendar` | Economic calendar page |
+| GET | `/macro/earnings` | Earnings calendar page |
+| GET | `/macro/insider` | Insider & congressional trades page |
+| GET | `/macro/fomc` | FOMC tracker page |
+| GET | `/api/v1/macro/events` | JSON API for macro events |
+| GET | `/api/v1/macro/earnings` | JSON API for earnings |
+| GET | `/api/v1/macro/insider` | JSON API for insider trades |
+| GET | `/api/v1/macro/impact` | JSON API for event impact analysis |
+
 #### Misc
 | Method | Path | Description |
 |--------|------|-------------|
@@ -659,6 +688,7 @@ Each returns a dict of boolean/numeric flags:
 - `gate_sports_betting_access()` — sports betting intel
 - `gate_signal_quality_access()` — signal quality analytics dashboard
 - `gate_backtest_access()` — backtest engine features: Pro (basic, 30d, 200 signals), Premium (+MC, walk-forward, risk, benchmark, 90d, 1000 signals), Ultra (+optimizer, comparison, saved strategies, export, 365d, 5000 signals)
+- `gate_macro_access()` — macro events: Free (3 upcoming, no history), Pro (+full calendar, earnings, insider, FOMC), Premium (+impact, IV crush, seasonal, strategy), Ultra/Enterprise (+full history, cross-ref, statement diffs, export)
 
 ---
 
@@ -829,6 +859,21 @@ All configuration via environment variables with `ROT_` prefix. Managed by Pydan
 |----------|---------|-------------|
 | `SCHEDULER_INTERVAL_S` | `3600` | Seconds between scheduler checks (1 hour) |
 | `MAX_ROWS_PER_EXPORT` | `1000000` | Maximum rows per export file |
+
+### Macro Events (`ROT_MACRO_*`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLED` | `True` | Enable macro events engine |
+| `CALENDAR_POLL_INTERVAL_S` | `3600` | Seconds between calendar refresh (1 hour) |
+| `EARNINGS_POLL_INTERVAL_S` | `14400` | Seconds between earnings refresh (4 hours) |
+| `INSIDER_POLL_INTERVAL_S` | `7200` | Seconds between insider trade refresh (2 hours) |
+| `FOMC_POLL_INTERVAL_S` | `86400` | Seconds between FOMC refresh (daily) |
+| `IMPACT_CACHE_TTL_S` | `86400` | Impact analysis cache TTL (1 day) |
+| `SEC_EDGAR_USER_AGENT` | `""` | SEC EDGAR user agent (required: "Company admin@email.com") |
+| `EARNINGS_LOOKBACK_QUARTERS` | `12` | Quarters of earnings history to fetch |
+| `INSIDER_MIN_VALUE` | `50000` | Min $ value for notable insider trades |
+| `SEASONAL_LOOKBACK_YEARS` | `10` | Years of seasonal data for analysis |
+| `PURGE_KEEP_DAYS` | `365` | Days to keep macro data before purging |
 
 ### Archive (`ROT_ARCHIVE_*`)
 | Variable | Default | Description |
@@ -1068,6 +1113,12 @@ pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=4.1, ruff>=0.2
 | `test_export_lineage.py` | Lineage chain construction, batch lineage, step ordering |
 | `test_enterprise_db.py` | Export schedule CRUD, analytics queries, lineage data retrieval |
 | `test_signal_archive.py` | Signal archive: table creation, archive_before_purge, idempotency, purge retention, all 14 analytics queries include archived data, feedback analyzer includes archived data, initial migration |
+| `test_macro_types.py` | All 7 macro frozen dataclasses, ALL_EVENT_TYPES set, EVENT_TYPE_CATEGORY/IMPORTANCE coverage, CATEGORY_SECTOR_SENSITIVITY structure |
+| `test_macro_calendar.py` | EconomicCalendar: recurring event generation, FOMC schedule, date helpers, seed_events, query methods, RSS ingestion, row conversion, nearby events |
+| `test_macro_earnings.py` | EarningsCalendar: query methods, IV crush history computation, expected move formula, strategy recommendation (iron_condor/straddle/credit_spread/none), yfinance ingestion |
+| `test_macro_fomc.py` | FOMCTracker: hawkish/dovish scoring, rate decision classification, statement diff, rate probabilities, row conversion, query methods |
+| `test_macro_seasonal.py` | SeasonalAnalyzer: seasonal pattern computation, sector patterns (10 sectors), current bias, rotation calendar, yfinance ticker seasonals |
+| `test_macro_db.py` | Macro DB CRUD: macro_events, earnings_events, insider_trades, fomc_meetings upsert/query/filter, event_impact_cache round-trip, purge operations |
 | `conftest.py` | Shared fixtures |
 
 ### Test Patterns
@@ -1141,11 +1192,12 @@ Complex nested data (market data, reasoning, trade ideas, event metadata includi
 ### Precomputed Feedback Analysis
 The feedback engine (`src/rot/feedback/`) runs expensive DB queries in a background loop every 6h, caching results in memory. The Signal Quality dashboard reads cached results instantly (no DB query on page load). The suppressor reads the same cache from the sync pipeline thread (GIL-safe dict read, no locks needed). First deployment: no analysis cached = suppressor never suppresses = identical behavior to before.
 
-### Background Scan Loops (Unusual Activity + Export Scheduler)
+### Background Scan Loops (Unusual Activity + Export Scheduler + Macro Data)
 `server.py` runs background `asyncio` tasks alongside the main pipeline loop:
 - **Unusual Activity Scanner**: Every 5 min, fetches recent signals from DB, runs `UnusualDetector.scan_batch()`, saves detected events to `unusual_events` table, purges old events.
 - **Export Scheduler**: Every 1 hour, checks `export_schedules` table for pending exports and runs them.
-Both loops follow the pattern: initial delay → `while not stop_event.is_set()` → try/except with logging → `asyncio.sleep()`.
+- **Macro Data Loop**: Every 1 hour (configurable), seeds recurring economic calendar events + FOMC for current/next month, ingests Fed RSS, fetches earnings dates from yfinance for top tickers, ingests SEC EDGAR Form 4 insider trades + congressional disclosures, purges stale data per retention config.
+All loops follow the pattern: initial delay → `while not stop_event.is_set()` → try/except with logging → `asyncio.sleep()`.
 
 ### On-Demand Analysis (Sector + Correlation)
 Sector rotation and correlation analysis are computed on-demand when the user visits the page, not via background loops. Results are cached via the dashboard query cache (TTL 120s) to avoid re-running expensive aggregations on every page load.
@@ -1252,6 +1304,15 @@ rot/
 │       │   ├── sector_types.py       # SectorMomentum, RotationEvent, SectorRanking, CapitalFlow
 │       │   ├── correlations.py       # Signal co-fire, clustering, lead-lag, network graph
 │       │   └── correlation_types.py  # CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph
+│       ├── macro/                       # ★ MACRO EVENTS & ECONOMIC CALENDAR (7 modules)
+│       │   ├── __init__.py            # Exports all macro types and classes
+│       │   ├── types.py               # 7 frozen dataclasses + constants + mappings
+│       │   ├── calendar.py            # EconomicCalendar: recurring events, FOMC schedule, RSS
+│       │   ├── earnings.py            # EarningsCalendar: yfinance, IV crush, strategy recs
+│       │   ├── insider.py             # InsiderFeed: SEC EDGAR Form 4, congress trades
+│       │   ├── fomc.py                # FOMCTracker: hawk/dove scoring, statement diffs
+│       │   ├── seasonal.py            # SeasonalAnalyzer: sector baselines, rotation calendar
+│       │   └── impact.py              # EventImpactAnalyzer: historical reactions, predictions
 │       ├── export/                     # ★ ENTERPRISE DATA PIPELINE (4 modules)
 │       │   ├── __init__.py            # Exports ExportJob, ExportScheduler, LineageBuilder
 │       │   ├── types.py               # ExportJob, ExportResult, SignalLineage, ScheduleConfig
@@ -1290,6 +1351,7 @@ rot/
 │           │   ├── export.py          # Data export
 │           │   ├── news_feed.py       # News feed
 │           │   ├── websocket.py       # WebSocket real-time stream
+│           │   ├── macro.py           # Macro events routes (4 HTML + 4 JSON)
 │           │   └── ... (20+ more)
 │           └── templates/             # 39+ Jinja2 HTML templates
 │               ├── base.html          # Base layout (Tailwind + Chart.js + HTMX)
@@ -1302,6 +1364,10 @@ rot/
 │               ├── backtest_monte_carlo_partial.html  # HTMX partial: Monte Carlo results
 │               ├── backtest_optimize_partial.html     # HTMX partial: optimizer results
 │               ├── backtest_walk_forward_partial.html  # HTMX partial: walk-forward results
+│               ├── macro_calendar.html # Economic calendar page
+│               ├── macro_earnings.html # Earnings calendar page
+│               ├── macro_insider.html  # Insider trades page
+│               ├── macro_fomc.html     # FOMC tracker page
 │               └── ... (35+ more)
 └── tests/
     ├── conftest.py                    # Shared fixtures
@@ -1340,7 +1406,13 @@ rot/
     ├── test_export_scheduler.py       # Export scheduler tests
     ├── test_export_lineage.py         # Signal lineage tests
     ├── test_enterprise_db.py          # Enterprise DB tests
-    └── test_signal_archive.py         # Signal archive: retention, unified CTE, 14 query integration
+    ├── test_signal_archive.py         # Signal archive: retention, unified CTE, 14 query integration
+    ├── test_macro_types.py            # Macro dataclass tests (7 types + constants)
+    ├── test_macro_calendar.py         # EconomicCalendar tests
+    ├── test_macro_earnings.py         # EarningsCalendar tests
+    ├── test_macro_fomc.py             # FOMCTracker tests
+    ├── test_macro_seasonal.py         # SeasonalAnalyzer tests
+    └── test_macro_db.py               # Macro DB CRUD tests
 ```
 
 ---
@@ -1418,6 +1490,7 @@ Contains: ticker(s), subreddit + credibility tier, post title/body, engagement m
 | 2026-02 | Memory & network optimization — Estimated ~150-200MB memory savings + ~260KB/page network savings. **Market enricher**: cache size 2000→500, options chain disabled by default, `t.info` skipped by default (new `fetch_full_info` flag). **Symbol validator**: cache 5000→1000. **Query cache**: max 100 entries, periodic lock cleanup (prevents lock dict leak), evicts expired+oldest on overflow. **UnusualHistory**: LRU eviction at 500 tickers max. **Pipeline dedup**: 10K→2K threshold. **SeenStore**: 5000 entry cap. **TrendStore**: evicts every 20 updates (was 100), truncates selftext to 500 chars. **Self-hosted CDN**: Chart.js, HTMX, HTMX-ws served from `/static/js/` (saves ~260KB external CDN fetches per page). **GZip middleware**: added `GZipMiddleware(minimum_size=500)` for ~70% response compression. **Dashboard**: signal limit 50→25. **Cleanup loop**: 1h→30m interval, market cache max age 7d→3d. | Claude Agent |
 | 2026-02 | Simplified win/loss trade counting — Only **bullish** and **bearish** signals count as trades for win/loss evaluation. Mixed and unknown stances are always neutral. Removed strategy-dependent logic for mixed signals (straddle/strangle/iron_condor special cases eliminated). `_WIN_CASE_SQL`, `_LOSS_CASE_SQL`, `_NEUTRAL_CASE_SQL` simplified in `database.py`. Backtest engine `_compute_pnl_pct` updated to match. `tradeable_signals` count in `get_performance_summary` now uses `stance IN ('bullish','bearish')` instead of `strategy != 'none'`. FAQ updated. Old win_rate_snapshots cleared on deploy (migration re-runs). Applies retroactively to all existing signals since win/loss is computed dynamically via SQL at query time. | Claude Agent |
 | 2026-02 | Signal archive for long-term backtesting & analytics — `signal_archive` table: flat denormalized table preserving per-signal data from `signals` + `signal_performance` before 14-day purge. `archive_before_purge(keep_days=14)` called in `run_full_cleanup()` before signal deletion. `purge_old_archives(keep_days=365)` bounds archive growth. `_UNIFIED_CTE`: SQL CTE that UNIONs live data with archive for seamless querying. `_A_WIN_SQL`/`_A_LOSS_SQL`/`_A_NEUTRAL_SQL`: archive-compatible SQL macros (unqualified column names). Modified 10 query methods in `database.py` + 4 in `feedback/analyzer.py` to use unified CTE (backtest, accuracy, calibration, strategy P&L, event type, confidence, ticker performance, CSV export, quality trend, source reliability). One-time migration in `connect()` seeds archive with existing resolved signals. `ArchiveConfig` with `keep_days=365` (env: `ROT_ARCHIVE_KEEP_DAYS`). 19 new tests (689 total). | Claude Agent |
+| 2026-02 | Macro Events & Economic Calendar Engine — `src/rot/macro/`: 7 modules (types, calendar, earnings, insider, fomc, seasonal, impact). **Types**: 7 frozen dataclasses (MacroEvent, EarningsEvent, InsiderTrade, FOMCMeeting, EventImpact, HistoricalReaction, SeasonalPattern) + 40+ event type constants + category/importance/sector sensitivity mappings. **EconomicCalendar**: deterministic recurring event generation (13 event types with scheduling rules — first Friday, second Tuesday, etc.), FOMC 2026 schedule, Fed RSS ingestion, seed/query/filter methods. **EarningsCalendar**: yfinance earnings date ingestion, IV crush history computation, expected move formula, pre-earnings strategy recommendation (iron_condor/straddle/credit_spread/none). **InsiderFeed**: SEC EDGAR Form 4 full-text search, congressional trade stub, cross-reference with bullish ROT signals. **FOMCTracker**: 18 hawkish + 22 dovish keyword scoring with intensity weights, HTML statement diff, rate decision classification, rate probability estimation. **SeasonalAnalyzer**: pre-computed sector baselines (10 sectors × 12 months), SPY monthly averages, current month bias with narrative, full rotation calendar. **EventImpactAnalyzer**: historical reaction analysis, Pearson correlation of surprise vs move, sector sensitivity, impact prediction with confidence. 5 new DB tables (macro_events, earnings_events, insider_trades, fomc_meetings, event_impact_cache) with ~20 query methods (upsert, query with filters, purge). `MacroConfig` (11 settings, env: `ROT_MACRO_*`). `gate_macro_access()` tier gate (Free: 3 events, Pro: +earnings/insider/FOMC, Premium: +impact/IV crush/seasonal/strategy, Ultra: +full history/cross-ref/diffs). 8 route endpoints (4 HTML pages + 4 JSON APIs). 4 Jinja2 templates (macro_calendar, macro_earnings, macro_insider, macro_fomc) with Chart.js hawk/dove trend chart. Nav links added to desktop + mobile menus. `_macro_data_loop` background task in server.py (seeds calendar, ingests earnings/insider, purges stale data). 263 new tests across 6 test files (952 total). | Claude Agent |
 
 > **REMINDER**: If you've made changes to this codebase, update this document NOW.
 > Add your changes to the Change Log and update any affected sections.

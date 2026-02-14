@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Macro Calendar - ROT{% endblock %}
+{% block meta_description %}Economic calendar showing upcoming and past macro events: CPI, NFP, FOMC, GDP, and more. Track market-moving data releases with ROT.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">&#128197; Economic Calendar</h1>
+        <p class="text-gray-400">Upcoming and past macro events that move markets: rate decisions, employment data, inflation prints, and more.</p>
+    </div>
+
+    {% if not access.has_calendar %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#128197;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Economic Calendar</h2>
+        <p class="text-gray-400 mb-4">The macro calendar is available to all users. Log in to see events.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── Seasonal Bias Card (Premium+) ── #}
+    {% if seasonal_bias %}
+    <div class="bg-gradient-to-r from-gray-800/80 to-gray-900/80 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">&#127793; Seasonal Bias — {{ seasonal_bias.month_name }}</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <div class="text-gray-400 text-xs mb-1">SPY Historical Avg</div>
+                <div class="text-xl font-bold {% if seasonal_bias.spy_avg_return_pct > 0 %}text-green-400{% elif seasonal_bias.spy_avg_return_pct < 0 %}text-red-400{% else %}text-gray-300{% endif %}">
+                    {{ '%+.1f'|format(seasonal_bias.spy_avg_return_pct) }}%
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5">{{ seasonal_bias.bias }}</div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs mb-1">Top Sectors</div>
+                {% for sector, ret in seasonal_bias.top_sectors %}
+                <div class="text-sm text-green-400">{{ sector }} <span class="text-gray-500">({{ '%+.1f'|format(ret) }}%)</span></div>
+                {% endfor %}
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs mb-1">Weakest Sectors</div>
+                {% for sector, ret in seasonal_bias.bottom_sectors %}
+                <div class="text-sm text-red-400">{{ sector }} <span class="text-gray-500">({{ '%+.1f'|format(ret) }}%)</span></div>
+                {% endfor %}
+            </div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">{{ seasonal_bias.narrative }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Upcoming Events ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Upcoming Events ({{ access.calendar_max_days }}d)</h3>
+        {% if upcoming %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-500 text-left border-b border-gray-700/50">
+                        <th class="pb-2 font-medium">Date</th>
+                        <th class="pb-2 font-medium">Event</th>
+                        <th class="pb-2 font-medium text-center">Importance</th>
+                        <th class="pb-2 font-medium">Category</th>
+                        <th class="pb-2 font-medium text-right">Consensus</th>
+                        <th class="pb-2 font-medium text-right">Previous</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    {% for e in upcoming %}
+                    <tr class="hover:bg-gray-700/20 transition">
+                        <td class="py-2.5 text-gray-300 whitespace-nowrap">
+                            <span class="ts-fmt" data-ts="{{ e.scheduled_at }}">—</span>
+                        </td>
+                        <td class="py-2.5 text-white font-medium">{{ e.name }}</td>
+                        <td class="py-2.5 text-center">
+                            {% if e.importance == 'critical' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/40 text-red-400 border border-red-700/40">CRITICAL</span>
+                            {% elif e.importance == 'high' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-orange-900/40 text-orange-400 border border-orange-700/40">HIGH</span>
+                            {% elif e.importance == 'medium' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-900/40 text-yellow-400 border border-yellow-700/40">MED</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700/40 text-gray-400 border border-gray-600/40">LOW</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 text-gray-400 capitalize">{{ e.category|replace('_', ' ') }}</td>
+                        <td class="py-2.5 text-right text-gray-300">{{ '%.2f'|format(e.consensus_value) if e.consensus_value is not none else '—' }}</td>
+                        <td class="py-2.5 text-right text-gray-400">{{ '%.2f'|format(e.previous_value) if e.previous_value is not none else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns &rarr;</p>
+        {% else %}
+        <p class="text-gray-500 text-center py-6">No upcoming events in the next {{ access.calendar_max_days }} days.</p>
+        {% endif %}
+    </div>
+
+    {# ── Past Events ── #}
+    {% if past %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Recent Events</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-500 text-left border-b border-gray-700/50">
+                        <th class="pb-2 font-medium">Date</th>
+                        <th class="pb-2 font-medium">Event</th>
+                        <th class="pb-2 font-medium text-center">Importance</th>
+                        <th class="pb-2 font-medium text-right">Consensus</th>
+                        <th class="pb-2 font-medium text-right">Actual</th>
+                        <th class="pb-2 font-medium text-right">Surprise</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    {% for e in past %}
+                    <tr class="hover:bg-gray-700/20 transition">
+                        <td class="py-2.5 text-gray-300 whitespace-nowrap">
+                            <span class="ts-fmt" data-ts="{{ e.scheduled_at }}">—</span>
+                        </td>
+                        <td class="py-2.5 text-white font-medium">{{ e.name }}</td>
+                        <td class="py-2.5 text-center">
+                            {% if e.importance == 'critical' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/40 text-red-400 border border-red-700/40">CRITICAL</span>
+                            {% elif e.importance == 'high' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-orange-900/40 text-orange-400 border border-orange-700/40">HIGH</span>
+                            {% elif e.importance == 'medium' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-900/40 text-yellow-400 border border-yellow-700/40">MED</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700/40 text-gray-400 border border-gray-600/40">LOW</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 text-right text-gray-400">{{ '%.2f'|format(e.consensus_value) if e.consensus_value is not none else '—' }}</td>
+                        <td class="py-2.5 text-right text-white font-medium">{{ '%.2f'|format(e.actual_value) if e.actual_value is not none else '—' }}</td>
+                        <td class="py-2.5 text-right {% if e.surprise_pct is not none and e.surprise_pct > 0 %}text-green-400{% elif e.surprise_pct is not none and e.surprise_pct < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
+                            {{ '%+.1f%%'|format(e.surprise_pct) if e.surprise_pct is not none else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns &rarr;</p>
+    </div>
+    {% endif %}
+
+    {# ── Tier Upsell ── #}
+    {% if tier == 'free' %}
+    <div class="bg-gray-800/40 rounded-xl p-6 border border-gray-700 text-center">
+        <p class="text-gray-400 mb-3">Free tier: {{ access.calendar_max_days }}-day window, {{ access.calendar_max_events }} events max. Upgrade for full history, earnings, insider trades, FOMC analysis, and seasonal patterns.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">Upgrade</a>
+    </div>
+    {% elif tier == 'pro' %}
+    <div class="bg-gray-800/40 rounded-xl p-6 border border-gray-700 text-center">
+        <p class="text-gray-400 mb-3">Pro tier: {{ access.calendar_max_days }}-day window. Upgrade to Premium for impact analysis, seasonal patterns, and extended history.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">Upgrade</a>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.ts-fmt').forEach(el => {
+        const ts = parseFloat(el.dataset.ts);
+        if (!ts || isNaN(ts)) return;
+        const d = new Date(ts * 1000);
+        el.textContent = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+    });
+});
+</script>
+{% endblock %}

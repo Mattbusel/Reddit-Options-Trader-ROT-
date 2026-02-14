@@ -183,4 +183,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(seo.router, tags=["seo"])
     app.include_router(faq.router, tags=["faq"])
 
+    # Macro events & economic calendar
+    from rot.web.routes import macro
+    app.include_router(macro.router, tags=["macro"])
+
     return app

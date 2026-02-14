@@ -433,6 +433,89 @@ def gate_backtest_access(tier: str) -> dict:
         }
 
 
+def gate_macro_access(tier: str) -> dict:
+    """Return macro events & economic calendar access flags based on tier.
+
+    Free: next 3 upcoming events, no history, no impact/earnings/insider/fomc
+    Pro: full calendar 7d, basic earnings, basic insider, FOMC dates
+    Premium: +impact analysis, +IV crush, +seasonal, +earnings strategy
+    Ultra/Enterprise: +full history, +insider cross-ref, +statement diffs, +export
+    """
+    if tier == "free":
+        return {
+            "has_access": True,  # Free users see limited calendar
+            "has_calendar": True,
+            "has_earnings": False,
+            "has_insider": False,
+            "has_fomc": False,
+            "has_seasonal": False,
+            "has_impact": False,
+            "has_iv_crush": False,
+            "has_statement_diff": False,
+            "has_cross_reference": False,
+            "has_strategy_recommend": False,
+            "has_export": False,
+            "calendar_max_days": 3,
+            "calendar_max_events": 5,
+            "history_max_days": 0,
+        }
+    elif tier == "pro":
+        return {
+            "has_access": True,
+            "has_calendar": True,
+            "has_earnings": True,
+            "has_insider": True,
+            "has_fomc": True,
+            "has_seasonal": False,
+            "has_impact": False,
+            "has_iv_crush": False,
+            "has_statement_diff": False,
+            "has_cross_reference": False,
+            "has_strategy_recommend": False,
+            "has_export": False,
+            "calendar_max_days": 7,
+            "calendar_max_events": 50,
+            "history_max_days": 30,
+        }
+    elif tier == "premium":
+        return {
+            "has_access": True,
+            "has_calendar": True,
+            "has_earnings": True,
+            "has_insider": True,
+            "has_fomc": True,
+            "has_seasonal": True,
+            "has_impact": True,
+            "has_iv_crush": True,
+            "has_statement_diff": True,
+            "has_cross_reference": False,
+            "has_strategy_recommend": True,
+            "has_export": False,
+            "calendar_max_days": 30,
+            "calendar_max_events": 200,
+            "history_max_days": 90,
+        }
+    else:
+        # ultra / enterprise
+        return {
+            "has_access": True,
+            "has_calendar": True,
+            "has_earnings": True,
+            "has_insider": True,
+            "has_fomc": True,
+            "has_seasonal": True,
+            "has_impact": True,
+            "has_iv_crush": True,
+            "has_statement_diff": True,
+            "has_cross_reference": True,
+            "has_strategy_recommend": True,
+            "has_export": True,
+            "calendar_max_days": 90,
+            "calendar_max_events": 500,
+            "history_max_days": 365,
+        }
+
+
 def _redact_trade_idea(idea: dict) -> dict:
     """Free users see strategy name only, legs are hidden."""
     if not idea:

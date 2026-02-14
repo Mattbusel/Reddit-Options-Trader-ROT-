@@ -341,6 +341,24 @@ class ArchiveConfig(BaseSettings):
     keep_days: int = 365  # how long to keep archived signals (1 year)
 
 
+class MacroConfig(BaseSettings):
+    """Config for macro events & economic calendar engine."""
+
+    model_config = SettingsConfigDict(env_prefix="ROT_MACRO_")
+
+    enabled: bool = True
+    calendar_poll_interval_s: int = 3600  # 1 hour
+    earnings_poll_interval_s: int = 14400  # 4 hours
+    insider_poll_interval_s: int = 7200  # 2 hours
+    fomc_poll_interval_s: int = 86400  # daily
+    impact_cache_ttl_s: int = 86400  # 1 day
+    sec_edgar_user_agent: str = ""  # Required by SEC: "Company admin@email.com"
+    earnings_lookback_quarters: int = 12
+    insider_min_value: int = 50000  # Min $ value for notable insider trades
+    seasonal_lookback_years: int = 10
+    purge_keep_days: int = 365  # Keep macro events for 1 year
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
@@ -371,6 +389,7 @@ class Settings(BaseSettings):
     sector: SectorConfig = Field(default_factory=SectorConfig)
     export_scheduler: ExportSchedulerConfig = Field(default_factory=ExportSchedulerConfig)
     archive: ArchiveConfig = Field(default_factory=ArchiveConfig)
+    macro: MacroConfig = Field(default_factory=MacroConfig)
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 

@@ -580,6 +580,86 @@ async def _export_scheduler_loop(
     log.info("Export scheduler loop stopped")
 
 
+async def _macro_data_loop(
+    db,
+    cfg_macro,
+    stop_event: threading.Event,
+):
+    """Background task that periodically refreshes macro event data.
+
+    Runs every ``cfg_macro.calendar_poll_interval_s`` seconds.  Fetches upcoming
+    economic calendar events, earnings dates, and insider trade filings.
+    Purges stale data per retention config.
+    """
+    interval = cfg_macro.calendar_poll_interval_s
+    log.info("Macro data loop starting (interval=%ds)", interval)
+
+    # Wait 90s on startup for DB to initialize
+    for _ in range(90):
+        if stop_event.is_set():
+            return
+        await asyncio.sleep(1)
+
+    while not stop_event.is_set():
+        # 1. Economic calendar: seed recurring events + ingest RSS
+        try:
+            from rot.macro.calendar import EconomicCalendar
+            from datetime import datetime
+            cal = EconomicCalendar(db=db)
+            now_dt = datetime.utcnow()
+            # Seed current and next month recurring events
+            next_month = now_dt.month % 12 + 1
+            next_year = now_dt.year + (1 if next_month == 1 else 0)
+            cal_count = await cal.seed_events(
+                year=now_dt.year, months=[now_dt.month]
+            )
+            cal_count += await cal.seed_events(
+                year=next_year, months=[next_month]
+            )
+            rss_count = await cal.ingest_from_rss()
+            if cal_count or rss_count:
+                log.info("Macro calendar refresh: %d seeded, %d from RSS", cal_count, rss_count)
+        except Exception as e:
+            log.debug("Macro calendar refresh: %s", e)
+
+        # 2. Earnings calendar: fetch from yfinance for top tickers
+        try:
+            from rot.macro.earnings import EarningsCalendar
+            earn = EarningsCalendar(db=db)
+            # Fetch earnings for a rotating set of popular tickers
+            top_tickers = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN",
+                           "META", "GOOGL", "AMD", "SPY", "QQQ"]
+            earn_count = await earn.ingest_earnings(top_tickers)
+            if earn_count:
+                log.info("Earnings calendar refresh: %d events updated", earn_count)
+        except Exception as e:
+            log.debug("Earnings calendar refresh: %s", e)
+
+        # 3. Insider trades: ingest from SEC EDGAR Form 4
+        try:
+            from rot.macro.insider import InsiderFeed
+            insider = InsiderFeed(db=db)
+            insider_count = await insider.ingest_form4()
+            congress_count = await insider.ingest_congress()
+            if insider_count or congress_count:
+                log.info("Insider feed refresh: %d form4, %d congress", insider_count, congress_count)
+        except Exception as e:
+            log.debug("Insider feed refresh: %s", e)
+
+        try:
+            await db.purge_old_macro_events(keep_days=cfg_macro.purge_keep_days)
+            await db.purge_old_earnings_events(keep_days=cfg_macro.purge_keep_days)
+            await db.purge_old_insider_trades(keep_days=cfg_macro.purge_keep_days)
+        except Exception as e:
+            log.debug("Macro data purge: %s", e)
+
+        for _ in range(interval):
+            if stop_event.is_set():
+                break
+            await asyncio.sleep(1)
+    log.info("Macro data loop stopped")
+
+
 async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
     """Background task that periodically purges old data to keep storage lean.
 
@@ -879,6 +959,19 @@ async def _run_server(cfg: Settings):
         cfg.export_scheduler.scheduler_interval_s,
     )
 
+    # Start macro data refresh loop (economic calendar, earnings, insider trades)
+    macro_task = asyncio.create_task(
+        _macro_data_loop(
+            db=app.state.db,
+            cfg_macro=cfg.macro,
+            stop_event=stop_event,
+        )
+    )
+    log.info(
+        "Macro data loop: ACTIVE (interval=%ds)",
+        cfg.macro.calendar_poll_interval_s,
+    )
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -899,6 +992,7 @@ async def _run_server(cfg: Settings):
         cleanup_task.cancel()
         unusual_task.cancel()
         export_sched_task.cancel()
+        macro_task.cancel()
         if digest_task:
             digest_task.cancel()
         if x_post_task:

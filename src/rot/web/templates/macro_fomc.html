@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}FOMC Tracker - ROT{% endblock %}
+{% block meta_description %}FOMC meeting tracker with rate decisions, hawkish/dovish scoring, statement analysis, and rate probability estimates.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">&#127970; FOMC Tracker</h1>
+        <p class="text-gray-400">Federal Open Market Committee meetings: rate decisions, statement sentiment analysis, and hawkish/dovish scoring.</p>
+    </div>
+
+    {% if not access.has_fomc %}
+    <div class="bg-gray-800/60 rounded-xl p-8 border border-gray-700 text-center">
+        <div class="text-4xl mb-4">&#127970;</div>
+        <h2 class="text-xl font-semibold text-white mb-2">FOMC Tracker</h2>
+        <p class="text-gray-400 mb-4">Upgrade to Pro to access the FOMC tracker with rate decisions, statement analysis, and sentiment scoring.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">View Plans</a>
+    </div>
+    {% else %}
+
+    {# ── Next Meeting Card ── #}
+    {% if next_meeting %}
+    <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-700/30 mb-8">
+        <h3 class="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-3">Next FOMC Meeting</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <div class="text-gray-400 text-xs mb-1">Date</div>
+                <div class="text-xl font-bold text-white">
+                    <span class="ts-fmt" data-ts="{{ next_meeting.meeting_date }}">TBD</span>
+                </div>
+                {% set days_until = ((next_meeting.meeting_date - now) / 86400)|int %}
+                {% if days_until > 0 %}
+                <div class="text-xs text-blue-400 mt-0.5">{{ days_until }} days away</div>
+                {% elif days_until == 0 %}
+                <div class="text-xs text-green-400 mt-0.5 font-bold">TODAY</div>
+                {% endif %}
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs mb-1">Current Rate</div>
+                <div class="text-xl font-bold text-white">{{ '%.2f'|format(next_meeting.rate_before) if next_meeting.rate_before else '—' }}%</div>
+            </div>
+            <div>
+                <div class="text-gray-400 text-xs mb-1">Expected Decision</div>
+                <div class="text-xl font-bold text-gray-300">
+                    {% if next_meeting.rate_decision %}
+                    {{ next_meeting.rate_decision|replace('_', ' ')|title }}
+                    {% else %}
+                    Pending
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Meeting History ── #}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Meeting History</h3>
+        {% if meetings %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-500 text-left border-b border-gray-700/50">
+                        <th class="pb-2 font-medium">Date</th>
+                        <th class="pb-2 font-medium text-center">Decision</th>
+                        <th class="pb-2 font-medium text-right">Rate Before</th>
+                        <th class="pb-2 font-medium text-right">Rate After</th>
+                        <th class="pb-2 font-medium text-center">Hawkish</th>
+                        <th class="pb-2 font-medium text-center">Dovish</th>
+                        {% if access.has_statement_diff %}
+                        <th class="pb-2 font-medium text-center">Dot Plot</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/50">
+                    {% for m in meetings %}
+                    <tr class="hover:bg-gray-700/20 transition">
+                        <td class="py-2.5 text-gray-300 whitespace-nowrap">
+                            <span class="ts-fmt" data-ts="{{ m.meeting_date }}">—</span>
+                        </td>
+                        <td class="py-2.5 text-center">
+                            {% set decision = m.rate_decision or 'pending' %}
+                            {% if 'raise' in decision %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/40 text-red-400 border border-red-700/40">{{ decision|replace('_', ' ')|title }}</span>
+                            {% elif 'cut' in decision %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-900/40 text-green-400 border border-green-700/40">{{ decision|replace('_', ' ')|title }}</span>
+                            {% elif decision == 'hold' %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-700/40 text-gray-300 border border-gray-600/40">Hold</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-xs bg-gray-700/40 text-gray-400 border border-gray-600/40">{{ decision }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 text-right text-gray-400">{{ '%.2f'|format(m.rate_before) if m.rate_before else '—' }}%</td>
+                        <td class="py-2.5 text-right text-white font-medium">{{ '%.2f'|format(m.rate_after) if m.rate_after else '—' }}%</td>
+                        <td class="py-2.5 text-center">
+                            {% if m.hawkish_score %}
+                            <div class="inline-flex items-center gap-1">
+                                <div class="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-red-500 rounded-full" style="width: {{ (m.hawkish_score * 100)|int }}%"></div>
+                                </div>
+                                <span class="text-xs text-red-400">{{ '%.0f'|format(m.hawkish_score * 100) }}%</span>
+                            </div>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="py-2.5 text-center">
+                            {% if m.dovish_score %}
+                            <div class="inline-flex items-center gap-1">
+                                <div class="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-blue-500 rounded-full" style="width: {{ (m.dovish_score * 100)|int }}%"></div>
+                                </div>
+                                <span class="text-xs text-blue-400">{{ '%.0f'|format(m.dovish_score * 100) }}%</span>
+                            </div>
+                            {% else %}—{% endif %}
+                        </td>
+                        {% if access.has_statement_diff %}
+                        <td class="py-2.5 text-center text-gray-300">
+                            {{ '%.2f'|format(m.dot_plot_median) if m.dot_plot_median is not none else '—' }}%
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-1 sm:hidden text-center">Swipe to see all columns &rarr;</p>
+        {% else %}
+        <p class="text-gray-500 text-center py-6">No FOMC meeting data available yet.</p>
+        {% endif %}
+    </div>
+
+    {# ── Hawk/Dove Visualization ── #}
+    {% if meetings %}
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-8">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Hawkish vs Dovish Trend</h3>
+        <div class="chart-h-responsive">
+            <canvas id="hawk-dove-chart"></canvas>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Format all timestamp spans
+        document.querySelectorAll('.ts-fmt').forEach(el => {
+            const ts = parseFloat(el.dataset.ts);
+            if (!ts || isNaN(ts)) return;
+            const d = new Date(ts * 1000);
+            el.textContent = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+        });
+
+        const ctx = document.getElementById('hawk-dove-chart');
+        if (!ctx) return;
+
+        const meetings = {{ meetings|tojson }};
+        const labels = meetings.map(m => {
+            const d = new Date(m.meeting_date * 1000);
+            return d.toLocaleDateString('en-US', {month: 'short', year: '2-digit'});
+        }).reverse();
+        const hawkish = meetings.map(m => (m.hawkish_score || 0) * 100).reverse();
+        const dovish = meetings.map(m => (m.dovish_score || 0) * 100).reverse();
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Hawkish',
+                        data: hawkish,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                    },
+                    {
+                        label: 'Dovish',
+                        data: dovish,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#9ca3af' } },
+                },
+                scales: {
+                    x: { ticks: { color: '#6b7280' }, grid: { color: 'rgba(55,65,81,0.3)' } },
+                    y: {
+                        ticks: { color: '#6b7280', callback: v => v + '%' },
+                        grid: { color: 'rgba(55,65,81,0.3)' },
+                        min: 0, max: 100,
+                    }
+                }
+            }
+        });
+    });
+    </script>
+    {% endif %}
+
+    {# ── Tier Upsell ── #}
+    {% if not access.has_statement_diff %}
+    <div class="bg-gray-800/40 rounded-xl p-6 border border-gray-700 text-center">
+        <p class="text-gray-400 mb-3">Upgrade to Premium for full statement diff analysis, dot plot data, and extended FOMC history.</p>
+        <a href="/pricing" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">Upgrade</a>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+{% if not meetings %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.ts-fmt').forEach(el => {
+        const ts = parseFloat(el.dataset.ts);
+        if (!ts || isNaN(ts)) return;
+        const d = new Date(ts * 1000);
+        el.textContent = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
