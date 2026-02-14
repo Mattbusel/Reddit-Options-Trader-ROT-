@@ -180,7 +180,7 @@
         <div class="text-center py-12 text-gray-500">
             <div class="text-4xl mb-3">&#128269;</div>
             <p class="text-lg">No signals found for {{ symbol }}</p>
-            <p class="text-sm mt-1">Check back later — ROT is always scanning Reddit.</p>
+            <p class="text-sm mt-1">Check back later - ROT is always scanning Reddit.</p>
         </div>
         {% endif %}
     </div>
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     callbacks: {
                         label: function(ctx) {
                             const d = chartData[ctx.dataIndex];
-                            return `${d.stance} — ${d.y}% confidence`;
+                            return `${d.stance} - ${d.y}% confidence`;
                         }
                     }
                 }

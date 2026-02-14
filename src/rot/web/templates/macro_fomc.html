@@ -38,7 +38,7 @@
             </div>
             <div>
                 <div class="text-gray-400 text-xs mb-1">Current Rate</div>
-                <div class="text-xl font-bold text-white">{{ '%.2f'|format(next_meeting.rate_before) if next_meeting.rate_before else '—' }}%</div>
+                <div class="text-xl font-bold text-white">{{ '%.2f'|format(next_meeting.rate_before) if next_meeting.rate_before else '-' }}%</div>
             </div>
             <div>
                 <div class="text-gray-400 text-xs mb-1">Expected Decision</div>
@@ -77,7 +77,7 @@
                     {% for m in meetings %}
                     <tr class="hover:bg-gray-700/20 transition">
                         <td class="py-2.5 text-gray-300 whitespace-nowrap">
-                            <span class="ts-fmt" data-ts="{{ m.meeting_date }}">—</span>
+                            <span class="ts-fmt" data-ts="{{ m.meeting_date }}">-</span>
                         </td>
                         <td class="py-2.5 text-center">
                             {% set decision = m.rate_decision or 'pending' %}
@@ -91,8 +91,8 @@
                             <span class="px-2 py-0.5 rounded text-xs bg-gray-700/40 text-gray-400 border border-gray-600/40">{{ decision }}</span>
                             {% endif %}
                         </td>
-                        <td class="py-2.5 text-right text-gray-400">{{ '%.2f'|format(m.rate_before) if m.rate_before else '—' }}%</td>
-                        <td class="py-2.5 text-right text-white font-medium">{{ '%.2f'|format(m.rate_after) if m.rate_after else '—' }}%</td>
+                        <td class="py-2.5 text-right text-gray-400">{{ '%.2f'|format(m.rate_before) if m.rate_before else '-' }}%</td>
+                        <td class="py-2.5 text-right text-white font-medium">{{ '%.2f'|format(m.rate_after) if m.rate_after else '-' }}%</td>
                         <td class="py-2.5 text-center">
                             {% if m.hawkish_score %}
                             <div class="inline-flex items-center gap-1">
@@ -101,7 +101,7 @@
                                 </div>
                                 <span class="text-xs text-red-400">{{ '%.0f'|format(m.hawkish_score * 100) }}%</span>
                             </div>
-                            {% else %}—{% endif %}
+                            {% else %}-{% endif %}
                         </td>
                         <td class="py-2.5 text-center">
                             {% if m.dovish_score %}
@@ -111,11 +111,11 @@
                                 </div>
                                 <span class="text-xs text-blue-400">{{ '%.0f'|format(m.dovish_score * 100) }}%</span>
                             </div>
-                            {% else %}—{% endif %}
+                            {% else %}-{% endif %}
                         </td>
                         {% if access.has_statement_diff %}
                         <td class="py-2.5 text-center text-gray-300">
-                            {{ '%.2f'|format(m.dot_plot_median) if m.dot_plot_median is not none else '—' }}%
+                            {{ '%.2f'|format(m.dot_plot_median) if m.dot_plot_median is not none else '-' }}%
                         </td>
                         {% endif %}
                     </tr>

@@ -7,7 +7,7 @@
 <div class="max-w-7xl mx-auto px-4 py-8">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">&#128373; Insider & Congressional Trades</h1>
-        <p class="text-gray-400">SEC Form 4 filings and congressional trades — see what insiders and lawmakers are buying and selling.</p>
+        <p class="text-gray-400">SEC Form 4 filings and congressional trades - see what insiders and lawmakers are buying and selling.</p>
     </div>
 
     {% if not access.has_insider %}
@@ -44,7 +44,7 @@
                     <span class="text-yellow-400 font-bold">${{ '{:,.0f}'.format(t.value) }}</span>
                 </div>
                 <div class="text-gray-500 text-xs mt-1">
-                    <span class="ts-fmt" data-ts="{{ t.filing_date }}">—</span>
+                    <span class="ts-fmt" data-ts="{{ t.filing_date }}">-</span>
                     {% if t.source == 'congress' %}<span class="text-purple-400 ml-1">Congress</span>{% endif %}
                 </div>
             </div>
@@ -75,7 +75,7 @@
                     {% for t in trades %}
                     <tr class="hover:bg-gray-700/20 transition">
                         <td class="py-2.5 text-gray-300 whitespace-nowrap">
-                            <span class="ts-fmt" data-ts="{{ t.filing_date }}">—</span>
+                            <span class="ts-fmt" data-ts="{{ t.filing_date }}">-</span>
                         </td>
                         <td class="py-2.5">
                             <a href="/ticker/{{ t.ticker }}" class="text-blue-400 hover:text-blue-300 font-semibold transition">{{ t.ticker }}</a>
@@ -94,8 +94,8 @@
                             </span>
                         </td>
                         <td class="py-2.5 text-right text-gray-300">{{ '{:,.0f}'.format(t.shares) }}</td>
-                        <td class="py-2.5 text-right text-gray-300">${{ '%.2f'|format(t.price) if t.price else '—' }}</td>
-                        <td class="py-2.5 text-right text-white font-medium">${{ '{:,.0f}'.format(t.value) if t.value else '—' }}</td>
+                        <td class="py-2.5 text-right text-gray-300">${{ '%.2f'|format(t.price) if t.price else '-' }}</td>
+                        <td class="py-2.5 text-right text-white font-medium">${{ '{:,.0f}'.format(t.value) if t.value else '-' }}</td>
                         <td class="py-2.5 text-center">
                             {% if t.source == 'congress' %}
                             <span class="px-2 py-0.5 rounded text-xs bg-purple-900/30 text-purple-400 border border-purple-700/40">Congress</span>

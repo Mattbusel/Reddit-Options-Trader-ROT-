@@ -42,24 +42,24 @@
                     {% for e in upcoming %}
                     <tr class="hover:bg-gray-700/20 transition">
                         <td class="py-2.5 text-gray-300 whitespace-nowrap">
-                            <span class="ts-fmt" data-ts="{{ e.report_date }}">—</span>
+                            <span class="ts-fmt" data-ts="{{ e.report_date }}">-</span>
                         </td>
                         <td class="py-2.5">
                             <a href="/ticker/{{ e.ticker }}" class="text-blue-400 hover:text-blue-300 font-semibold transition">{{ e.ticker }}</a>
                         </td>
-                        <td class="py-2.5 text-gray-400">{{ e.fiscal_quarter or '—' }}</td>
-                        <td class="py-2.5 text-right text-gray-300">{{ '$%.2f'|format(e.eps_estimate) if e.eps_estimate is not none else '—' }}</td>
+                        <td class="py-2.5 text-gray-400">{{ e.fiscal_quarter or '-' }}</td>
+                        <td class="py-2.5 text-right text-gray-300">{{ '$%.2f'|format(e.eps_estimate) if e.eps_estimate is not none else '-' }}</td>
                         <td class="py-2.5 text-right text-gray-300">
                             {% if e.revenue_estimate is not none %}
                             ${{ '%.1f'|format(e.revenue_estimate / 1e9) }}B
-                            {% else %}—{% endif %}
+                            {% else %}-{% endif %}
                         </td>
                         <td class="py-2.5 text-right text-orange-400 font-medium">
-                            {{ '%.1f%%'|format(e.expected_move_pct) if e.expected_move_pct is not none else '—' }}
+                            {{ '%.1f%%'|format(e.expected_move_pct) if e.expected_move_pct is not none else '-' }}
                         </td>
                         {% if access.has_iv_crush %}
                         <td class="py-2.5 text-right text-purple-400">
-                            {{ '%.0f%%'|format(e.iv_before) if e.iv_before is not none else '—' }}
+                            {{ '%.0f%%'|format(e.iv_before) if e.iv_before is not none else '-' }}
                         </td>
                         {% endif %}
                     </tr>
@@ -96,22 +96,22 @@
                     {% for e in past %}
                     <tr class="hover:bg-gray-700/20 transition">
                         <td class="py-2.5 text-gray-300 whitespace-nowrap">
-                            <span class="ts-fmt" data-ts="{{ e.report_date }}">—</span>
+                            <span class="ts-fmt" data-ts="{{ e.report_date }}">-</span>
                         </td>
                         <td class="py-2.5">
                             <a href="/ticker/{{ e.ticker }}" class="text-blue-400 hover:text-blue-300 font-semibold transition">{{ e.ticker }}</a>
                         </td>
-                        <td class="py-2.5 text-right text-gray-400">{{ '$%.2f'|format(e.eps_estimate) if e.eps_estimate is not none else '—' }}</td>
-                        <td class="py-2.5 text-right text-white font-medium">{{ '$%.2f'|format(e.eps_actual) if e.eps_actual is not none else '—' }}</td>
+                        <td class="py-2.5 text-right text-gray-400">{{ '$%.2f'|format(e.eps_estimate) if e.eps_estimate is not none else '-' }}</td>
+                        <td class="py-2.5 text-right text-white font-medium">{{ '$%.2f'|format(e.eps_actual) if e.eps_actual is not none else '-' }}</td>
                         <td class="py-2.5 text-right font-medium {% if e.surprise_pct is not none and e.surprise_pct > 0 %}text-green-400{% elif e.surprise_pct is not none and e.surprise_pct < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
-                            {{ '%+.1f%%'|format(e.surprise_pct) if e.surprise_pct is not none else '—' }}
+                            {{ '%+.1f%%'|format(e.surprise_pct) if e.surprise_pct is not none else '-' }}
                         </td>
                         <td class="py-2.5 text-right font-medium {% if e.actual_move_pct is not none and e.actual_move_pct > 0 %}text-green-400{% elif e.actual_move_pct is not none and e.actual_move_pct < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
-                            {{ '%+.1f%%'|format(e.actual_move_pct) if e.actual_move_pct is not none else '—' }}
+                            {{ '%+.1f%%'|format(e.actual_move_pct) if e.actual_move_pct is not none else '-' }}
                         </td>
                         {% if access.has_iv_crush %}
                         <td class="py-2.5 text-right text-cyan-400">
-                            {{ '%.0f%%'|format(e.iv_crush_pct) if e.iv_crush_pct is not none else '—' }}
+                            {{ '%.0f%%'|format(e.iv_crush_pct) if e.iv_crush_pct is not none else '-' }}
                         </td>
                         {% endif %}
                     </tr>

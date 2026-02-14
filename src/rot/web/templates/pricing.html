@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing - ROT | Replace $638/mo in Trading Subscriptions for $9.99{% endblock %}
-{% block meta_description %}Stop paying $254/mo for Trade Ideas, $177/mo for Benzinga Pro, $149/mo for BlackBoxStocks, and $58/mo for Unusual Whales. ROT replaces them all starting at $9.99/mo. AI signals, backtesting, congress tracker, terminal view, and AI trading agents.{% endblock %}
-{% block og_title %}ROT Pricing - You're Overpaying $21/day for Trading Tools{% endblock %}
-{% block og_description %}AI trade signals, real-time news, congressional tracker, backtesting engine, Bloomberg-lite terminal, and AI trading agents. One platform replaces $638/mo in subscriptions for $9.99.{% endblock %}
-{% block twitter_title %}ROT Pricing - Replace $638/mo in Trading Subscriptions{% endblock %}
+{% block title %}Pricing — ROT | Free Forever, Pro $9.99/mo{% endblock %}
+{% block meta_description %}ROT pricing: Free tier forever, Pro $9.99/mo, Premium $29.99/mo, Ultra $49.99/mo, Enterprise $499/mo. AI trading signals from 15+ sources. No contracts, cancel anytime.{% endblock %}
+{% block og_title %}ROT Pricing — Free Forever, Pro $9.99/mo{% endblock %}
+{% block og_description %}AI trade signals from 15+ sources. Free tier forever. Pro $9.99/mo with real-time signals, backtesting, Congress tracker.{% endblock %}
+{% block twitter_title %}ROT Pricing — Free Forever, Pro $9.99/mo{% endblock %}
 
 {% block structured_data %}
 <script type="application/ld+json">
@@ -13,75 +13,29 @@
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Pro Plan",
-        "description": "Real-time signals, full trade legs, news feed, congress tracker, backtesting, correlations, unusual activity, WebSocket, CSV export, TradingView integration, 1000 API calls/day",
+        "description": "Real-time AI trading signals from 15+ sources, backtesting engine, Congress tracker, macro calendar, 1000 API calls/day",
         "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Premium Plan",
-        "description": "Everything in Pro plus AI summaries, Bloomberg-lite terminal, Monte Carlo backtesting, sector rotation, signal quality dashboard, macro calendar with earnings and FOMC, 5000 API calls/day",
+        "description": "Everything in Pro plus Bloomberg-lite terminal, AI trade summaries, Monte Carlo backtesting, 5000 API calls/day",
         "offers": {"@type": "Offer", "price": "29.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Ultra Plan",
-        "description": "Everything in Premium plus 3 AI trading agents, advanced terminal with options flow, full backtesting suite with optimizer, strategy P&L, 25000 API calls/day",
+        "description": "Everything in Premium plus 3 AI trading agents, full backtesting suite, strategy builder, 25000 API calls/day",
         "offers": {"@type": "Offer", "price": "49.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Enterprise Plan",
-        "description": "Everything in Ultra plus 10 AI agents, custom rule agents, data licensing with 1M row bulk exports, sponsored signals, enterprise dashboard, dedicated support, 100000 API calls/day",
+        "description": "Everything in Ultra plus 10 AI agents, data licensing, custom webhooks, dedicated support, 100000 API calls/day",
         "offers": {"@type": "Offer", "price": "499.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
-    },
-    {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-            {
-                "@type": "Question",
-                "name": "How does ROT compare to Trade Ideas, Benzinga Pro, and Unusual Whales?",
-                "acceptedAnswer": {"@type": "Answer", "text": "ROT replaces Trade Ideas ($254/mo AI trade scanning), Benzinga Pro ($177/mo real-time news), BlackBoxStocks ($149/mo community alerts), and Unusual Whales ($58/mo congressional trading) - all for $9.99/mo. We aggregate 15+ financial data sources with AI analysis at a fraction of the cost."}
-            },
-            {
-                "@type": "Question",
-                "name": "What is included in the ROT Pro plan?",
-                "acceptedAnswer": {"@type": "Answer", "text": "Pro includes real-time signals from 15+ sources, full trade legs and reasoning, news feed aggregation, congressional trading tracker (14d), backtesting (30d, 200 signals), correlation engine, unusual activity detection, sentiment heatmap, macro calendar with earnings and FOMC, TradingView integration, WebSocket live feed, CSV export, and 1000 API calls/day."}
-            },
-            {
-                "@type": "Question",
-                "name": "What is BYOK (Bring Your Own Key)?",
-                "acceptedAnswer": {"@type": "Answer", "text": "BYOK means you provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI-powered signal reasoning. ROT handles the signal pipeline and infrastructure, you control your AI costs. Platform AI summaries are included for Premium+ at no extra cost."}
-            },
-            {
-                "@type": "Question",
-                "name": "Does ROT offer an API?",
-                "acceptedAnswer": {"@type": "Answer", "text": "Yes. ROT has a full REST API with 19 endpoints covering signals, performance, correlations, news, congressional trades, leaderboards, unusual activity, and more. API access starts at Pro tier (1000 calls/day) with field selection, sorting, and filtering. Free tier is dashboard-only."}
-            },
-            {
-                "@type": "Question",
-                "name": "What are AI Trading Agents?",
-                "acceptedAnswer": {"@type": "Answer", "text": "AI Trading Agents are autonomous signal processors available on Ultra ($49.99/mo, 3 agents) and Enterprise ($499/mo, 10+ agents). Included agent types: Signal Follower (auto-acts on high-confidence signals), Contrarian (fades crowd consensus), and Momentum (rides trending tickers). Enterprise can build custom rule-based agents."}
-            },
-            {
-                "@type": "Question",
-                "name": "Is there a free trial?",
-                "acceptedAnswer": {"@type": "Answer", "text": "Better than a trial - there is a free tier forever with no credit card required. You get delayed signals, news feed, paper trading, and macro calendar. When you are ready, upgrade to Pro for $9.99/mo. Founding member pricing is locked in for life."}
-            },
-            {
-                "@type": "Question",
-                "name": "Can I cancel anytime?",
-                "acceptedAnswer": {"@type": "Answer", "text": "Yes, cancel anytime from your account page. No contracts, no exit fees. Your subscription stays active until the end of your billing period. Downgrade to Free tier and keep your paper trading portfolio and badges."}
-            },
-            {
-                "@type": "Question",
-                "name": "What is the Bloomberg-lite Terminal?",
-                "acceptedAnswer": {"@type": "Answer", "text": "A 6-panel real-time dashboard inspired by Bloomberg Terminal. Shows live signals, options flow, market context, sector rotation, unusual activity, and news feed in a single view. Available on Premium (60s refresh) and Ultra (30s refresh with watchlist alerts). No $24,000/yr Bloomberg subscription needed."}
-            }
-        ]
     }
 ]
 </script>
@@ -105,127 +59,25 @@
 
 {% block content %}
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 1: HERO â€” The Gut Punch
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ============================================================
+     HERO
+     ============================================================ -->
 <div class="text-center mb-12 fade-in">
-    <div class="inline-block px-4 py-1.5 rounded-full border border-red-500/30 bg-red-900/20 text-red-400 text-xs font-bold tracking-widest uppercase mb-6">
-        You're overpaying <span id="overpay-counter" class="neon-text-pink">$21.27</span> per day
-    </div>
-    <h1 class="text-4xl md:text-6xl font-black text-white mb-4 leading-tight">
-        Replace <span class="neon-text-pink line-through decoration-red-500/60">$638/mo</span>
-        <br class="md:hidden"> with <span class="neon-text-green">$9.99/mo</span>
+    <h1 class="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
+        Simple, Honest Pricing
     </h1>
-    <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-8">
-        One platform kills your entire trading software stack. AI signals, backtesting,
-        congress tracker, terminal view, and AI agents - for less than a Chipotle burrito.
+    <p class="text-gray-400 text-lg max-w-xl mx-auto">
+        These prices are low and won't stay this way forever.
     </p>
-    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-        {% if not user %}
-        <a href="/register" class="px-8 py-3.5 rounded-lg bg-gradient-to-r from-pink-600 to-blue-600 text-white font-bold text-lg hover:from-pink-500 hover:to-blue-500 transition-all shadow-lg shadow-pink-900/30 pop-in">
-            Start Free - No Credit Card
-        </a>
-        {% else %}
-        <a href="#plans" class="px-8 py-3.5 rounded-lg bg-gradient-to-r from-pink-600 to-blue-600 text-white font-bold text-lg hover:from-pink-500 hover:to-blue-500 transition-all shadow-lg shadow-pink-900/30">
-            View Plans
-        </a>
-        {% endif %}
-        <span class="text-gray-500 text-sm">Free tier forever. Upgrade when you're addicted.</span>
-    </div>
-
-    <!-- Animated savings calculator -->
-    <div class="max-w-md mx-auto stat-card rounded-xl p-5 mt-4">
-        <div class="text-xs text-gray-500 uppercase tracking-widest mb-2">Your annual savings with ROT Pro</div>
-        <div class="flex items-center justify-center gap-4">
-            <div class="text-center">
-                <div class="text-red-400 line-through text-sm">Competitors</div>
-                <div class="text-red-400 font-bold text-2xl">$7,656<span class="text-xs text-gray-500">/yr</span></div>
-            </div>
-            <div class="text-gray-600 text-2xl">&rarr;</div>
-            <div class="text-center">
-                <div class="text-green-400 text-sm">ROT Pro</div>
-                <div class="text-green-400 font-bold text-2xl">$120<span class="text-xs text-gray-500">/yr</span></div>
-            </div>
-        </div>
-        <div class="mt-3 pt-3 border-t border-gray-700/50">
-            <span class="text-green-400 font-black text-xl neon-text-green" id="savings-amount">$7,536</span>
-            <span class="text-gray-400 text-sm"> saved per year</span>
-        </div>
-    </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 2: COMPETITOR KILL ZONE â€” Animated Price Cards
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-<div class="max-w-5xl mx-auto mb-16">
-    <h2 class="text-center text-sm font-bold text-gray-500 uppercase tracking-widest mb-6">What you're paying them vs. what you'd pay us</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 stagger-children">
-        <!-- Trade Ideas -->
-        <div class="signal-card rounded-xl p-5 text-center fade-in relative overflow-hidden group">
-            <div class="absolute inset-0 bg-gradient-to-b from-red-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="relative">
-                <div class="text-red-400 line-through text-2xl font-black">$254</div>
-                <div class="text-xs text-red-400/70">/month</div>
-                <div class="text-sm text-gray-300 mt-2 font-semibold">Trade Ideas</div>
-                <div class="text-xs text-gray-600 mt-1">AI trade scanning</div>
-                <div class="mt-3 py-1 px-2 rounded bg-green-900/30 text-green-400 text-xs font-bold inline-block">REPLACED</div>
-            </div>
-        </div>
-        <!-- Benzinga Pro -->
-        <div class="signal-card rounded-xl p-5 text-center fade-in relative overflow-hidden group">
-            <div class="absolute inset-0 bg-gradient-to-b from-red-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="relative">
-                <div class="text-red-400 line-through text-2xl font-black">$177</div>
-                <div class="text-xs text-red-400/70">/month</div>
-                <div class="text-sm text-gray-300 mt-2 font-semibold">Benzinga Pro</div>
-                <div class="text-xs text-gray-600 mt-1">Real-time news</div>
-                <div class="mt-3 py-1 px-2 rounded bg-green-900/30 text-green-400 text-xs font-bold inline-block">REPLACED</div>
-            </div>
-        </div>
-        <!-- BlackBoxStocks -->
-        <div class="signal-card rounded-xl p-5 text-center fade-in relative overflow-hidden group">
-            <div class="absolute inset-0 bg-gradient-to-b from-red-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="relative">
-                <div class="text-red-400 line-through text-2xl font-black">$149</div>
-                <div class="text-xs text-red-400/70">/month</div>
-                <div class="text-sm text-gray-300 mt-2 font-semibold">BlackBoxStocks</div>
-                <div class="text-xs text-gray-600 mt-1">Community alerts</div>
-                <div class="mt-3 py-1 px-2 rounded bg-green-900/30 text-green-400 text-xs font-bold inline-block">REPLACED</div>
-            </div>
-        </div>
-        <!-- Unusual Whales -->
-        <div class="signal-card rounded-xl p-5 text-center fade-in relative overflow-hidden group">
-            <div class="absolute inset-0 bg-gradient-to-b from-red-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="relative">
-                <div class="text-red-400 line-through text-2xl font-black">$58</div>
-                <div class="text-xs text-red-400/70">/month</div>
-                <div class="text-sm text-gray-300 mt-2 font-semibold">Unusual Whales</div>
-                <div class="text-xs text-gray-600 mt-1">Congress tracker</div>
-                <div class="mt-3 py-1 px-2 rounded bg-green-900/30 text-green-400 text-xs font-bold inline-block">REPLACED</div>
-            </div>
-        </div>
-    </div>
-    <div class="text-center stat-card rounded-xl p-6">
-        <div class="flex items-center justify-center gap-4 flex-wrap">
-            <span class="text-red-400 line-through text-3xl font-black">$638/mo</span>
-            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-            <span class="text-green-400 text-4xl font-black neon-text-green shimmer">$9.99/mo</span>
-        </div>
-        <div class="text-green-400/60 text-sm mt-2 font-semibold">98.4% cheaper. Same data. More features. One login.</div>
-    </div>
-</div>
-
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 3: PLAN CARDS â€” 5 Tiers, Pro Glowing
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ============================================================
+     PLAN CARDS — 5 Tiers
+     ============================================================ -->
 <div id="plans" class="mb-16">
-    <h2 class="text-2xl font-bold text-white text-center mb-2">Choose Your Weapon</h2>
-    <p class="text-gray-500 text-center text-sm mb-8">Founding member pricing - locked in forever. No price hikes. Ever.</p>
-
-    <!-- Mobile: Stack. Desktop: 5-col grid with Pro emphasized -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 max-w-7xl mx-auto items-start">
 
-        <!-- â”€â”€ FREE â”€â”€ -->
+        <!-- FREE -->
         <div class="signal-card rounded-xl p-5 flex flex-col h-full">
             <div class="mb-5">
                 <h3 class="text-base font-bold text-gray-300">Free</h3>
@@ -233,17 +85,12 @@
                 <p class="text-xs text-gray-600 mt-1">Forever. No credit card.</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-400 flex-1">
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>15-min delayed signals (10/page)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>News feed (6h, 15 items)</span></li>
+                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>15-min delayed signals</span></li>
                 <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Paper trading ($10K virtual)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Macro calendar (3d, 5 events)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Sports betting (2d, basic)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Leaderboard (top 10)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Badges &amp; streaks</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No API access</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No trade legs / reasoning</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No AI summaries</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No WebSocket / CSV</span></li>
+                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>News feed + macro calendar</span></li>
+                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Unusual activity (basic)</span></li>
+                <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5 shrink-0">&#10003;</span><span>Leaderboard + badges</span></li>
+                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No API / trade legs / AI</span></li>
             </ul>
             <div class="mt-5">
                 {% if tier == 'free' %}
@@ -256,36 +103,27 @@
             </div>
         </div>
 
-        <!-- â”€â”€ PRO â€” MOST POPULAR (GLOWING) â”€â”€ -->
-        <div class="signal-card rounded-xl p-5 flex flex-col h-full relative lg:scale-105 lg:z-10" style="border-color: rgba(59, 130, 246, 0.6); border-width: 2px; box-shadow: 0 0 30px rgba(59,130,246,0.15), 0 0 60px rgba(59,130,246,0.05);">
+        <!-- PRO — MOST POPULAR -->
+        <div class="signal-card rounded-xl p-5 flex flex-col h-full relative lg:scale-105 lg:z-10" style="border-color: rgba(59, 130, 246, 0.6); border-width: 2px; box-shadow: 0 0 30px rgba(59,130,246,0.15);">
             <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-full tracking-widest uppercase shadow-lg shadow-blue-900/50">MOST POPULAR</div>
             <div class="mb-5">
                 <h3 class="text-base font-bold text-blue-400">Pro</h3>
                 <div class="text-3xl font-black text-white mt-1">$9.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
-                <p class="text-xs text-gray-500 mt-1">Replaces <span class="text-red-400 line-through font-semibold">$638/mo</span> in tools</p>
+                <p class="text-xs text-gray-500 mt-1">Everything you need</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#9889;</span><span class="text-white font-semibold">Real-time signals (100/page)</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">1,000 API calls/day</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Full trade legs + reasoning</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">News feed (24h, source filter)</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Congress tracker (14d)</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Backtest (basic, 30d, 200 sigs)</span></li>
-                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Macro calendar (7d, earnings, FOMC)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Correlations (30d) + Unusual activity (24h)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Signal replay (24h)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Sentiment heatmap + accuracy charts</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Sports (5d, line movers, team filter)</span></li>
-                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>WebSocket + CSV + TradingView</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No AI summaries</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No Terminal view</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No AI agents</span></li>
+                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#9889;</span><span class="text-white font-semibold">Real-time signals + trade legs</span></li>
+                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Backtesting (30d, 200 signals)</span></li>
+                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Congress tracker + macro calendar</span></li>
+                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">Correlations + unusual activity</span></li>
+                <li class="flex items-start gap-2"><span class="text-blue-400 mt-0.5 shrink-0">&#10003;</span><span class="text-blue-300">WebSocket + CSV + API (1K/day)</span></li>
+                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No terminal / AI agents</span></li>
             </ul>
             <div class="mt-5">
                 {% if tier == 'pro' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-blue-900/30 text-blue-400 border border-blue-700 text-sm font-semibold">Current Plan</div>
                 {% elif stripe_enabled and user %}
-                <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro - $9.99/mo</button>
+                <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro — $9.99/mo</button>
                 {% elif not user %}
                 <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Start Free &rarr; Upgrade to Pro</a>
                 {% else %}
@@ -294,27 +132,22 @@
             </div>
         </div>
 
-        <!-- â”€â”€ PREMIUM â”€â”€ -->
+        <!-- PREMIUM -->
         <div class="signal-card rounded-xl p-5 flex flex-col h-full" style="border-color: rgba(168, 85, 247, 0.4);">
             <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-wide hidden lg:block">BEST VALUE</div>
             <div class="mb-5 relative">
                 <div class="lg:hidden inline-block mb-2 bg-purple-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full tracking-wide">BEST VALUE</div>
                 <h3 class="text-base font-bold text-purple-400">Premium</h3>
                 <div class="text-3xl font-black text-white mt-1">$29.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
-                <p class="text-xs text-gray-500 mt-1">Pro + AI + Terminal</p>
+                <p class="text-xs text-gray-500 mt-1">Pro + Terminal + AI</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
                 <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Everything in Pro</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">5,000 API calls/day</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300 font-semibold">AI-generated trade summaries</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300 font-semibold">Bloomberg-lite Terminal (6-panel, 60s)</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Monte Carlo + walk-forward backtest (90d)</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Congress tracker (30d + amounts + filter)</span></li>
+                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300 font-semibold">Bloomberg-lite Terminal (6-panel)</span></li>
+                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">AI-generated trade summaries</span></li>
+                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Monte Carlo + walk-forward backtest</span></li>
                 <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Sector rotation + signal quality</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Macro: seasonal, IV crush, FOMC diffs</span></li>
-                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">Sports AI summaries + injury analysis</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No AI agents</span></li>
-                <li class="flex items-start gap-2"><span class="text-gray-700 mt-0.5 shrink-0">&#128274;</span><span class="text-gray-600">No optimizer / comparison</span></li>
+                <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5 shrink-0">&#10003;</span><span class="text-purple-300">5,000 API calls/day</span></li>
             </ul>
             <div class="mt-5">
                 {% if tier == 'premium' %}
@@ -329,7 +162,7 @@
             </div>
         </div>
 
-        <!-- â”€â”€ ULTRA â”€â”€ -->
+        <!-- ULTRA -->
         <div class="signal-card rounded-xl p-5 flex flex-col h-full" style="border-color: rgba(245, 158, 11, 0.4);">
             <div class="mb-5">
                 <h3 class="text-base font-bold text-amber-400">Ultra</h3>
@@ -338,15 +171,11 @@
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
                 <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Everything in Premium</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">25,000 API calls/day</span></li>
                 <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300 font-semibold">3 AI Trading Agents</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Terminal (30s, options flow, alerts)</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Full backtest (optimizer, 365d, 5K sigs)</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Strategy P&L breakdown</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Congress tracker (90d + export)</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Macro cross-reference + full history</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Sports custom alerts + WebSocket</span></li>
-                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Strategy comparison + saved strats</span></li>
+                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Strategy builder + genetic optimizer</span></li>
+                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Full backtest (365d, optimizer)</span></li>
+                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">Options flow + Greeks</span></li>
+                <li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5 shrink-0">&#10003;</span><span class="text-amber-300">25,000 API calls/day</span></li>
             </ul>
             <div class="mt-5">
                 {% if tier == 'ultra' %}
@@ -361,7 +190,7 @@
             </div>
         </div>
 
-        <!-- â”€â”€ ENTERPRISE â”€â”€ -->
+        <!-- ENTERPRISE -->
         <div class="signal-card rounded-xl p-5 flex flex-col h-full" style="border-color: rgba(16, 185, 129, 0.4);">
             <div class="mb-5">
                 <h3 class="text-base font-bold text-emerald-400">Enterprise</h3>
@@ -370,13 +199,11 @@
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
                 <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5 shrink-0">&#10003;</span><span>Everything in Ultra</span></li>
-                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">100,000 API calls/day</span></li>
                 <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300 font-semibold">10 AI agents + custom rules</span></li>
                 <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Data licensing (1M row exports)</span></li>
-                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Sponsored signal analysis</span></li>
-                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Enterprise dashboard + analytics</span></li>
-                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Custom webhooks</span></li>
-                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Dedicated support + onboarding</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Custom webhooks + analytics</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">Dedicated support</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5 shrink-0">&#10003;</span><span class="text-emerald-300">100,000 API calls/day</span></li>
             </ul>
             <div class="mt-5">
                 {% if tier == 'enterprise' %}
@@ -391,179 +218,46 @@
             </div>
         </div>
     </div>
+    <p class="text-center text-xs text-gray-600 mt-4">Founding member pricing &mdash; lock in today's rate before it goes up.</p>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 4: FEATURE MATRIX â€” Exhaustive Tier Comparison
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-<div class="max-w-6xl mx-auto mb-16">
-    <h2 class="text-xl font-bold text-white text-center mb-2">Full Feature Breakdown</h2>
-    <p class="text-gray-500 text-center text-sm mb-6">Every feature, every tier. No hidden upsells.</p>
-    <div class="overflow-x-auto signal-card rounded-xl">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="border-b border-gray-700">
-                    <th class="text-left py-3 px-4 text-gray-400 font-semibold sticky left-0 bg-gray-900/90 backdrop-blur-sm z-10 min-w-[180px]">Feature</th>
-                    <th class="text-center py-3 px-3 text-gray-500 font-semibold min-w-[70px]">Free</th>
-                    <th class="text-center py-3 px-3 text-blue-400 font-semibold min-w-[80px]">Pro</th>
-                    <th class="text-center py-3 px-3 text-purple-400 font-semibold min-w-[80px]">Premium</th>
-                    <th class="text-center py-3 px-3 text-amber-400 font-semibold min-w-[80px]">Ultra</th>
-                    <th class="text-center py-3 px-3 text-emerald-400 font-semibold min-w-[90px]">Enterprise</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-800/50">
-                <!-- SIGNALS & CORE -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Signals &amp; Core</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Signal delay</td><td class="py-2 px-3 text-center text-gray-500 text-xs">15 min</td><td class="py-2 px-3 text-center text-green-400 text-xs">Real-time</td><td class="py-2 px-3 text-center text-green-400 text-xs">Real-time</td><td class="py-2 px-3 text-center text-green-400 text-xs">Real-time</td><td class="py-2 px-3 text-center text-green-400 text-xs">Real-time</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Signals per page</td><td class="py-2 px-3 text-center text-gray-500">10</td><td class="py-2 px-3 text-center text-blue-400">100</td><td class="py-2 px-3 text-center text-purple-400">100</td><td class="py-2 px-3 text-center text-amber-400">100</td><td class="py-2 px-3 text-center text-emerald-400">100</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Trade legs &amp; reasoning</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">AI trade summaries</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">API calls/day</td><td class="py-2 px-3 text-center text-gray-600">0</td><td class="py-2 px-3 text-center text-blue-400">1K</td><td class="py-2 px-3 text-center text-purple-400">5K</td><td class="py-2 px-3 text-center text-amber-400">25K</td><td class="py-2 px-3 text-center text-emerald-400">100K</td></tr>
-
-                <!-- AI & TERMINAL -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">AI &amp; Terminal</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Bloomberg-lite Terminal</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-purple-400 text-xs">6-panel / 60s</td><td class="py-2 px-3 text-center text-amber-400 text-xs">+flow / 30s</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">+flow / 30s</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">AI Trading Agents</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-amber-400 text-xs">3 agents</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">10 + custom</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">BYOK AI reasoning</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- DATA FEEDS -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Data Feeds</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">News feed</td><td class="py-2 px-3 text-center text-gray-500 text-xs">6h / 15</td><td class="py-2 px-3 text-center text-blue-400 text-xs">24h / source</td><td class="py-2 px-3 text-center text-purple-400 text-xs">72h / AI</td><td class="py-2 px-3 text-center text-amber-400 text-xs">168h / AI</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">168h / AI</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Congress tracker</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-blue-400 text-xs">14d</td><td class="py-2 px-3 text-center text-purple-400 text-xs">30d + $</td><td class="py-2 px-3 text-center text-amber-400 text-xs">90d + export</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">90d + export</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Unusual activity</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-blue-400 text-xs">24h</td><td class="py-2 px-3 text-center text-purple-400 text-xs">48h</td><td class="py-2 px-3 text-center text-amber-400 text-xs">7d</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">30d</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Correlations</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-blue-400 text-xs">30d</td><td class="py-2 px-3 text-center text-purple-400 text-xs">90d</td><td class="py-2 px-3 text-center text-amber-400 text-xs">365d</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">365d</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Sector rotation</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Signal quality dashboard</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- BACKTESTING -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Backtesting</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Basic backtest</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-blue-400 text-xs">30d / 200</td><td class="py-2 px-3 text-center text-purple-400 text-xs">90d / 1K</td><td class="py-2 px-3 text-center text-amber-400 text-xs">365d / 5K</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">365d / 5K</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Monte Carlo + walk-forward</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Optimizer + comparison</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Saved strategies + export</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- MACRO CALENDAR -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Macro Calendar</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Economic events</td><td class="py-2 px-3 text-center text-gray-500 text-xs">3d / 5</td><td class="py-2 px-3 text-center text-blue-400 text-xs">7d / full</td><td class="py-2 px-3 text-center text-purple-400 text-xs">7d / full</td><td class="py-2 px-3 text-center text-amber-400 text-xs">full history</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">full history</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Earnings + insider + FOMC</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Seasonal + IV crush + FOMC diffs</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Cross-reference signals</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- SPORTS BETTING -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Sports Betting Intel</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Sports news feed</td><td class="py-2 px-3 text-center text-gray-500 text-xs">2d / basic</td><td class="py-2 px-3 text-center text-blue-400 text-xs">5d / teams</td><td class="py-2 px-3 text-center text-purple-400 text-xs">7d / AI</td><td class="py-2 px-3 text-center text-amber-400 text-xs">7d / alerts</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">7d / full</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Line movers + team filter</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">AI summaries + injury</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Custom alerts + WebSocket</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- ANALYTICS -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Analytics &amp; Charts</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Sentiment heatmap</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Accuracy + calibration charts</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Signal replay</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-blue-400 text-xs">24h</td><td class="py-2 px-3 text-center text-purple-400 text-xs">48h</td><td class="py-2 px-3 text-center text-amber-400 text-xs">7d</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">30d</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Strategy P&L breakdown</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-
-                <!-- INTEGRATIONS -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Integrations &amp; Export</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">WebSocket live feed</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">CSV export</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">TradingView integration</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Data licensing (bulk exports)</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-emerald-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Custom webhooks</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-gray-700">&#128274;</td><td class="py-2 px-3 text-center text-emerald-400">&#10003;</td></tr>
-
-                <!-- COMMUNITY -->
-                <tr class="bg-gray-800/20"><td colspan="6" class="py-2 px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">Community</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Paper trading</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Badges &amp; streaks</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td><td class="py-2 px-3 text-center text-green-400">&#10003;</td></tr>
-                <tr><td class="py-2 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Leaderboard</td><td class="py-2 px-3 text-center text-gray-500 text-xs">Top 10</td><td class="py-2 px-3 text-center text-blue-400 text-xs">Top 25</td><td class="py-2 px-3 text-center text-purple-400 text-xs">25 + hist</td><td class="py-2 px-3 text-center text-amber-400 text-xs">25 + hist</td><td class="py-2 px-3 text-center text-emerald-400 text-xs">25 + hist</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 5: COMPETITOR HEAD-TO-HEAD TABLE
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-<div class="max-w-6xl mx-auto mb-16">
-    <h2 class="text-xl font-bold text-white text-center mb-2">ROT vs. The Old Guard</h2>
-    <p class="text-gray-500 text-center text-sm mb-6">Feature-for-feature, dollar-for-dollar. The math speaks for itself.</p>
-    <div class="overflow-x-auto signal-card rounded-xl">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="border-b border-gray-700">
-                    <th class="text-left py-3 px-4 text-gray-400 font-semibold sticky left-0 bg-gray-900/90 backdrop-blur-sm min-w-[140px]">Feature</th>
-                    <th class="text-center py-3 px-3 text-red-400 font-semibold min-w-[100px]">Trade Ideas<br><span class="text-red-400/70 text-xs">$254/mo</span></th>
-                    <th class="text-center py-3 px-3 text-red-400 font-semibold min-w-[100px]">Benzinga<br><span class="text-red-400/70 text-xs">$177/mo</span></th>
-                    <th class="text-center py-3 px-3 text-red-400 font-semibold min-w-[100px]">BlackBox<br><span class="text-red-400/70 text-xs">$149/mo</span></th>
-                    <th class="text-center py-3 px-3 text-red-400 font-semibold min-w-[100px]">Unusual Whales<br><span class="text-red-400/70 text-xs">$58/mo</span></th>
-                    <th class="text-center py-3 px-3 text-green-400 font-bold min-w-[100px]" style="background: rgba(34,197,94,0.05);">ROT Pro<br><span class="text-green-300 text-xs font-black">$9.99/mo</span></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-800/50">
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">AI Scanning</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-yellow-500 text-xs">Limited</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003;</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">News Feed</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-yellow-500 text-xs">Limited</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003;</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Congress Tracker</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003;</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Unusual Activity</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003;</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">REST API</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-yellow-500 text-xs">Limited</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400">&#10003;</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003; (19 ep)</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Backtesting</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-green-400 font-bold" style="background: rgba(34,197,94,0.05);">&#10003;</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">Terminal View</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-purple-400 font-bold" style="background: rgba(34,197,94,0.05);">Premium</td></tr>
-                <tr><td class="py-2.5 px-4 text-gray-300 sticky left-0 bg-gray-900/80 backdrop-blur-sm">AI Agents</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-gray-700">&#10007;</td><td class="py-2.5 px-3 text-center text-amber-400 font-bold" style="background: rgba(34,197,94,0.05);">Ultra</td></tr>
-                <tr class="border-t-2 border-green-700/50"><td class="py-3 px-4 text-white font-black sticky left-0 bg-gray-900/80 backdrop-blur-sm">Monthly cost</td><td class="py-3 px-3 text-center text-red-400 font-bold">$254</td><td class="py-3 px-3 text-center text-red-400 font-bold">$177</td><td class="py-3 px-3 text-center text-red-400 font-bold">$149</td><td class="py-3 px-3 text-center text-red-400 font-bold">$58</td><td class="py-3 px-3 text-center text-green-400 font-black text-lg neon-text-green" style="background: rgba(34,197,94,0.08);">$9.99</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 6: FAQ
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ============================================================
+     FAQ — Condensed
+     ============================================================ -->
 <div class="max-w-3xl mx-auto mb-16">
-    <h2 class="text-xl font-bold text-white text-center mb-6">Frequently Asked Questions</h2>
+    <h2 class="text-xl font-bold text-white text-center mb-6">FAQ</h2>
     <div class="space-y-4">
         <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">Is there really a free tier forever?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Yes. No credit card required. You get delayed signals, news feed, paper trading, macro calendar, and sports betting intel. We make money on paid tiers, not by trapping you in a trial that auto-converts. Start free, upgrade when the alpha speaks for itself.</p>
-        </div>
-        <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">How can ROT be so much cheaper?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">No Bloomberg terminals to license. No 200-person sales teams. No Manhattan office. ROT is a lean, automated signal pipeline that aggregates 15+ public data sources with custom NLP and AI. Our infrastructure costs are a fraction of legacy platforms, and we pass the savings to you.</p>
-        </div>
-        <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">What is BYOK (Bring Your Own Key)?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">You provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI-powered signal reasoning. ROT handles the signal pipeline and infrastructure - you control your AI spend. Platform AI summaries (Premium+) are generated at our cost. Configure your key in <a href="/account" class="text-orange-400 hover:underline">Account Settings</a>.</p>
-        </div>
-        <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">What are AI Trading Agents?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Autonomous signal processors that act on your rules. Ultra gets 3 built-in agents: Signal Follower (auto-acts on high-confidence signals), Contrarian (fades crowd consensus), and Momentum (rides trending tickers). Enterprise gets 10 agents plus the ability to build custom rule-based agents. All agents run on paper trading by default for safety.</p>
-        </div>
-        <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">What is the Bloomberg-lite Terminal?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">A 6-panel real-time dashboard inspired by Bloomberg Terminal. Shows live signals, options flow, market context, sector rotation, unusual activity, and news feed in a single view. Available on Premium (60s refresh) and Ultra (30s refresh with watchlist alerts). No $24,000/yr Bloomberg subscription needed.</p>
+            <h3 class="text-sm font-bold text-white mb-2">Is the free tier actually free forever?</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Yes. No credit card, no trial expiration. Delayed signals, paper trading, news feed, macro calendar. Upgrade when the alpha speaks for itself.</p>
         </div>
         <div class="signal-card rounded-xl p-5">
             <h3 class="text-sm font-bold text-white mb-2">Can I cancel anytime?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Yes. Cancel from your account page - no contracts, no exit fees, no guilt trip. Your subscription stays active until the end of your billing period, then you downgrade to Free. Keep your paper trading portfolio, badges, and watchlist.</p>
+            <p class="text-xs text-gray-400 leading-relaxed">Yes. Cancel from your account page. No contracts, no fees. You keep Free tier access after cancellation.</p>
         </div>
         <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">What does "founding member pricing" mean?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">The price you lock in today is the price you keep forever, as long as your subscription stays active. We will add features and raise prices for new subscribers, but your rate never changes. Early believers deserve early pricing.</p>
+            <h3 class="text-sm font-bold text-white mb-2">What is BYOK (Bring Your Own Key)?</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">You can provide your own LLM API key (OpenAI, Anthropic, or DeepSeek) for AI reasoning. ROT handles the pipeline, you control your AI spend. Premium+ includes platform-generated AI summaries at no extra cost.</p>
         </div>
         <div class="signal-card rounded-xl p-5">
-            <h3 class="text-sm font-bold text-white mb-2">Does ROT offer an API?</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Yes. Full REST API with 19 endpoints covering signals, performance, correlations, news, congressional trades, unusual activity, leaderboards, and more. Pro gets 1,000 calls/day with field selection, sorting, and filtering. See <a href="/api/v1/docs" class="text-blue-400 hover:underline">API docs</a> for details.</p>
+            <h3 class="text-sm font-bold text-white mb-2">What are AI Trading Agents?</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Autonomous signal processors (Ultra+) that auto-execute paper trades based on your rules. 3 built-in types: Signal Follower, Contrarian, Momentum. Enterprise gets custom rule agents. Paper trading only for safety.</p>
+        </div>
+        <div class="signal-card rounded-xl p-5">
+            <h3 class="text-sm font-bold text-white mb-2">Does ROT have an API?</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Yes. Full REST API with 19+ endpoints. Pro gets 1,000 calls/day. See <a href="/api/v1/docs" class="text-blue-400 hover:underline">API docs</a>.</p>
         </div>
     </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 7: FINAL CTA
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ============================================================
+     FINAL CTA
+     ============================================================ -->
 <div class="max-w-3xl mx-auto text-center mb-12">
     <div class="stat-card rounded-2xl p-8 border-glow">
-        <h2 class="text-2xl md:text-3xl font-black text-white mb-3">Start free. Upgrade when you're addicted.</h2>
+        <h2 class="text-2xl md:text-3xl font-black text-white mb-3">Start free. Upgrade when you're ready.</h2>
         <p class="text-gray-400 text-sm mb-6 max-w-md mx-auto">
-            No credit card. No trial expiration. No salespeople emailing you.
-            Just signals, data, and the tools to trade them.
+            No credit card. No trial expiration. No salespeople.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
             {% if not user %}
@@ -576,57 +270,9 @@
             </a>
             {% endif %}
         </div>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
-            <span>&#128274; No credit card required</span>
-            <span>&#9889; Free tier forever</span>
-            <span>&#128176; Cancel anytime</span>
-        </div>
     </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     SECTION 8: DATA SOURCES + EXPLORE
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-<div class="max-w-3xl mx-auto mb-8 signal-card rounded-xl p-6" style="border-color: rgba(59, 130, 246, 0.3);">
-    <h3 class="text-base font-semibold text-white mb-3">15+ Data Sources in One Feed</h3>
-    <p class="text-gray-400 text-xs mb-3 leading-relaxed">
-        <span class="text-white font-semibold">Reddit</span> (WSB, r/options, r/stocks, r/investing, r/thetagang),
-        <span class="text-white font-semibold">Financial news</span> (MarketWatch, CNBC, Yahoo Finance, SeekingAlpha, Investing.com),
-        <span class="text-white font-semibold">Government</span> (FDA, DoD contracts, Federal Reserve, SEC),
-        <span class="text-white font-semibold">Social</span> (StockTwits, X/Twitter).
-        Every signal scored, tracked at 1h/4h/1d/1w price snapshots.
-    </p>
-</div>
-
-<div class="max-w-5xl mx-auto border-t border-gray-800 pt-8 mb-4">
-    <h3 class="text-base font-semibold text-white text-center mb-4">Explore Free Content</h3>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <a href="/news" class="signal-card rounded-xl p-4 block hover:border-green-700 transition text-center">
-            <div class="text-lg mb-1">&#128240;</div>
-            <div class="text-xs font-semibold text-white">News Feed</div>
-            <p class="text-[10px] text-gray-500 mt-1">Live market news</p>
-        </a>
-        <a href="/leaderboard" class="signal-card rounded-xl p-4 block hover:border-yellow-700 transition text-center">
-            <div class="text-lg mb-1">&#127942;</div>
-            <div class="text-xs font-semibold text-white">Leaderboard</div>
-            <p class="text-[10px] text-gray-500 mt-1">Paper trading ranks</p>
-        </a>
-        <a href="/hall-of-legends" class="signal-card rounded-xl p-4 block hover:border-amber-700 transition text-center">
-            <div class="text-lg mb-1">&#128081;</div>
-            <div class="text-xs font-semibold text-white">Hall of Legends</div>
-            <p class="text-[10px] text-gray-500 mt-1">Greatest trades ever</p>
-        </a>
-        <a href="/glossary" class="signal-card rounded-xl p-4 block hover:border-blue-700 transition text-center">
-            <div class="text-lg mb-1">&#128218;</div>
-            <div class="text-xs font-semibold text-white">Glossary</div>
-            <p class="text-[10px] text-gray-500 mt-1">75 terms explained</p>
-        </a>
-    </div>
-</div>
-
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     CHECKOUT JS + SAVINGS COUNTER ANIMATION
-     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 {% if stripe_enabled %}
 <script>
 async function checkout(tier) {
@@ -644,36 +290,5 @@ async function checkout(tier) {
 }
 </script>
 {% endif %}
-
-<script>
-// Animated overpay counter â€” ticks up daily savings in real-time
-(function() {
-    const el = document.getElementById('overpay-counter');
-    if (!el) return;
-    const dailyOverpay = (638 - 9.99) / 30; // ~$20.93/day
-    let displayed = 0;
-    const target = dailyOverpay;
-    const duration = 2000;
-    const start = performance.now();
-
-    function tick(now) {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        // Ease out cubic
-        const eased = 1 - Math.pow(1 - progress, 3);
-        displayed = eased * target;
-        el.textContent = '$' + displayed.toFixed(2);
-        if (progress < 1) requestAnimationFrame(tick);
-    }
-    // Start animation when element is visible
-    const observer = new IntersectionObserver(function(entries) {
-        if (entries[0].isIntersecting) {
-            requestAnimationFrame(tick);
-            observer.disconnect();
-        }
-    }, {threshold: 0.5});
-    observer.observe(el);
-})();
-</script>
 
 {% endblock %}
