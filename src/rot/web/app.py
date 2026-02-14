@@ -122,6 +122,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     static_dir.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+    # Root-level /health for Railway health checks — no DB dependency, instant response
+    @app.get("/health")
+    async def root_health():
+        return {"status": "healthy", "version": "0.1.0"}
+
     # Routes — export MUST be registered before signals so /signals/export
     # matches before /signals/{signal_id} catch-all
     from rot.web.routes import auth_routes, export, stripe_routes

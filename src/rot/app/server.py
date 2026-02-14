@@ -777,14 +777,6 @@ async def _run_server(cfg: Settings):
     log.info("Price checker: ACTIVE (interval=%ds, batch=%d)",
              cfg.market.price_check_interval_s, cfg.market.price_check_batch_size)
 
-    # One-time recalculation of stance-aware gains for old records
-    try:
-        recalc_count = await app.state.db.recalculate_stance_aware_gains()
-        if recalc_count > 0:
-            log.info("Startup: recalculated %d performance records", recalc_count)
-    except Exception as e:
-        log.warning("Startup recalculation failed: %s", e)
-
     # Capture the RUNNING event loop — uvicorn.Server.serve() will use this same loop
     loop = asyncio.get_running_loop()
 
@@ -852,26 +844,6 @@ async def _run_server(cfg: Settings):
             log.warning("X posting: ENABLED but credentials missing")
     else:
         log.info("X posting: DISABLED (set ROT_TWITTER_ENABLED=true)")
-
-    # Immediate startup cleanup to reclaim space on Railway restarts
-    try:
-        startup_summary = await app.state.db.run_full_cleanup()
-        log.info("Startup cleanup (DB): %s", startup_summary)
-    except Exception as e:
-        log.warning("Startup cleanup (DB) failed: %s", e)
-
-    # Aggressive JSONL + JSON state file cleanup on startup
-    try:
-        jsonl_logger = JsonlLogger(root=cfg.storage_root)
-        rotation_results = jsonl_logger.rotate(max_age_days=3)
-        rotated = sum(rotation_results.values())
-        if rotated > 0:
-            log.info("Startup cleanup (JSONL): removed %d old entries", rotated)
-        evicted = cleanup_market_cache(cfg.storage_root, max_age_days=3)
-        if evicted > 0:
-            log.info("Startup cleanup (market cache): evicted %d stale entries", evicted)
-    except Exception as e:
-        log.warning("Startup cleanup (files) failed: %s", e)
 
     # Start storage cleanup background task (always active)
     cleanup_task = asyncio.create_task(
@@ -996,6 +968,45 @@ async def _run_server(cfg: Settings):
         cfg.macro.calendar_poll_interval_s,
     )
 
+    # Deferred startup tasks — run AFTER server starts accepting connections
+    # so Railway health checks pass immediately while heavy work runs in background
+    async def _deferred_startup():
+        """Heavy startup work that runs after the server is already listening."""
+        await asyncio.sleep(5)  # Let uvicorn bind the port first
+        log.info("Running deferred startup tasks...")
+
+        # One-time recalculation of stance-aware gains
+        try:
+            recalc_count = await app.state.db.recalculate_stance_aware_gains()
+            if recalc_count > 0:
+                log.info("Startup: recalculated %d performance records", recalc_count)
+        except Exception as e:
+            log.warning("Startup recalculation failed: %s", e)
+
+        # DB cleanup to reclaim space on Railway restarts
+        try:
+            startup_summary = await app.state.db.run_full_cleanup()
+            log.info("Startup cleanup (DB): %s", startup_summary)
+        except Exception as e:
+            log.warning("Startup cleanup (DB) failed: %s", e)
+
+        # JSONL + JSON state file cleanup
+        try:
+            jsonl_logger = JsonlLogger(root=cfg.storage_root)
+            rotation_results = jsonl_logger.rotate(max_age_days=3)
+            rotated = sum(rotation_results.values())
+            if rotated > 0:
+                log.info("Startup cleanup (JSONL): removed %d old entries", rotated)
+            evicted = cleanup_market_cache(cfg.storage_root, max_age_days=3)
+            if evicted > 0:
+                log.info("Startup cleanup (market cache): evicted %d stale entries", evicted)
+        except Exception as e:
+            log.warning("Startup cleanup (files) failed: %s", e)
+
+        log.info("Deferred startup tasks complete")
+
+    deferred_task = asyncio.create_task(_deferred_startup())
+
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
@@ -1012,6 +1023,7 @@ async def _run_server(cfg: Settings):
         await server.serve()
     finally:
         stop_event.set()
+        deferred_task.cancel()
         price_check_task.cancel()
         cleanup_task.cancel()
         unusual_task.cancel()

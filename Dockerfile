@@ -29,7 +29,9 @@ RUN pip install --no-cache-dir \
     "httpx>=0.26" \
     "jinja2>=3.1" \
     "python-multipart>=0.0.6" \
-    "stripe>=7.0"
+    "stripe>=7.0" \
+    "scikit-learn>=1.3" \
+    "numpy>=1.24"
 
 COPY src/ ./src/
 RUN pip install --no-cache-dir --no-deps .
