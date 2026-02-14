@@ -1,0 +1,164 @@
+# ROT Agent Code Patterns — TOML format
+# Token-efficient code generation templates.
+# Fill placeholders {NAME}, {name}, {url_path}, {Title} to generate code.
+# Updated: 2026-02-13
+
+[meta]
+project = "ROT"
+src = "src/rot/"
+tests = "tests/"
+templates = "src/rot/web/templates/"
+routes = "src/rot/web/routes/"
+
+# ════════════════════════════════════════════════════════════
+# CHECKLIST: Adding a new feature (7 steps)
+# ════════════════════════════════════════════════════════════
+[checklist.new_feature]
+steps = [
+  "1. gate → tier_gate.py: def gate_{name}_access(tier)",
+  "2. route → routes/{name}.py: APIRouter + handler",
+  "3. template → templates/{name}.html: extends base.html",
+  "4. register → app.py: app.include_router({name}.router)",
+  "5. nav → base.html: <a href='/{url_path}'>",
+  "6. test → tests/test_{name}.py: tier gate + route tests",
+  "7. docs → CLAUDE.md: update route table + change log",
+]
+
+[checklist.new_db_table]
+steps = [
+  "1. DDL → database.py _SCHEMA: CREATE TABLE IF NOT EXISTS",
+  "2. indexes → _SCHEMA: CREATE INDEX IF NOT EXISTS",
+  "3. CRUD methods → Database class: insert/get/update/delete/purge",
+  "4. migration → _MIGRATIONS list (for ALTER TABLE on existing tables only)",
+  "5. test → tests/test_{name}_db.py: fixture + CRUD tests",
+  "6. docs → CLAUDE.md: update DB schema section",
+]
+
+[checklist.new_background_loop]
+steps = [
+  "1. config → config.py: {Name}Config with interval_s",
+  "2. register config → Settings: {name}: {Name}Config = Field(default_factory=...)",
+  "3. loop fn → server.py: async def _{name}_loop(db, cfg, stop_event)",
+  "4. start → server.py _run_server: asyncio.create_task(_{name}_loop(...))",
+  "5. cancel → server.py finally: {name}_task.cancel()",
+  "6. test → verify loop starts/stops cleanly",
+  "7. docs → CLAUDE.md: update background loops section",
+]
+
+# ════════════════════════════════════════════════════════════
+# SQL PATTERNS
+# ════════════════════════════════════════════════════════════
+[sql]
+win = "CASE WHEN stance='bullish' AND max_gain_pct>=5.0 THEN 1 WHEN stance='bearish' AND max_loss_pct>=5.0 THEN 1 ELSE 0 END"
+loss = "CASE WHEN stance='bullish' AND max_loss_pct>=5.0 THEN 1 WHEN stance='bearish' AND max_gain_pct>=5.0 THEN 1 ELSE 0 END"
+neutral = "CASE WHEN stance NOT IN ('bullish','bearish') THEN 1 WHEN (NOT win AND NOT loss) THEN 1 ELSE 0 END"
+tradeable = "stance IN ('bullish','bearish')"
+
+[sql.unified_cte]
+description = "JOIN live signals + archive for analytics queries"
+sql = """
+WITH unified AS (
+  SELECT s.id,s.created_at,s.ticker,s.event_type,s.stance,s.strategy,
+         s.confidence,s.subreddit,s.quality_score,s.sector,s.post_title,
+         sp.price_at_signal,sp.price_1h,sp.price_4h,sp.price_1d,
+         sp.max_gain_pct,sp.max_loss_pct
+  FROM signals s JOIN signal_performance sp ON s.id=sp.signal_id
+  UNION ALL
+  SELECT id,created_at,ticker,event_type,stance,strategy,
+         confidence,subreddit,quality_score,sector,post_title,
+         price_at_signal,price_1h,price_4h,price_1d,
+         max_gain_pct,max_loss_pct
+  FROM signal_archive
+)
+"""
+
+# ════════════════════════════════════════════════════════════
+# CSS CLASS MAP (Tailwind patterns used in templates)
+# ════════════════════════════════════════════════════════════
+[css]
+card = "stat-card rounded-xl p-4"
+grid2 = "grid grid-cols-1 md:grid-cols-2 gap-4"
+grid3 = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+grid4 = "grid grid-cols-2 md:grid-cols-4 gap-4"
+header = "text-2xl font-bold text-white"
+subheader = "text-sm font-semibold text-gray-400 uppercase tracking-wider"
+label = "text-gray-500 text-sm"
+value = "text-white font-bold"
+link = "text-blue-400 hover:underline"
+btn_primary = "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition font-semibold"
+btn_upgrade = "px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-500 hover:to-pink-500 transition font-semibold"
+badge_pro = "px-2 py-0.5 rounded text-xs bg-blue-900 text-blue-300 border border-blue-700"
+badge_premium = "px-2 py-0.5 rounded text-xs bg-purple-900 text-purple-300 border border-purple-700"
+badge_ultra = "px-2 py-0.5 rounded text-xs bg-orange-900 text-orange-300 border border-orange-700"
+badge_enterprise = "px-2 py-0.5 rounded text-xs bg-yellow-900 text-yellow-300 border border-yellow-700"
+bullish = "bg-green-900 text-green-400"
+bearish = "bg-red-900 text-red-400"
+neutral = "bg-gray-800 text-gray-400"
+paywall_container = "bg-gray-800 rounded-lg p-8 text-center"
+
+# ════════════════════════════════════════════════════════════
+# JINJA2 SNIPPETS
+# ════════════════════════════════════════════════════════════
+[jinja]
+paywall = """
+{% if not access.has_access %}
+<div class="stat-card rounded-xl p-8 text-center">
+  <div class="text-4xl mb-4">&#128274;</div>
+  <h2 class="text-xl font-bold text-white mb-2">{Title}</h2>
+  <p class="text-gray-400 mb-4">{description}</p>
+  <a href="/pricing" class="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold">Upgrade to {min_tier}</a>
+</div>
+{% else %}
+<!-- content -->
+{% endif %}
+"""
+
+stance_badge = """
+<span class="text-xs px-1.5 py-0.5 rounded {% if s.stance == 'bullish' %}bg-green-900 text-green-400{% elif s.stance == 'bearish' %}bg-red-900 text-red-400{% else %}bg-gray-800 text-gray-400{% endif %}">{{ s.stance }}</span>
+"""
+
+confidence_badge = """
+<span class="text-xs px-1.5 py-0.5 rounded {% if val > 0.6 %}bg-green-900 text-green-400{% elif val > 0.3 %}bg-yellow-900 text-yellow-400{% else %}bg-red-900 text-red-400{% endif %}">{{ (val * 100)|int }}%</span>
+"""
+
+htmx_auto_refresh = """
+hx-get="{url}" hx-trigger="every {interval}s" hx-swap="innerHTML settle:0.3s"
+"""
+
+signal_card = """
+<div class="p-2 rounded-lg border border-gray-800 hover:border-gray-600 transition text-sm">
+  <div class="flex items-center justify-between">
+    <a href="/dashboard/signal/{{ s.id }}" class="font-bold text-white hover:text-blue-400">{{ s.ticker }}</a>
+    {stance_badge}
+  </div>
+  <div class="text-xs text-gray-500 mt-1 truncate">{{ s.post_title|default('', true)|truncate(60) }}</div>
+  <div class="flex items-center justify-between mt-1 text-xs text-gray-600">
+    <span>{{ s.event_type }}</span>
+    <span>{{ (s.confidence * 100)|int }}% conf</span>
+  </div>
+</div>
+"""
+
+kpi_card = """
+<div class="stat-card rounded-xl p-4">
+  <div class="text-xs text-gray-500 uppercase">{label}</div>
+  <div class="text-2xl font-bold text-white mt-1">{value}</div>
+  <div class="text-xs text-gray-600 mt-1">{subtitle}</div>
+</div>
+"""
+
+# ════════════════════════════════════════════════════════════
+# SAFETY RULES (hard constraints)
+# ════════════════════════════════════════════════════════════
+[rules]
+frozen_dataclasses = "All types.py dataclasses are @dataclass(frozen=True) — use dataclasses.replace() to mutate"
+db_gitignore = "src/rot/storage/ is in .gitignore — use `git add -f` for database.py"
+request_in_ctx = "Template context dict MUST include 'request' key"
+row_factory = "DB results use aiosqlite.Row — dict(row) for true dict"
+json_columns = "market_data, reasoning, trade_idea, event_data columns need json.loads()"
+win_loss = "Only bullish+bearish = trades. Mixed/unknown = neutral always"
+thread_safety = "Pipeline = background thread. Web = async loop. Use run_coroutine_threadsafe()"
+claude_md = "MUST update CLAUDE.md change log after any changes"
+src_layout = "Imports: `from rot.xxx` NOT `from src.rot.xxx`"
+htmx_partials = "No {% extends %} in HTMX partial templates — they are fragments"
+asyncio_mode = "Tests: asyncio_mode='auto' in pyproject.toml — @pytest.mark.asyncio optional"

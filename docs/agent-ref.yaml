@@ -1,0 +1,357 @@
+# ROT Agent Reference — YAML (token-efficient format)
+# ~60% fewer tokens than equivalent markdown. Load this instead of CLAUDE.md for routine tasks.
+# Last updated: 2026-02-13
+
+project:
+  name: ROT (Reddit Options Trader)
+  lang: python 3.12
+  framework: FastAPI + Jinja2 + Tailwind + HTMX + aiosqlite
+  entry: python -m rot.app.server
+  root: src/rot/
+  tests: tests/
+  db: SQLite WAL mode, async
+
+# ── IMPORT MAP ──────────────────────────────────────────────
+# Copy-paste imports for every module. Eliminates path discovery.
+imports:
+  config: from rot.core.config import Settings, RedditConfig, LLMConfig, MarketConfig, TrendConfig, AlertConfig, WebConfig, RSSConfig, StockTwitsConfig, TwitterIngestConfig, TwitterPosterConfig, EmailConfig, AuthConfig, StripeConfig, TierConfig, SponsoredConfig, MLConfig, FeedbackConfig, UnusualActivityConfig, SectorConfig, ExportSchedulerConfig, BacktestServerConfig, AgentConfig, ArchiveConfig, MacroConfig
+  types: from rot.core.types import Post, Comment, ThreadSnapshot, TrendCandidate, Event, ReasoningPacket, OptionLeg, TradeIdea
+  nlp: from rot.nlp import NLPEngine, NLPResult, SentimentResult, ResolvedEntity
+  nlp_types: from rot.nlp.types import Token, SentimentSignal, ClassifiedEvent, TemporalResult, ThreadResult, OptionsEntity, PositionEntity, CommentAnalysis
+  db: from rot.storage.database import Database
+  auth: from rot.web.auth import get_current_user_optional, require_user, require_tier, hash_password, verify_password
+  tier_gate: from rot.web.tier_gate import gate_signal, gate_signal_list, gate_chart_access, gate_filter_access, gate_performance_access, gate_heatmap_access, gate_correlation_access, gate_backtest_access, gate_terminal_access, gate_agent_access, gate_unusual_activity, gate_sector_rotation_access
+  cache: from rot.web.query_cache import QueryCache
+  rate_limit: from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
+  backtest: from rot.backtest import BacktestConfig, BacktestEngine, BacktestResult, TradeRecord, EquityPoint, DrawdownPeriod
+  backtest_ext: from rot.backtest.monte_carlo import run_monte_carlo, MonteCarloResult
+  unusual: from rot.unusual import UnusualEvent, UnusualDetector, UnusualScore
+  unusual_types: from rot.unusual.types import UnusualSummary
+  sector: from rot.analysis import SectorAnalyzer, CorrelationAnalyzer
+  sector_types: from rot.analysis.sector_types import SectorMomentum, RotationEvent, SectorRanking, CapitalFlow
+  corr_types: from rot.analysis.correlation_types import CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph
+  export: from rot.export import ExportJob, ExportScheduler, LineageBuilder
+  export_types: from rot.export.types import ExportResult, SignalLineage, ScheduleConfig, LineageStep
+  feedback: from rot.feedback import FeedbackAnalyzer, SignalSuppressor
+  credibility: from rot.credibility.scorer import CredibilityScorer
+  ml_cred: from rot.credibility.ml_scorer import MLCredibilityScorer
+  features: from rot.credibility.features import extract_features, extract_features_from_row
+  agents: from rot.agents import AgentRule, TradingAgent, AgentEngine, AgentPerformance
+  websocket: from rot.web.routes.websocket import broadcast_signal
+  alerts: from rot.alerts.dispatcher import AlertDispatcher
+
+# ── FILE MAP ────────────────────────────────────────────────
+# module -> [files] with line counts and key exports
+files:
+  core:
+    config.py: {lines: ~410, exports: [Settings, 18 config classes]}
+    types.py: {lines: ~200, exports: [Post, Comment, ThreadSnapshot, TrendCandidate, Event, ReasoningPacket, OptionLeg, TradeIdea]}
+    logging.py: {lines: ~50, exports: [JsonlLogger]}
+  ingest:
+    reddit_ingestor.py: {exports: [RedditIngestor]}
+    rss_ingestor.py: {exports: [RSSIngestor]}
+    stocktwits_ingestor.py: {exports: [StockTwitsIngestor]}
+    twitter_ingestor.py: {exports: [TwitterIngestor]}
+    multi_ingestor.py: {exports: [MultiSourceIngestor]}
+    seen_store.py: {exports: [SeenStore]}
+  trend:
+    trend_engine.py: {exports: [TrendEngine]}
+    trend_store.py: {exports: [TrendStore]}
+    ranker.py: {exports: [rank_candidates]}
+    ticker_ranker.py: {exports: [rank_by_ticker]}
+  nlp:
+    engine.py: {exports: [NLPEngine]}
+    types.py: {exports: [NLPResult, SentimentResult, ResolvedEntity, Token, "20+ types"]}
+    tokenizer.py: {exports: [Tokenizer]}
+    lexicon.py: {exports: [LEXICON, LexiconEntry]}
+    sentiment.py: {exports: [SentimentAnalyzer]}
+    entities.py: {exports: [EntityResolver]}
+    classifier.py: {exports: [EventClassifier]}
+    temporal.py: {exports: [TemporalAnalyzer]}
+    thread.py: {exports: [ThreadAnalyzer]}
+  extract:
+    event_builder.py: {exports: [EventBuilder]}
+    enricher.py: {exports: [TICKER_ALIASES, TICKER_BLOCKLIST]}
+  credibility:
+    scorer.py: {exports: [CredibilityScorer]}
+    ml_scorer.py: {exports: [MLCredibilityScorer]}
+    features.py: {exports: [extract_features, extract_features_from_row]}
+    train.py: {exports: [train_model]}
+  feedback:
+    analyzer.py: {exports: [FeedbackAnalyzer]}
+    suppressor.py: {exports: [SignalSuppressor]}
+  reasoner:
+    reasoner.py: {exports: [Reasoner]}
+    llm_client.py: {exports: [LLMClient]}
+    prompts.py: {exports: [system_prompt, event_prompt]}
+    parser.py: {exports: [parse_response]}
+    ai_summary.py: {exports: [generate_ai_summary]}
+  market:
+    trade_builder.py: {exports: [TradeBuilder]}
+    enricher.py: {exports: [MarketEnricher]}
+    symbol_validator.py: {exports: [SymbolValidator]}
+    price_checker.py: {exports: [PriceChecker]}
+    gates.py: {exports: [apply_gates]}
+  backtest:
+    config.py: {exports: [BacktestConfig]}
+    engine.py: {exports: [BacktestEngine]}
+    result.py: {exports: [BacktestResult, TradeRecord, EquityPoint, DrawdownPeriod]}
+    metrics.py: {exports: [sharpe_ratio, sortino_ratio, calmar_ratio, max_drawdown, profit_factor, value_at_risk]}
+    monte_carlo.py: {exports: [run_monte_carlo, MonteCarloResult]}
+    risk.py: {exports: [compute_risk_metrics, RiskMetrics]}
+    walk_forward.py: {exports: [run_walk_forward, WalkForwardResult]}
+    optimizer.py: {exports: [optimize, OptimizationResult]}
+    benchmark.py: {exports: [compare_to_benchmark, BenchmarkComparison]}
+    comparator.py: {exports: [compare_strategies, ComparisonResult]}
+    report.py: {exports: [generate_csv_trades, generate_html_report]}
+  unusual:
+    types.py: {exports: [UnusualEvent, UnusualScore, UnusualSummary]}
+    detector.py: {exports: [UnusualDetector]}
+    history.py: {exports: [UnusualHistory]}
+  analysis:
+    sector.py: {exports: [SectorAnalyzer]}
+    sector_types.py: {exports: [SectorMomentum, RotationEvent, SectorRanking, CapitalFlow]}
+    correlations.py: {exports: [CorrelationAnalyzer]}
+    correlation_types.py: {exports: [CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph]}
+  export:
+    types.py: {exports: [ExportJob, ExportResult, SignalLineage, ScheduleConfig, LineageStep]}
+    scheduler.py: {exports: [ExportScheduler]}
+    lineage.py: {exports: [LineageBuilder]}
+  agents:
+    types.py: {exports: [AgentRule, TradingAgent, AgentPerformance]}
+    rules.py: {exports: [RuleEngine]}
+    engine.py: {exports: [AgentEngine]}
+  storage:
+    database.py: {lines: ~2000, exports: [Database], tables: 20+}
+  alerts:
+    dispatcher.py: {exports: [AlertDispatcher]}
+    discord.py: {exports: [send_discord_alert]}
+    email.py: {exports: [send_email_alert]}
+    twitter.py: {exports: [TwitterPoster]}
+    webhook.py: {exports: [send_webhook]}
+  web:
+    auth.py: {exports: [get_current_user_optional, require_user, require_tier]}
+    query_cache.py: {exports: [QueryCache]}
+    tier_gate.py: {exports: ["30+ gate_* functions"]}
+    rate_limit.py: {exports: [check_rate_limit, require_api_auth]}
+
+# ── TIER MATRIX ─────────────────────────────────────────────
+# tier -> feature access. Use for gate functions.
+tiers:
+  order: [free, pro, premium, ultra, enterprise]
+  paid: [pro, premium, ultra, enterprise]
+  premium_plus: [premium, ultra, enterprise]
+  ultra_plus: [ultra, enterprise]
+
+  features:
+    signals_realtime: {free: false, pro: true}
+    signal_delay_s: {free: 900, pro: 0}
+    page_limit: {free: 10, pro: 50, premium: 50, ultra: 200, enterprise: 500}
+    api_access: {free: false, pro: true}
+    api_limit_day: {free: 0, pro: 1000, premium: 5000, ultra: 25000, enterprise: 100000}
+    backtest: {free: false, pro: basic, premium: "+MC+WF+risk", ultra: "+optimizer+compare+export"}
+    backtest_days: {pro: 30, premium: 90, ultra: 365}
+    backtest_signals: {pro: 200, premium: 1000, ultra: 5000}
+    terminal: {free: false, pro: false, premium: true}
+    terminal_refresh_s: {premium: 60, ultra: 30}
+    terminal_options_flow: {premium: false, ultra: true}
+    terminal_watchlist: {premium: false, ultra: true}
+    agents: {free: false, pro: false, premium: false, ultra: true}
+    unusual_activity: {free: false, pro: false, premium: false, ultra: true}
+    sector_rotation: {free: false, pro: false, premium: true}
+    correlations: {free: false, pro: false, premium: true}
+    signal_quality: {free: false, pro: true}
+    data_export: {free: false, pro: false, premium: false, ultra: true}
+    enterprise_features: {enterprise: true}  # webhooks, sponsored, lineage, bulk export
+
+# ── DB METHODS (key ones) ───────────────────────────────────
+# Method signatures for Database class. All async.
+db_methods:
+  signals:
+    - "store_signal(signal_data: dict) -> str|None"
+    - "get_signals(limit, offset, ticker, stance, event_type, strategy, min_confidence, subreddit, days) -> list[dict]"
+    - "get_signal(signal_id: str) -> dict|None"
+    - "count_signals(**filters) -> int"
+    - "get_trending_tickers(hours=24, limit=20) -> list[dict]"
+    - "get_signals_for_backtest(days, limit, filters) -> list[dict]"
+  performance:
+    - "init_performance(signal_id, ticker, price) -> None"
+    - "update_performance(signal_id, interval, price) -> None"
+    - "get_performance_summary(days=7) -> dict"
+    - "get_accuracy_stats(days=30) -> dict"
+    - "get_strategy_pnl(days=30) -> list[dict]"
+    - "get_confidence_calibration(days=30) -> list[dict]"
+  users:
+    - "create_user(email, password_hash) -> str"
+    - "get_user_by_email(email) -> dict|None"
+    - "get_user_by_id(user_id) -> dict|None"
+    - "get_user_by_api_key(api_key_hash) -> dict|None"
+    - "update_user_tier(user_id, tier) -> None"
+    - "update_user_settings(user_id, settings_dict) -> None"
+  paper_trading:
+    - "get_paper_portfolio(user_id) -> dict"
+    - "execute_paper_trade(user_id, signal_id, ticker, price, amount) -> str"
+    - "close_paper_trade(trade_id, exit_price) -> dict"
+  unusual:
+    - "save_unusual_event(event_dict) -> None"
+    - "get_unusual_events(ticker, event_type, min_score, limit, days) -> list[dict]"
+    - "get_unusual_summary(days=7) -> dict"
+    - "purge_old_unusual(keep_days=90) -> int"
+  agents:
+    - "create_trading_agent(agent_dict) -> str"
+    - "get_trading_agents(user_id) -> list[dict]"
+    - "get_trading_agent(agent_id) -> dict|None"
+    - "update_agent_status(agent_id, status) -> None"
+    - "record_agent_trade(trade_dict) -> str"
+    - "get_agent_trades(agent_id, limit=50) -> list[dict]"
+    - "get_agent_performance(agent_id) -> dict"
+  archive:
+    - "archive_before_purge(keep_days=14) -> int"
+    - "purge_old_archives(keep_days=365) -> int"
+  cleanup:
+    - "run_full_cleanup(signal_keep_days=14) -> None"
+
+# ── ROUTE PATTERNS ──────────────────────────────────────────
+# Standard route structure. All routes follow this pattern.
+route_pattern:
+  file: src/rot/web/routes/{name}.py
+  template: src/rot/web/templates/{name}.html
+  register: "app.include_router({name}.router, tags=['{name}'])"
+  register_file: src/rot/web/app.py
+  nav_file: src/rot/web/templates/base.html
+  test_file: tests/test_{name}.py
+
+  standard_imports: |
+    from __future__ import annotations
+    import logging
+    from fastapi import APIRouter, Request
+    from fastapi.responses import HTMLResponse
+    from rot.web.auth import get_current_user_optional
+    from rot.web.tier_gate import gate_{name}_access
+
+  standard_handler: |
+    router = APIRouter()
+    @router.get("/{url-path}", response_class=HTMLResponse)
+    async def {name}_page(request: Request):
+        user = await get_current_user_optional(request)
+        tier = (user or {}).get("tier", "free")
+        access = gate_{name}_access(tier)
+        db = request.app.state.db
+        templates = request.app.state.templates
+        return templates.TemplateResponse("{name}.html", {
+            "request": request, "user": user, "tier": tier, "access": access
+        })
+
+# ── BACKGROUND LOOP PATTERN ────────────────────────────────
+bg_loop_pattern:
+  location: src/rot/app/server.py
+  structure: |
+    async def _{name}_loop(db, cfg, stop_event):
+        log.info("{Name} loop starting (interval=%ds)", cfg.interval_s)
+        for _ in range(60):  # 60s startup delay
+            if stop_event.is_set(): return
+            await asyncio.sleep(1)
+        while not stop_event.is_set():
+            try:
+                # ... your logic ...
+                pass
+            except Exception as e:
+                log.error("{Name} error: %s", e, exc_info=True)
+            for _ in range(cfg.interval_s):
+                if stop_event.is_set(): break
+                await asyncio.sleep(1)
+  start: "task = asyncio.create_task(_{name}_loop(db, cfg.{name}, stop_event))"
+  cancel: "task.cancel()  # in finally block"
+
+# ── CONFIG PATTERN ──────────────────────────────────────────
+config_pattern:
+  file: src/rot/core/config.py
+  structure: |
+    class {Name}Config(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix="ROT_{NAME}_")
+        enabled: bool = False
+        interval_s: int = 300
+  register: "{name}: {Name}Config = Field(default_factory={Name}Config)  # in Settings class"
+
+# ── TEST PATTERN ────────────────────────────────────────────
+test_pattern:
+  file: tests/test_{name}.py
+  fixture: |
+    @pytest.fixture
+    async def db(tmp_path):
+        database = Database(db_path=str(tmp_path / "test.db"))
+        await database.connect()
+        yield database
+        await database.close()
+  async_test: |
+    @pytest.mark.asyncio
+    async def test_{name}(db):
+        result = await db.{method}(...)
+        assert result is not None
+  config: "asyncio_mode = 'auto'  # in pyproject.toml"
+
+# ── GATE FUNCTION PATTERN ──────────────────────────────────
+gate_pattern:
+  file: src/rot/web/tier_gate.py
+  constants: "_PAID_TIERS = {'pro','premium','ultra','enterprise'}"
+  structure: |
+    def gate_{name}_access(tier: str) -> dict:
+        return {
+            "has_access": tier in _PAID_TIERS,
+            "has_advanced": tier in ("premium","ultra","enterprise"),
+            "has_export": tier in ("ultra","enterprise"),
+            "max_items": 0 if tier=="free" else 25 if tier=="pro" else 100 if tier=="premium" else 500,
+        }
+
+# ── TEMPLATE PATTERN ────────────────────────────────────────
+template_pattern:
+  file: src/rot/web/templates/{name}.html
+  extends: base.html
+  structure: |
+    {% extends "base.html" %}
+    {% block title %}{Title} - ROT{% endblock %}
+    {% block content %}
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      {% if not access.has_access %}
+      <div class="bg-gray-800 rounded-lg p-8 text-center">
+        <p class="text-gray-400">Upgrade to access this feature.</p>
+        <a href="/pricing" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded">Upgrade</a>
+      </div>
+      {% else %}
+      <!-- Feature content -->
+      {% endif %}
+    </div>
+    {% endblock %}
+  css_classes:
+    card: stat-card rounded-xl p-4
+    grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4
+    header: text-2xl font-bold text-white
+    badge_pro: px-2 py-0.5 rounded text-xs bg-blue-900 text-blue-300 border border-blue-700
+    badge_premium: px-2 py-0.5 rounded text-xs bg-purple-900 text-purple-300 border border-purple-700
+    badge_ultra: px-2 py-0.5 rounded text-xs bg-orange-900 text-orange-300 border border-orange-700
+    bullish: bg-green-900 text-green-400
+    bearish: bg-red-900 text-red-400
+    neutral: bg-gray-800 text-gray-400
+
+# ── GOTCHAS & RULES ─────────────────────────────────────────
+gotchas:
+  - "database.py is in .gitignore — use `git add -f src/rot/storage/database.py`"
+  - "All dataclasses in types.py are FROZEN (immutable) — use dataclasses.replace() to modify"
+  - "Template context MUST include 'request' key (Jinja2 + Starlette requirement)"
+  - "DB uses row_factory=aiosqlite.Row — results are dict-like, use dict(row) for true dicts"
+  - "JSON columns: json.loads() needed when reading market_data, reasoning, trade_idea, event_data"
+  - "Win/loss: ONLY bullish+bearish count as trades. Mixed/unknown = always neutral"
+  - "Pipeline runs in background THREAD, web runs in async event loop — use run_coroutine_threadsafe for cross-thread"
+  - "_PAID_TIERS and _PREMIUM_PLUS etc are sets in tier_gate.py — check membership with `in`"
+  - "HTMX partials: NO {% extends %} — they are HTML fragments, not full pages"
+  - "All tests use asyncio_mode='auto' — no need for @pytest.mark.asyncio decorator (but it's harmless)"
+  - "pyproject.toml has src-layout — imports start with `rot.` not `src.rot.`"
+  - "MUST update CLAUDE.md change log after any feature changes"
+
+# ── EVENT TYPES ─────────────────────────────────────────────
+event_types: [earnings_rumor, product_news, regulatory, squeeze_chatter, macro, other]
+stances: [bullish, bearish, mixed, unknown]
+horizons: [intraday, 1w, earnings, longer, unknown]
+strategies: [debit_spread, credit_spread, iron_condor, calendar, straddle, strangle, none]
+unusual_types: [iv_spike, volume_surge, oi_surge, skew_shift, sweep]
+agent_types: [signal_follower, contrarian, momentum_rider, custom_rule]

@@ -1,0 +1,66 @@
+{
+  "_meta": {
+    "purpose": "Machine-readable ROT codebase schema for AI agents",
+    "format": "JSON — parseable, ~50% fewer tokens than markdown tables",
+    "updated": "2026-02-13"
+  },
+  "pipeline_stages": [
+    {"n": 1, "name": "Ingestion", "mod": "rot.ingest", "in": "subreddits/RSS/StockTwits/Twitter", "out": "List[ThreadSnapshot]"},
+    {"n": 2, "name": "Trend", "mod": "rot.trend", "in": "List[ThreadSnapshot]", "out": "List[TrendCandidate]"},
+    {"n": 3, "name": "Entity", "mod": "rot.nlp.engine", "in": "TrendCandidate", "out": "ticker symbols"},
+    {"n": 4, "name": "Event", "mod": "rot.extract", "in": "TrendCandidate", "out": "Event"},
+    {"n": 5, "name": "Market", "mod": "rot.market", "in": "Event", "out": "Event+market_data"},
+    {"n": 6, "name": "Credibility", "mod": "rot.credibility", "in": "Event", "out": "Event.confidence adjusted"},
+    {"n": 6.5, "name": "Suppression", "mod": "rot.feedback", "in": "Event", "out": "Event|suppressed"},
+    {"n": 7, "name": "LLM", "mod": "rot.reasoner", "in": "Event", "out": "ReasoningPacket"},
+    {"n": 8, "name": "Trade", "mod": "rot.market.trade_builder", "in": "ReasoningPacket+Event", "out": "List[TradeIdea]"},
+    {"n": 9, "name": "Storage", "mod": "rot.storage.database", "in": "signal_data dict", "out": "signal_id|None"}
+  ],
+  "db_tables": {
+    "signals": {"pk": "id TEXT", "key_cols": ["ticker", "event_type", "stance", "confidence", "strategy", "created_at"], "json_cols": ["market_data", "reasoning", "trade_idea", "event_data"]},
+    "signal_performance": {"fk": "signal_id→signals", "key_cols": ["price_at_signal", "price_1h", "price_4h", "price_1d", "max_gain_pct", "max_loss_pct"]},
+    "signal_archive": {"pk": "id TEXT", "purpose": "denormalized archive of purged signals", "retention": "365d"},
+    "users": {"pk": "id TEXT", "unique": ["email", "api_key_hash"], "key_cols": ["tier", "settings JSON"]},
+    "subscriptions": {"fk": "user_id→users", "key_cols": ["stripe_customer_id", "tier", "status"]},
+    "paper_portfolios": {"pk": "user_id", "key_cols": ["balance", "total_trades", "winning_trades", "total_pnl"]},
+    "paper_trades": {"fk": "user_id→users", "key_cols": ["signal_id", "ticker", "entry_price", "exit_price", "pnl_dollars", "status"]},
+    "backtest_runs": {"pk": "id TEXT", "fk": "user_id→users", "json_cols": ["config_json", "result_json", "monte_carlo_json", "risk_json"]},
+    "backtest_strategies": {"pk": "id TEXT", "fk": "user_id→users", "json_cols": ["config_json", "last_result_json"]},
+    "unusual_events": {"pk": "id TEXT", "key_cols": ["ticker", "event_type", "score", "detected_at"], "json_cols": ["details_json"]},
+    "trading_agents": {"pk": "id TEXT", "fk": "user_id→users", "key_cols": ["name", "agent_type", "status"], "json_cols": ["rules_json", "config_json"]},
+    "agent_trades": {"pk": "id TEXT", "fk": "agent_id→trading_agents", "key_cols": ["signal_id", "ticker", "stance", "entry_price", "pnl_dollars", "status"]},
+    "export_schedules": {"pk": "id TEXT", "fk": "user_id→users", "key_cols": ["format", "frequency", "next_run_at"]},
+    "api_usage": {"purpose": "rate limiting"},
+    "email_alert_settings": {"purpose": "per-user email prefs"},
+    "x_posts": {"purpose": "twitter posting history"},
+    "win_rate_snapshots": {"purpose": "periodic aggregation"},
+    "congress_trades": {"purpose": "congressional trading data"}
+  },
+  "bg_loops": [
+    {"name": "pipeline", "interval": "poll_interval_s (20s)", "module": "runner.py"},
+    {"name": "price_check", "interval": "300s", "module": "price_checker.py"},
+    {"name": "digest_email", "interval": "86400s", "module": "email.py"},
+    {"name": "x_posting", "interval": "10800s", "module": "twitter.py"},
+    {"name": "ml_retrain", "interval": "86400s", "module": "train.py"},
+    {"name": "feedback_analysis", "interval": "21600s", "module": "analyzer.py"},
+    {"name": "unusual_scan", "interval": "300s", "module": "detector.py"},
+    {"name": "export_scheduler", "interval": "3600s", "module": "scheduler.py"},
+    {"name": "macro_data", "interval": "varies", "module": "macro engines"},
+    {"name": "cleanup", "interval": "1800s", "module": "database.py"},
+    {"name": "agent_engine", "interval": "60s", "module": "engine.py"}
+  ],
+  "routes_summary": {
+    "pages": ["/", "/dashboard", "/pricing", "/account", "/performance", "/sentiment", "/correlations", "/sector-rotation", "/unusual-activity", "/signal-quality", "/backtest", "/paper-trading", "/leaderboard", "/terminal", "/agents", "/enterprise", "/ticker/{sym}", "/news", "/congress-tracker", "/replay"],
+    "api_json": ["/signals", "/signals/{id}", "/tickers/trending", "/performance/summary", "/api/v1/correlations/*", "/api/v1/sectors/*", "/api/v1/unusual-activity*", "/api/v1/enterprise/*", "/api/v1/agents/*", "/api/v1/terminal/*"],
+    "auth": ["/auth/register", "/auth/login", "/auth/logout", "/auth/me", "/auth/api-key", "/auth/watchlist", "/auth/filter-presets", "/auth/email-alerts"],
+    "billing": ["/api/v1/billing/checkout", "/api/v1/billing/webhook", "/api/v1/billing/portal"],
+    "ws": ["/api/v1/signals/live"]
+  },
+  "tier_gates": {
+    "free": {"delay_s": 900, "page_limit": 10, "api": false},
+    "pro": {"delay_s": 0, "page_limit": 50, "api": true, "api_day": 1000, "features": ["charts", "filters", "backtest_basic", "signal_quality"]},
+    "premium": {"api_day": 5000, "features": ["pro+", "advanced_analytics", "backtest_adv", "terminal", "correlations", "sector_rotation", "sentiment"]},
+    "ultra": {"api_day": 25000, "features": ["premium+", "backtest_full", "terminal_full", "unusual_activity", "agents", "export", "watchlist_alerts"]},
+    "enterprise": {"api_day": 100000, "features": ["ultra+", "webhooks", "sponsored", "lineage", "bulk_export", "data_licensing"]}
+  }
+}

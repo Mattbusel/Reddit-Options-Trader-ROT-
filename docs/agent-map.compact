@@ -1,0 +1,186 @@
+# ROT COMPACT AGENT MAP — Ultra-token-efficient reference
+# Format: MODULE > file : ExportedSymbol, ExportedSymbol
+# Usage: Ctrl+F for any symbol to find its import path
+# ~80% fewer tokens than markdown equivalent
+# Updated: 2026-02-13
+
+## CORE
+rot.core.config : Settings, RedditConfig, LLMConfig, MarketConfig, TrendConfig, AlertConfig, WebConfig, RSSConfig, RSSFeedEntry, StockTwitsConfig, TwitterIngestConfig, TwitterPosterConfig, EmailConfig, AuthConfig, StripeConfig, TierConfig, SponsoredConfig, MLConfig, FeedbackConfig, UnusualActivityConfig, SectorConfig, ExportSchedulerConfig, BacktestServerConfig, AgentConfig, ArchiveConfig, MacroConfig
+rot.core.types : Post, Comment, ThreadSnapshot, TrendCandidate, Event, ReasoningPacket, OptionLeg, TradeIdea
+rot.core.logging : JsonlLogger
+
+## INGEST
+rot.ingest.reddit_ingestor : RedditIngestor
+rot.ingest.rss_ingestor : RSSIngestor
+rot.ingest.stocktwits_ingestor : StockTwitsIngestor
+rot.ingest.twitter_ingestor : TwitterIngestor
+rot.ingest.multi_ingestor : MultiSourceIngestor
+rot.ingest.seen_store : SeenStore
+
+## TREND
+rot.trend.trend_engine : TrendEngine
+rot.trend.trend_store : TrendStore
+rot.trend.ranker : rank_candidates
+rot.trend.ticker_ranker : rank_by_ticker
+
+## NLP (10 modules)
+rot.nlp : NLPEngine, NLPResult, SentimentResult, ResolvedEntity
+rot.nlp.types : Token, SentimentSignal, SentimentResult, ResolvedEntity, OptionsEntity, PositionEntity, ClassifiedEvent, TemporalResult, ThreadResult, CommentAnalysis, NLPResult
+rot.nlp.tokenizer : Tokenizer
+rot.nlp.lexicon : LEXICON, LexiconEntry
+rot.nlp.sentiment : SentimentAnalyzer
+rot.nlp.entities : EntityResolver
+rot.nlp.classifier : EventClassifier
+rot.nlp.temporal : TemporalAnalyzer
+rot.nlp.thread : ThreadAnalyzer
+rot.nlp.engine : NLPEngine
+
+## EXTRACT
+rot.extract.event_builder : EventBuilder
+rot.extract.enricher : TICKER_ALIASES, TICKER_BLOCKLIST, BARE_TICKER_BLOCKLIST
+
+## CREDIBILITY
+rot.credibility.scorer : CredibilityScorer
+rot.credibility.ml_scorer : MLCredibilityScorer
+rot.credibility.features : extract_features, extract_features_from_row
+rot.credibility.train : train_model
+
+## FEEDBACK
+rot.feedback : FeedbackAnalyzer, SignalSuppressor
+rot.feedback.analyzer : FeedbackAnalyzer
+rot.feedback.suppressor : SignalSuppressor
+
+## REASONER
+rot.reasoner.reasoner : Reasoner
+rot.reasoner.llm_client : LLMClient
+rot.reasoner.prompts : system_prompt, event_prompt
+rot.reasoner.parser : parse_response
+rot.reasoner.ai_summary : generate_ai_summary
+
+## MARKET
+rot.market.trade_builder : TradeBuilder
+rot.market.enricher : MarketEnricher
+rot.market.symbol_validator : SymbolValidator
+rot.market.price_checker : PriceChecker
+rot.market.gates : apply_gates
+
+## BACKTEST (12 modules)
+rot.backtest : BacktestConfig, BacktestEngine, BacktestResult, TradeRecord, EquityPoint, DrawdownPeriod
+rot.backtest.config : BacktestConfig
+rot.backtest.engine : BacktestEngine
+rot.backtest.result : BacktestResult, TradeRecord, EquityPoint, DrawdownPeriod
+rot.backtest.metrics : sharpe_ratio, sortino_ratio, calmar_ratio, max_drawdown, drawdown_periods, profit_factor, win_rate, value_at_risk, conditional_var, mae_mfe, monthly_returns
+rot.backtest.monte_carlo : run_monte_carlo, MonteCarloResult
+rot.backtest.risk : compute_risk_metrics, RiskMetrics
+rot.backtest.walk_forward : run_walk_forward, WalkForwardResult
+rot.backtest.optimizer : optimize, OptimizationResult
+rot.backtest.benchmark : compare_to_benchmark, BenchmarkComparison
+rot.backtest.comparator : compare_strategies, ComparisonResult
+rot.backtest.report : generate_csv_trades, generate_html_report
+
+## UNUSUAL ACTIVITY (4 modules)
+rot.unusual : UnusualEvent, UnusualDetector, UnusualScore
+rot.unusual.types : UnusualEvent, UnusualScore, UnusualSummary
+rot.unusual.detector : UnusualDetector
+rot.unusual.history : UnusualHistory
+
+## ANALYSIS (5 modules)
+rot.analysis : SectorAnalyzer, CorrelationAnalyzer
+rot.analysis.sector : SectorAnalyzer
+rot.analysis.sector_types : SectorMomentum, RotationEvent, SectorRanking, CapitalFlow
+rot.analysis.correlations : CorrelationAnalyzer
+rot.analysis.correlation_types : CorrelationPair, TickerCluster, LeadLagPair, NetworkGraph
+
+## EXPORT (4 modules)
+rot.export : ExportJob, ExportScheduler, LineageBuilder
+rot.export.types : ExportJob, ExportResult, SignalLineage, ScheduleConfig, LineageStep
+rot.export.scheduler : ExportScheduler
+rot.export.lineage : LineageBuilder
+
+## AGENTS (3 modules)
+rot.agents : AgentRule, TradingAgent, AgentEngine, AgentPerformance
+rot.agents.types : AgentRule, TradingAgent, AgentPerformance
+rot.agents.rules : RuleEngine
+rot.agents.engine : AgentEngine
+
+## STORAGE
+rot.storage.database : Database
+
+## ALERTS
+rot.alerts.dispatcher : AlertDispatcher
+rot.alerts.discord : send_discord_alert
+rot.alerts.email : send_email_alert
+rot.alerts.twitter : TwitterPoster
+rot.alerts.webhook : send_webhook
+
+## WEB
+rot.web.auth : get_current_user_optional, require_user, require_tier, hash_password, verify_password, create_jwt_token
+rot.web.query_cache : QueryCache
+rot.web.tier_gate : gate_signal, gate_signal_list, gate_chart_access, gate_filter_access, gate_performance_access, gate_email_access, gate_heatmap_access, gate_leaderboard_access, gate_market_context, gate_correlation_access, gate_sentiment_access, gate_ticker_dive_access, gate_weekly_wrap_access, gate_replay_access, gate_data_licensing, gate_sponsored_access, gate_sector_rotation_access, gate_unusual_activity, gate_news_feed_access, gate_congress_tracker_access, gate_paper_leaderboard_access, gate_sports_betting_access, gate_signal_quality_access, gate_backtest_access, gate_terminal_access, gate_agent_access
+rot.web.rate_limit : check_rate_limit, require_api_auth, rate_limit_headers
+rot.web.routes.websocket : broadcast_signal
+
+## APP
+rot.app.main : main
+rot.app.loop : run_loop
+rot.app.runner : PipelineRunner
+rot.app.server : create_app
+
+#──────────────────────────────────────────────────────────────
+# QUICK TIER LOOKUP
+# F=free P=pro M=premium U=ultra E=enterprise
+# + means "this tier and above"
+#──────────────────────────────────────────────────────────────
+# Feature          : Gate
+# Signals (delayed) : F+  gate_signal
+# Signals (realtime): P+  gate_signal
+# Charts           : P+  gate_chart_access
+# Filters          : P+  gate_filter_access
+# Performance      : P+  gate_performance_access
+# Signal Quality   : P+  gate_signal_quality_access
+# Backtest (basic) : P+  gate_backtest_access
+# Backtest (adv)   : M+  gate_backtest_access
+# Backtest (full)  : U+  gate_backtest_access
+# Sentiment        : M+  gate_sentiment_access
+# Correlations     : M+  gate_correlation_access
+# Sector Rotation  : M+  gate_sector_rotation_access
+# Terminal         : M+  gate_terminal_access
+# Terminal (full)  : U+  gate_terminal_access
+# Unusual Activity : U+  gate_unusual_activity
+# Agents           : U+  gate_agent_access
+# Data Export      : U+  gate_data_licensing
+# Enterprise       : E   gate_data_licensing + gate_sponsored_access
+
+#──────────────────────────────────────────────────────────────
+# ENV VAR PREFIXES (for config discovery)
+#──────────────────────────────────────────────────────────────
+# ROT_REDDIT_*  ROT_LLM_*  ROT_MARKET_*  ROT_TREND_*  ROT_ALERT_*
+# ROT_WEB_*  ROT_RSS_*  ROT_STOCKTWITS_*  ROT_TWITTER_INGEST_*
+# ROT_TWITTER_*  ROT_EMAIL_*  ROT_AUTH_*  ROT_STRIPE_*  ROT_TIER_*
+# ROT_SPONSORED_*  ROT_ML_*  ROT_FEEDBACK_*  ROT_UNUSUAL_*
+# ROT_SECTOR_*  ROT_EXPORT_*  ROT_BACKTEST_*  ROT_AGENT_*
+# ROT_ARCHIVE_*  ROT_MACRO_*  ROT_STORAGE_ROOT  ROT_DB_PATH
+
+#──────────────────────────────────────────────────────────────
+# DB TABLES (20+)
+#──────────────────────────────────────────────────────────────
+# signals, signal_performance, signal_archive, users, subscriptions,
+# paper_portfolios, paper_trades, api_usage, email_alert_settings,
+# x_posts, referral_clicks, referral_conversions, sponsored_signals,
+# data_exports, win_rate_snapshots, congress_trades, backtest_runs,
+# backtest_strategies, unusual_events, export_schedules,
+# trading_agents, agent_trades
+
+#──────────────────────────────────────────────────────────────
+# ENUMS
+#──────────────────────────────────────────────────────────────
+# event_type: earnings_rumor|product_news|regulatory|squeeze_chatter|macro|other
+# stance:     bullish|bearish|mixed|unknown
+# horizon:    intraday|1w|earnings|longer|unknown
+# strategy:   debit_spread|credit_spread|iron_condor|calendar|straddle|strangle|none
+# tier:       free|pro|premium|ultra|enterprise
+# unusual:    iv_spike|volume_surge|oi_surge|skew_shift|sweep
+# agent_type: signal_follower|contrarian|momentum_rider|custom_rule
+# agent_status: active|paused|stopped
+# trade_status: open|closed
+# sub_status: active|canceled|past_due
