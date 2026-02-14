@@ -1,346 +1,233 @@
-# Architecture & Pipeline — ROT Architecture Reference
+<!-- Optimized for token efficiency. Read by agents on-demand. -->
+# Architecture & Pipeline — ROT
 
-> Part of the ROT documentation suite. See [CLAUDE.md](../CLAUDE.md) for the full index.
+> See [CLAUDE.md](../CLAUDE.md) for full index.
 
-## Quick Start for Agents
+## Quick Start
 
-- Key file(s): `src/rot/app/runner.py` (pipeline orchestrator), `src/rot/app/server.py` (FastAPI factory)
-- Key pattern: 9-stage pipeline, dual-path NLP/legacy, provider-agnostic LLM, multi-level dedup
-- Entry points: `python -m rot.app.server` (web+pipeline), `python -m rot.app.main` (one-shot), `python -m rot.app.loop` (continuous)
+| Key | Value |
+|-----|-------|
+| Pipeline orchestrator | `src/rot/app/runner.py` |
+| FastAPI factory | `src/rot/app/server.py` |
+| Pattern | 9-stage pipeline, dual-path NLP/legacy, provider-agnostic LLM, multi-level dedup |
+| Entry points | `server` (web+pipeline), `main` (one-shot), `loop` (continuous) — all via `python -m rot.app.<name>` |
 
----
-
-## Architecture Overview
-
-ROT is a vertically integrated pipeline that turns social media chatter into structured, scored, tradeable options signal intelligence. The data flows through 9 stages:
+## Pipeline: 9 Stages
 
 ```
-[Ingestion] --> [Trend Detection] --> [NLP Analysis] --> [Event Extraction]
-    --> [Credibility Scoring] --> [Adaptive Suppression] --> [LLM Reasoning] --> [Trade Building] --> [Storage + Delivery]
+Ingestion -> Trend -> NLP/Entity -> Event Build -> Market Enrich -> Credibility -> Suppression -> LLM -> Trade Build -> Store+Deliver
 ```
 
-### Key Architectural Decisions
+### 1. Ingestion (`src/rot/ingest/`)
 
-| Decision | Implementation |
-|----------|---------------|
-| Zero external NLP dependencies | Custom 10-module NLP engine in `src/rot/nlp/`, pure Python |
-| Provider-agnostic LLM | Supports OpenAI, Anthropic, DeepSeek via `LLMClient` |
-| Multi-source ingestion | Reddit (PRAW), RSS (feedparser), StockTwits (HTTP), Twitter/X (API v2) |
-| Dual-path event extraction | NLP engine path + legacy regex fallback |
-| Tier-gated SaaS model | 5 tiers (Free, Pro, Premium, Ultra, Enterprise) via Stripe |
-| SQLite persistence | Single-file DB with WAL mode, async via aiosqlite, 18+ tables |
-| Real-time delivery | WebSocket push, Discord webhooks, email (Resend/SMTP), Twitter posting |
+| Component | Source |
+|-----------|--------|
+| `RedditIngestor` | PRAW subreddit polls -> `ThreadSnapshot` |
+| `RSSIngestor` | 13+ feeds (MarketWatch, FDA, DoD, Fed, SeekingAlpha, etc.) |
+| `StockTwitsIngestor` | Symbol streams + trending |
+| `TwitterIngestor` | Cashtags + accounts via API v2 |
+| `MultiSourceIngestor` | Aggregates all above |
+| `SeenStore` | JSON dedup, 5000 entry cap |
 
----
+### 2. Trend Detection (`src/rot/trend/`)
 
-## Pipeline Flow
+`TrendEngine.detect(snapshots)` -> `List[TrendCandidate]`. Sliding window (1800s default), score+comment velocity. RSS/StockTwits/Twitter bypass threshold. `TrendStore` persists state as JSON. Produces top-N overall + top-N per-ticker.
 
-The pipeline is orchestrated by `PipelineRunner` (`src/rot/app/runner.py`). Each `run_once()` cycle executes the stages below.
+### 3. Entity Extraction (`src/rot/nlp/engine.py` or `event_builder.py`)
 
-### Stage 1: Ingestion
+- **NLP**: tokenize -> resolve entities (cashtags, bare tickers, implicit refs, sector expansion)
+- **Legacy**: regex `$TICKER` + bare uppercase + blocklist
 
-**Module:** `src/rot/ingest/`
+### 4. Event Building (`src/rot/extract/event_builder.py`)
+
+`EventBuilder(nlp_engine=...)` — dual-path NLP/legacy. Produces `Event` with type, stance, horizon, confidence, entities, evidence, meta (carries NLP data, post metadata, trend features).
+
+### 5. Market Enrichment (`src/rot/market/`)
 
 | Component | Purpose |
 |-----------|---------|
-| `RedditIngestor` | Polls subreddits via PRAW, returns `ThreadSnapshot` (post + top comments) |
-| `RSSIngestor` | Polls 13+ RSS feeds (MarketWatch, FDA, DoD, Fed, SeekingAlpha, etc.) |
-| `StockTwitsIngestor` | Polls symbol streams + trending |
-| `TwitterIngestor` | Polls cashtags + accounts via Twitter API v2 |
-| `MultiSourceIngestor` | Aggregates all sources into unified snapshot list |
-| `SeenStore` | JSON file dedup to skip already-processed posts (5000 entry cap) |
+| `SymbolValidator` | yfinance validation, 1000-entry cache |
+| `MarketEnricher` | Last close, 1d change, market cap, ATM IV, put/call OI ratio |
+| `PriceChecker` | Periodic price tracking for performance measurement |
 
-### Stage 2: Trend Detection
+Options chain: only when `enable_options_chain=True` (off by default).
 
-**Module:** `src/rot/trend/`
+### 6. Credibility Scoring (`src/rot/credibility/`)
 
-- `TrendEngine.detect(snapshots)` --> `List[TrendCandidate]`
-- Sliding window (default 1800s), scores based on score velocity + comment velocity
-- RSS/StockTwits/Twitter sources can bypass trend threshold (high-signal by nature)
-- `TrendStore` persists trend state as JSON
-- Produces both "top N overall" and "top N per-ticker" candidate lists
+**ML path (default):** `MLCredibilityScorer` — GradientBoostingClassifier, P(win) from 32 features, live retrain every 24h, hot-reload.
+**Heuristic fallback:** `CredibilityScorer` — 12 factors (always runs for A/B comparison in `meta["ml_credibility"]`).
+**Training:** `train.py` — queries win/loss outcomes, 5-fold CV, needs 100+ signals (30+ per class).
+**Result:** `event.confidence` = ML P(win) [0.05, 0.95] or heuristic-adjusted [0.05, 1.0].
 
-### Stage 3: Entity Extraction
+#### Heuristic Factors
 
-**Module:** `src/rot/nlp/engine.py` (or legacy path in `event_builder.py`)
+| # | Factor | Adj | Condition |
+|---|--------|-----|-----------|
+| 0 | institutional_rss | +.15 | FDA/DoD/Fed/SEC RSS |
+| 0b | news_rss | +.05 | Other RSS |
+| 1 | dd_flair | +.15 | DD flair + body>=200 |
+| 1b | dd_flair_shallow | +.05 | DD flair + short body |
+| 1c | quality_flair | +.05 | Discussion/TA/Fundamentals |
+| 2 | too_many_tickers | -.15 | 5+ entities |
+| 2b | focused_ticker | +.05 | Exactly 1 entity |
+| 3 | crosspost_penalty | -.10 | Is crosspost |
+| 4 | high_score | +.05 | Score > 100 |
+| 4b | controversial | -.05 | Upvote ratio < 0.6 |
+| 5 | high_discussion | +.05 | Comments > score*0.5 |
+| 6 | has_body_analysis | +.05 | Body > 100 chars |
+| 7 | subreddit_boost | +.05 | options/thetagang/investing/valueinvesting |
+| 7b | subreddit_penalty | -.05/-.10 | wsb/shortsqueeze/pennystocks |
+| 8a | author_high_karma | +.10 | Karma >= 50K |
+| 8b | author_good_karma | +.05 | Karma >= 10K |
+| 8c | author_low_karma | -.10 | Karma < 100 |
+| 8d | author_established | +.05 | Age >= 365d |
+| 8e | author_new_account | -.10 | Age < 30d |
+| 9 | nlp_sarcasm_penalty | 0 to -.15 | Sarcasm prob > 0.5 |
+| 10a | nlp_high_conviction | +.05 | Conviction > 0.7 |
+| 10b | nlp_low_conviction | -.05 | Conviction < 0.3 |
+| 11a | nlp_strong_consensus | +.10 | Consensus > 0.7 |
+| 11b | nlp_moderate_consensus | +.05 | Consensus > 0.5 |
+| 11c | nlp_contrarian_flag | -.05 | Contrarian detected |
+| 12 | nlp_low_actionability | -.10 | Actionability < 0.3 |
 
-- NLP path: tokenize --> resolve entities (cashtags, bare tickers, implicit references, sector expansion)
-- Legacy path: regex `$TICKER` + bare uppercase matching with blocklist
-- Returns list of ticker symbols per candidate
+### 6.5 Adaptive Suppression (`src/rot/feedback/suppressor.py`)
 
-### Stage 4: Event Building
+`SignalSuppressor.apply(event)` -> `(Event, was_suppressed)`. Reads precomputed `FeedbackAnalyzer._last_analysis` (GIL-safe).
 
-**Module:** `src/rot/extract/event_builder.py`
+| Rule | Threshold |
+|------|-----------|
+| Category suppression | event_type win_rate < 20%, 30+ signals |
+| Source suppression | (event_type, subreddit) win_rate < 15%, 30+ signals |
+| Low-confidence + poor category | confidence < 0.3 AND event_type in suppression candidates |
 
-- `EventBuilder(nlp_engine=NLPEngine())` -- dual-path: NLP or legacy
-- NLP path: uses full NLP analysis (sentiment, classification, temporal, thread consensus)
-- Produces `Event` dataclass with type, stance, horizon, confidence, entities, evidence, meta
-- Meta dict carries all NLP data, post metadata, trend features for downstream use
+Suppressed: stub ReasoningPacket + no-trade, skip LLM/trade build, stored with `meta["suppressed"]=True`. Disabled until first `FeedbackAnalyzer.run_analysis()` completes.
 
-### Stage 5: Market Enrichment
+### 7. LLM Reasoning (`src/rot/reasoner/`)
 
-**Module:** `src/rot/market/`
+`Reasoner.reason(event)` -> `ReasoningPacket`. Circuit breaker after 3 failures -> stub fallback. Informational-only sources (FDA/DoD/pharma) skip LLM -> stub with confidence=0.
 
-| Component | Purpose |
-|-----------|---------|
-| `SymbolValidator` | Validates tickers via yfinance (cached, 1000-entry cap) |
-| `MarketEnricher` | Enriches events with: last close, 1d change, market cap, ATM IV, put/call OI ratio |
-| `PriceChecker` | Periodic price tracking for signal performance measurement |
+**Confidence calibration:**
 
-- Options chain data fetched when `enable_options_chain=True` (disabled by default)
+| Range | Level |
+|-------|-------|
+| .10-.25 | Speculative |
+| .25-.40 | Some reasoning, unverified |
+| .40-.55 | Solid thesis + real data |
+| .55-.70 | Strong + market confirmation |
+| .70-.85 | Multi-source corroboration |
+| .85-1.0 | Officially confirmed |
 
-### Stage 6: Credibility Scoring
+Caps: squeeze_chatter max .65, all others max .85 unless confirmed. WSB/shortsqueeze/pennystocks: -.05/-.10. RSS: +.05/+.10. Market contradiction: -.10/-.20.
 
-**Module:** `src/rot/credibility/`
+### 8. Trade Building (`src/rot/market/trade_builder.py`)
 
-- **ML path (default):** `MLCredibilityScorer` wraps a trained scikit-learn `GradientBoostingClassifier` predicting P(win) from 32 signal features. Model trains live from historical win/loss data in a background loop (every 24h). Hot-reloads after retrain.
-- **Heuristic fallback:** `CredibilityScorer` with 12 hand-tuned factors. Always runs internally for comparison metadata. Used when ML model not yet trained or inference fails.
-- **Feature extraction:** `features.py` produces a 32-float vector from Event metadata.
-- **Training:** `train.py` queries signal_performance for resolved win/loss outcomes, trains with 5-fold CV. Requires 100+ decided signals and 30+ in each class.
-- Both scores stored in `meta["ml_credibility"]` for A/B monitoring.
-- Result: event.confidence = P(win) from ML [0.05, 0.95], or heuristic adjustment clamped [0.05, 1.0]
+`TradeBuilder.build(packet, event)` -> `List[TradeIdea]`. IV-aware: high IV (>50%) -> credit spreads/iron condors; low IV -> debit spreads/straddles. Gates: min volume, min OI, max bid-ask spread, min market cap ($100M). Quality score 0-1.
 
-#### Heuristic Credibility Factors (12 factors)
+### 9. Storage & Delivery (`src/rot/storage/database.py`, `src/rot/alerts/`)
 
-| # | Factor | Adjustment | Condition |
-|---|--------|-----------|-----------|
-| 0 | `institutional_rss` | +0.15 | RSS from FDA/DoD/Fed/SEC feeds |
-| 0b | `news_rss` | +0.05 | Any other RSS source |
-| 1 | `dd_flair` | +0.15 | DD flair + body >= 200 chars |
-| 1b | `dd_flair_shallow` | +0.05 | DD flair + short body |
-| 1c | `quality_flair` | +0.05 | Discussion/TA/Fundamentals flair |
-| 2 | `too_many_tickers` | -0.15 | 5+ entities (watchlist noise) |
-| 2b | `focused_ticker` | +0.05 | Exactly 1 entity |
-| 3 | `crosspost_penalty` | -0.10 | Post is a crosspost |
-| 4 | `high_score` | +0.05 | Post score > 100 |
-| 4b | `controversial` | -0.05 | Upvote ratio < 0.6 |
-| 5 | `high_discussion` | +0.05 | Comments > score x 0.5 |
-| 6 | `has_body_analysis` | +0.05 | Body > 100 chars |
-| 7 | `subreddit_boost` | +0.05 | options/thetagang/investing/valueinvesting |
-| 7b | `subreddit_penalty` | -0.05 to -0.10 | wsb/shortsqueeze/pennystocks |
-| 8a | `author_high_karma` | +0.10 | Karma >= 50,000 |
-| 8b | `author_good_karma` | +0.05 | Karma >= 10,000 |
-| 8c | `author_low_karma` | -0.10 | Karma < 100 |
-| 8d | `author_established` | +0.05 | Account age >= 365 days |
-| 8e | `author_new_account` | -0.10 | Account age < 30 days |
-| 9 | `nlp_sarcasm_penalty` | -0.00 to -0.15 | Sarcasm probability > 0.5 |
-| 10a | `nlp_high_conviction` | +0.05 | NLP conviction > 0.7 |
-| 10b | `nlp_low_conviction` | -0.05 | NLP conviction < 0.3 |
-| 11a | `nlp_strong_consensus` | +0.10 | Thread consensus > 0.7 |
-| 11b | `nlp_moderate_consensus` | +0.05 | Thread consensus > 0.5 |
-| 11c | `nlp_contrarian_flag` | -0.05 | Contrarian detected in thread |
-| 12 | `nlp_low_actionability` | -0.10 | Temporal actionability < 0.3 |
+Signal -> SQLite `signals` table (metadata as JSON blobs). `on_signal` callback: WebSocket, Discord webhook, email (digest+realtime), Twitter/X, custom webhooks (Enterprise). JSONL audit trail.
 
-### Stage 6.5: Adaptive Signal Suppression
+## Module Map
 
-**Module:** `src/rot/feedback/suppressor.py`
+| Module | Files | Purpose |
+|--------|-------|---------|
+| `core/` | config, types, logging | Settings, dataclasses, JSONL |
+| `ingest/` | reddit, rss, stocktwits, twitter, multi, seen_store | Multi-source ingestion |
+| `trend/` | engine, store, ranker, ticker_ranker | Sliding window trend detection |
+| `nlp/` | 10 modules ([detail](nlp-engine.md)) | Custom financial NLP |
+| `extract/` | event_builder, enricher | Dual-path event extraction |
+| `credibility/` | scorer, ml_scorer, features, train | ML+heuristic scoring |
+| `feedback/` | analyzer, suppressor | Feedback analysis + suppression |
+| `reasoner/` | reasoner, llm_client, prompts, parser, ai_summary | LLM + circuit breaker |
+| `market/` | trade_builder, enricher, symbol_validator, price_checker, gates | Market data + trades |
+| `backtest/` | 12 modules | Backtesting engine |
+| `unusual/` | 4 modules | Unusual activity detection |
+| `analysis/` | 5 modules | Sector rotation + correlations |
+| `export/` | 4 modules | Enterprise pipeline + lineage |
+| `macro/` | 7 modules | Economic calendar + events |
+| `agents/` | 4 modules | Autonomous trading agents |
+| `flow/` | 7 modules | Options flow intelligence |
+| `social/` | 7 modules | Social intel network |
+| `strategy/` | 9 modules | Strategy builder + ML optimizer |
+| `storage/` | database | aiosqlite, 33+ tables, migrations |
+| `alerts/` | dispatcher, discord, email, twitter, webhook | Multi-channel delivery |
+| `app/` | main, loop, runner, server | Entry points + orchestration |
+| `web/` | auth, query_cache, tier_gate, rate_limit, routes/, templates/ | Web layer ([detail](web-layer.md)) |
 
-- `SignalSuppressor.apply(event)` --> `(Event, was_suppressed)`
-- Reads precomputed analysis from `FeedbackAnalyzer._last_analysis` (thread-safe GIL read)
-- **Category-level suppression**: if event_type win_rate < 20% with 30+ decided signals
-- **Source-level suppression**: if (event_type, subreddit) win_rate < 15% with 30+ decided signals
-- **Low-confidence + poor category**: if confidence < 0.3 AND event_type appears in any suppression candidate
-- Suppressed signals: emit with stub ReasoningPacket + no-trade TradeIdea, skip LLM + trade building
-- Suppressed signals still stored with `meta["suppressed"]=True` for audit trail
-- Disabled by default until first `FeedbackAnalyzer.run_analysis()` completes
-
-### Stage 7: LLM Reasoning
-
-**Module:** `src/rot/reasoner/`
-
-- `Reasoner.reason(event)` --> `ReasoningPacket`
-- If LLM available: sends system prompt + event prompt to LLM, parses structured JSON response
-- If LLM unavailable: returns stub reasoning (template-based fallback)
-- Circuit breaker: disables LLM after 3 consecutive failures
-- **Informational-only sources** (FDA, DoD, pharma feeds) skip LLM reasoning --> stub with confidence=0
-
-#### LLM Confidence Calibration Rules
-
-| Range | Meaning |
-|-------|---------|
-| 0.10-0.25 | Speculative, no data |
-| 0.25-0.40 | Some reasoning, unverified |
-| 0.40-0.55 | Solid thesis with real data |
-| 0.55-0.70 | Strong thesis + market confirmation |
-| 0.70-0.85 | Multi-source corroboration |
-| 0.85-1.00 | Officially confirmed events |
-
-Hard caps: squeeze_chatter never > 0.65, nothing > 0.85 unless officially confirmed. Subreddit discounts: WSB/shortsqueeze/pennystocks -0.05 to -0.10. RSS boost: +0.05 to +0.10. Market contradiction: -0.10 to -0.20.
-
-### Stage 8: Trade Building
-
-**Module:** `src/rot/market/trade_builder.py`
-
-- `TradeBuilder.build(packet, event)` --> `List[TradeIdea]`
-- IV-aware strategy selection:
-  - High IV (>50%): credit spreads, iron condors (sell premium)
-  - Low IV: debit spreads, straddles (buy premium)
-- Liquidity gates: min volume, min OI, max bid-ask spread
-- Market cap gate: default $100M minimum
-- Quality scoring: 0.0-1.0 based on confidence, thesis quality, risk notes
-
-### Stage 9: Storage & Delivery
-
-**Module:** `src/rot/storage/database.py`, `src/rot/alerts/`
-
-- Signal saved to SQLite `signals` table with all metadata as JSON blobs
-- `on_signal` callback fires for real-time delivery:
-  - WebSocket broadcast to connected dashboard clients
-  - Discord webhook (if configured)
-  - Email alerts (digest + real-time, filtered by user preferences)
-  - Twitter/X posting (if configured)
-  - Custom webhooks (Enterprise tier)
-- JSONL logging for audit trail
-
----
-
-## Module Reference
-
-### Core Modules
-
-| Module | Key Files | Purpose |
-|--------|-----------|---------|
-| `src/rot/core/` | `config.py`, `types.py`, `logging.py` | Pydantic Settings, frozen dataclasses, JSONL logging |
-| `src/rot/ingest/` | `reddit_ingestor.py`, `rss_ingestor.py`, `stocktwits_ingestor.py`, `twitter_ingestor.py`, `multi_ingestor.py`, `seen_store.py` | Multi-source data ingestion |
-| `src/rot/trend/` | `trend_engine.py`, `trend_store.py`, `ranker.py`, `ticker_ranker.py` | Sliding window trend detection |
-| `src/rot/nlp/` | 10 modules (see [nlp-engine.md](nlp-engine.md)) | Custom financial NLP engine |
-| `src/rot/extract/` | `event_builder.py`, `enricher.py` | Dual-path event extraction |
-| `src/rot/credibility/` | `scorer.py`, `ml_scorer.py`, `features.py`, `train.py` | ML + heuristic credibility scoring |
-| `src/rot/feedback/` | `analyzer.py`, `suppressor.py` | Feedback analysis + adaptive suppression |
-| `src/rot/reasoner/` | `reasoner.py`, `llm_client.py`, `prompts.py`, `parser.py`, `ai_summary.py` | LLM reasoning with circuit breaker |
-| `src/rot/market/` | `trade_builder.py`, `enricher.py`, `symbol_validator.py`, `price_checker.py`, `gates.py` | Market data + trade building |
-| `src/rot/backtest/` | 12 modules | Strategy backtesting engine |
-| `src/rot/unusual/` | 4 modules | Unusual options activity detection |
-| `src/rot/analysis/` | 5 modules | Sector rotation + correlation analysis |
-| `src/rot/export/` | 4 modules | Enterprise data pipeline + lineage |
-| `src/rot/storage/` | `database.py` | Async SQLite, 18+ tables, migrations |
-| `src/rot/alerts/` | `dispatcher.py`, `discord.py`, `email.py`, `twitter.py`, `webhook.py` | Multi-channel alert delivery |
-| `src/rot/app/` | `main.py`, `loop.py`, `runner.py`, `server.py` | Entry points + pipeline orchestration |
-| `src/rot/web/` | `auth.py`, `query_cache.py`, `tier_gate.py`, `rate_limit.py`, `routes/`, `templates/` | Web layer (see [web-layer.md](web-layer.md)) |
-
----
-
-## Key Design Patterns
+## Design Patterns
 
 ### Dual-Path NLP/Legacy
-
 ```python
-class EventBuilder:
-    def __init__(self, nlp_engine=None):
-        self._nlp = nlp_engine
-
-    def from_candidate(self, c):
-        if self._nlp:
-            return self._from_candidate_nlp(c)  # NLP path
-        return self._from_candidate_legacy(c)    # regex fallback
+# EventBuilder falls back to legacy regex if nlp_engine is None or fails
+EventBuilder(nlp_engine=NLPEngine())  # NLP path
+EventBuilder()                        # legacy regex path
 ```
-
-The NLP engine is optional. If not provided (or if it fails), EventBuilder falls back to legacy regex-based extraction. This ensures the pipeline never breaks due to NLP issues.
 
 ### Provider-Agnostic LLM
+`LLMClient(provider=, api_key=, model=)` — supports openai/anthropic/deepseek. Switch via `ROT_LLM_PROVIDER` + `ROT_LLM_API_KEY`.
 
-```python
-class LLMClient:
-    def __init__(self, provider="openai", api_key="", model="gpt-4o-mini", ...):
-        # Supports: openai, anthropic, deepseek
-        # Each provider has its own SDK client
-```
-
-Switching LLM providers requires only changing `ROT_LLM_PROVIDER` and `ROT_LLM_API_KEY`.
-
-### Circuit Breaker (Reasoner)
-
-After 3 consecutive LLM failures, the Reasoner automatically switches to stub reasoning (no API calls). Prevents cascading failures from taking down the pipeline.
+### Circuit Breaker
+3 consecutive LLM failures -> auto-switch to stub reasoning. Prevents cascading failures.
 
 ### Informational-Only Sources
+FDA/DoD/pharma RSS: skip LLM+trade building, still stored for news feed/dashboard.
 
-FDA, DoD, and pharma RSS feeds are classified as informational-only. They skip LLM reasoning and trade building (no trades generated), but are still stored as signals for the news feed and dashboard.
-
-### Dedup at Multiple Levels
+### Multi-Level Dedup
 
 | Level | Mechanism | Scope |
 |-------|-----------|-------|
-| 1 | SeenStore | Post-level dedup at ingestion (JSON file, 5000 entry cap) |
-| 2 | Runner dedup | (post_url, ticker) pair dedup at emission (in-memory, clears at 2K entries) |
-| 3 | DB unique index | (post_url, ticker, created_at) prevents duplicate signals in storage |
+| 1 | SeenStore | Post-level, JSON file, 5000 cap |
+| 2 | Runner | (post_url, ticker) in-memory, clears at 2K |
+| 3 | DB index | (post_url, ticker, created_at) unique |
 
-### ML/Heuristic Dual-Path Credibility Scoring
+### ML/Heuristic Dual-Path
+ML scorer always runs heuristic internally. Falls back when no model. Both in `meta["ml_credibility"]` for A/B. Hot-reloads after retrain.
 
-```python
-class MLCredibilityScorer:
-    def score(self, event):
-        heuristic_result = self._heuristic.score(event)  # always runs
-        if not self.ml_available:
-            return heuristic_result
-        return self._score_ml(event, heuristic_result)  # P(win) from model
-```
-
-The ML scorer trains live from historical outcomes. If no model exists, it falls back to the heuristic. Both scores stored in `meta["ml_credibility"]` for A/B comparison. Hot-reloads after retrain without server restart.
-
-### Tier Gating as Dict Returns
-
-Gate functions return dicts of boolean/numeric flags rather than raising exceptions:
-
-```python
-access = gate_chart_access(user_tier)
-if access["has_quadrant"]:
-    render_quadrant_chart()
-```
+### Tier Gating
+Gate functions return dicts of bool/numeric flags (not exceptions): `gate_chart_access(tier)["has_quadrant"]`.
 
 ### JSON Blob Storage
+Complex nested data stored as JSON text columns in SQLite — avoids schema complexity, queryable via JSON functions.
 
-Complex nested data (market data, reasoning, trade ideas, event metadata including NLP) is stored as JSON text columns in SQLite. Avoids schema complexity while keeping data queryable via JSON functions.
+### Precomputed Feedback
+Background loop every 6h caches analysis in memory. Dashboard reads instantly. Suppressor reads same cache (GIL-safe, no locks).
 
-### Precomputed Feedback Analysis
-
-The feedback engine runs expensive DB queries in a background loop every 6h, caching results in memory. The Signal Quality dashboard reads cached results instantly. The suppressor reads the same cache from the sync pipeline thread (GIL-safe dict read, no locks needed).
-
-### Background Scan Loops
-
-`server.py` runs background `asyncio` tasks alongside the main pipeline loop:
+### Background Loops (`server.py`)
 
 | Loop | Interval | Purpose |
 |------|----------|---------|
-| Unusual Activity Scanner | 5 min | Fetches recent signals, runs `UnusualDetector.scan_batch()`, saves events, purges old |
-| Export Scheduler | 1 hour | Checks `export_schedules` for pending exports and runs them |
-| Feedback Analyzer | 6 hours | Recomputes category performance, suppression candidates |
-| ML Retrain | 24 hours | Retrains credibility model from win/loss outcomes |
+| Unusual Activity | 5min | `UnusualDetector.scan_batch()`, save+purge |
+| Export Scheduler | 1h | Run pending scheduled exports |
+| Feedback Analyzer | 6h | Category performance, suppression candidates |
+| ML Retrain | 24h | Retrain credibility model |
+| Macro Data | 1h | Calendar seed, earnings/insider ingest, purge |
+| Flow Scanner | 5min | `FlowDetector.scan_batch()`, patterns, convergences |
+| Author Resolution | 1h | Resolve predictions, update profiles |
+| Manipulation Scanner | 30min | Coordinated posting, bot, pump-dump detection |
+| Strategy Health | 6h | Health scores, deactivate underperformers |
+| Regime Detection | 1h | Market regime classification |
 
-All loops follow the pattern: initial delay --> `while not stop_event.is_set()` --> try/except with logging --> `asyncio.sleep()`.
+Pattern: initial delay -> `while not stop_event.is_set()` -> try/except+log -> `asyncio.sleep()`.
 
-### On-Demand Analysis (Sector + Correlation)
+### On-Demand Analysis
+Sector rotation + correlations computed on page visit, cached via query cache (TTL 120s).
 
-Sector rotation and correlation analysis are computed on-demand when the user visits the page, not via background loops. Results are cached via the dashboard query cache (TTL 120s).
+### Signal Archive
+14-day purge via `run_full_cleanup()`. `archive_before_purge()` copies resolved signals to `signal_archive` (flat table). `_UNIFIED_CTE` unions live+archive for all analytics. 365-day archive retention (`ROT_ARCHIVE_KEEP_DAYS`).
 
-### Signal Archive (Long-Term Data Retention)
+### Dashboard Query Cache (`src/rot/web/query_cache.py`)
 
-Signals and performance data are purged after 14 days by `run_full_cleanup()`. To preserve data for backtesting and analytics, `archive_before_purge()` copies resolved signals into the flat `signal_archive` table before deletion. A `_UNIFIED_CTE` unions live data with archive for seamless querying across all analytics. Archives retained for 365 days (configurable via `ROT_ARCHIVE_KEEP_DAYS`).
-
-### Dashboard Query Cache
-
-The dashboard loads 12+ database queries per page view. An async in-memory TTL cache (`src/rot/web/query_cache.py`) handles this:
-
-| Cached Query | TTL |
-|-------------|-----|
-| Trending tickers | 30s |
-| Leaderboard | 30s |
-| Chart data | 60s |
-| Time series | 60s |
-| Performance summary | 120s |
-| Strategy breakdown | 120s |
-| Accuracy stats | 120s |
-| Heatmaps | 120s |
-| Correlations | 120s |
+| Query | TTL |
+|-------|-----|
+| Trending tickers, Leaderboard | 30s |
+| Chart data, Time series | 60s |
+| Perf summary, Strategy breakdown, Accuracy, Heatmaps, Correlations | 120s |
 | Landing page stats | 300s |
 
-**NOT cached**: user-filtered signals, per-user signal count badge.
+NOT cached: user-filtered signals, per-user signal count. Features: per-key TTL, thundering-herd prevention (asyncio.Lock), prefix invalidation on new signals, max 100 entries + LRU eviction, lock cleanup every 5min.
 
-Features: per-key TTL, thundering-herd prevention (per-key `asyncio.Lock`), prefix invalidation on new signals, max 100 entries with LRU eviction, periodic lock cleanup every 5 minutes.
-
-### Lag Timer (RSS Signal Provenance)
-
-Event meta stores `post_created_utc` (RSS article publish time) and `snapshot_ts` (ingestion time). The dashboard template computes `created_at - post_created_utc` to show detection latency. Only displayed on RSS-sourced signals (flair == "rss").
+### Lag Timer (RSS)
+`post_created_utc` vs `created_at` delta shown on RSS signal cards (flair=="rss").
 
 ### Win/Loss Logic
-
-Only **bullish** and **bearish** signals count as trades for win/loss evaluation. Mixed and unknown stances are always neutral. This applies both in the DB (`_WIN_CASE_SQL`, `_LOSS_CASE_SQL`) and the backtest engine (`_compute_pnl_pct`).
+Only bullish/bearish count as trades. Mixed/unknown always neutral. Applies in DB SQL (`_WIN_CASE_SQL`/`_LOSS_CASE_SQL`) and backtest engine (`_compute_pnl_pct`).
