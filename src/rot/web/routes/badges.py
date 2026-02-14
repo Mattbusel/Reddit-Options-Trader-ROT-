@@ -16,7 +16,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rot.web.auth import get_current_user_optional, require_user
-from rot.gamification import BadgeTracker, BADGE_REGISTRY, GamificationLeaderboard
+from rot.gamification import BadgeTracker, BADGE_REGISTRY, GamificationLeaderboard, get_badge
 
 log = logging.getLogger(__name__)
 
@@ -64,8 +64,6 @@ async def badges_page(request: Request):
 
         # Convert to display format
         for progress in progress_list:
-            from rot.gamification import get_badge
-
             badge = get_badge(progress.badge_id)
             if badge:
                 badges.append(
