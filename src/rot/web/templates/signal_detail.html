@@ -189,23 +189,24 @@
 
         <!-- Reasoning Section -->
         {% set reasoning = signal.get('reasoning', {}) %}
+        {% set reasoning_is_dict = reasoning is mapping %}
         {% if reasoning %}
         <div class="signal-card rounded-xl p-6">
             <div class="flex items-center justify-between mb-5">
                 <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
                     <span>&#129504;</span>
                     <span>Analysis</span>
-                    {% if reasoning.get('byok') %}
+                    {% if reasoning_is_dict and reasoning.get('byok') %}
                     <span class="text-xs bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-0.5 rounded ml-2">AI-Analyzed ({{ reasoning.get('byok_provider', 'LLM') }}/{{ reasoning.get('byok_model', '') }})</span>
                     {% elif is_stub_reasoning %}
                     <span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded ml-2">Template</span>
                     {% endif %}
                 </h3>
-                {% if has_byok and not reasoning.get('_locked') %}
+                {% if has_byok and not (reasoning_is_dict and reasoning.get('_locked')) %}
                 <button id="byok-btn" onclick="reanalyzeSignal('{{ signal.id }}')"
                         class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
                     <span>&#10024;</span>
-                    <span>{{ 'Re-analyze' if reasoning.get('byok') else 'Analyze' }} with AI</span>
+                    <span>{{ 'Re-analyze' if reasoning_is_dict and reasoning.get('byok') else 'Analyze' }} with AI</span>
                 </button>
                 {% elif not has_byok and user and user.tier in ['pro', 'premium', 'ultra'] %}
                 <a href="/account" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition">
@@ -215,9 +216,9 @@
             </div>
             <div id="byok-status" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
 
-            {% if reasoning.get('_locked') %}
+            {% if reasoning_is_dict and reasoning.get('_locked') %}
             <!-- Locked reasoning for free tier -->
-            {% if reasoning.get('thesis') %}
+            {% if reasoning_is_dict and reasoning.get('thesis') %}
             <div class="mb-5">
                 <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Thesis</div>
                 <p class="text-gray-300 leading-relaxed">{{ reasoning.thesis }}</p>
@@ -235,28 +236,28 @@
             {% else %}
             <!-- Full reasoning for paid tiers -->
             <div class="space-y-5">
-                {% if reasoning.get('thesis') %}
+                {% if reasoning_is_dict and reasoning.get('thesis') %}
                 <div>
                     <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Thesis</div>
                     <p class="text-gray-300 leading-relaxed">{{ reasoning.thesis }}</p>
                 </div>
                 {% endif %}
 
-                {% if reasoning.get('catalyst_window') %}
+                {% if reasoning_is_dict and reasoning.get('catalyst_window') %}
                 <div>
                     <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Catalyst Window</div>
                     <p class="text-gray-300 leading-relaxed">{{ reasoning.catalyst_window }}</p>
                 </div>
                 {% endif %}
 
-                {% if reasoning.get('market_expectation') %}
+                {% if reasoning_is_dict and reasoning.get('market_expectation') %}
                 <div>
                     <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Market Expectation</div>
                     <p class="text-gray-300 leading-relaxed">{{ reasoning.market_expectation }}</p>
                 </div>
                 {% endif %}
 
-                {% if reasoning.get('recommended_structures') %}
+                {% if reasoning_is_dict and reasoning.get('recommended_structures') %}
                 <div>
                     <div class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Recommended Structures</div>
                     <ul class="list-disc list-inside text-gray-300 text-sm space-y-1.5 ml-1">
@@ -267,7 +268,7 @@
                 </div>
                 {% endif %}
 
-                {% if reasoning.get('invalidations') %}
+                {% if reasoning_is_dict and reasoning.get('invalidations') %}
                 <div>
                     <div class="text-xs text-red-400 uppercase tracking-wide font-semibold mb-2">Invalidations</div>
                     <ul class="list-disc list-inside text-red-400/90 text-sm space-y-1.5 ml-1">
@@ -278,7 +279,7 @@
                 </div>
                 {% endif %}
 
-                {% if reasoning.get('risk_notes') %}
+                {% if reasoning_is_dict and reasoning.get('risk_notes') %}
                 <div>
                     <div class="text-xs text-yellow-400 uppercase tracking-wide font-semibold mb-2">Risk Notes</div>
                     <ul class="list-disc list-inside text-yellow-400/90 text-sm space-y-1.5 ml-1">
