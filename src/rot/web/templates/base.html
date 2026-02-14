@@ -334,25 +334,7 @@
         /* â"€â"€ Selection highlight â"€â"€ */
         ::selection { background: rgba(255,50,100,0.3); color: #fff; }
 
-        /* â"€â"€ Cursor-reactive glow (desktop only) â"€â"€ */
-        #cursor-glow {
-            position: fixed;
-            width: 600px; height: 600px;
-            border-radius: 50%;
-            background: radial-gradient(circle,
-                rgba(255,50,100,0.07) 0%,
-                rgba(0,180,255,0.04) 30%,
-                rgba(180,50,255,0.02) 50%,
-                transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-            transform: translate(-50%, -50%);
-            mix-blend-mode: screen;
-            will-change: left, top;
-            transition: opacity 0.3s;
-        }
-
-        /* â"€â"€ Scroll-triggered reveal animations â"€â"€ */
+        /* Scroll-triggered reveal animations */
         .reveal { opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; will-change: opacity, transform; }
         .reveal-up { transform: translateY(40px); }
         .reveal-left { transform: translateX(-40px); }
@@ -445,8 +427,6 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="min-h-screen">
-    <!-- Cursor-reactive glow (desktop only, injected by JS) -->
-    <div id="cursor-glow" style="opacity:0;"></div>
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <a href="/" class="flex items-center space-x-2">
@@ -935,28 +915,6 @@
             requestAnimationFrame(draw);
         }
         draw();
-    })();
-    </script>
-
-    <!-- Cursor Glow - ambient light that follows the mouse -->
-    <script>
-    (function() {
-        if ('ontouchstart' in window) return;
-        const glow = document.getElementById('cursor-glow');
-        if (!glow) return;
-        let gx = -300, gy = -300;
-        glow.style.opacity = '1';
-
-        function tick() {
-            const mx = window._rotCursor ? window._rotCursor.x : -9999;
-            const my = window._rotCursor ? window._rotCursor.y : -9999;
-            gx += (mx - gx) * 0.08;
-            gy += (my - gy) * 0.08;
-            glow.style.left = gx + 'px';
-            glow.style.top = gy + 'px';
-            requestAnimationFrame(tick);
-        }
-        tick();
     })();
     </script>
 
