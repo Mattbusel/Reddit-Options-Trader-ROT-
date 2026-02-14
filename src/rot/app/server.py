@@ -1439,63 +1439,63 @@ async def _run_server(cfg: Settings):
         except Exception as e:
             log.warning("Startup cleanup (files) failed: %s", e)
 
+        # Start flow intelligence scan loop (always active — scans for institutional flow)
+        background_tasks.append(asyncio.create_task(
+            _flow_scan_loop(
+                db=app.state.db,
+                cfg_flow=cfg.flow,
+                stop_event=stop_event,
+            )
+        ))
+        log.info(
+            "Flow intelligence scan: ACTIVE (interval=%ds)",
+            cfg.flow.scan_interval_s,
+        )
+
+        # Start social intelligence background loops
+        background_tasks.append(asyncio.create_task(
+            _social_resolution_loop(
+                db=app.state.db,
+                cfg_social=cfg.social,
+                stop_event=stop_event,
+            )
+        ))
+        background_tasks.append(asyncio.create_task(
+            _manipulation_scan_loop(
+                db=app.state.db,
+                cfg_social=cfg.social,
+                stop_event=stop_event,
+            )
+        ))
+        log.info(
+            "Social intelligence: resolution (1h), manipulation scan (%ds)",
+            cfg.social.manipulation_scan_interval_s,
+        )
+
+        # Start strategy builder background loops
+        background_tasks.append(asyncio.create_task(
+            _strategy_health_loop(
+                db=app.state.db,
+                cfg_strategy=cfg.strategy,
+                stop_event=stop_event,
+            )
+        ))
+        background_tasks.append(asyncio.create_task(
+            _regime_detection_loop(
+                db=app.state.db,
+                cfg_strategy=cfg.strategy,
+                stop_event=stop_event,
+            )
+        ))
+        log.info(
+            "Strategy builder: health check (%ds), regime detection (3600s)",
+            cfg.strategy.health_check_interval_s,
+        )
+
         log.info("Heavy initialization complete — all background loops running")
 
     # Schedule heavy init to run AFTER uvicorn binds the port
     init_task = asyncio.create_task(_heavy_init())
-
-    # Start flow intelligence scan loop (always active — scans for institutional flow)
-    flow_task = asyncio.create_task(
-        _flow_scan_loop(
-            db=app.state.db,
-            cfg_flow=cfg.flow,
-            stop_event=stop_event,
-        )
-    )
-    log.info(
-        "Flow intelligence scan: ACTIVE (interval=%ds)",
-        cfg.flow.scan_interval_s,
-    )
-
-    # Start social intelligence background loops
-    social_resolution_task = asyncio.create_task(
-        _social_resolution_loop(
-            db=app.state.db,
-            cfg_social=cfg.social,
-            stop_event=stop_event,
-        )
-    )
-    social_manipulation_task = asyncio.create_task(
-        _manipulation_scan_loop(
-            db=app.state.db,
-            cfg_social=cfg.social,
-            stop_event=stop_event,
-        )
-    )
-    log.info(
-        "Social intelligence: resolution (1h), manipulation scan (%ds)",
-        cfg.social.manipulation_scan_interval_s,
-    )
-
-    # Start strategy builder background loops
-    strategy_health_task = asyncio.create_task(
-        _strategy_health_loop(
-            db=app.state.db,
-            cfg_strategy=cfg.strategy,
-            stop_event=stop_event,
-        )
-    )
-    regime_detection_task = asyncio.create_task(
-        _regime_detection_loop(
-            db=app.state.db,
-            cfg_strategy=cfg.strategy,
-            stop_event=stop_event,
-        )
-    )
-    log.info(
-        "Strategy builder: health check (%ds), regime detection (3600s)",
-        cfg.strategy.health_check_interval_s,
-    )
 
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
@@ -1522,12 +1522,7 @@ async def _run_server(cfg: Settings):
         cleanup_task = getattr(app.state, "_db_cleanup_task", None)
         if cleanup_task:
             cleanup_task.cancel()
-        # Cancel named background tasks from flow/social/strategy
-        flow_task.cancel()
-        social_resolution_task.cancel()
-        social_manipulation_task.cancel()
-        strategy_health_task.cancel()
-        regime_detection_task.cancel()
+        # flow/social/strategy tasks are in background_tasks list (cancelled above)
         # Close DB connection
         db = getattr(app.state, "db", None)
         if db:
