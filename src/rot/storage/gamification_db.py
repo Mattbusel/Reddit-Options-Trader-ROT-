@@ -95,9 +95,10 @@ class GamificationMixin:
         """Get user statistics."""
         from rot.gamification.types import UserStats
 
-        row = await self.db.execute_fetchone(
+        async with self.db.execute(
             "SELECT * FROM user_stats WHERE user_id = ?", (user_id,)
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -134,9 +135,9 @@ class GamificationMixin:
     async def increment_user_stat(self, user_id: str, stat_name: str, amount: int = 1) -> None:
         """Increment a user stat by a given amount."""
         # Ensure user_stats row exists
-        existing = await self.db.execute_fetchone(
-            "SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)
-        )
+        async with self.db.execute("SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)) as cursor:
+
+            existing = await cursor.fetchone()
 
         if not existing:
             await self.create_user_stats(user_id, time.time())
@@ -152,9 +153,9 @@ class GamificationMixin:
     async def update_user_stat(self, user_id: str, stat_name: str, value: float) -> None:
         """Set a user stat to a specific value."""
         # Ensure user_stats row exists
-        existing = await self.db.execute_fetchone(
-            "SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)
-        )
+        async with self.db.execute("SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)) as cursor:
+
+            existing = await cursor.fetchone()
 
         if not existing:
             await self.create_user_stats(user_id, time.time())
@@ -169,9 +170,10 @@ class GamificationMixin:
 
     async def get_user_stat_value(self, user_id: str, stat_name: str) -> Optional[float]:
         """Get a specific user stat value."""
-        row = await self.db.execute_fetchone(
+        async with self.db.execute(
             f"SELECT {stat_name} FROM user_stats WHERE user_id = ?", (user_id,)
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
         return row[0] if row else None
 
     # === Badge Methods ===
@@ -186,34 +188,32 @@ class GamificationMixin:
 
     async def get_user_badges(self, user_id: str) -> List[str]:
         """Get list of badge IDs unlocked by a user."""
-        rows = await self.db.execute_fetchall(
-            "SELECT badge_id FROM user_badges WHERE user_id = ? ORDER BY unlocked_at",
-            (user_id,),
-        )
+        async with self.db.execute("SELECT badge_id FROM user_badges WHERE user_id = ? ORDER BY unlocked_at", (user_id,)) as cursor:
+
+            rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
     async def get_badge_unlock_time(self, user_id: str, badge_id: str) -> Optional[float]:
         """Get the timestamp when a badge was unlocked."""
-        row = await self.db.execute_fetchone(
+        async with self.db.execute(
             "SELECT unlocked_at FROM user_badges WHERE user_id = ? AND badge_id = ?",
             (user_id, badge_id),
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
         return row[0] if row else None
 
     async def get_badge_holders(self, badge_id: str) -> List[str]:
         """Get all users who have unlocked a specific badge."""
-        rows = await self.db.execute_fetchall(
-            "SELECT user_id FROM user_badges WHERE badge_id = ? ORDER BY unlocked_at",
-            (badge_id,),
-        )
+        async with self.db.execute("SELECT user_id FROM user_badges WHERE badge_id = ? ORDER BY unlocked_at", (badge_id,)) as cursor:
+
+            rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
     async def get_user_badge_timeline(self, user_id: str) -> List[Dict]:
         """Get chronological badge unlock history."""
-        rows = await self.db.execute_fetchall(
-            "SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ? ORDER BY unlocked_at",
-            (user_id,),
-        )
+        async with self.db.execute("SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ? ORDER BY unlocked_at", (user_id,)) as cursor:
+
+            rows = await cursor.fetchall()
         return [{"badge_id": row[0], "unlocked_at": row[1]} for row in rows]
 
     # === Streak Methods ===
@@ -249,10 +249,11 @@ class GamificationMixin:
 
     async def get_active_streak(self, user_id: str) -> Optional[Dict]:
         """Get the current active streak."""
-        row = await self.db.execute_fetchone(
+        async with self.db.execute(
             "SELECT id, start_date, days FROM user_streaks WHERE user_id = ? AND active = 1",
             (user_id,),
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -264,7 +265,7 @@ class GamificationMixin:
     async def get_badge_leaderboard(self, sort_by: str, limit: int) -> List[Dict]:
         """Get top users on badge leaderboards."""
         if sort_by == "points":
-            rows = await self.db.execute_fetchall(
+            async with self.db.execute(
                 """
                 SELECT user_id, total_badge_points, badges_unlocked
                 FROM user_stats
@@ -273,7 +274,8 @@ class GamificationMixin:
                 LIMIT ?
                 """,
                 (limit,),
-            )
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [
                 {
                     "user_id": row[0],
@@ -283,7 +285,7 @@ class GamificationMixin:
                 for row in rows
             ]
         elif sort_by == "streak":
-            rows = await self.db.execute_fetchall(
+            async with self.db.execute(
                 """
                 SELECT user_id, current_streak_days, longest_streak_days
                 FROM user_stats
@@ -292,7 +294,8 @@ class GamificationMixin:
                 LIMIT ?
                 """,
                 (limit,),
-            )
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [
                 {
                     "user_id": row[0],
@@ -302,7 +305,7 @@ class GamificationMixin:
                 for row in rows
             ]
         elif sort_by == "badges":
-            rows = await self.db.execute_fetchall(
+            async with self.db.execute(
                 """
                 SELECT user_id, badges_unlocked, total_badge_points
                 FROM user_stats
@@ -311,7 +314,8 @@ class GamificationMixin:
                 LIMIT ?
                 """,
                 (limit,),
-            )
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [
                 {
                     "user_id": row[0],
@@ -326,7 +330,7 @@ class GamificationMixin:
     async def get_user_leaderboard_rank(self, user_id: str, sort_by: str) -> Optional[int]:
         """Get user's rank on a specific leaderboard."""
         if sort_by == "points":
-            row = await self.db.execute_fetchone(
+            async with self.db.execute(
                 """
                 SELECT COUNT(*) + 1
                 FROM user_stats
@@ -335,9 +339,10 @@ class GamificationMixin:
                 )
                 """,
                 (user_id,),
-            )
+            ) as cursor:
+                row = await cursor.fetchone()
         elif sort_by == "streak":
-            row = await self.db.execute_fetchone(
+            async with self.db.execute(
                 """
                 SELECT COUNT(*) + 1
                 FROM user_stats
@@ -346,9 +351,10 @@ class GamificationMixin:
                 )
                 """,
                 (user_id,),
-            )
+            ) as cursor:
+                row = await cursor.fetchone()
         elif sort_by == "badges":
-            row = await self.db.execute_fetchone(
+            async with self.db.execute(
                 """
                 SELECT COUNT(*) + 1
                 FROM user_stats
@@ -357,7 +363,8 @@ class GamificationMixin:
                 )
                 """,
                 (user_id,),
-            )
+            ) as cursor:
+                row = await cursor.fetchone()
         else:
             return None
 
@@ -378,14 +385,15 @@ class GamificationMixin:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_start_ts = today_start.timestamp()
 
-        row = await self.db.execute_fetchone(
+        async with self.db.execute(
             """
             SELECT COUNT(*)
             FROM paper_trades
             WHERE user_id = ? AND entry_time >= ?
             """,
             (user_id, today_start_ts),
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
         return row[0] if row else 0
 
     async def get_watchlist_count(self, user_id: str) -> int:
