@@ -8,12 +8,29 @@ _PAID_TIERS = ("pro", "premium", "ultra", "enterprise", "admin")
 _ADMIN_TIER = "admin"  # Master tier — full access to every feature
 
 
+def _parse_json_field(value: Any) -> Any:
+    """Parse a field that might be a JSON string or already parsed dict/list."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+    return value
+
+
 def gate_signal(signal: Dict[str, Any], tier: str, delay_s: int = 900) -> Dict[str, Any]:
     """
     Apply tier-based gating to a signal dict.
     Free tier: delay, redact reasoning and trade legs.
     Paid tiers: full access.
     """
+    # Parse JSON string fields that might come from the database
+    signal = dict(signal)
+    signal["reasoning"] = _parse_json_field(signal.get("reasoning", {}))
+    signal["trade_idea"] = _parse_json_field(signal.get("trade_idea", {}))
+    signal["market_data"] = _parse_json_field(signal.get("market_data", {}))
+    signal["event_data"] = _parse_json_field(signal.get("event_data", {}))
+
     if tier in _PAID_TIERS:
         return signal
 
@@ -344,17 +361,13 @@ def gate_signal_quality_access(tier: str) -> dict:
     }
 
 
-def _redact_reasoning(reasoning: dict | str) -> dict:
-    """Free users see thesis only, rest is locked."""
-    if not reasoning:
-        return {}
+def _redact_reasoning(reasoning: dict) -> dict:
+    """Free users see thesis only, rest is locked.
 
-    # Handle case where reasoning is still a JSON string
-    if isinstance(reasoning, str):
-        try:
-            reasoning = json.loads(reasoning)
-        except (json.JSONDecodeError, ValueError):
-            return {}
+    Note: reasoning should already be parsed by gate_signal().
+    """
+    if not reasoning or not isinstance(reasoning, dict):
+        return {}
 
     return {
         "thesis": reasoning.get("thesis", ""),
@@ -768,17 +781,13 @@ def gate_tradingview_access(tier: str) -> dict:
     }
 
 
-def _redact_trade_idea(idea: dict | str) -> dict:
-    """Free users see strategy name only, legs are hidden."""
-    if not idea:
-        return {}
+def _redact_trade_idea(idea: dict) -> dict:
+    """Free users see strategy name only, legs are hidden.
 
-    # Handle case where trade_idea is still a JSON string
-    if isinstance(idea, str):
-        try:
-            idea = json.loads(idea)
-        except (json.JSONDecodeError, ValueError):
-            return {}
+    Note: idea should already be parsed by gate_signal().
+    """
+    if not idea or not isinstance(idea, dict):
+        return {}
 
     return {
         "strategy": idea.get("strategy", "none"),
