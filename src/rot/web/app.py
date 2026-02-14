@@ -14,13 +14,11 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from rot.core.config import Settings
-from rot.storage.database import Database
-from rot.web.routes import signals, health, websocket
 
 log = logging.getLogger(__name__)
 
 
-async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
+async def _periodic_db_cleanup(db, interval_s: int = 3600):
     """Background task: lightweight cleanup of api_usage, old signals, blob compaction, and AI summary backfill."""
     while True:
         await asyncio.sleep(interval_s)
@@ -42,44 +40,14 @@ async def _periodic_db_cleanup(db: Database, interval_s: int = 3600):
             log.debug("AI summary backfill: %s", e)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    db: Database = app.state.db
-
-    # Volume diagnostics
-    db_path = str(db.db_path)
-    db_dir = str(db.db_path.parent)
-    log.info("Database path: %s", db_path)
-    log.info("Database dir exists: %s", os.path.isdir(db_dir))
-    log.info("Database file exists: %s", os.path.isfile(db_path))
-    log.info("RAILWAY_VOLUME_MOUNT_PATH: %s", os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "NOT SET"))
-    log.info("ROT_STORAGE_ROOT: %s", os.environ.get("ROT_STORAGE_ROOT", "NOT SET"))
-
-    # List files in the data directory to check volume state
-    if os.path.isdir(db_dir):
-        files = os.listdir(db_dir)
-        log.info("Files in %s: %s", db_dir, files)
-    else:
-        log.warning("Database directory %s does NOT exist!", db_dir)
-
-    await db.connect()
-
-    # Confirm DB is on persistent volume
-    if os.path.isfile(db_path):
-        size = os.path.getsize(db_path)
-        log.info("Database connected: %s (size=%d bytes)", db_path, size)
-
-    # Start periodic cleanup task
-    cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
-
-    yield
-    # Shutdown
-    cleanup_task.cancel()
-    await db.close()
-
-
 def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create a MINIMAL FastAPI app with just /health for fast startup.
+
+    Route registration and DB connection happen later via register_routes()
+    and connect_db(), called from server.py's _heavy_init() AFTER uvicorn
+    has already bound the port.  This ensures Railway health checks pass
+    within seconds of cold start.
+    """
     if settings is None:
         settings = Settings()
 
@@ -87,7 +55,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="ROT - Reddit Options Trader",
         description="Real-time Reddit trend detection and options trade signal API",
         version="0.1.0",
-        lifespan=lifespan,
     )
 
     # GZip compression — reduces HTML/JSON response sizes by ~70%
@@ -102,17 +69,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # State
-    db = Database(db_path=settings.db_path)
-    app.state.db = db
+    # Store settings on app state (no heavy imports needed)
     app.state.settings = settings
-    app.state.signal_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
 
-    # Dashboard query cache — reduces DB hits on repeated page loads
-    from rot.web.query_cache import QueryCache
-    app.state.query_cache = QueryCache(default_ttl=60)
-
-    # Templates
+    # Templates (lightweight — just reads directory listing)
     template_dir = Path(__file__).parent / "templates"
     template_dir.mkdir(exist_ok=True)
     app.state.templates = Jinja2Templates(directory=str(template_dir))
@@ -126,6 +86,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health")
     async def root_health():
         return {"status": "healthy", "version": "0.1.0"}
+
+    return app
+
+
+async def connect_db(app: FastAPI):
+    """Connect to the database and store on app state. Called after port bind."""
+    from rot.storage.database import Database
+    from rot.web.query_cache import QueryCache
+
+    settings = app.state.settings
+
+    db = Database(db_path=settings.db_path)
+    app.state.db = db
+    app.state.signal_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
+    app.state.query_cache = QueryCache(default_ttl=60)
+
+    # Volume diagnostics
+    db_path = str(db.db_path)
+    db_dir = str(db.db_path.parent)
+    log.info("Database path: %s", db_path)
+    log.info("Database dir exists: %s", os.path.isdir(db_dir))
+    log.info("Database file exists: %s", os.path.isfile(db_path))
+    log.info("RAILWAY_VOLUME_MOUNT_PATH: %s", os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "NOT SET"))
+    log.info("ROT_STORAGE_ROOT: %s", os.environ.get("ROT_STORAGE_ROOT", "NOT SET"))
+
+    if os.path.isdir(db_dir):
+        files = os.listdir(db_dir)
+        log.info("Files in %s: %s", db_dir, files)
+    else:
+        log.warning("Database directory %s does NOT exist!", db_dir)
+
+    await db.connect()
+
+    if os.path.isfile(db_path):
+        size = os.path.getsize(db_path)
+        log.info("Database connected: %s (size=%d bytes)", db_path, size)
+
+    # Start periodic cleanup task
+    app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
+
+
+def register_routes(app: FastAPI):
+    """Register all route modules. Called after port bind to avoid slow imports blocking startup."""
+    from rot.web.routes import signals, health, websocket
 
     # Routes — export MUST be registered before signals so /signals/export
     # matches before /signals/{signal_id} catch-all
@@ -197,4 +201,4 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from rot.web.routes import macro
     app.include_router(macro.router, tags=["macro"])
 
-    return app
+    log.info("All routes registered (%d routes)", len(app.routes))

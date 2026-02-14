@@ -739,9 +739,10 @@ async def _run_server(cfg: Settings):
     heavy imports like scikit-learn/yfinance/PRAW) happens in _heavy_init()
     which runs as an asyncio task AFTER the server is already listening.
     """
-    from rot.web.app import create_app
+    from rot.web.app import create_app, connect_db, register_routes
 
-    # Create FastAPI app — this is lightweight (route registration only)
+    # Create MINIMAL FastAPI app — just /health endpoint, no DB, no routes
+    # This lets uvicorn bind the port in <1s so Railway health checks pass
     app = create_app(cfg)
 
     # Placeholders for resources created in _heavy_init — needed for cleanup
@@ -761,7 +762,11 @@ async def _run_server(cfg: Settings):
         from rot.core.logging import JsonlLogger
         from rot.market.enricher import cleanup_market_cache
 
-        log.info("Starting heavy initialization (pipeline, background loops)...")
+        log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
+
+        # Phase 1: Connect DB + register all routes
+        await connect_db(app)
+        register_routes(app)
 
         # Create email alerter if configured
         email_alerter = None
@@ -1044,6 +1049,17 @@ async def _run_server(cfg: Settings):
         init_task.cancel()
         for task in background_tasks:
             task.cancel()
+        # Cancel DB cleanup task if it was started
+        cleanup_task = getattr(app.state, "_db_cleanup_task", None)
+        if cleanup_task:
+            cleanup_task.cancel()
+        # Close DB connection
+        db = getattr(app.state, "db", None)
+        if db:
+            try:
+                await db.close()
+            except Exception:
+                pass
         if pipeline_thread:
             pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")
