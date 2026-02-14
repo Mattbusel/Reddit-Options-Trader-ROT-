@@ -414,6 +414,53 @@ class UsersMixin:
         )
         await self.db.commit()
 
+    # ── API Usage Tracking ──
+
+    async def track_api_call(self, user_id: str) -> None:
+        """Track an API call for rate limiting.
+
+        Args:
+            user_id: User ID making the API call
+        """
+        now = time.time()
+        await self.db.execute(
+            "INSERT INTO api_usage (user_id, called_at) VALUES (?, ?)",
+            (user_id, now),
+        )
+        await self.db.commit()
+
+    async def record_api_call(self, user_id: str, endpoint: str, ip: str = "") -> None:
+        """Record an API call with endpoint and IP tracking.
+
+        Args:
+            user_id: User ID making the API call
+            endpoint: API endpoint path
+            ip: IP address of the caller
+        """
+        now = time.time()
+        await self.db.execute(
+            "INSERT INTO api_usage (user_id, endpoint, called_at, ip_address) VALUES (?, ?, ?, ?)",
+            (user_id, endpoint, now, ip),
+        )
+        await self.db.commit()
+
+    async def get_api_call_count(self, user_id: str, since: float) -> int:
+        """Get count of API calls since a timestamp.
+
+        Args:
+            user_id: User ID
+            since: Unix timestamp to count from
+
+        Returns:
+            Number of API calls since the timestamp
+        """
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM api_usage WHERE user_id = ? AND called_at > ?",
+            (user_id, since),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
 
 def _row_to_dict(row: Any) -> Dict[str, Any]:
     """Convert sqlite Row to dict, parsing JSON fields.

@@ -41,11 +41,16 @@ async def badges_page(request: Request):
         user_stats = await db.get_user_stats(user["id"])
         if user_stats:
             stats = user_stats.to_dict()
+            # Map to template-expected field names
+            stats["streak_count"] = stats["current_streak_days"]
+            stats["streak_best"] = stats["longest_streak_days"]
         else:
             stats = {
                 "total_logins": 0,
                 "current_streak_days": 0,
                 "longest_streak_days": 0,
+                "streak_count": 0,  # Template compatibility
+                "streak_best": 0,  # Template compatibility
                 "signals_viewed": 0,
                 "trades_executed": 0,
                 "predictions_made": 0,

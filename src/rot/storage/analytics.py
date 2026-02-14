@@ -936,3 +936,48 @@ class AnalyticsMixin:
             results.append(d)
 
         return results
+
+    async def get_ticker_summary(self, ticker: str) -> Dict[str, Any]:
+        """Get aggregate summary for a single ticker.
+
+        Args:
+            ticker: Ticker symbol
+
+        Returns:
+            Dict with total_signals, avg_confidence, bullish_count, bearish_count, etc.
+        """
+        query = """
+            SELECT ticker,
+                   COUNT(*) as total_signals,
+                   AVG(confidence) as avg_confidence,
+                   SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
+                   SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
+                   SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
+                   MIN(created_at) as first_signal_at,
+                   MAX(created_at) as latest_signal_at
+            FROM signals
+            WHERE ticker = ? AND ticker != 'UNKNOWN'
+        """
+        async with self.db.execute(query, (ticker.upper(),)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else {}
+
+    async def get_ticker_signals(self, ticker: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get signals for a specific ticker, newest first.
+
+        Args:
+            ticker: Ticker symbol
+            limit: Maximum number of signals to return
+
+        Returns:
+            List of signal dicts
+        """
+        query = """
+            SELECT * FROM signals
+            WHERE ticker = ? AND ticker != 'UNKNOWN'
+            ORDER BY created_at DESC
+            LIMIT ?
+        """
+        async with self.db.execute(query, (ticker.upper(), limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [_row_to_dict(r) for r in rows]
