@@ -84,6 +84,9 @@ async def news_feed_page(request: Request, source: str = "all", hours: int = 0):
             item["ai_summary"] = ""
 
     templates = request.app.state.templates
+    # Count total available sources (not just sources with items in current time window)
+    total_sources = len(_SOURCE_MAP)
+
     return templates.TemplateResponse("news_feed.html", {
         "request": request,
         "user": user,
@@ -94,6 +97,7 @@ async def news_feed_page(request: Request, source: str = "all", hours: int = 0):
         "hours": hours,
         "source_map": _SOURCE_MAP,
         "source_categories": _SOURCE_CATEGORIES,
+        "total_sources": total_sources,
     })
 
 
