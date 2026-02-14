@@ -764,23 +764,31 @@ async def _run_server(cfg: Settings):
         nonlocal pipeline_thread
 
         try:
-            # Yield to event loop so uvicorn can bind the port first
-            await asyncio.sleep(1)
+            await _heavy_init_inner()
+        except Exception:
+            log.exception("FATAL: _heavy_init() crashed — routes NOT registered")
 
-            from rot.alerts.dispatcher import AlertDispatcher
-            from rot.market.price_checker import PriceChecker
-            from rot.core.logging import JsonlLogger
-            from rot.market.enricher import cleanup_market_cache
+    async def _heavy_init_inner():
+        """Inner implementation — separated so top-level except catches everything."""
+        nonlocal pipeline_thread
 
-            log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
+        # Yield to event loop so uvicorn can bind the port first
+        await asyncio.sleep(1)
 
-            # Phase 1: Connect DB + register all routes
-            _ti = time.monotonic()
-            await connect_db(app)
-            log.info("connect_db(): %.0fms", (time.monotonic() - _ti) * 1000)
-            _ti = time.monotonic()
-            register_routes(app)
-            log.info("register_routes(): %.0fms", (time.monotonic() - _ti) * 1000)
+        from rot.alerts.dispatcher import AlertDispatcher
+        from rot.market.price_checker import PriceChecker
+        from rot.core.logging import JsonlLogger
+        from rot.market.enricher import cleanup_market_cache
+
+        log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
+
+        # Phase 1: Connect DB + register all routes
+        _ti = time.monotonic()
+        await connect_db(app)
+        log.info("connect_db(): %.0fms", (time.monotonic() - _ti) * 1000)
+        _ti = time.monotonic()
+        register_routes(app)
+        log.info("register_routes(): %.0fms", (time.monotonic() - _ti) * 1000)
 
         # Create email alerter if configured
         email_alerter = None
@@ -1040,9 +1048,6 @@ async def _run_server(cfg: Settings):
             log.warning("Startup cleanup (files) failed: %s", e)
 
         log.info("Heavy initialization complete — all background loops running")
-
-        except Exception:
-            log.exception("FATAL: _heavy_init() crashed — routes NOT registered")
 
     # Schedule heavy init to run AFTER uvicorn binds the port
     init_task = asyncio.create_task(_heavy_init())
