@@ -14,9 +14,13 @@ Requires-Dist: fastapi>=0.109
 Requires-Dist: uvicorn[standard]>=0.27
 Requires-Dist: aiosqlite>=0.19
 Requires-Dist: python-jose[cryptography]>=3.3
-Requires-Dist: passlib[bcrypt]>=1.7
+Requires-Dist: bcrypt>=4.0
 Requires-Dist: httpx>=0.26
 Requires-Dist: jinja2>=3.1
+Requires-Dist: python-multipart>=0.0.6
+Requires-Dist: stripe>=7.0
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: numpy>=1.24
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23; extra == "dev"

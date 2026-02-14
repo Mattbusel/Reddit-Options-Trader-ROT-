@@ -71,7 +71,7 @@ class CleanupMixin:
         Called BEFORE purge_old_signals so the resolved outcomes are preserved
         permanently in the win_rate_snapshots table.
         """
-        from rot.storage.database import _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _row_to_dict
+        from rot.storage.sql_helpers import _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _row_to_dict
 
         cutoff = time.time() - (keep_days * 86400)
         # Only snapshot signals that will be deleted (older than cutoff)

@@ -14,8 +14,8 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
-# Reuse the stance-aware win/loss SQL from database.py — single source of truth.
-from rot.storage.database import (
+# Reuse the stance-aware win/loss SQL from sql_helpers.py — single source of truth.
+from rot.storage.sql_helpers import (
     _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _PRICE_COL,
     _A_WIN_SQL, _A_LOSS_SQL, _A_NEUTRAL_SQL, _A_PRICE_COL, _UNIFIED_CTE,
 )
