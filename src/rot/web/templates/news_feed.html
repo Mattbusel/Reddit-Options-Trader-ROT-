@@ -11,7 +11,7 @@
         <h1 class="text-2xl font-bold text-white">News Feed</h1>
         <span class="px-2 py-1 rounded text-xs bg-green-900/50 text-green-400 border border-green-700">Live</span>
     </div>
-    <p class="text-sm text-gray-500 mt-1">Real-time market intelligence from {{ items|length }} sources. Updated every 5 minutes.</p>
+    <p class="text-sm text-gray-500 mt-1">Real-time market intelligence from {{ items|map(attribute='subreddit')|unique|list|length }} sources. Updated every 5 minutes.</p>
     <p class="text-xs text-gray-600 mt-1">Benzinga Pro charges $177/mo. We aggregate the same sources for free.</p>
 </div>
 
