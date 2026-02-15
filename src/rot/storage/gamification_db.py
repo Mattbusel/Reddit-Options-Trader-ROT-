@@ -19,6 +19,13 @@ class GamificationMixin:
     - user_streaks: Login streak history
     """
 
+    # Allowed stat column names for SQL validation (prevent SQL injection)
+    _ALLOWED_STATS = {
+        "total_logins", "current_streak_days", "longest_streak_days", "last_login",
+        "signals_viewed", "trades_executed", "predictions_made", "predictions_correct",
+        "total_badge_points", "badges_unlocked", "consecutive_correct", "max_trade_notional"
+    }
+
     async def _init_gamification_tables(self) -> None:
         """Create gamification tables if they don't exist."""
         await self.db.execute(
@@ -134,6 +141,10 @@ class GamificationMixin:
 
     async def increment_user_stat(self, user_id: str, stat_name: str, amount: int = 1) -> None:
         """Increment a user stat by a given amount."""
+        # Validate stat name to prevent SQL injection
+        if stat_name not in self._ALLOWED_STATS:
+            raise ValueError(f"Invalid stat name: {stat_name}")
+
         # Ensure user_stats row exists
         async with self.db.execute("SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)) as cursor:
 
@@ -152,6 +163,10 @@ class GamificationMixin:
 
     async def update_user_stat(self, user_id: str, stat_name: str, value: float) -> None:
         """Set a user stat to a specific value."""
+        # Validate stat name to prevent SQL injection
+        if stat_name not in self._ALLOWED_STATS:
+            raise ValueError(f"Invalid stat name: {stat_name}")
+
         # Ensure user_stats row exists
         async with self.db.execute("SELECT user_id FROM user_stats WHERE user_id = ?", (user_id,)) as cursor:
 
@@ -170,6 +185,10 @@ class GamificationMixin:
 
     async def get_user_stat_value(self, user_id: str, stat_name: str) -> Optional[float]:
         """Get a specific user stat value."""
+        # Validate stat name to prevent SQL injection
+        if stat_name not in self._ALLOWED_STATS:
+            raise ValueError(f"Invalid stat name: {stat_name}")
+
         async with self.db.execute(
             f"SELECT {stat_name} FROM user_stats WHERE user_id = ?", (user_id,)
         ) as cursor:

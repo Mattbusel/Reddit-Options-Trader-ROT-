@@ -404,7 +404,7 @@ class AnalyticsMixin:
         cutoff = time.time() - (hours * 3600)
         valid_sorts = {"signal_count", "avg_confidence", "max_trend_score"}
         order = sort_by if sort_by in valid_sorts else "signal_count"
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT
                 ticker,
                 COUNT(*) as signal_count,
@@ -598,7 +598,7 @@ class AnalyticsMixin:
             params.extend(_NEWS_SUBS)
 
         where_clause = " AND ".join(conditions)
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT id, ticker, event_type, stance, confidence, subreddit,
                    post_title, post_url, created_at, reasoning
             FROM signals
@@ -834,7 +834,7 @@ class AnalyticsMixin:
             params.append(event_type)
 
         where = " AND ".join(conditions)
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT * FROM unusual_events
             WHERE {where}
             ORDER BY detected_at DESC, score DESC
