@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -27,7 +26,6 @@ _TIER_PRICE_MAP = {
     "enterprise": "enterprise_price_id",
 }
 
-_PRICE_TO_TIER = {}  # populated at runtime from settings
 
 
 def _ensure_stripe(request: Request):

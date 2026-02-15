@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import dataclasses
 import itertools
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from rot.backtest.config import BacktestConfig
 from rot.backtest.engine import BacktestEngine
-from rot.backtest.result import BacktestResult
 
 
 @dataclass(frozen=True)

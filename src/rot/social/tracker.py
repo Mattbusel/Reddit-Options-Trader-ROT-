@@ -11,15 +11,12 @@ from __future__ import annotations
 import math
 import time
 import uuid
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional, Tuple
 
 from rot.social.types import (
     AuthorPrediction,
     AuthorProfile,
-    OUTCOMES,
-    PLATFORMS,
-    STANCES,
 )
 
 

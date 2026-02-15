@@ -47,7 +47,7 @@ def _parse_published(entry: dict) -> int:
             try:
                 return int(calendar.timegm(parsed))
             except Exception:
-                pass
+                pass  # Intentionally suppressed
     return int(time.time())
 
 

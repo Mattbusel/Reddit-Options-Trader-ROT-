@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
-import json
 import logging
-import time
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -16,8 +13,6 @@ from rot.web.tier_gate import (
     gate_signal_list,
     gate_performance_access,
     gate_leaderboard_access,
-    gate_correlation_access,
-    gate_heatmap_access,
 )
 
 log = logging.getLogger(__name__)
@@ -34,10 +29,6 @@ _SIGNAL_FIELDS = {
     "event_data", "sector", "ai_summary",
 }
 
-_SIGNAL_LIGHT_FIELDS = {
-    "id", "created_at", "ticker", "event_type", "stance", "confidence",
-    "strategy", "time_horizon", "trend_score",
-}
 
 
 def _filter_fields(items: list, fields: Optional[str], allowed: set) -> list:
@@ -445,7 +436,7 @@ async def byok_reason_signal(request: Request, signal_id: str):
         try:
             updates["confidence"] = max(0.0, min(1.0, float(raw["confidence"])))
         except (ValueError, TypeError):
-            pass
+            pass  # Skip unparseable confidence value
     if raw.get("stance") in ("bullish", "bearish", "mixed", "unknown"):
         updates["stance"] = raw["stance"]
     if raw.get("event_type"):

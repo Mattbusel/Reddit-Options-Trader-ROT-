@@ -142,7 +142,7 @@ class MarketEnricher:
                 json.dumps(self._cache, ensure_ascii=False), encoding="utf-8"
             )
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
     def _fresh(self, sym: str) -> Optional[Dict[str, Any]]:
         entry = self._cache.get(sym)
@@ -191,7 +191,7 @@ class MarketEnricher:
                     out["last_price"] = info.get("lastPrice") or info.get("last_price")
                     out["market_cap"] = info.get("marketCap") or info.get("market_cap")
             except Exception:
-                pass
+                pass  # Intentionally suppressed
 
             # Extended market data: sector, industry, volume, etc.
             # NOTE: t.info is very expensive (full company financials download).
@@ -210,7 +210,7 @@ class MarketEnricher:
                         out["pe_ratio"] = full_info.get("trailingPE")
                         out["beta"] = full_info.get("beta")
                 except Exception:
-                    pass
+                    pass  # Intentionally suppressed
 
             # Options chain data: IV, open interest, put/call ratio
             if self.enable_options_chain:
@@ -295,7 +295,7 @@ class MarketEnricher:
                 metrics["atm_put_oi"] = int(atm_puts["openInterest"].fillna(0).sum())
 
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
         return metrics
 

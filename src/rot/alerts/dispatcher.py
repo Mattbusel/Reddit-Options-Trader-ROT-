@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.alerts.discord import DiscordAlerter
 from rot.alerts.webhook import WebhookAlerter

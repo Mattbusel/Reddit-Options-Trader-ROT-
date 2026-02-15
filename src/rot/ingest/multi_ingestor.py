@@ -12,7 +12,9 @@ log = logging.getLogger(__name__)
 class Ingestor(Protocol):
     """Duck-type protocol for any ingestor with a .poll() method."""
 
-    def poll(self) -> List[ThreadSnapshot]: ...
+    def poll(self) -> List[ThreadSnapshot]:
+        """Poll for new thread snapshots."""
+        ...
 
 
 class MultiSourceIngestor:

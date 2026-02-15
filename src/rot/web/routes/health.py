@@ -77,7 +77,7 @@ async def health_check(request: Request):
             health_data["system"]["disk_usage_percent"] = round(disk_usage.percent, 2)
             health_data["system"]["disk_free_gb"] = round(disk_usage.free / (1024**3), 2)
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
     except Exception as e:
         health_data["system"] = {"error": str(e)}
@@ -117,6 +117,6 @@ async def health_check(request: Request):
             "railway_env": os.getenv("RAILWAY_ENVIRONMENT", "n/a"),
         }
     except Exception:
-        pass
+        pass  # Intentionally suppressed
 
     return health_data

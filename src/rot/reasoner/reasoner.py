@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
 
 from rot.core.types import Event, ReasoningPacket
-from rot.core.logging import sanitize_for_log
 from rot.reasoner.llm_client import LLMClient
 from rot.reasoner.parser import parse_reasoning_response
 from rot.reasoner.prompts import SYSTEM_PROMPT, format_event_prompt

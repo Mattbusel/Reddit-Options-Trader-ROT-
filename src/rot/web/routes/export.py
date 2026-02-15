@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import io
-import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -128,7 +127,7 @@ async def export_performance(
     ticker: Optional[str] = None,
 ):
     """Export signal performance data as CSV. Requires Ultra tier."""
-    user = await require_tier("ultra", "enterprise")(request)
+    _user = await require_tier("ultra", "enterprise")(request)
 
     db = request.app.state.db
     records = await db.get_performance_csv_data(days=days, ticker=ticker)

@@ -89,7 +89,7 @@ class PipelineRunner:
         try:
             self.on_signal(signal_data)
         except Exception:
-            pass
+            pass  # Signal callback errors must not break the pipeline
 
     def run_once(self) -> dict:
         run_id = f"run_{int(time.time())}"

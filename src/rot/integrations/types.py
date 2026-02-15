@@ -5,7 +5,7 @@ Defines configuration objects and data structures for Pine Script generation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, Optional
 
 ScriptType = Literal[

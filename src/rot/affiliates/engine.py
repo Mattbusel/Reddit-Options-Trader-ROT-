@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
 import logging
 import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from rot.affiliates.types import Affiliate, Commission, Payout, ReferralStats
 

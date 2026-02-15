@@ -6,7 +6,6 @@ and achievement timelines.
 """
 
 from typing import List, Dict, Optional
-from .types import UserStats, Badge
 from .badges import get_badge
 
 

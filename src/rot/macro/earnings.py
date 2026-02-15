@@ -6,8 +6,7 @@ import json
 import logging
 import math
 import time
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.macro.types import EarningsEvent
 

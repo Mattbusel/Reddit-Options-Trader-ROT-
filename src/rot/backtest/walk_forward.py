@@ -6,12 +6,11 @@ folds to detect overfitting and measure strategy stability.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from rot.backtest.config import BacktestConfig
 from rot.backtest.engine import BacktestEngine
-from rot.backtest.result import BacktestResult
 
 
 @dataclass(frozen=True)

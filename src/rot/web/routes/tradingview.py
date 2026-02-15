@@ -8,7 +8,6 @@ Provides:
 """
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
 import logging
 import time
 from typing import Optional
@@ -17,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from rot.integrations import PineScriptConfig, PineScriptGenerator, TVSignalOverlay
-from rot.web.auth import get_current_user_optional, require_user
+from rot.web.auth import get_current_user_optional
 from rot.web.rate_limit import check_rate_limit, require_api_auth, rate_limit_headers
 from rot.web.tier_gate import gate_tradingview_access
 
@@ -33,7 +32,6 @@ async def tradingview_page(request: Request):
     """Render the TradingView integration page with Pine Script code."""
     user = await get_current_user_optional(request)
     templates = request.app.state.templates
-    settings = request.app.state.settings
 
     # Build the API base URL for Pine Script
     base_url = f"{request.base_url}api/v1/tradingview"
@@ -68,7 +66,6 @@ async def tradingview_signals(
     tier = (user or {}).get("tier", "free")
 
     db = request.app.state.db
-    settings = request.app.state.settings
 
     signals = await db.get_signals(limit=limit, ticker=ticker)
 
@@ -119,7 +116,6 @@ async def tradingview_webhook(request: Request):
     ticker = body.get("ticker", body.get("symbol", ""))
     action = body.get("action", body.get("stance", ""))
     confidence = body.get("confidence", 0)
-    message = body.get("message", "")
     api_key = body.get("api_key", "")
 
     if not ticker:

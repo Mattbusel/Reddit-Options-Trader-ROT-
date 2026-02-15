@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from rot.social.types import SentimentPropagation

@@ -706,15 +706,14 @@ class SportsNewsCache:
                 summary = re.sub(r"<[^>]+>", "", summary).strip()[:300]
 
             # Parse published time
+            import calendar
             published = 0.0
             if hasattr(entry, "published_parsed") and entry.published_parsed:
-                import calendar
                 try:
                     published = float(calendar.timegm(entry.published_parsed))
                 except Exception:
                     published = time.time()
             elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-                import calendar
                 try:
                     published = float(calendar.timegm(entry.updated_parsed))
                 except Exception:
