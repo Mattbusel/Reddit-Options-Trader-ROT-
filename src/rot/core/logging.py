@@ -181,12 +181,60 @@ def cleanup_market_cache(storage_root: str, max_age_days: int = 7) -> int:
     return removed
 
 
+class SanitizingLogFilter(logging.Filter):
+    """Log filter that sanitizes log messages to prevent log injection attacks.
+
+    Automatically sanitizes string messages that may contain user input.
+    Applied automatically to all loggers in the application.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Sanitize the main log message if it's a string
+        if isinstance(record.msg, str):
+            record.msg = sanitize_for_log(record.msg)
+
+        # Sanitize any string arguments
+        if record.args:
+            sanitized_args = []
+            for arg in record.args if isinstance(record.args, tuple) else [record.args]:
+                if isinstance(arg, str):
+                    sanitized_args.append(sanitize_for_log(arg))
+                else:
+                    sanitized_args.append(arg)
+            record.args = tuple(sanitized_args) if isinstance(record.args, tuple) else sanitized_args[0] if sanitized_args else record.args
+
+        return True
+
+
+# Auto-install sanitizing filter on module import (defense in depth)
+def _install_global_log_sanitization():
+    """Install log sanitization filter on all existing handlers."""
+    root_logger = logging.getLogger()
+    sanitizing_filter = SanitizingLogFilter()
+
+    # Add to all existing handlers
+    for handler in root_logger.handlers:
+        if not any(isinstance(f, SanitizingLogFilter) for f in handler.filters):
+            handler.addFilter(sanitizing_filter)
+
+    # Also add to StreamHandler if no handlers exist yet
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.addFilter(sanitizing_filter)
+        root_logger.addHandler(handler)
+
+
+# Install on module import
+_install_global_log_sanitization()
+
+
 def setup_logging_with_request_context(level: int = logging.INFO) -> None:
-    """Configure logging with request context tracking.
+    """Configure logging with request context tracking and log injection protection.
 
     Sets up:
     - Basic logging configuration
     - Request context filter on all handlers
+    - Log sanitization filter to prevent log injection
     - Enhanced log format with request_id, user_id
 
     Args:
@@ -199,5 +247,11 @@ def setup_logging_with_request_context(level: int = logging.INFO) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Add request context filter to all handlers
+    # Add request context filter and sanitizing filter to all handlers
     configure_request_logging()
+
+    # Add sanitizing filter to all loggers to prevent log injection
+    root_logger = logging.getLogger()
+    sanitizing_filter = SanitizingLogFilter()
+    for handler in root_logger.handlers:
+        handler.addFilter(sanitizing_filter)
