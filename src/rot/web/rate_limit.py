@@ -193,10 +193,15 @@ def check_auth_rate_limit(request: Request, endpoint: str) -> None:
 
     # Check if limit exceeded
     attempts = _auth_attempts.get(key, [])
+
+    log.info(f"Auth rate limit check: endpoint={endpoint}, ip={ip}, attempts={len(attempts)}/{max_attempts}")
+
     if len(attempts) >= max_attempts:
         # Calculate retry-after
         oldest_attempt = min(attempts)
         retry_after_seconds = int(window_seconds - (now - oldest_attempt))
+
+        log.warning(f"Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={len(attempts)}")
 
         raise HTTPException(
             status_code=429,
@@ -210,6 +215,8 @@ def check_auth_rate_limit(request: Request, endpoint: str) -> None:
     if key not in _auth_attempts:
         _auth_attempts[key] = []
     _auth_attempts[key].append(now)
+
+    log.info(f"Auth attempt recorded: endpoint={endpoint}, ip={ip}, total={len(_auth_attempts[key])}")
 
     # Cleanup: Remove entries older than 1 hour to prevent memory buildup
     cutoff = now - 3600
