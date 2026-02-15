@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from rot.core.retry import retry_with_backoff
+
 log = logging.getLogger(__name__)
 
 
@@ -48,6 +50,11 @@ class LLMClient:
     def available(self) -> bool:
         return self._client is not None
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=2.0,
+        retryable_exceptions=(ConnectionError, TimeoutError, OSError, Exception),
+    )
     def complete(self, system: str, user: str) -> str:
         if not self._client:
             raise RuntimeError("LLM client not initialized (missing API key or package)")

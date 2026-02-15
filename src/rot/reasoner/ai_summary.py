@@ -13,6 +13,8 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
+from rot.core.retry import async_retry_with_backoff
+
 log = logging.getLogger(__name__)
 
 # Short, focused prompt — minimal tokens = minimal cost
@@ -65,6 +67,11 @@ def _build_heuristic_summary(signal: Dict[str, Any]) -> str:
     return f"{stance_word} on ${ticker} based on {event_desc}. {conf_word.capitalize()} confidence signal."
 
 
+@async_retry_with_backoff(
+    max_attempts=3,
+    base_delay=2.0,
+    retryable_exceptions=(ConnectionError, TimeoutError, OSError),
+)
 async def generate_ai_summary(signal: Dict[str, Any]) -> str:
     """Generate a platform AI summary for a signal.
 
