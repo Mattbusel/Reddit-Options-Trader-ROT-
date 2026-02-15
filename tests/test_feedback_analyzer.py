@@ -60,56 +60,46 @@ async def _seed_test_signals(db: Database) -> None:
 
     # Insert a batch of signals with varying outcomes
     signals_data = [
-        # (id, created_at, ticker, event_type, stance, strategy, confidence, subreddit, quality_score, sector, post_title)
-        ("s1", now - 1 * day, "TSLA", "earnings_rumor", "bullish", "debit_spread", 0.8, "wallstreetbets", 0.7, "tech", "TSLA calls"),
-        ("s2", now - 2 * day, "TSLA", "earnings_rumor", "bullish", "debit_spread", 0.7, "wallstreetbets", 0.6, "tech", "TSLA moon"),
-        ("s3", now - 3 * day, "AAPL", "product_news", "bearish", "credit_spread", 0.6, "options", 0.5, "tech", "AAPL bearish"),
-        ("s4", now - 4 * day, "MSFT", "product_news", "bearish", "credit_spread", 0.5, "options", 0.4, "tech", "MSFT down"),
-        ("s5", now - 5 * day, "NVDA", "macro", "bullish", "debit_spread", 0.9, "investing", 0.8, "tech", "NVDA up"),
-        ("s6", now - 6 * day, "AMD", "macro", "bullish", "debit_spread", 0.4, "wallstreetbets", 0.3, "tech", "AMD buy"),
-        ("s7", now - 7 * day, "GOOG", "regulatory", "mixed", "none", 0.3, "stocks", 0.2, "tech", "GOOG news"),
-        ("s8", now - 8 * day, "AMZN", "squeeze_chatter", "bullish", "straddle", 0.6, "wallstreetbets", 0.5, "tech", "AMZN squeeze"),
-        ("s9", now - 9 * day, "META", "earnings_rumor", "bullish", "debit_spread", 0.75, "wallstreetbets", 0.65, "tech", "META earnings"),
-        ("s10", now - 10 * day, "NFLX", "earnings_rumor", "bearish", "credit_spread", 0.55, "options", 0.45, "tech", "NFLX puts"),
+        # (id, run_id, created_at, ticker, event_type, stance, strategy, confidence, subreddit, quality_score, post_title)
+        ("s1", "run1", now - 1 * day, "TSLA", "earnings_rumor", "bullish", "debit_spread", 0.8, "wallstreetbets", 0.7, "TSLA calls"),
+        ("s2", "run1", now - 2 * day, "TSLA", "earnings_rumor", "bullish", "debit_spread", 0.7, "wallstreetbets", 0.6, "TSLA moon"),
+        ("s3", "run1", now - 3 * day, "AAPL", "product_news", "bearish", "credit_spread", 0.6, "options", 0.5, "AAPL bearish"),
+        ("s4", "run1", now - 4 * day, "MSFT", "product_news", "bearish", "credit_spread", 0.5, "options", 0.4, "MSFT down"),
+        ("s5", "run1", now - 5 * day, "NVDA", "macro", "bullish", "debit_spread", 0.9, "investing", 0.8, "NVDA up"),
+        ("s6", "run1", now - 6 * day, "AMD", "macro", "bullish", "debit_spread", 0.4, "wallstreetbets", 0.3, "AMD buy"),
+        ("s7", "run1", now - 7 * day, "GOOG", "regulatory", "mixed", "none", 0.3, "stocks", 0.2, "GOOG news"),
+        ("s8", "run1", now - 8 * day, "AMZN", "squeeze_chatter", "bullish", "straddle", 0.6, "wallstreetbets", 0.5, "AMZN squeeze"),
+        ("s9", "run1", now - 9 * day, "META", "earnings_rumor", "bullish", "debit_spread", 0.75, "wallstreetbets", 0.65, "META earnings"),
+        ("s10", "run1", now - 10 * day, "NFLX", "earnings_rumor", "bearish", "credit_spread", 0.55, "options", 0.45, "NFLX puts"),
     ]
 
     for sig in signals_data:
         await db.db.execute(
-            """INSERT INTO signals (id, created_at, ticker, event_type, stance, strategy,
-               confidence, subreddit, quality_score, sector, post_title)
+            """INSERT INTO signals (id, run_id, created_at, ticker, event_type, stance, strategy,
+               confidence, subreddit, quality_score, post_title)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             sig,
         )
 
     # Insert performance data: some win, some lose, some neutral
     performance_data = [
-        # (signal_id, price_at_signal, price_1h, price_4h, price_1d)
-        # s1: bullish, price up 3% -> win
-        ("s1", 200.0, 202.0, 204.0, 206.0),
-        # s2: bullish, price down 2% -> loss
-        ("s2", 200.0, 199.0, 197.0, 196.0),
-        # s3: bearish, price down 3% -> win
-        ("s3", 150.0, 149.0, 147.0, 145.5),
-        # s4: bearish, price up 1% -> loss
-        ("s4", 300.0, 301.0, 302.0, 303.0),
-        # s5: bullish, price up 5% -> win
-        ("s5", 500.0, 510.0, 520.0, 525.0),
-        # s6: bullish, price flat -> neutral
-        ("s6", 100.0, 100.2, 100.1, 100.3),
-        # s7: mixed -> always neutral
-        ("s7", 140.0, 142.0, 144.0, 146.0),
-        # s8: bullish, price down 4% -> loss
-        ("s8", 180.0, 178.0, 175.0, 172.8),
-        # s9: bullish, price up 2% -> win
-        ("s9", 400.0, 404.0, 406.0, 408.0),
-        # s10: bearish, price up 2% -> loss
-        ("s10", 550.0, 555.0, 558.0, 561.0),
+        # (signal_id, ticker, price_at_signal, price_1h, price_4h, price_1d)
+        ("s1", "TSLA", 200.0, 202.0, 204.0, 206.0),
+        ("s2", "TSLA", 200.0, 199.0, 197.0, 196.0),
+        ("s3", "AAPL", 150.0, 149.0, 147.0, 145.5),
+        ("s4", "MSFT", 300.0, 301.0, 302.0, 303.0),
+        ("s5", "NVDA", 500.0, 510.0, 520.0, 525.0),
+        ("s6", "AMD", 100.0, 100.2, 100.1, 100.3),
+        ("s7", "GOOG", 140.0, 142.0, 144.0, 146.0),
+        ("s8", "AMZN", 180.0, 178.0, 175.0, 172.8),
+        ("s9", "META", 400.0, 404.0, 406.0, 408.0),
+        ("s10", "NFLX", 550.0, 555.0, 558.0, 561.0),
     ]
 
     for perf in performance_data:
         await db.db.execute(
-            """INSERT INTO signal_performance (signal_id, price_at_signal, price_1h, price_4h, price_1d)
-               VALUES (?, ?, ?, ?, ?)""",
+            """INSERT INTO signal_performance (signal_id, ticker, price_at_signal, price_1h, price_4h, price_1d)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             perf,
         )
 
