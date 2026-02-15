@@ -578,11 +578,16 @@ class AnalyticsMixin:
         params: list = [cutoff]
 
         _NEWS_SUBS = (
-            "marketwatch", "investing-com", "yahoo-finance", "cnbc", "seekingalpha",
-            "reuters", "dod-contracts", "dod-releases", "dod-news",
-            "fda-press-releases", "fda-drugs", "fda-safety-alerts", "fda-recalls",
-            "fda-oncology", "biopharma-dive", "drugs-com-approvals", "drugs-com-trials",
-            "fed-press-releases", "stocktwits", "twitter",
+            # MarketWatch feeds
+            "marketwatch-top", "marketwatch-realtime",
+            # Financial news feeds
+            "investing-com-stocks", "yahoo-finance-top", "cnbc-market", "seekingalpha-currents",
+            # Government/Regulatory feeds
+            "dod-contracts", "dod-releases", "dod-news",
+            "fda-press-releases", "fda-drugs", "fda-recalls",
+            "fed-press-releases",
+            # Social feeds
+            "stocktwits", "twitter",
         )
         if source and source in _NEWS_SUBS:
             conditions.append("subreddit = ?")

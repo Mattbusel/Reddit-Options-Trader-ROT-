@@ -22,25 +22,25 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 # Map subreddit labels to human-readable source names and icons
+# IMPORTANT: These must match the RSS feed labels in config.py exactly
 _SOURCE_MAP = {
-    "marketwatch": ("MarketWatch", "MW"),
-    "investing-com": ("Investing.com", "INV"),
-    "yahoo-finance": ("Yahoo Finance", "YF"),
-    "cnbc": ("CNBC", "CNBC"),
-    "seekingalpha": ("SeekingAlpha", "SA"),
-    "reuters": ("Reuters", "R"),
+    # MarketWatch feeds
+    "marketwatch-top": ("MarketWatch Top", "MW"),
+    "marketwatch-realtime": ("MarketWatch RT", "MW"),
+    # Financial news feeds
+    "investing-com-stocks": ("Investing.com", "INV"),
+    "yahoo-finance-top": ("Yahoo Finance", "YF"),
+    "cnbc-market": ("CNBC", "CNBC"),
+    "seekingalpha-currents": ("SeekingAlpha", "SA"),
+    # Government/Regulatory feeds
     "dod-contracts": ("DoD Contracts", "DoD"),
     "dod-releases": ("DoD Releases", "DoD"),
     "dod-news": ("DoD News", "DoD"),
     "fda-press-releases": ("FDA Press", "FDA"),
     "fda-drugs": ("FDA Drugs", "FDA"),
-    "fda-safety-alerts": ("FDA Safety", "FDA"),
     "fda-recalls": ("FDA Recalls", "FDA"),
-    "fda-oncology": ("FDA Oncology", "FDA"),
-    "biopharma-dive": ("BioPharma", "BIO"),
-    "drugs-com-approvals": ("Drug Approvals", "RX"),
-    "drugs-com-trials": ("Clinical Trials", "RX"),
     "fed-press-releases": ("Federal Reserve", "FED"),
+    # Social feeds
     "stocktwits": ("StockTwits", "ST"),
     "twitter": ("X / Twitter", "X"),
 }
