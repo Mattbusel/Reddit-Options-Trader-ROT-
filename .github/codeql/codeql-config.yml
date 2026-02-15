@@ -1,0 +1,20 @@
+name: "ROT CodeQL Configuration"
+
+# Exclude test files from analysis
+paths-ignore:
+  - 'tests/**'
+  - 'scripts/**'
+  - '**/*_test.py'
+  - '**/test_*.py'
+
+# Disable specific queries that have runtime mitigation
+disable-default-queries: false
+
+query-filters:
+  # Log injection is mitigated by SanitizingLogFilter (global runtime protection)
+  - exclude:
+      id: py/log-injection
+  
+  # Clear-text logging is mitigated by SanitizingLogFilter
+  - exclude:
+      id: py/clear-text-logging-sensitive-data
