@@ -146,7 +146,7 @@ class PerformanceMixin:
 
         where = f"WHERE {' AND '.join(conditions)}"
         # Stance-aware win/loss evaluation: bullish/bearish only
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 SUM({_WIN_SQL}) as winners,
@@ -365,7 +365,7 @@ class PerformanceMixin:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT id as signal_id, ticker, created_at,
                    price_at_signal, price_1h, price_4h, price_1d,
@@ -405,7 +405,7 @@ class PerformanceMixin:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT id as signal_id, ticker, created_at,
                    price_at_signal, price_1h, price_4h, price_1d,
@@ -437,7 +437,7 @@ class PerformanceMixin:
         """
         cutoff = time.time() - (days * 86400)
         bucket_s = 86400 if interval == "daily" else 3600
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CAST(created_at / ? AS INTEGER) * ? as time_bucket,
@@ -469,7 +469,7 @@ class PerformanceMixin:
             List of dicts with bucket, label, total, winners, losers, win_rate
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CASE
@@ -515,7 +515,7 @@ class PerformanceMixin:
             win_rate, avg_return_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 event_type,
@@ -563,7 +563,7 @@ class PerformanceMixin:
         # Use 1d-only price column for avg_gain/avg_loss (more reliable)
         _a_1d_win = _WIN_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
         _a_1d_loss = _LOSS_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 strategy,
@@ -619,7 +619,7 @@ class PerformanceMixin:
             avg_loss_pct, avg_1d_return_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 strategy,
@@ -659,7 +659,7 @@ class PerformanceMixin:
             avg_gain_pct, avg_loss_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 ticker,
@@ -695,7 +695,7 @@ class PerformanceMixin:
             avg_confidence, expected_win_rate, actual_win_rate
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CAST(confidence * 10 AS INTEGER) as decile,

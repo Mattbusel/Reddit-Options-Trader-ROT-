@@ -75,7 +75,7 @@ class CleanupMixin:
         cutoff = time.time() - (keep_days * 86400)
         # Only snapshot signals that will be deleted (older than cutoff)
         # AND that have price data to evaluate
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 MIN(s.created_at) as period_start,

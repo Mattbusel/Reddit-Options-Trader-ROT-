@@ -216,7 +216,7 @@ class SportsMixin:
         where_clause = " AND ".join(clauses)
         params.append(limit)
 
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM sports_news
             WHERE {where_clause}
             ORDER BY published_at DESC
