@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from typing import Any, List, Literal, Optional
 
 from pydantic import Field
@@ -472,6 +474,43 @@ class Settings(BaseSettings):
     storage_root: str = "storage"
     db_path: str = ""  # auto-derived from storage_root if empty
 
-    def model_post_init(self, __context: Any) -> None:
+    def __init__(self, **data: Any) -> None:
+        """Initialize settings and set defaults."""
+        super().__init__(**data)
+
+        # Set db_path if not provided
         if not self.db_path:
             self.db_path = f"{self.storage_root}/rot.db"
+
+
+def validate_secret_key(settings: Settings) -> None:
+    """Enforce strong secret key in production environments.
+
+    Called explicitly from server.py at startup.
+    """
+    # Check if running in production (Railway or explicitly set ROT_ENV=production)
+    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT")) or os.getenv("ROT_ENV") == "production"
+
+    secret = settings.web.secret_key
+
+    if not is_production:
+        # Development/testing: just warn if using default
+        if secret == "change-me-in-production":
+            logging.warning(
+                "Using default ROT_WEB_SECRET_KEY in development. "
+                "Set a strong secret (32+ chars) for production."
+            )
+        return
+
+    # Production: enforce strong secret
+    if secret == "change-me-in-production":
+        raise RuntimeError(
+            "ROT_WEB_SECRET_KEY must be set to a strong secret (32+ chars) in production. "
+            "The default value 'change-me-in-production' is not allowed."
+        )
+
+    if len(secret) < 32:
+        raise RuntimeError(
+            f"ROT_WEB_SECRET_KEY must be at least 32 characters long in production. "
+            f"Current length: {len(secret)} chars."
+        )

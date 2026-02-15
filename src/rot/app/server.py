@@ -16,7 +16,7 @@ _MODULE_LOAD_START = time.monotonic()
 
 import uvicorn
 
-from rot.core.config import Settings
+from rot.core.config import Settings, validate_secret_key
 
 # Heavy imports are deferred to function scope to speed up module load time.
 # This lets uvicorn bind the port before scikit-learn, yfinance, PRAW, etc.
@@ -1539,6 +1539,10 @@ def main():
     import os
     _t0 = time.monotonic()
     cfg = Settings()
+
+    # Validate secret key in production
+    validate_secret_key(cfg)
+
     # Railway sets PORT env var dynamically — override config if present
     railway_port = os.environ.get("PORT")
     if railway_port:
