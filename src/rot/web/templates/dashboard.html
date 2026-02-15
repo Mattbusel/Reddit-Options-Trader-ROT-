@@ -364,7 +364,7 @@
                     const ds = items[0].datasetIndex;
                     const idx = items[0].index;
                     const ticker = quadrantChart.data.datasets[ds].data[idx].ticker;
-                    window.location.href = '/api/v1/signals?ticker=' + ticker;
+                    window.location.href = '/signals?ticker=' + ticker;
                 }
             },
             plugins: {
