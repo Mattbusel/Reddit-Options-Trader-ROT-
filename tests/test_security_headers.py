@@ -1,7 +1,7 @@
 """Tests for security headers middleware.
 
 Validates that all HTTP responses include required security headers:
-- Content-Security-Policy (nonce-based, no unsafe-inline)
+- Content-Security-Policy (nonce-based script-src, unsafe-inline style-src)
 - X-Content-Type-Options
 - X-Frame-Options
 - Referrer-Policy
@@ -66,14 +66,26 @@ class TestSecurityHeaders:
         assert "frame-ancestors 'none'" in csp
         assert "object-src 'none'" in csp
 
-    def test_csp_no_unsafe_inline(self, client):
-        """CSP must NOT contain unsafe-inline — nonce-based CSP only."""
+    def test_csp_script_src_no_unsafe_inline(self, client):
+        """script-src must use nonce, NOT unsafe-inline."""
         response = client.get("/health")
         csp = response.headers.get("Content-Security-Policy", "")
-        assert "'unsafe-inline'" not in csp
+        # Extract the script-src directive
+        script_src = re.search(r"script-src\s+([^;]+)", csp)
+        assert script_src, "No script-src directive found"
+        assert "'unsafe-inline'" not in script_src.group(1)
+        assert "'nonce-" in script_src.group(1)
+
+    def test_csp_style_src_uses_unsafe_inline(self, client):
+        """style-src uses unsafe-inline (required by Tailwind CSS CDN runtime)."""
+        response = client.get("/health")
+        csp = response.headers.get("Content-Security-Policy", "")
+        style_src = re.search(r"style-src\s+([^;]+)", csp)
+        assert style_src, "No style-src directive found"
+        assert "'unsafe-inline'" in style_src.group(1)
 
     def test_csp_has_nonce(self, client):
-        """CSP must contain a nonce directive."""
+        """CSP must contain a nonce directive in script-src."""
         response = client.get("/health")
         csp = response.headers.get("Content-Security-Policy", "")
         assert re.search(r"'nonce-[A-Za-z0-9+/=]+'", csp)
@@ -86,13 +98,12 @@ class TestSecurityHeaders:
         nonce2 = re.search(r"'nonce-([^']+)'", r2.headers["Content-Security-Policy"]).group(1)
         assert nonce1 != nonce2
 
-    def test_csp_nonce_in_script_and_style_src(self, client):
-        """Nonce must appear in both script-src and style-src."""
+    def test_csp_nonce_in_script_src(self, client):
+        """Nonce must appear in script-src."""
         response = client.get("/health")
         csp = response.headers["Content-Security-Policy"]
         nonce = re.search(r"'nonce-([^']+)'", csp).group(1)
         assert f"script-src 'self' 'nonce-{nonce}'" in csp
-        assert f"style-src 'self' 'nonce-{nonce}'" in csp
 
     def test_csp_allows_tailwind_cdn(self, client):
         response = client.get("/health")
@@ -117,5 +128,7 @@ class TestSecurityHeaders:
         assert response.headers.get("X-Content-Type-Options") == "nosniff"
         assert response.headers.get("X-Frame-Options") == "DENY"
         csp = response.headers.get("Content-Security-Policy", "")
-        assert "'unsafe-inline'" not in csp
         assert "nonce-" in csp
+        # script-src should not have unsafe-inline
+        script_src = re.search(r"script-src\s+([^;]+)", csp)
+        assert "'unsafe-inline'" not in script_src.group(1)

@@ -1,14 +1,18 @@
 """Security headers middleware for FastAPI.
 
 Adds standard security headers to all responses:
-- Content-Security-Policy (nonce-based for script-src and style-src)
+- Content-Security-Policy (nonce-based for script-src, unsafe-inline for style-src)
 - X-Content-Type-Options: nosniff
 - X-Frame-Options: DENY
 - Referrer-Policy: strict-origin-when-cross-origin
 - Permissions-Policy: restricts browser features
 - X-XSS-Protection: 0 (deprecated, set to 0 per OWASP to avoid legacy browser bugs)
 
-CSP uses per-request cryptographic nonces instead of 'unsafe-inline'.
+CSP uses per-request cryptographic nonces for script-src (eliminates unsafe-inline
+for scripts, the primary XSS vector). style-src retains 'unsafe-inline' because
+Tailwind CSS CDN (cdn.tailwindcss.com) dynamically generates <style> tags at runtime
+via JavaScript — those runtime-injected styles cannot carry a server-side nonce.
+This is standard practice per OWASP: inline styles are not a meaningful XSS vector.
 The nonce is generated in dispatch(), stored on request.state.csp_nonce,
 and auto-injected into Jinja2 template contexts by NonceTemplates.
 """
@@ -40,10 +44,14 @@ _CSP_STATIC_PART = "; ".join(_CSP_STATIC_DIRECTIVES)
 
 
 def _build_csp(nonce: str) -> str:
-    """Build full CSP header with per-request nonce for scripts and styles."""
+    """Build full CSP header with per-request nonce for scripts.
+
+    style-src uses 'unsafe-inline' because Tailwind CSS CDN dynamically
+    generates <style> tags at runtime that cannot carry a server-side nonce.
+    """
     return (
         f"script-src 'self' 'nonce-{nonce}' https://cdn.tailwindcss.com https://js.stripe.com; "
-        f"style-src 'self' 'nonce-{nonce}'; "
+        f"style-src 'self' 'unsafe-inline'; "
         f"{_CSP_STATIC_PART}"
     )
 

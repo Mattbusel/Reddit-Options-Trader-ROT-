@@ -90,10 +90,14 @@ class TestNonceInCSPHeader:
         return TestClient(app)
 
     def test_csp_header_contains_nonce(self, client):
+        import re
         response = client.get("/health")
         csp = response.headers.get("Content-Security-Policy", "")
         assert "nonce-" in csp
-        assert "'unsafe-inline'" not in csp
+        # script-src must NOT have unsafe-inline (style-src is allowed to)
+        script_src = re.search(r"script-src\s+([^;]+)", csp)
+        assert script_src, "No script-src directive found"
+        assert "'unsafe-inline'" not in script_src.group(1)
 
     def test_nonce_unique_per_request(self, client):
         import re
@@ -105,7 +109,7 @@ class TestNonceInCSPHeader:
         nonce2 = re.search(r"'nonce-([^']+)'", csp2).group(1)
         assert nonce1 != nonce2
 
-    def test_nonce_in_both_script_and_style_src(self, client):
+    def test_nonce_in_script_src_and_style_uses_unsafe_inline(self, client):
         import re
         response = client.get("/health")
         csp = response.headers["Content-Security-Policy"]
@@ -113,7 +117,8 @@ class TestNonceInCSPHeader:
         assert nonce_match, "No nonce found in CSP"
         nonce = nonce_match.group(1)
         assert f"script-src 'self' 'nonce-{nonce}'" in csp
-        assert f"style-src 'self' 'nonce-{nonce}'" in csp
+        # style-src uses unsafe-inline (Tailwind CDN generates styles at runtime)
+        assert "style-src 'self' 'unsafe-inline'" in csp
 
     def test_csp_still_allows_cdn_domains(self, client):
         response = client.get("/health")
