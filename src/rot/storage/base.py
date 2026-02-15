@@ -115,26 +115,36 @@ class DatabaseBase:
         PRAGMAs applied:
         - journal_mode=WAL: Write-Ahead Logging for concurrent reads
         - synchronous=NORMAL: Faster writes, safe with WAL
-        - cache_size=-8000: 8MB page cache (default 2MB)
+        - cache_size=-16000: 16MB page cache (increased from 8MB)
         - temp_store=MEMORY: Keep temp tables in memory
-        - mmap_size=67108864: 64MB memory-mapped I/O
+        - mmap_size=134217728: 128MB memory-mapped I/O (increased from 64MB)
+        - page_size=4096: 4KB pages (optimal for modern SSDs)
         - busy_timeout=5000: 5s busy timeout instead of immediate fail
         - auto_vacuum=INCREMENTAL: Incremental auto-vacuum
-        - wal_autocheckpoint=500: Checkpoint every 500 pages
+        - wal_autocheckpoint=1000: Checkpoint every 1000 pages (reduced checkpoint frequency)
+        - optimize: Analyze query planner statistics for better performance
+        - analysis_limit=400: Limit ANALYZE to 400 rows (faster, good enough)
+        - threads=4: Enable parallel query execution
         """
         if not self._db:
             raise RuntimeError("Database connection not initialized")
 
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA synchronous=NORMAL")
-        await self._db.execute("PRAGMA cache_size=-8000")
+        await self._db.execute("PRAGMA cache_size=-16000")  # 16MB cache (up from 8MB)
         await self._db.execute("PRAGMA temp_store=MEMORY")
-        await self._db.execute("PRAGMA mmap_size=67108864")
+        await self._db.execute("PRAGMA mmap_size=134217728")  # 128MB mmap (up from 64MB)
+        await self._db.execute("PRAGMA page_size=4096")  # 4KB pages for SSD
         await self._db.execute("PRAGMA busy_timeout=5000")
         await self._db.execute("PRAGMA auto_vacuum=INCREMENTAL")
-        await self._db.execute("PRAGMA wal_autocheckpoint=500")
+        await self._db.execute("PRAGMA wal_autocheckpoint=1000")  # Less frequent checkpoints
+        await self._db.execute("PRAGMA analysis_limit=400")  # Faster ANALYZE
+        await self._db.execute("PRAGMA threads=4")  # Parallel queries
 
-        log.info("SQLite PRAGMAs applied (WAL, 8MB cache, 64MB mmap, incremental auto_vacuum)")
+        # Run OPTIMIZE to update query planner statistics
+        await self._db.execute("PRAGMA optimize")
+
+        log.info("SQLite PRAGMAs applied (WAL, 16MB cache, 128MB mmap, 4 threads, optimized)")
 
     async def _run_migrations(self) -> None:
         """
