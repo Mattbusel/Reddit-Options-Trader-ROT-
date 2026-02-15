@@ -6,7 +6,7 @@
 [![Security: 0 alerts](https://img.shields.io/badge/security%20alerts-0-brightgreen)]()
 [![Tests: 6,916](https://img.shields.io/badge/tests-6%2C916-blue)]()
 [![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.57%3A1-blue)]()
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)]()
+
 
 ---
 
@@ -251,7 +251,5 @@ This project is for research and experimentation only. Nothing in this repositor
 
 ---
 
-## License
 
-MIT — see [LICENSE](LICENSE) for details. Third-party license information in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
