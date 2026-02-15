@@ -48,7 +48,9 @@
       "Bash(git stash:*)",
       "Bash(git pull:*)",
       "Bash(git rm:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(gh run view:*)"
     ]
   }
 }
