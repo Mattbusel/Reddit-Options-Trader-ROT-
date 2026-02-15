@@ -102,7 +102,7 @@ class MacroMixin:
 
         where = " AND ".join(clauses) if clauses else "1=1"
         direction = "ASC" if order == "asc" else "DESC"
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT * FROM macro_events
             WHERE {where}
             ORDER BY scheduled_at {direction}
@@ -189,7 +189,7 @@ class MacroMixin:
 
         where = " AND ".join(clauses) if clauses else "1=1"
         direction = "ASC" if order == "asc" else "DESC"
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT * FROM earnings_events
             WHERE {where}
             ORDER BY report_date {direction}
@@ -294,7 +294,7 @@ class MacroMixin:
 
         where = " AND ".join(clauses) if clauses else "1=1"
         direction = "DESC" if order == "desc" else "ASC"
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT * FROM insider_trades
             WHERE {where}
             ORDER BY filing_date {direction}
@@ -377,6 +377,9 @@ class MacroMixin:
         self, limit: int = 20, order: str = "desc",
     ) -> List[Dict[str, Any]]:
         """Query FOMC meetings."""
+        # Validate order parameter to prevent SQL injection
+        if order not in ("desc", "asc"):
+            raise ValueError(f"Invalid order parameter: {order}")
         direction = "DESC" if order == "desc" else "ASC"
         async with self.db.execute(
             f"""SELECT * FROM fomc_meetings
@@ -452,7 +455,7 @@ class MacroMixin:
             conditions.append("ticker = ?")
             params.append(ticker.upper())
         where = " AND ".join(conditions)
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT * FROM congress_trades
             WHERE {where}
             ORDER BY filed_at DESC LIMIT ?

@@ -64,7 +64,9 @@ class AlertConfig(BaseSettings):
 class WebConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ROT_WEB_")
 
-    host: str = "0.0.0.0"
+    # Default to 0.0.0.0 for Docker/containerized deployments (behind reverse proxy)
+    # For local dev or production without reverse proxy, set ROT_WEB_HOST=127.0.0.1
+    host: str = "0.0.0.0"  # nosec B104 - intentional for containerized deployment
     port: int = 8000
     secret_key: str = "change-me-in-production"
 

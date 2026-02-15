@@ -722,7 +722,7 @@ class SportsNewsCache:
             else:
                 published = time.time()
 
-            item_id = hashlib.md5(f"{title}:{link}".encode()).hexdigest()[:12]
+            item_id = hashlib.md5(f"{title}:{link}".encode(), usedforsecurity=False).hexdigest()[:12]
             classification = _classify_news(title, summary)
 
             items.append(NewsItem(
