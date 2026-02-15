@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from rot.core.logging import sanitize_for_log
 import json
 import logging
 import time
