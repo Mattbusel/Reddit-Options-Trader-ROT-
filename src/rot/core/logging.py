@@ -4,6 +4,7 @@ import glob
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict
@@ -11,6 +12,39 @@ from typing import Any, Dict
 from rot.core.request_context import RequestContextFilter, configure_request_logging
 
 log = logging.getLogger(__name__)
+
+
+def sanitize_for_log(value: str) -> str:
+    """Sanitize user input for safe logging (prevent log injection attacks).
+
+    Removes or replaces characters that could be used to inject fake log entries:
+    - Newlines (\\n, \\r) - could create fake log lines
+    - ANSI escape codes - could manipulate terminal output
+    - Control characters - could cause parsing issues
+
+    Args:
+        value: User-provided string to sanitize
+
+    Returns:
+        Sanitized string safe for logging
+    """
+    if not isinstance(value, str):
+        value = str(value)
+
+    # Replace newlines with space to prevent log injection
+    value = value.replace('\n', ' ').replace('\r', ' ')
+
+    # Remove ANSI escape codes
+    value = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', value)
+
+    # Remove other control characters (except space and printable chars)
+    value = ''.join(char if char.isprintable() or char.isspace() else '' for char in value)
+
+    # Truncate if too long (prevent log flooding)
+    if len(value) > 500:
+        value = value[:497] + '...'
+
+    return value
 
 
 def _to_jsonable(obj: Any) -> Any:
