@@ -115,8 +115,8 @@ class CSRFMiddleware:
             values = parsed.get(CSRF_FORM_FIELD, [])
             if values:
                 token = values[0]
-        except Exception:
-            pass
+        except (UnicodeDecodeError, ValueError):
+            pass  # Malformed body — leave token as None
 
         # Create a replay receive that yields the cached body
         body_sent = False

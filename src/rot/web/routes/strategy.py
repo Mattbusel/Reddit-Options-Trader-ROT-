@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 import uuid
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rot.web.auth import get_current_user_optional
