@@ -27,6 +27,8 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
+from rot.core.security_logger import log_rate_limit_violation
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_LIMITS = {
@@ -235,6 +237,16 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
         retry_after_seconds = int(window_seconds - (now - oldest_attempt))
 
         log.warning(f"[RATE_LIMIT_DEBUG] BLOCKING REQUEST - Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={attempt_count}")
+
+        # Log security event
+        log_rate_limit_violation(
+            endpoint=endpoint,
+            ip=ip,
+            attempt_count=attempt_count,
+            limit=max_attempts,
+            window_seconds=window_seconds,
+            metadata={"retry_after": retry_after_seconds}
+        )
 
         raise HTTPException(
             status_code=429,

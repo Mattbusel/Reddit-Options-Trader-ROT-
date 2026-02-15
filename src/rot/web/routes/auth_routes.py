@@ -16,6 +16,7 @@ from rot.web.auth import (
     verify_password,
 )
 from rot.web.rate_limit import check_auth_rate_limit
+from rot.core.security_logger import log_auth_attempt, log_api_key_event
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth")
@@ -60,6 +61,16 @@ async def register(body: RegisterRequest, request: Request):
     settings = request.app.state.settings
     token = create_access_token(user["id"], user["email"], user["tier"], settings)
 
+    # Log successful registration
+    ip = request.client.host if request.client else "unknown"
+    log_auth_attempt(
+        event="register",
+        email=user["email"],
+        ip=ip,
+        success=True,
+        metadata={"tier": user["tier"], "user_id": user["id"]}
+    )
+
     response = JSONResponse(content={
         "user": {"id": user["id"], "email": user["email"], "tier": user["tier"]},
         "token": token,
@@ -87,14 +98,42 @@ async def login(body: LoginRequest, request: Request):
 
     db = request.app.state.db
     user = await db.get_user_by_email(body.email.lower())
+    ip = request.client.host if request.client else "unknown"
+
     if not user or not user.get("password_hash"):
+        # Log failed login - user not found
+        log_auth_attempt(
+            event="login",
+            email=body.email.lower(),
+            ip=ip,
+            success=False,
+            reason="user_not_found"
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not verify_password(body.password, user["password_hash"]):
+        # Log failed login - invalid password
+        log_auth_attempt(
+            event="login",
+            email=body.email.lower(),
+            ip=ip,
+            success=False,
+            reason="invalid_password",
+            metadata={"user_id": user["id"]}
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     settings = request.app.state.settings
     token = create_access_token(user["id"], user["email"], user["tier"], settings)
+
+    # Log successful login
+    log_auth_attempt(
+        event="login",
+        email=user["email"],
+        ip=ip,
+        success=True,
+        metadata={"tier": user["tier"], "user_id": user["id"]}
+    )
 
     # Track login for gamification (async, fire-and-forget)
     try:
