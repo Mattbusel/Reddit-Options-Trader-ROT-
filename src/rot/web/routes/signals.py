@@ -138,9 +138,18 @@ async def new_signal_count(request: Request):
 
 @router.get("/signals/{signal_id}")
 async def get_signal(request: Request, signal_id: str, fields: Optional[str] = None):
+    from fastapi.responses import HTMLResponse
+
+    # Detect if this is a browser request (Accept: text/html) or API request
+    accept_header = request.headers.get("accept", "")
+    is_browser = "text/html" in accept_header
+
     user = await get_current_user_optional(request)
-    await require_api_auth(request, user)
-    await check_rate_limit(request, user)
+
+    # Only require API auth for non-browser requests
+    if not is_browser:
+        await require_api_auth(request, user)
+        await check_rate_limit(request, user)
 
     db = request.app.state.db
     signal = await db.get_signal(signal_id)
@@ -151,6 +160,17 @@ async def get_signal(request: Request, signal_id: str, fields: Optional[str] = N
     settings = request.app.state.settings
     result = gate_signal(signal, tier, delay_s=settings.tier_limits.free_signal_delay_s)
 
+    # Browser request: render HTML template
+    if is_browser:
+        templates = request.app.state.templates
+        return templates.TemplateResponse("signal_detail.html", {
+            "request": request,
+            "user": user,
+            "tier": tier,
+            "signal": result,
+        })
+
+    # API request: return JSON
     if fields:
         result = _filter_fields([result], fields, _SIGNAL_FIELDS)[0]
 
