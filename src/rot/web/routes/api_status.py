@@ -318,6 +318,9 @@ async def api_docs(request: Request):
     Shows all available API endpoints so prospective users know
     what they'll get when they subscribe. Drives upgrades.
     """
+    from fastapi.responses import HTMLResponse
+    from rot.web.auth import get_current_user_optional
+
     endpoints = []
     for ep in _ENDPOINTS:
         info = {
@@ -331,19 +334,13 @@ async def api_docs(request: Request):
             info["example"] = ep["example"]
         endpoints.append(info)
 
-    return {
-        "api_version": "v1",
-        "auth": {
-            "methods": ["Bearer JWT", "X-API-Key header"],
-            "note": "Get your API key at /account after subscribing (Pro+ required)",
-        },
-        "tiers": {
-            "free": {"api_access": False, "note": "Dashboard only. Subscribe at /pricing for API access."},
-            "pro": {"daily_limit": 1000, "burst_limit": 50, "price": "$9.99/mo"},
-            "premium": {"daily_limit": 5000, "burst_limit": 200, "price": "$29.99/mo"},
-            "ultra": {"daily_limit": 25000, "burst_limit": 500, "price": "$79.99/mo"},
-            "enterprise": {"daily_limit": 100000, "burst_limit": 2000, "price": "Contact us"},
-        },
+    user = await get_current_user_optional(request)
+    tier = (user or {}).get("tier", "free")
+
+    templates = request.app.state.templates
+    return templates.TemplateResponse("api_docs.html", {
+        "request": request,
+        "user": user,
+        "tier": tier,
         "endpoints": endpoints,
-        "total_endpoints": len(endpoints),
-    }
+    })

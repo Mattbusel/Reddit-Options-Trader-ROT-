@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation - ROT{% endblock %}
+{% block meta_description %}Complete REST API documentation for Reddit Options Trader. 19+ endpoints for signals, analytics, news, and market data.{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">API Documentation</h1>
+    <p class="text-gray-400">Complete REST API reference with examples and authentication details</p>
+</div>
+
+<!-- Authentication -->
+<div class="chart-container mb-6">
+    <h2 class="text-xl font-bold text-white mb-4">Authentication</h2>
+    <div class="space-y-3">
+        <div>
+            <span class="text-sm font-semibold text-gray-400">Methods:</span>
+            <ul class="ml-4 mt-1 space-y-1">
+                <li class="text-gray-300"><code class="text-blue-400">Authorization: Bearer &lt;JWT&gt;</code></li>
+                <li class="text-gray-300"><code class="text-blue-400">X-API-Key: &lt;your-api-key&gt;</code></li>
+            </ul>
+        </div>
+        <div>
+            <span class="text-sm font-semibold text-gray-400">Get Your API Key:</span>
+            <p class="text-gray-300 ml-4 mt-1">Visit <a href="/account" class="text-orange-400 hover:underline">/account</a> after subscribing (Pro+ required)</p>
+        </div>
+    </div>
+</div>
+
+<!-- Rate Limits -->
+<div class="chart-container mb-6">
+    <h2 class="text-xl font-bold text-white mb-4">Rate Limits</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-700">
+                    <th class="text-left py-2 px-3 text-gray-400 font-semibold">Tier</th>
+                    <th class="text-left py-2 px-3 text-gray-400 font-semibold">Daily Limit</th>
+                    <th class="text-left py-2 px-3 text-gray-400 font-semibold">Burst Limit</th>
+                    <th class="text-left py-2 px-3 text-gray-400 font-semibold">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-3 text-gray-500">Free</td>
+                    <td class="py-2 px-3 text-gray-500">No API access</td>
+                    <td class="py-2 px-3 text-gray-500">-</td>
+                    <td class="py-2 px-3 text-gray-400">$0</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-3 text-blue-400 font-semibold">Pro</td>
+                    <td class="py-2 px-3 text-white">1,000 calls/day</td>
+                    <td class="py-2 px-3 text-white">50/min</td>
+                    <td class="py-2 px-3 text-gray-400">$9.99/mo</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-3 text-purple-400 font-semibold">Premium</td>
+                    <td class="py-2 px-3 text-white">5,000 calls/day</td>
+                    <td class="py-2 px-3 text-white">200/min</td>
+                    <td class="py-2 px-3 text-gray-400">$29.99/mo</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="py-2 px-3 text-orange-400 font-semibold">Ultra</td>
+                    <td class="py-2 px-3 text-white">25,000 calls/day</td>
+                    <td class="py-2 px-3 text-white">500/min</td>
+                    <td class="py-2 px-3 text-gray-400">$99.99/mo</td>
+                </tr>
+                <tr>
+                    <td class="py-2 px-3 text-green-400 font-semibold">Enterprise</td>
+                    <td class="py-2 px-3 text-white">100,000 calls/day</td>
+                    <td class="py-2 px-3 text-white">1000/min</td>
+                    <td class="py-2 px-3 text-gray-400">Contact sales</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Endpoints -->
+<div class="chart-container mb-6">
+    <h2 class="text-xl font-bold text-white mb-4">API Endpoints</h2>
+    <div class="space-y-4">
+        {% for ep in endpoints %}
+        <div class="border-l-4 border-orange-600 bg-gray-900/50 rounded-r-lg p-4">
+            <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <span class="px-2 py-1 rounded text-xs font-bold bg-blue-900 text-blue-300">{{ ep.method }}</span>
+                    <code class="text-white font-mono text-sm">{{ ep.path }}</code>
+                </div>
+                <span class="px-2 py-1 rounded text-xs font-semibold
+                    {% if ep.min_tier == 'free' %}bg-gray-800 text-gray-400
+                    {% elif ep.min_tier == 'pro' %}bg-blue-900/50 text-blue-400
+                    {% elif ep.min_tier == 'premium' %}bg-purple-900/50 text-purple-400
+                    {% elif ep.min_tier == 'ultra' %}bg-orange-900/50 text-orange-400
+                    {% else %}bg-green-900/50 text-green-400{% endif %}">
+                    {{ ep.min_tier|title }}+
+                </span>
+            </div>
+            <p class="text-sm text-gray-300 mb-3">{{ ep.description }}</p>
+
+            {% if ep.params %}
+            <div class="mb-3">
+                <span class="text-xs font-semibold text-gray-400">Parameters:</span>
+                <ul class="ml-4 mt-1 space-y-1">
+                    {% for param, desc in ep.params.items() %}
+                    <li class="text-xs text-gray-400"><code class="text-blue-400">{{ param }}</code> — {{ desc }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if ep.example %}
+            <div>
+                <span class="text-xs font-semibold text-gray-400">Example:</span>
+                <pre class="mt-1 p-3 bg-black/50 rounded text-xs text-gray-300 overflow-x-auto"><code>{{ ep.example }}</code></pre>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="text-center mt-8">
+    <p class="text-sm text-gray-500">
+        Ready to get started?
+        <a href="/pricing" class="text-orange-400 hover:underline font-semibold">View pricing →</a>
+    </p>
+    <p class="text-sm text-gray-600 mt-2">
+        <a href="/dashboard" class="hover:text-white transition">← Back to Dashboard</a>
+    </p>
+</div>
+{% endblock %}
