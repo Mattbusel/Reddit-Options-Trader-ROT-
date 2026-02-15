@@ -135,3 +135,68 @@ Pattern: pytest-asyncio (auto mode), temp SQLite files, no external API calls (m
 | 2026-02 | ML credibility, feedback engine, backtesting (12 modules), unusual activity, sector rotation, correlations, enterprise export, signal archive, macro events (7 modules), terminal, agents, admin tier, flow intelligence (7 modules), social intelligence (7 modules), strategy builder (9 modules). Memory/network optimization. Simplified win/loss counting. Doc restructuring (17 split docs). ~2048 tests. |
 | 2026-02 | **Token optimization**: Slimmed CLAUDE.md from ~24.7k to ~3k tokens. Detailed content moved to `docs/` (read on-demand). Added MEMORY.md for cross-session learnings. |
 | 2026-02-14 | **Nightly hardening (82% complete)**: WS1 (security): Strong secret key validation, fixed auth rate limiting for multi-instance (database-backed), database backup system (GZip, rotation), enhanced health check endpoint. WS2 (tech debt): Removed database_old.py, fixed reasoning type bug in analytics. WS3 (retry logic): Comprehensive retry module with exponential backoff applied to yfinance, LLM APIs, RSS/StockTwits/Twitter fetches. WS4 (automation): GitHub Actions security workflow (pip-audit, CodeQL, Bandit, TruffleHog), Dependabot config. WS5 (performance): SQLite pragma optimizations (16MB cache, 128MB mmap, 4 threads), GZip compression level tuning. WS7 (integration tests): 4 test suites (1,400+ lines) covering auth rate limiting, retry resilience, backup system, health endpoint. WS8 (logging): Structured JSON security logging (10 event types, SIEM-ready) + request ID tracking across pipeline (UUID4, correlation IDs, distributed tracing, response timing). WS9 (API docs): Enhanced OpenAPI schema with Pydantic models, response examples, tier documentation, auto-generated Swagger UI at /docs. WS10 (frontend): Professional loading states, skeleton loaders, HTMX integration, shimmer animations. **Total: 9/11 work streams, 5,200+ lines added, 19 files created, 3 critical bugs fixed**. |
+| 2026-02-14 | **CodeQL zero-alert baseline**: Fixed all 425 code scanning alerts (0 open). Added code quality guardrails, SECURITY.md policy. See `SECURITY.md` for full policy. |
+
+---
+
+## Code Quality Guardrails
+
+> **MANDATORY**: Every line of code produced by Claude or any agent MUST comply with these rules.
+> These guardrails were derived from analysis of 425 CodeQL alerts fixed during the Feb 2026 hardening.
+> See `SECURITY.md` for the full security policy.
+
+### Root Cause Analysis (why we had 425 alerts)
+
+| Category | % of Alerts | Root Cause | Prevention |
+|----------|-------------|------------|------------|
+| Unused imports | 40% | Refactoring removed usage but left import lines | Clean imports on every edit |
+| Unused variables | 30% | Copy-paste, cascading dead code after edits | Verify every assigned variable is read |
+| Empty except blocks | 7% | Silencing errors during rapid prototyping | Always log or re-raise |
+| Comparison warnings | 5% | `x == x` identity checks, redundant conditions | Review boolean logic |
+| Cyclic imports | 5% | `__init__.py` re-exports creating import cycles | Use `TYPE_CHECKING` guard |
+| Info exposure | 2% | Stack traces / secrets in error responses | Sanitize all user-facing errors |
+| Weak hashing | 1.5% | SHA1 in OAuth, SHA256 for API keys | Document protocol requirements |
+| NaN comparisons | 0.5% | `x != x` to detect NaN | Use `math.isnan()` |
+
+### Import Rules
+
+1. **Only import what you use.** After ANY edit, verify every imported name appears in the file body.
+2. **Remove the name, not the line.** If `from typing import Any, Dict, List` and only `Any` is unused, edit to `from typing import Dict, List`. Do NOT delete the whole line.
+3. **`from __future__ import annotations`** makes all type annotations strings at runtime. CodeQL still tracks whether a typing name is used in annotations. Only import typing names that actually appear somewhere.
+4. **After removing code that used an import**, check if the import is now orphaned. Cascading dead imports are the #1 source of alerts.
+5. **Use `TYPE_CHECKING` for circular imports**: `if TYPE_CHECKING: from rot.foo import Bar` keeps the import out of runtime.
+
+### Variable Rules
+
+6. **Every assigned variable must be read.** If you assign `x = foo()` but never reference `x`, either use it or call `foo()` as a bare expression.
+7. **Side-effect-only calls**: For auth guards and similar, use bare `await require_tier("pro")(request)` NOT `_user = await require_tier("pro")(request)`. The `_` prefix does NOT satisfy CodeQL.
+8. **After removing code that read a variable**, check if the assignment is now dead. Cascading dead variables are the #2 source of alerts.
+9. **No redundant initializations**: If every branch of an if/elif/else assigns a variable, do not initialize it before the block.
+
+### Exception Handling Rules
+
+10. **Never use bare `except: pass`**. Always either `log.error(...)` or re-raise with context.
+11. **Catch specific exceptions**: `except ValueError` not `except Exception` unless you genuinely handle all exceptions.
+12. **Swallowed exceptions must be logged**: At minimum `log.debug("...", exc_info=True)`.
+
+### Security Rules
+
+13. **Never expose stack traces to users.** Return generic error messages; log the full trace server-side.
+14. **Hash passwords with bcrypt only.** SHA-256 is acceptable for high-entropy API tokens. SHA-1 only for protocol-mandated OAuth 1.0a (document with a code comment).
+15. **Sanitize all log output.** Use `SanitizingLogFilter` (already global). Never log raw user input without it.
+16. **Validate at system boundaries.** Validate user input, external API responses, and config values. Trust internal code.
+
+### Comparison and Logic Rules
+
+17. **Never compare a value to itself** (`x == x`, `x != x`). Use `math.isnan(x)` for NaN checks.
+18. **No redundant boolean conditions.** If both branches of `if x > 0` and `elif x > 0` are identical, consolidate.
+19. **Floating point**: Use `math.isclose()` for float equality, `math.isnan()` for NaN detection.
+
+### Pre-Commit Checklist (mental, before every commit)
+
+- [ ] All imports are used (grep each imported name in the file)
+- [ ] All assigned variables are read downstream
+- [ ] No bare `except: pass` blocks
+- [ ] No secrets or stack traces in user-facing responses
+- [ ] No `x == x` or `x != x` comparisons
+- [ ] Tests pass (`pytest -x`)
