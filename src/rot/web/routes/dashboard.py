@@ -556,6 +556,10 @@ async def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login_form(request: Request, email: str = Form(...), password: str = Form(...)):
+    # Brute-force protection: 5 attempts per IP per 15 minutes
+    from rot.web.rate_limit import check_auth_rate_limit
+    await check_auth_rate_limit(request, "login")
+
     db = request.app.state.db
     user = await db.get_user_by_email(email.lower())
 
@@ -597,6 +601,10 @@ async def register_form(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ):
+    # Brute-force protection: 3 attempts per IP per hour
+    from rot.web.rate_limit import check_auth_rate_limit
+    await check_auth_rate_limit(request, "register")
+
     templates = request.app.state.templates
 
     if password != confirm_password:
