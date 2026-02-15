@@ -17,6 +17,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from rot.core.logging import sanitize_for_log
+
 # Security logger separate from main application logger
 security_logger = logging.getLogger("rot.security")
 
@@ -41,12 +43,12 @@ def log_auth_attempt(
     """
     log_data = {
         "event_type": "auth_attempt",
-        "auth_event": event,
+        "auth_event": sanitize_for_log(event),
         "timestamp": datetime.utcnow().isoformat(),
-        "email": email,
-        "ip_address": ip,
+        "email": sanitize_for_log(email),
+        "ip_address": sanitize_for_log(ip),
         "success": success,
-        "reason": reason,
+        "reason": sanitize_for_log(reason) if reason else None,
         "metadata": metadata or {},
     }
 
@@ -77,8 +79,8 @@ def log_rate_limit_violation(
     log_data = {
         "event_type": "rate_limit_violation",
         "timestamp": datetime.utcnow().isoformat(),
-        "endpoint": endpoint,
-        "ip_address": ip,
+        "endpoint": sanitize_for_log(endpoint),
+        "ip_address": sanitize_for_log(ip),
         "attempt_count": attempt_count,
         "limit": limit,
         "window_seconds": window_seconds,
@@ -108,12 +110,12 @@ def log_api_key_event(
     """
     log_data = {
         "event_type": "api_key_event",
-        "api_key_event": event,
+        "api_key_event": sanitize_for_log(event),
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": user_id,
-        "email": email,
-        "ip_address": ip,
-        "key_prefix": key_prefix,
+        "email": sanitize_for_log(email),
+        "ip_address": sanitize_for_log(ip),
+        "key_prefix": sanitize_for_log(key_prefix) if key_prefix else None,
         "metadata": metadata or {},
     }
 
@@ -142,10 +144,10 @@ def log_admin_elevation(
         "event_type": "admin_elevation",
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": user_id,
-        "email": email,
-        "ip_address": ip,
-        "granted_by": granted_by,
-        "reason": reason,
+        "email": sanitize_for_log(email),
+        "ip_address": sanitize_for_log(ip),
+        "granted_by": sanitize_for_log(granted_by) if granted_by else None,
+        "reason": sanitize_for_log(reason),
         "metadata": metadata or {},
     }
 
@@ -170,11 +172,11 @@ def log_suspicious_activity(
     """
     log_data = {
         "event_type": "suspicious_activity",
-        "activity_type": activity_type,
+        "activity_type": sanitize_for_log(activity_type),
         "timestamp": datetime.utcnow().isoformat(),
-        "ip_address": ip,
-        "description": description,
-        "severity": severity,
+        "ip_address": sanitize_for_log(ip),
+        "description": sanitize_for_log(description),
+        "severity": sanitize_for_log(severity),
         "metadata": metadata or {},
     }
 
@@ -201,10 +203,10 @@ def log_secret_validation_failure(
     log_data = {
         "event_type": "secret_validation_failure",
         "timestamp": datetime.utcnow().isoformat(),
-        "environment": environment,
+        "environment": sanitize_for_log(environment),
         "secret_length": secret_length,
         "is_default_secret": is_default,
-        "reason": reason,
+        "reason": sanitize_for_log(reason),
     }
 
     security_logger.error(json.dumps(log_data))
@@ -266,7 +268,7 @@ def log_tier_gate_block(
         "event_type": "tier_gate_block",
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": user_id,
-        "email": email,
+        "email": sanitize_for_log(email),
         "endpoint": endpoint,
         "required_tier": required_tier,
         "user_tier": user_tier,
@@ -299,7 +301,7 @@ def log_data_export(
         "event_type": "data_export",
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": user_id,
-        "email": email,
+        "email": sanitize_for_log(email),
         "export_type": export_type,
         "record_count": record_count,
         "format": format,
