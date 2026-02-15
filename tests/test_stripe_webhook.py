@@ -74,6 +74,7 @@ class TestWebhookSignatureVerification:
         response = client.post(
             "/api/v1/billing/webhook",
             content=b'{"type": "test"}',
+            headers={"stripe-signature": "", "Content-Type": "application/json"},
         )
         assert response.status_code == 400
 
@@ -88,6 +89,7 @@ class TestWebhookNotConfigured:
         response = client.post(
             "/api/v1/billing/webhook",
             content=b'{"type": "test"}',
+            headers={"stripe-signature": "t=123,v1=abc", "Content-Type": "application/json"},
         )
         assert response.status_code == 501
 
