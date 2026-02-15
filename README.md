@@ -2,12 +2,11 @@
 
 **A 165K-line financial intelligence platform that turns Reddit into structured options trade ideas. Built solo in 9 days.**
 
-[![Tests](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/tests.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/tests.yml)
-[![CodeQL](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/codeql.yml)
+
 [![Security: 0 alerts](https://img.shields.io/badge/security%20alerts-0-brightgreen)]()
 [![Tests: 6,916](https://img.shields.io/badge/tests-6%2C916-blue)]()
 [![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.57%3A1-blue)]()
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)]()
+
 
 ---
 
@@ -251,5 +250,9 @@ Full audit reports available in [`docs/`](docs/).
 This project is for research and experimentation only. Nothing in this repository constitutes financial advice. ROT is a signal intelligence platform, not an execution engine.
 
 ---
+
+
+
+
 
 
