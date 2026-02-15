@@ -70,8 +70,13 @@ async def export_signals(
 
         # Build article link — Reddit posts get full reddit URL, RSS gets stored link
         post_url = s.get("post_url", "")
-        if post_url and not post_url.startswith("http"):
-            post_url = f"https://reddit.com{post_url}"
+        # Validate URL scheme to prevent javascript: or data: URIs (CWE-79, incomplete sanitization)
+        if post_url and not (post_url.startswith("https://") or post_url.startswith("http://")):
+            # Assume it's a Reddit path if it doesn't have a valid scheme
+            if post_url.startswith("/"):
+                post_url = f"https://reddit.com{post_url}"
+            else:
+                post_url = ""  # Invalid/suspicious URL, clear it
 
         row = [
             s.get("id", ""),

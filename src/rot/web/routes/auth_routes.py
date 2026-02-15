@@ -88,8 +88,11 @@ async def register(body: RegisterRequest, request: Request):
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
     import logging
+    from rot.core.logging import sanitize_for_log
     log = logging.getLogger(__name__)
-    log.warning(f"[LOGIN_DEBUG] Login attempt for email={body.email}, ip={request.client.host if request.client else 'unknown'}")
+    safe_email = sanitize_for_log(body.email)
+    safe_ip = sanitize_for_log(request.client.host if request.client else 'unknown')
+    log.warning(f"[LOGIN_DEBUG] Login attempt for email={safe_email}, ip={safe_ip}")
 
     # Brute-force protection: 5 attempts per IP per 15 minutes
     log.warning("[LOGIN_DEBUG] About to call check_auth_rate_limit")
