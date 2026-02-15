@@ -11,9 +11,11 @@ Rate limits:
   - Enterprise: 100,000 calls/day (2,000/min burst)
 
 Auth Rate Limiting (brute-force protection):
-  - /auth/login:     5 attempts per IP per 15 minutes
-  - /auth/register:  3 attempts per IP per hour
-  - /auth/api-key:   3 attempts per user per hour
+  - /auth/login:          5 attempts per IP per 15 minutes
+  - /auth/register:       3 attempts per IP per hour
+  - /auth/api-key:        3 attempts per IP per hour
+  - /forgot-password:     3 attempts per IP per hour (prevent email spam)
+  - /reset-password:      5 attempts per IP per 15 minutes
 
 Database-backed implementation to support multi-instance deployments (Railway).
 """
@@ -165,9 +167,11 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
         HTTPException: 429 if rate limit exceeded
 
     Rate limits:
-        - login:     5 attempts per IP per 15 minutes
-        - register:  3 attempts per IP per hour
-        - api-key:   3 attempts per hour (per IP, since user might not be authed yet)
+        - login:          5 attempts per IP per 15 minutes
+        - register:       3 attempts per IP per hour
+        - api-key:        3 attempts per IP per hour
+        - forgot-password: 3 attempts per IP per hour (prevent email spam)
+        - reset-password: 5 attempts per IP per 15 minutes (similar to login)
 
     Implementation:
         - Uses database for storage to support multi-instance deployments
@@ -181,9 +185,11 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
 
     # Define limits
     limits = {
-        "login": (5, 900),      # 5 attempts, 15 minutes
-        "register": (3, 3600),  # 3 attempts, 1 hour
-        "api-key": (3, 3600),   # 3 attempts, 1 hour
+        "login": (5, 900),           # 5 attempts, 15 minutes
+        "register": (3, 3600),       # 3 attempts, 1 hour
+        "api-key": (3, 3600),        # 3 attempts, 1 hour
+        "forgot-password": (3, 3600), # 3 attempts, 1 hour (prevent email spam)
+        "reset-password": (5, 900),  # 5 attempts, 15 minutes (similar to login)
     }
 
     if endpoint not in limits:

@@ -664,6 +664,10 @@ async def forgot_password_page(request: Request):
 
 @router.post("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_form(request: Request, email: str = Form(...)):
+    # Brute-force protection: 3 attempts per IP per hour (prevent email spam)
+    from rot.web.rate_limit import check_auth_rate_limit
+    await check_auth_rate_limit(request, "forgot-password")
+
     templates = request.app.state.templates
     db = request.app.state.db
     settings = request.app.state.settings
@@ -753,6 +757,10 @@ async def reset_password_form(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ):
+    # Brute-force protection: 5 attempts per IP per 15 minutes
+    from rot.web.rate_limit import check_auth_rate_limit
+    await check_auth_rate_limit(request, "reset-password")
+
     templates = request.app.state.templates
     settings = request.app.state.settings
     db = request.app.state.db
