@@ -118,7 +118,9 @@ async def api_leaderboard(
     min_predictions: int = Query(10, ge=1),
 ):
     """Author leaderboard JSON API."""
-    api_user = await require_api_auth(request)
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    api_user = user
     await check_rate_limit(request, api_user)
     tier = api_user.get("tier", "free")
     access = gate_social_access(tier)
@@ -138,7 +140,9 @@ async def api_leaderboard(
 @router.get("/api/v1/social/author/{username}")
 async def api_author(request: Request, username: str):
     """Author profile JSON API."""
-    api_user = await require_api_auth(request)
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    api_user = user
     await check_rate_limit(request, api_user)
     tier = api_user.get("tier", "free")
     access = gate_social_access(tier)
@@ -169,7 +173,9 @@ async def api_manipulation(
     resolved: Optional[bool] = None,
 ):
     """Manipulation alerts JSON API."""
-    api_user = await require_api_auth(request)
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    api_user = user
     await check_rate_limit(request, api_user)
     tier = api_user.get("tier", "free")
     access = gate_social_access(tier)
@@ -189,7 +195,9 @@ async def api_manipulation(
 @router.get("/api/v1/social/propagation/{ticker}")
 async def api_propagation(request: Request, ticker: str):
     """Sentiment propagation timeline JSON API."""
-    api_user = await require_api_auth(request)
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    api_user = user
     await check_rate_limit(request, api_user)
     tier = api_user.get("tier", "free")
     access = gate_social_access(tier)
@@ -216,7 +224,9 @@ async def api_contrarian(
     limit: int = Query(50, ge=1, le=200),
 ):
     """Contrarian signals JSON API."""
-    api_user = await require_api_auth(request)
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    api_user = user
     await check_rate_limit(request, api_user)
     tier = api_user.get("tier", "free")
     access = gate_social_access(tier)
