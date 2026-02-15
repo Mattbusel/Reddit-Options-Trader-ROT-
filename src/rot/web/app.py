@@ -15,6 +15,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from rot.core.config import Settings
 from rot.web.request_id_middleware import RequestIDMiddleware
 from rot.web.error_middleware import ErrorTrackingMiddleware
+from rot.web.security_headers import SecurityHeadersMiddleware
 
 log = logging.getLogger(__name__)
 
@@ -173,7 +174,10 @@ Get your API key at [/account](/account) after registration.
     # compresslevel=6: Balanced compression (1=fastest/largest, 9=slowest/smallest)
     app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
-    # CORS
+    # CORS — TODO: Tighten allow_origins from ["*"] to specific domains.
+    # allow_origins=["*"] + allow_credentials=True is a security concern
+    # (browsers ignore credentials with wildcard origins, but it signals
+    # misconfiguration). Track in a future hardening task.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -181,6 +185,9 @@ Get your API key at [/account](/account) after registration.
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Security headers — CSP, X-Frame-Options, X-Content-Type-Options, etc.
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Store settings on app state (no heavy imports needed)
     app.state.settings = settings
