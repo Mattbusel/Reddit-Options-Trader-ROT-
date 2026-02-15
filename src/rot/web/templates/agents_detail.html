@@ -100,7 +100,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function agentAction(action) {
     const agentId = '{{ agent.id }}';
     let url, method;

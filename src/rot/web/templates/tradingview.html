@@ -171,7 +171,7 @@ alertcondition(true, "ROT Bearish Signal",
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function copyPineScript() {
     const code = document.getElementById('pine-script').innerText;
     navigator.clipboard.writeText(code).then(() => {

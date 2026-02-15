@@ -242,7 +242,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function generateKey() {
     const resp = await fetch('/api/v1/auth/api-key', {method: 'POST'});
     const data = await resp.json();

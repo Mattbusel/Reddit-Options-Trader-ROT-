@@ -7,7 +7,7 @@
 {% block twitter_title %}ROT Pricing — Free Forever, Pro $9.99/mo{% endblock %}
 
 {% block structured_data %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 [
     {
         "@context": "https://schema.org",
@@ -318,7 +318,7 @@
 </div>
 
 {% if stripe_enabled %}
-<script>
+<script nonce="{{ csp_nonce }}">
 async function checkout(tier) {
     const resp = await fetch('/api/v1/billing/checkout', {
         method: 'POST',

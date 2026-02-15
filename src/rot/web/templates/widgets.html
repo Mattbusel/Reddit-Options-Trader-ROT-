@@ -64,7 +64,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function generateWidget() {
     const ticker = document.getElementById('widget-ticker').value.trim().toUpperCase();
     if (!ticker) return;

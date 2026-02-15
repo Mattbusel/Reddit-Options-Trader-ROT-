@@ -97,7 +97,7 @@
     <a href="/performance" class="text-sm text-gray-500 hover:text-white transition">&larr; Back to Performance Dashboard</a>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 {% if by_event %}
 (function() {
     const eventData = {{ by_event|tojson }};

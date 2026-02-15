@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from rot.web.nonce_templates import NonceTemplates
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -197,7 +197,7 @@ Get your API key at [/account](/account) after registration.
     # Templates (lightweight — just reads directory listing)
     template_dir = Path(__file__).parent / "templates"
     template_dir.mkdir(exist_ok=True)
-    app.state.templates = Jinja2Templates(directory=str(template_dir))
+    app.state.templates = NonceTemplates(directory=str(template_dir))
 
     # Static files
     static_dir = Path(__file__).parent / "static"

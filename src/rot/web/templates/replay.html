@@ -145,7 +145,7 @@
 </div>
 
 {% if access.has_access %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const signals = {{ signals_json|safe }};
     const totalSignals = signals.length;

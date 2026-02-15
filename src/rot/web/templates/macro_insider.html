@@ -117,7 +117,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.ts-fmt').forEach(el => {
         const ts = parseFloat(el.dataset.ts);

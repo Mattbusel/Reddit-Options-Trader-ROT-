@@ -127,7 +127,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function connectBroker(brokerId) {
     try {
         const resp = await fetch('/api/v1/brokers/connect', {
