@@ -6,7 +6,7 @@ before route handlers run.  Each model maps to one or more POST/PUT endpoints.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
