@@ -177,6 +177,8 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
     ip = request.client.host if request.client else "unknown"
     now = time.time()
 
+    log.warning(f"[RATE_LIMIT_DEBUG] Function called: endpoint={endpoint}, ip={ip}")
+
     # Define limits
     limits = {
         "login": (5, 900),      # 5 attempts, 15 minutes
@@ -197,18 +199,18 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
     # Verify auth_attempts table exists
     try:
         cursor = await db._db.execute("SELECT COUNT(*) FROM auth_attempts")
-        await cursor.fetchone()
-        log.debug(f"Auth attempts table exists and is accessible")
+        total = await cursor.fetchone()
+        log.warning(f"[RATE_LIMIT_DEBUG] Table exists with {total[0]} total entries")
     except Exception as e:
-        log.error(f"Auth attempts table not found or inaccessible: {e}")
+        log.error(f"[RATE_LIMIT_DEBUG] Auth attempts table not found or inaccessible: {e}")
         # If table doesn't exist, allow the request (fail open) but log the error
-        log.warning(f"Rate limiting bypassed due to missing table - endpoint={endpoint}, ip={ip}")
+        log.warning(f"[RATE_LIMIT_DEBUG] Rate limiting BYPASSED due to missing table - endpoint={endpoint}, ip={ip}")
         return
 
     # Check current attempt count from database
     attempt_count = await db.get_auth_attempts(ip, endpoint, since)
 
-    log.info(f"Auth rate limit check: endpoint={endpoint}, ip={ip}, attempts={attempt_count}/{max_attempts}")
+    log.warning(f"[RATE_LIMIT_DEBUG] Current attempts: endpoint={endpoint}, ip={ip}, attempts={attempt_count}/{max_attempts}")
 
     if attempt_count >= max_attempts:
         # Rate limit exceeded - calculate retry-after
@@ -226,7 +228,7 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
 
         retry_after_seconds = int(window_seconds - (now - oldest_attempt))
 
-        log.warning(f"Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={attempt_count}")
+        log.warning(f"[RATE_LIMIT_DEBUG] BLOCKING REQUEST - Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={attempt_count}")
 
         raise HTTPException(
             status_code=429,
@@ -239,4 +241,4 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
     # Record this attempt in database
     await db.record_auth_attempt(ip, endpoint)
 
-    log.info(f"Auth attempt recorded: endpoint={endpoint}, ip={ip}, total={attempt_count + 1}")
+    log.warning(f"[RATE_LIMIT_DEBUG] Attempt recorded: endpoint={endpoint}, ip={ip}, total={attempt_count + 1}")
