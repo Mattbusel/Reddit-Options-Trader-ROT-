@@ -66,11 +66,11 @@ def _oauth1_sign(
         + urllib.parse.quote(token_secret, safe="")
     )
 
-    # 4. HMAC-SHA1
+    # 4. HMAC-SHA1 (required by Twitter OAuth 1.0a spec - not for cryptographic security)
     digest = hmac.new(
         signing_key.encode("utf-8"),
         base_string.encode("utf-8"),
-        hashlib.sha1,
+        hashlib.sha1,  # nosec B303 - OAuth 1.0a protocol requirement, not password hashing
     ).digest()
 
     return base64.b64encode(digest).decode("utf-8")
