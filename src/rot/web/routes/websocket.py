@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import asdict, is_dataclass
@@ -17,6 +18,9 @@ _clients: Set[WebSocket] = set()
 MAX_WS_CLIENTS = 200
 
 _PAID_TIERS = ("pro", "premium", "ultra", "enterprise")
+
+# Timeout for the first auth message after connection
+_AUTH_TIMEOUT_S = 10
 
 
 def _jsonable(obj: Any) -> Any:
@@ -47,9 +51,8 @@ async def broadcast_signal(signal_data: dict) -> None:
         _clients.discard(ws)
 
 
-async def _authenticate_ws(websocket: WebSocket) -> bool:
-    """Check JWT from query param. Returns True if user has paid tier."""
-    token = websocket.query_params.get("token", "")
+def _validate_token(websocket: WebSocket, token: str) -> bool:
+    """Validate a JWT token. Returns True if user has paid tier."""
     if not token:
         return False
 
@@ -67,23 +70,48 @@ async def _authenticate_ws(websocket: WebSocket) -> bool:
 
 @router.websocket("/signals/live")
 async def signal_websocket(websocket: WebSocket):
-    # Check auth before accepting
-    is_paid = await _authenticate_ws(websocket)
-    if not is_paid:
-        await websocket.close(code=4003, reason="WebSocket requires Pro or higher tier")
-        return
-
     if len(_clients) >= MAX_WS_CLIENTS:
         await websocket.close(code=4008, reason="Too many connections")
         return
 
+    # Accept first, then authenticate via first message.
+    # This avoids leaking JWTs in URL query strings (browser history, server logs).
     await websocket.accept()
+
+    try:
+        # Wait for auth message: {"type": "auth", "token": "<jwt>"}
+        raw = await asyncio.wait_for(
+            websocket.receive_text(),
+            timeout=_AUTH_TIMEOUT_S,
+        )
+        try:
+            msg = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            await websocket.close(code=4003, reason="Invalid auth message")
+            return
+
+        if msg.get("type") != "auth" or not isinstance(msg.get("token"), str):
+            await websocket.close(code=4003, reason="Expected auth message with token")
+            return
+
+        if not _validate_token(websocket, msg["token"]):
+            await websocket.close(code=4003, reason="WebSocket requires Pro or higher tier")
+            return
+
+        # Auth succeeded — send confirmation and add to broadcast set
+        await websocket.send_text(json.dumps({"type": "auth_ok"}))
+
+    except asyncio.TimeoutError:
+        await websocket.close(code=4003, reason="Auth timeout")
+        return
+    except WebSocketDisconnect:
+        return
+
     _clients.add(websocket)
     log.info("WebSocket client connected (%d total)", len(_clients))
 
     try:
         while True:
-            # Keep connection alive; client can send pings
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")

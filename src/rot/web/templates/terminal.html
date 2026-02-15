@@ -56,7 +56,7 @@
         <!-- Signal Feed Panel -->
         <div class="stat-card rounded-xl p-4 lg:col-span-1" style="max-height: 500px; overflow-y: auto;">
             <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">&#9889; Live Signal Feed</h3>
-            <div class="space-y-2" hx-ext="ws" ws-connect="/api/v1/signals/live">
+            <div class="space-y-2" id="signal-feed">
                 {% for s in signals[:access.max_signals_feed] %}
                 <div class="p-2 rounded-lg border border-gray-800 hover:border-gray-600 transition text-sm">
                     <div class="flex items-center justify-between">
