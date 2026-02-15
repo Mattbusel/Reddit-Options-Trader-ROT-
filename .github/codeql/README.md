@@ -26,6 +26,19 @@ This configuration excludes certain CodeQL queries because they are mitigated by
 - Sensitive data (passwords, tokens) never logged
 - API keys only logged as prefixes (first 8 chars)
 
+### Weak Cryptographic Algorithm (py/weak-cryptographic-algorithm)
+
+**Why excluded:** OAuth 1.0a protocol requirement (Twitter API)
+- SHA1 is **mandated** by Twitter OAuth 1.0a specification
+- Used for HMAC signature generation, not password hashing
+- No security risk - this is HMAC-SHA1 for protocol compliance
+- Cannot be changed without breaking Twitter integration
+
+**Implementation:** `src/rot/alerts/twitter.py`
+- `hmac.new(..., hashlib.sha1)` for OAuth signature
+- Required by external API specification
+- Not used for any cryptographic security purposes
+
 ## Defense in Depth
 
 Even though CodeQL queries are excluded, we maintain **multiple layers of protection**:
