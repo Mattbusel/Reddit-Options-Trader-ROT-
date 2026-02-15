@@ -39,6 +39,19 @@ This configuration excludes certain CodeQL queries because they are mitigated by
 - Required by external API specification
 - Not used for any cryptographic security purposes
 
+### Cyclic Imports (py/import-own-module)
+
+**Why excluded:** Standard Python package export pattern
+- Module-level imports in `__init__.py` files for convenient package access
+- Common Python idiom to expose submodule classes at package level
+- Not actual circular dependency issues - just convenient re-exports
+- Example: `from rot.backtest.config import BacktestConfig` in `rot/backtest/__init__.py`
+
+**Pattern:**
+- `__init__.py` imports from submodules to provide clean API
+- Allows `from rot.backtest import BacktestConfig` instead of `from rot.backtest.config import BacktestConfig`
+- No runtime issues - this is how Python packages work
+
 ## Defense in Depth
 
 Even though CodeQL queries are excluded, we maintain **multiple layers of protection**:
