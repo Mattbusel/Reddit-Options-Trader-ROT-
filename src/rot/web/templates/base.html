@@ -695,7 +695,7 @@
             }
 
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // Get token from cookie for WS auth
+            // Get token from cookie for WS auth (sent via message, not query param)
             const cookies = document.cookie.split(';').reduce((acc, c) => {
                 const [k, v] = c.trim().split('=');
                 acc[k] = v;
@@ -703,17 +703,22 @@
             }, {});
             const token = cookies['rot_session'] || '';
 
-            ws = new WebSocket(`${proto}//${location.host}/api/v1/signals/live?token=${token}`);
+            ws = new WebSocket(`${proto}//${location.host}/api/v1/signals/live`);
 
             ws.onopen = () => {
-                document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-green-500 pulse';
-                document.getElementById('ws-label').textContent = 'Live';
-                document.getElementById('ws-label').className = 'text-green-500 text-xs';
+                // Authenticate via first message (keeps JWT out of URL/logs)
+                ws.send(JSON.stringify({type: 'auth', token: token}));
             };
 
             ws.onmessage = (event) => {
-                const signal = JSON.parse(event.data);
-                addLiveSignal(signal);
+                var data = JSON.parse(event.data);
+                if (data.type === 'auth_ok') {
+                    document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-green-500 pulse';
+                    document.getElementById('ws-label').textContent = 'Live';
+                    document.getElementById('ws-label').className = 'text-green-500 text-xs';
+                    return;
+                }
+                addLiveSignal(data);
             };
 
             ws.onclose = (e) => {
