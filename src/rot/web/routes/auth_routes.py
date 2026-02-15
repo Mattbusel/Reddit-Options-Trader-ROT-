@@ -76,8 +76,14 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
+    import logging
+    log = logging.getLogger(__name__)
+    log.warning(f"[LOGIN_DEBUG] Login attempt for email={body.email}, ip={request.client.host if request.client else 'unknown'}")
+
     # Brute-force protection: 5 attempts per IP per 15 minutes
+    log.warning("[LOGIN_DEBUG] About to call check_auth_rate_limit")
     await check_auth_rate_limit(request, "login")
+    log.warning("[LOGIN_DEBUG] check_auth_rate_limit completed successfully")
 
     db = request.app.state.db
     user = await db.get_user_by_email(body.email.lower())
