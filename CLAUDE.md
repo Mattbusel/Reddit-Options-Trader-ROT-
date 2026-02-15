@@ -3,6 +3,10 @@
 > **UPDATE RULE**: Any agent modifying features, modules, routes, tables, or config MUST update
 > this doc AND the relevant `docs/*.md` file before the task is complete.
 
+## CRITICAL: Worktree Is Stale
+
+The local worktree may not reflect the latest commits on GitHub. **ALWAYS run `git pull origin main` before any analysis, counting, or code review.** The GitHub repo is the source of truth. Never trust local file counts without pulling first.
+
 ## Quick Reference
 
 | Key | Value |
