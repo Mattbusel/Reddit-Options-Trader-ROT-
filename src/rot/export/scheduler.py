@@ -220,7 +220,6 @@ class ExportScheduler:
     ) -> List[Dict[str, Any]]:
         """Fetch signals based on job config filters."""
         config = job.schedule_config
-        filters = config.filters
 
         # Build query params
         limit = min(config.max_rows, 10000)

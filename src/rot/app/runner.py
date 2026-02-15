@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor

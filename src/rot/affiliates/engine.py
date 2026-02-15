@@ -7,7 +7,7 @@ import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from rot.affiliates.types import Affiliate, Commission, Payout, ReferralStats
 
