@@ -490,11 +490,35 @@ class TestJSONFormatting:
             assert "event_type" in data
             assert "timestamp" in data
 
-    def test_timestamp_format(self, caplog):
+    def test_timestamp_format(self):
         """Timestamps are ISO 8601 format."""
-        # Test implicitly covered by test_all_logs_are_valid_json
-        # which already validates timestamp field exists
-        pass
+        # Use direct logging instead of caplog to avoid test isolation issues
+        import io
+        import logging
+
+        # Create a string buffer to capture log output
+        log_buffer = io.StringIO()
+        handler = logging.StreamHandler(log_buffer)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        # Temporarily add handler
+        security_logger.addHandler(handler)
+        security_logger.setLevel(logging.INFO)
+
+        try:
+            log_auth_attempt("test", "a@b.com", "1.2.3.4", True)
+
+            # Get the logged message
+            log_output = log_buffer.getvalue()
+            log_data = json.loads(log_output.strip())
+            timestamp = log_data["timestamp"]
+
+            # Should be ISO format: YYYY-MM-DDTHH:MM:SS.mmmmmm
+            assert "T" in timestamp
+            assert len(timestamp.split("T")) == 2
+        finally:
+            security_logger.removeHandler(handler)
+            handler.close()
 
 
 # ============================================================================
