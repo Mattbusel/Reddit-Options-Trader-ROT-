@@ -3,9 +3,10 @@
 
 > See [CLAUDE.md](../CLAUDE.md) for full index.
 
-**Key files:** `src/rot/web/routes/` (35+ files), `auth.py`, `tier_gate.py`, `query_cache.py`, `rate_limit.py`
+**Key files:** `src/rot/web/routes/` (40+ files), `auth.py`, `tier_gate.py`, `query_cache.py`, `rate_limit.py`, `api_models.py`, `request_id_middleware.py`
 **Stack:** FastAPI + Jinja2 + Tailwind CSS + Chart.js + HTMX (all self-hosted in `/static/js/`) + GZipMiddleware(min=500)
 **Factory:** `src/rot/web/server.py` creates app, mounts routes, starts background pipeline
+**Docs:** OpenAPI/Swagger UI at `/docs`, ReDoc at `/redoc`
 
 ---
 
@@ -176,3 +177,127 @@ if access["has_quadrant"]:
 ## Stripe Config
 
 `ROT_STRIPE_SECRET_KEY`, `ROT_STRIPE_WEBHOOK_SECRET`, `ROT_STRIPE_{PRO|PREMIUM|ULTRA|ENTERPRISE}_PRICE_ID`
+
+---
+
+## API Documentation
+
+**Module:** `src/rot/web/api_models.py` (450 lines)
+
+Pydantic response models for OpenAPI documentation.
+
+### Interactive Documentation
+
+- **Swagger UI:** `GET /docs` — Interactive API testing
+- **ReDoc:** `GET /redoc` — Clean API reference
+
+### Response Models
+
+All API responses follow a consistent format via `APIResponse[T]`:
+
+```json
+{
+  "success": true,
+  "data": {...},
+  "error": null,
+  "request_id": "req_abc123-def4-5678-90ab-cdef12345678"
+}
+```
+
+**Key Models:**
+
+- `APIResponse[T]` — Generic wrapper for all responses
+- `ErrorResponse` — Standard error format with error_code
+- `SignalResponse` — Trading signal data
+- `TradeIdeaResponse` — Options trade ideas
+- `PaginatedResponse[T]` — Paginated list results
+- `HealthResponse` — System health metrics
+- `AnalyticsResponse` — Performance analytics
+- `TierLimitsResponse` — User tier limits
+- `BacktestRequest/Response` — Backtesting config and results
+
+### Example: Get Signals
+
+**Request:**
+```bash
+curl -H "X-API-Key: rot_your_key_here" \
+  "https://api.rot.example.com/api/v1/signals?ticker=AAPL&min_confidence=0.7"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 12345,
+        "ticker": "AAPL",
+        "stance": "bullish",
+        "confidence": 0.85,
+        "event_type": "earnings_beat",
+        "reasoning": "Strong earnings beat with positive guidance",
+        "strategy": "call_debit_spread",
+        "created_at": 1708041600,
+        "post_title": "AAPL crushing it - earnings beat by 20%",
+        "subreddit": "wallstreetbets",
+        "credibility_score": 0.78
+      }
+    ],
+    "total": 1000,
+    "page": 1,
+    "page_size": 50,
+    "total_pages": 20,
+    "has_next": true,
+    "has_prev": false
+  },
+  "error": null,
+  "request_id": "req_abc123"
+}
+```
+
+### Error Responses
+
+**401 Unauthorized:**
+```json
+{
+  "success": false,
+  "error": "Authentication required. Please provide a valid API key.",
+  "error_code": "UNAUTHORIZED",
+  "request_id": "req_abc123"
+}
+```
+
+**429 Rate Limit:**
+```json
+{
+  "success": false,
+  "error": "Rate limit exceeded. Your tier allows 1000 calls/day. Upgrade at /pricing.",
+  "error_code": "RATE_LIMIT_EXCEEDED",
+  "details": {
+    "tier": "pro",
+    "daily_limit": 1000,
+    "daily_used": 1000,
+    "reset_in_hours": 8
+  },
+  "request_id": "req_abc123"
+}
+```
+
+### Request ID Middleware
+
+**Module:** `src/rot/web/request_id_middleware.py`
+
+All API responses include:
+- `X-Request-ID` — Unique request identifier (UUID4)
+- `X-Correlation-ID` — Distributed tracing correlation ID (if provided)
+- `X-Response-Time` — Request duration (e.g., "150ms")
+
+**Usage:**
+```bash
+curl -H "X-Request-ID: my-custom-id" \
+     -H "X-Correlation-ID: trace-12345" \
+     https://api.rot.example.com/api/v1/signals
+```
+
+See [infrastructure.md](infrastructure.md) for complete request tracing documentation.

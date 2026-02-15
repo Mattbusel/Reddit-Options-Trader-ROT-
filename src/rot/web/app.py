@@ -15,6 +15,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from rot.core.config import Settings
 from rot.web.request_id_middleware import RequestIDMiddleware
+from rot.web.error_middleware import ErrorTrackingMiddleware
 
 log = logging.getLogger(__name__)
 
@@ -162,6 +163,9 @@ Get your API key at [/account](/account) after registration.
         }
     )
 
+    # Error tracking — captures unhandled exceptions and HTTP errors
+    app.add_middleware(ErrorTrackingMiddleware)
+
     # Request ID tracking — must be first middleware for proper context
     app.add_middleware(RequestIDMiddleware)
 
@@ -252,6 +256,10 @@ def register_routes(app: FastAPI):
     # Auth & billing routes
     app.include_router(auth_routes.router, prefix="/api/v1", tags=["auth"])
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
+
+    # Error monitoring (admin only)
+    from rot.web.routes import error_dashboard
+    app.include_router(error_dashboard.router, tags=["monitoring"])
 
     # TradingView, broker, affiliate, and enterprise routes (mixed HTML + API)
     from rot.web.routes import tradingview, brokers, affiliates, enterprise
