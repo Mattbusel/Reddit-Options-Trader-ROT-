@@ -11,6 +11,7 @@ from typing import List
 
 import feedparser
 
+from rot.core.retry import retry_with_backoff
 from rot.core.types import Post, ThreadSnapshot
 from rot.ingest.seen_store import SeenStore
 
@@ -93,6 +94,15 @@ class RSSIngestor:
         self.seen = SeenStore(path=state_path, max_age_s=max_age_s)
         self._last_poll: dict[str, float] = {}  # label → epoch of last poll
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=2.0,
+        retryable_exceptions=(ConnectionError, TimeoutError, OSError, Exception),
+    )
+    def _fetch_feed(self, url: str):
+        """Fetch and parse RSS feed with retry logic."""
+        return feedparser.parse(url)
+
     def poll(self) -> List[ThreadSnapshot]:
         now = int(time.time())
         snaps: List[ThreadSnapshot] = []
@@ -107,7 +117,7 @@ class RSSIngestor:
             self._last_poll[feed_cfg.label] = now
 
             try:
-                parsed = feedparser.parse(feed_cfg.url)
+                parsed = self._fetch_feed(feed_cfg.url)
             except Exception as e:
                 log.warning("RSS feed parse error (%s): %s", feed_cfg.label, e)
                 continue

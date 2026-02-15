@@ -6,6 +6,7 @@ from typing import List
 
 import httpx
 
+from rot.core.retry import retry_with_backoff
 from rot.core.types import Post, ThreadSnapshot
 from rot.ingest.seen_store import SeenStore
 
@@ -58,12 +59,21 @@ class StockTwitsIngestor:
         log.info("StockTwits poll complete: %d new items (%d symbols)", len(snaps), len(self.symbols))
         return snaps
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=2.0,
+        retryable_exceptions=(httpx.HTTPError, ConnectionError, TimeoutError, OSError),
+    )
+    def _fetch_trending(self):
+        """Fetch trending symbols with retry logic."""
+        resp = self._client.get(f"{BASE_URL}/trending/symbols.json")
+        resp.raise_for_status()
+        return resp.json()
+
     def _poll_trending(self, now: int) -> List[ThreadSnapshot]:
         snaps: List[ThreadSnapshot] = []
         try:
-            resp = self._client.get(f"{BASE_URL}/trending/symbols.json")
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._fetch_trending()
 
             for sym_obj in data.get("symbols", [])[:15]:
                 symbol = sym_obj.get("symbol", "")
@@ -97,12 +107,21 @@ class StockTwitsIngestor:
 
         return snaps
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=2.0,
+        retryable_exceptions=(httpx.HTTPError, ConnectionError, TimeoutError, OSError),
+    )
+    def _fetch_symbol(self, symbol: str):
+        """Fetch symbol stream with retry logic."""
+        resp = self._client.get(f"{BASE_URL}/streams/symbol/{symbol}.json")
+        resp.raise_for_status()
+        return resp.json()
+
     def _poll_symbol(self, symbol: str, now: int) -> List[ThreadSnapshot]:
         snaps: List[ThreadSnapshot] = []
         try:
-            resp = self._client.get(f"{BASE_URL}/streams/symbol/{symbol}.json")
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._fetch_symbol(symbol)
 
             for msg in data.get("messages", [])[:20]:
                 msg_id = msg.get("id")

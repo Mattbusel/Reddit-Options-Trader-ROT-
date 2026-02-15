@@ -6,6 +6,7 @@ from typing import List
 
 import httpx
 
+from rot.core.retry import retry_with_backoff
 from rot.core.types import Post, ThreadSnapshot
 from rot.ingest.seen_store import SeenStore
 
@@ -69,17 +70,26 @@ class TwitterIngestor:
         )
         return snaps
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=2.0,
+        retryable_exceptions=(httpx.HTTPError, ConnectionError, TimeoutError, OSError),
+    )
+    def _fetch_search(self, query: str):
+        """Fetch Twitter search results with retry logic."""
+        params = {
+            "query": query,
+            "max_results": self.max_results,
+            "tweet.fields": "public_metrics,created_at,author_id",
+        }
+        resp = self._client.get(f"{BASE_URL}/tweets/search/recent", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
     def _search(self, query: str, source_label: str, now: int) -> List[ThreadSnapshot]:
         snaps: List[ThreadSnapshot] = []
         try:
-            params = {
-                "query": query,
-                "max_results": self.max_results,
-                "tweet.fields": "public_metrics,created_at,author_id",
-            }
-            resp = self._client.get(f"{BASE_URL}/tweets/search/recent", params=params)
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._fetch_search(query)
 
             for tweet in data.get("data", []):
                 tweet_id = tweet.get("id")
