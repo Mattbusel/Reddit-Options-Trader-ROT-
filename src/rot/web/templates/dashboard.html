@@ -364,7 +364,11 @@
                     const ds = items[0].datasetIndex;
                     const idx = items[0].index;
                     const ticker = quadrantChart.data.datasets[ds].data[idx].ticker;
-                    window.location.href = '/ticker/' + ticker;
+                    // Try ticker dive first, fallback to dashboard on error
+                    const tickerUrl = '/ticker/' + ticker;
+                    fetch(tickerUrl, {method: 'HEAD'})
+                        .then(r => window.location.href = r.ok ? tickerUrl : '/?ticker=' + ticker)
+                        .catch(() => window.location.href = '/?ticker=' + ticker);
                 }
             },
             plugins: {
