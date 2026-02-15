@@ -122,13 +122,11 @@
             <div class="mt-5">
                 {% if tier == 'pro' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-blue-900/30 text-blue-400 border border-blue-700 text-sm font-semibold">Current Plan</div>
-                {% elif stripe_enabled and user %}
+                {% elif user %}
                 <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro — $9.99/mo</button>
                 <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
-                {% elif not user %}
-                <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Start Free &rarr; Upgrade to Pro</a>
                 {% else %}
-                <div class="w-full text-center py-2.5 px-4 rounded-lg bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+                <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Start Free &rarr; Upgrade to Pro</a>
                 {% endif %}
             </div>
         </div>
@@ -153,13 +151,11 @@
             <div class="mt-5">
                 {% if tier == 'premium' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-purple-900/30 text-purple-400 border border-purple-700 text-sm font-semibold">Current Plan</div>
-                {% elif stripe_enabled and user %}
+                {% elif user %}
                 <button onclick="checkout('premium')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Upgrade to Premium</button>
                 <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
-                {% elif not user %}
-                <a href="/register" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% else %}
-                <div class="w-full text-center py-2.5 px-4 rounded-lg bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+                <a href="/register" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% endif %}
             </div>
         </div>
@@ -182,13 +178,11 @@
             <div class="mt-5">
                 {% if tier == 'ultra' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-amber-900/30 text-amber-400 border border-amber-700 text-sm font-semibold">Current Plan</div>
-                {% elif stripe_enabled and user %}
+                {% elif user %}
                 <button onclick="checkout('ultra')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Upgrade to Ultra</button>
                 <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
-                {% elif not user %}
-                <a href="/register" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% else %}
-                <div class="w-full text-center py-2.5 px-4 rounded-lg bg-gray-700 text-gray-400 text-sm">Coming Soon</div>
+                <a href="/register" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% endif %}
             </div>
         </div>
@@ -211,13 +205,11 @@
             <div class="mt-5">
                 {% if tier == 'enterprise' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-emerald-900/30 text-emerald-400 border border-emerald-700 text-sm font-semibold">Current Plan</div>
-                {% elif stripe_enabled and user %}
+                {% elif user %}
                 <button onclick="checkout('enterprise')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Go Enterprise</button>
                 <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
-                {% elif not user %}
-                <a href="/register" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Contact Sales</a>
                 {% else %}
-                <a href="mailto:mattbusel@gmail.com" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Contact Sales</a>
+                <a href="/register" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Contact Sales</a>
                 {% endif %}
             </div>
         </div>
@@ -317,22 +309,24 @@
     </div>
 </div>
 
-{% if stripe_enabled %}
 <script nonce="{{ csp_nonce }}">
 async function checkout(tier) {
-    const resp = await fetch('/api/v1/billing/checkout', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({tier: tier})
-    });
-    const data = await resp.json();
-    if (data.url) {
-        window.location.href = data.url;
-    } else {
-        alert(data.detail || data.error || 'Checkout failed');
+    try {
+        const resp = await fetch('/api/v1/billing/checkout', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tier: tier})
+        });
+        const data = await resp.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            alert(data.detail || data.error || 'Checkout is temporarily unavailable. Please try again later.');
+        }
+    } catch (err) {
+        alert('Unable to connect to billing. Please try again later.');
     }
 }
 </script>
-{% endif %}
 
 {% endblock %}
