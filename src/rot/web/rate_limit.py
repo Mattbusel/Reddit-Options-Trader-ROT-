@@ -14,19 +14,18 @@ Auth Rate Limiting (brute-force protection):
   - /auth/login:     5 attempts per IP per 15 minutes
   - /auth/register:  3 attempts per IP per hour
   - /auth/api-key:   3 attempts per user per hour
+
+Database-backed implementation to support multi-instance deployments (Railway).
 """
 from __future__ import annotations
 
 import time
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
 
 from fastapi import HTTPException, Request
 
 log = logging.getLogger(__name__)
-
-# Auth brute-force protection: IP -> list of attempt timestamps
-_auth_attempts: Dict[str, List[float]] = {}
 
 _DEFAULT_LIMITS = {
     "free": 0,         # Zero. The API is not free.
@@ -155,8 +154,8 @@ def rate_limit_headers(user: Optional[dict]) -> dict:
     }
 
 
-def check_auth_rate_limit(request: Request, endpoint: str) -> None:
-    """Check brute-force protection for auth endpoints.
+async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
+    """Check brute-force protection for auth endpoints using database-backed storage.
 
     Args:
         request: FastAPI request object
@@ -169,6 +168,11 @@ def check_auth_rate_limit(request: Request, endpoint: str) -> None:
         - login:     5 attempts per IP per 15 minutes
         - register:  3 attempts per IP per hour
         - api-key:   3 attempts per hour (per IP, since user might not be authed yet)
+
+    Implementation:
+        - Uses database for storage to support multi-instance deployments
+        - Records attempts in auth_attempts table
+        - Queries database for recent attempts within time window
     """
     ip = request.client.host if request.client else "unknown"
     now = time.time()
@@ -185,23 +189,33 @@ def check_auth_rate_limit(request: Request, endpoint: str) -> None:
         return
 
     max_attempts, window_seconds = limits[endpoint]
+    since = now - window_seconds
 
-    # Clean up old attempts (older than window)
-    key = f"{ip}:{endpoint}"
-    if key in _auth_attempts:
-        _auth_attempts[key] = [ts for ts in _auth_attempts[key] if now - ts < window_seconds]
+    # Get database connection
+    db = request.app.state.db
 
-    # Check if limit exceeded
-    attempts = _auth_attempts.get(key, [])
+    # Check current attempt count from database
+    attempt_count = await db.get_auth_attempts(ip, endpoint, since)
 
-    log.info(f"Auth rate limit check: endpoint={endpoint}, ip={ip}, attempts={len(attempts)}/{max_attempts}")
+    log.info(f"Auth rate limit check: endpoint={endpoint}, ip={ip}, attempts={attempt_count}/{max_attempts}")
 
-    if len(attempts) >= max_attempts:
-        # Calculate retry-after
-        oldest_attempt = min(attempts)
+    if attempt_count >= max_attempts:
+        # Rate limit exceeded - calculate retry-after
+        # We need to find the oldest attempt to calculate when the window resets
+        cursor = await db._db.execute(
+            """
+            SELECT MIN(attempted_at) as oldest
+            FROM auth_attempts
+            WHERE ip_address = ? AND endpoint = ? AND attempted_at >= ?
+            """,
+            (ip, endpoint, since),
+        )
+        row = await cursor.fetchone()
+        oldest_attempt = row["oldest"] if row and row["oldest"] else now
+
         retry_after_seconds = int(window_seconds - (now - oldest_attempt))
 
-        log.warning(f"Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={len(attempts)}")
+        log.warning(f"Auth rate limit EXCEEDED: endpoint={endpoint}, ip={ip}, attempts={attempt_count}")
 
         raise HTTPException(
             status_code=429,
@@ -211,18 +225,7 @@ def check_auth_rate_limit(request: Request, endpoint: str) -> None:
             }
         )
 
-    # Record this attempt
-    if key not in _auth_attempts:
-        _auth_attempts[key] = []
-    _auth_attempts[key].append(now)
+    # Record this attempt in database
+    await db.record_auth_attempt(ip, endpoint)
 
-    log.info(f"Auth attempt recorded: endpoint={endpoint}, ip={ip}, total={len(_auth_attempts[key])}")
-
-    # Cleanup: Remove entries older than 1 hour to prevent memory buildup
-    cutoff = now - 3600
-    keys_to_delete = []
-    for k, timestamps in _auth_attempts.items():
-        if not timestamps or max(timestamps) < cutoff:
-            keys_to_delete.append(k)
-    for k in keys_to_delete:
-        del _auth_attempts[k]
+    log.info(f"Auth attempt recorded: endpoint={endpoint}, ip={ip}, total={attempt_count + 1}")

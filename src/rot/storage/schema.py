@@ -80,6 +80,15 @@ CREATE TABLE IF NOT EXISTS api_usage (
 
 CREATE INDEX IF NOT EXISTS idx_api_usage_user_day ON api_usage(user_id, called_at);
 
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    attempted_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_attempts_lookup ON auth_attempts(ip_address, endpoint, attempted_at);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
     id TEXT PRIMARY KEY,
     user_id TEXT UNIQUE NOT NULL REFERENCES users(id),

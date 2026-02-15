@@ -1119,6 +1119,14 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
         except Exception as e:
             log.error("Cleanup market cache error: %s", e, exc_info=True)
 
+        try:
+            # 4. Auth attempts cleanup (brute-force protection data)
+            deleted = await db.cleanup_old_auth_attempts(older_than_seconds=3600)
+            if deleted > 0:
+                log.info("Cleanup: auth attempts — removed %d old entries", deleted)
+        except Exception as e:
+            log.error("Cleanup auth attempts error: %s", e, exc_info=True)
+
         log.info("Cleanup cycle complete — next run in %dh", CLEANUP_INTERVAL // 3600)
 
         for _ in range(CLEANUP_INTERVAL):

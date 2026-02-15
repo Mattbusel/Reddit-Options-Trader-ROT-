@@ -44,6 +44,7 @@ from .flow_db import FlowMixin
 from .social_db import SocialMixin
 from .sports_db import SportsMixin
 from .affiliates_db import AffiliatesMixin
+from .auth_db import AuthMixin
 
 # Import backtest and strategy mixins (to be created)
 try:
@@ -90,6 +91,7 @@ class Database(
     GamificationMixin,
     SportsMixin,
     AffiliatesMixin,
+    AuthMixin,
 ):
     """
     Main database class composed of domain-specific mixins.
