@@ -54,7 +54,7 @@ Orchestrated by `PipelineRunner` in `src/rot/app/runner.py`.
 
 ```
 src/rot/
-├── core/           config.py (Settings), types.py (Post,Event,TradeIdea...), logging.py
+├── core/           config.py (Settings), types.py (Post,Event,TradeIdea...), logging.py, sanitize.py (nh3 XSS)
 ├── ingest/         reddit, rss (13+ feeds), stocktwits, twitter, multi_ingestor, seen_store
 ├── trend/          trend_engine, trend_store, ranker, ticker_ranker
 ├── nlp/            10-module custom NLP: tokenizer, lexicon(500+), sentiment, entities,
@@ -87,6 +87,7 @@ src/rot/
 ├── app/            main.py, loop.py, runner.py (PipelineRunner), server.py (FastAPI factory)
 └── web/
     ├── auth.py         JWT + API key + session cookie, admin tier elevation
+    ├── security_headers.py  CSP + X-Frame-Options + 4 more headers on all responses
     ├── query_cache.py  Async TTL cache (thundering-herd, prefix invalidation)
     ├── tier_gate.py    5 tiers (Free→Pro→Premium→Ultra→Enterprise) + admin, 35+ gates
     ├── rate_limit.py   Per-tier API rate limiting
@@ -136,6 +137,7 @@ Pattern: pytest-asyncio (auto mode), temp SQLite files, no external API calls (m
 | 2026-02 | **Token optimization**: Slimmed CLAUDE.md from ~24.7k to ~3k tokens. Detailed content moved to `docs/` (read on-demand). Added MEMORY.md for cross-session learnings. |
 | 2026-02-14 | **Nightly hardening (82% complete)**: WS1 (security): Strong secret key validation, fixed auth rate limiting for multi-instance (database-backed), database backup system (GZip, rotation), enhanced health check endpoint. WS2 (tech debt): Removed database_old.py, fixed reasoning type bug in analytics. WS3 (retry logic): Comprehensive retry module with exponential backoff applied to yfinance, LLM APIs, RSS/StockTwits/Twitter fetches. WS4 (automation): GitHub Actions security workflow (pip-audit, CodeQL, Bandit, TruffleHog), Dependabot config. WS5 (performance): SQLite pragma optimizations (16MB cache, 128MB mmap, 4 threads), GZip compression level tuning. WS7 (integration tests): 4 test suites (1,400+ lines) covering auth rate limiting, retry resilience, backup system, health endpoint. WS8 (logging): Structured JSON security logging (10 event types, SIEM-ready) + request ID tracking across pipeline (UUID4, correlation IDs, distributed tracing, response timing). WS9 (API docs): Enhanced OpenAPI schema with Pydantic models, response examples, tier documentation, auto-generated Swagger UI at /docs. WS10 (frontend): Professional loading states, skeleton loaders, HTMX integration, shimmer animations. **Total: 9/11 work streams, 5,200+ lines added, 19 files created, 3 critical bugs fixed**. |
 | 2026-02-14 | **CodeQL zero-alert baseline**: Fixed all 425 code scanning alerts (0 open). Added code quality guardrails, SECURITY.md policy. See `SECURITY.md` for full policy. |
+| 2026-02-15 | **Final security hardening**: Pinned 11 security-critical deps to exact versions, added `SecurityHeadersMiddleware` (CSP + 5 headers), `sanitize.py` (nh3 HTML sanitizer), hardened Stripe webhook (empty-secret guard + IP logging). Bumped cryptography 46.0.4→46.0.5 (CVE-2026-26007). 0 Dependabot alerts. 39 new tests. |
 
 ---
 
