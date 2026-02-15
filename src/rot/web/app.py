@@ -53,9 +53,113 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings = Settings()
 
     app = FastAPI(
-        title="ROT - Reddit Options Trader",
-        description="Real-time Reddit trend detection and options trade signal API",
+        title="ROT - Reddit Options Trader API",
+        description="""
+# ROT (Reddit Options Trader) API
+
+Real-time social intelligence platform for options trading signals.
+
+## Features
+
+- **Real-time Signals**: AI-powered analysis of Reddit trends for actionable options trade ideas
+- **Multi-source Intelligence**: Analyzes 13+ RSS feeds, Reddit, StockTwits, Twitter
+- **ML Credibility Scoring**: GradientBoosting model with 32 features for signal quality
+- **Advanced Analytics**: Win rate tracking, backtesting, sector rotation, correlation analysis
+- **Tier-based Access**: Free → Pro → Premium → Ultra → Enterprise tiers
+
+## Authentication
+
+All API endpoints require authentication via API key:
+
+```bash
+curl -H "X-API-Key: your_api_key_here" https://api.rot.example.com/api/v1/signals
+```
+
+Get your API key at [/account](/account) after registration.
+
+## Rate Limits
+
+| Tier | Daily Limit | Burst Limit | Real-time |
+|------|-------------|-------------|-----------|
+| Pro | 1,000 | 50/min | ✓ |
+| Premium | 5,000 | 200/min | ✓ |
+| Ultra | 25,000 | 500/min | ✓ |
+| Enterprise | 100,000 | 2,000/min | ✓ |
+
+## Support
+
+- Documentation: [/docs](/docs)
+- Issues: [GitHub](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-)
+- Email: support@rot.example.com
+        """,
         version="0.1.0",
+        contact={
+            "name": "ROT Support",
+            "url": "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-",
+            "email": "support@rot.example.com"
+        },
+        license_info={
+            "name": "Proprietary",
+            "url": "https://rot.example.com/terms"
+        },
+        servers=[
+            {
+                "url": "https://api.rot.example.com",
+                "description": "Production server"
+            },
+            {
+                "url": "http://localhost:8000",
+                "description": "Local development server"
+            }
+        ],
+        openapi_tags=[
+            {
+                "name": "signals",
+                "description": "Trading signal endpoints - AI-generated options trade ideas"
+            },
+            {
+                "name": "analytics",
+                "description": "Performance analytics and metrics"
+            },
+            {
+                "name": "backtest",
+                "description": "Historical backtesting endpoints"
+            },
+            {
+                "name": "auth",
+                "description": "Authentication and user management"
+            },
+            {
+                "name": "health",
+                "description": "System health and status checks"
+            }
+        ],
+        responses={
+            401: {
+                "description": "Unauthorized - Invalid or missing API key",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": False,
+                            "error": "Authentication required",
+                            "error_code": "UNAUTHORIZED"
+                        }
+                    }
+                }
+            },
+            429: {
+                "description": "Rate limit exceeded",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": False,
+                            "error": "Rate limit exceeded",
+                            "error_code": "RATE_LIMIT_EXCEEDED"
+                        }
+                    }
+                }
+            }
+        }
     )
 
     # Request ID tracking — must be first middleware for proper context
