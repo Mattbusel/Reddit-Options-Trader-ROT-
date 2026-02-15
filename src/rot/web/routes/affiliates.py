@@ -240,8 +240,8 @@ async def referral_redirect(ref_code: str, request: Request, source: str = ""):
     )
 
     # Redirect to signup page with ref code in query
-    base_url = str(request.base_url).rstrip("/")
+    # Use relative URL to prevent open redirect vulnerability (CWE-601)
     return RedirectResponse(
-        url=f"{base_url}/dashboard?ref={ref_code}",
+        url=f"/dashboard?ref={ref_code}",
         status_code=302,
     )
