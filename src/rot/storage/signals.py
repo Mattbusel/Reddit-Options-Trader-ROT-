@@ -18,11 +18,17 @@ from typing import Any, Dict, List, Optional
 log = logging.getLogger(__name__)
 
 
-def _to_dict(obj: Any) -> Dict[str, Any]:
-    """Convert dataclass or dict to dict."""
-    if hasattr(obj, "__dict__"):
-        return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
-    return dict(obj) if obj else {}
+def _to_dict(obj: Any) -> Any:
+    """Convert dataclass or dict to dict, recursively handling nested dataclasses and lists."""
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return {k: _to_dict(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_dict(item) for item in obj]
+    if hasattr(obj, "__dataclass_fields__"):
+        return {k: _to_dict(v) for k, v in obj.__dict__.items() if not k.startswith("_")}
+    return obj
 
 
 def _row_to_dict(row: Any) -> Dict[str, Any]:
