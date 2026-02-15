@@ -4,7 +4,7 @@
 > repository — by humans, Claude, or any AI agent. Every line of code (LOC) must meet these standards.
 > Non-compliance blocks merges via CI (CodeQL, Bandit, pip-audit, TruffleHog).
 
-**Baseline**: 0 open CodeQL alerts as of 2026-02-14 (425 closed). This baseline MUST be maintained.
+**Baseline**: 0 open CodeQL alerts as of 2026-02-14 (425 closed), 0 Dependabot alerts as of 2026-02-15. This baseline MUST be maintained.
 
 ---
 
@@ -76,8 +76,10 @@ Excluded queries (with documented justification):
 10. **No f-strings in SQL.** Table/column names may use f-strings only if they come from hardcoded constants (never user input).
 
 ### XSS Prevention
-11. **Jinja2 autoescaping is ON** (`autoescape=True`). Never use `| safe` filter on user-supplied content.
-12. **CSP headers** should restrict inline scripts. Use nonces for any inline JS that's necessary.
+11. **Jinja2 autoescaping is ON** (`autoescape=True`). Never use `| safe` filter on user-supplied content. All 16 `|safe` instances audited safe (2026-02-15): hardcoded static content or `tojson`.
+12. **Content-Security-Policy** enforced via `SecurityHeadersMiddleware` (`src/rot/web/security_headers.py`). CSP uses `'unsafe-inline'` for `script-src` due to 102 inline `<script>` tags — nonce-based CSP is a future phase. Acceptable because autoescape is ON and all `|safe` usages are audited safe.
+12a. **Defense-in-depth sanitizer** (`src/rot/core/sanitize.py`): `sanitize_html()` (nh3/Rust-based), `strip_html()`, `sanitize_for_json()`. Use for any new content rendered with `|safe`.
+12b. **Security headers on all responses** (via `SecurityHeadersMiddleware`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 0` (OWASP), `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)`.
 
 ### Log Injection
 13. **`SanitizingLogFilter`** is attached globally at startup. It strips newlines, control chars, and ANSI sequences from log messages.
@@ -141,8 +143,9 @@ These rules prevent the categories of issues found in the 425 CodeQL alerts:
 
 38. **Dependabot** is configured (`.github/dependabot.yml`) for weekly scans.
 39. **pip-audit** runs in CI on every push.
-40. **Pin major versions** in `requirements.txt`. Use `>=X.Y,<X+1` ranges.
+40. **Security-critical packages pinned to exact versions** (`==`) in `pyproject.toml`: fastapi, starlette, pydantic, pydantic-settings, aiosqlite, python-jose, cryptography, bcrypt, uvicorn, jinja2, httpx. Do not update without reviewing changelogs and running full test suite. Application packages (praw, yfinance, etc.) use loose constraints.
 41. **Review dependency additions.** New dependencies must be justified and checked for known vulnerabilities before adding.
+41a. **nh3** (Rust-based HTML sanitizer) added as defense-in-depth. Replaces deprecated `bleach`.
 
 ---
 
@@ -155,30 +158,39 @@ These rules prevent the categories of issues found in the 425 CodeQL alerts:
 
 ---
 
-## 10. Incident Response
+## 10. Stripe & Payment Security
 
-46. **Security logging** (10 event types) is SIEM-ready JSON. Events: auth failures, rate limit hits, suspicious patterns, admin actions.
-47. **Request ID correlation** across the entire pipeline (UUID4) for tracing incidents.
-48. **Database backup** before any destructive operation (automatic in maintenance loops).
+46a. **Webhook signature verification** via `stripe.Webhook.construct_event()` on raw `request.body()`. Rejects missing/invalid signatures with 400.
+46b. **Empty webhook secret guard** — returns 500 with `log.error()` if `ROT_STRIPE_WEBHOOK_SECRET` is not configured, instead of cryptic crash.
+46c. **Failed verification logging** includes client IP (`get_client_ip(request)`) for security monitoring/SIEM correlation.
+46d. **No card data** ever touches ROT servers. All payment processing via Stripe Checkout (redirect flow). CSP allows `frame-src https://js.stripe.com` and `connect-src https://api.stripe.com` only.
 
 ---
 
-## 11. Agent & AI Policy
+## 11. Incident Response
+
+47. **Security logging** (10 event types) is SIEM-ready JSON. Events: auth failures, rate limit hits, suspicious patterns, admin actions.
+48. **Request ID correlation** across the entire pipeline (UUID4) for tracing incidents.
+49. **Database backup** before any destructive operation (automatic in maintenance loops).
+
+---
+
+## 12. Agent & AI Policy
 
 > These rules apply to ALL AI agents (Claude, sub-agents, GitHub Copilot, etc.) producing code for this repo.
 
-49. **Agents MUST read `CLAUDE.md` and `AGENTS.md`** before writing any code.
-50. **Agents MUST follow the pre-commit checklist** in CLAUDE.md section "Code Quality Guardrails".
-51. **Agents MUST NOT add CodeQL exclusions** without human approval and documented justification.
-52. **Agents MUST NOT introduce new dependencies** without human approval.
-53. **Agents MUST NOT modify auth, tier gating, or rate limiting** without explicit human instruction.
-54. **Agents MUST NOT commit `.env` files, secrets, or credentials** under any circumstances.
-55. **Agents MUST run `pytest -x`** (or verify tests pass) before claiming a task is complete.
-56. **Agents MUST verify 0 new CodeQL alerts** are introduced by their changes.
+50. **Agents MUST read `CLAUDE.md` and `AGENTS.md`** before writing any code.
+51. **Agents MUST follow the pre-commit checklist** in CLAUDE.md section "Code Quality Guardrails".
+52. **Agents MUST NOT add CodeQL exclusions** without human approval and documented justification.
+53. **Agents MUST NOT introduce new dependencies** without human approval.
+54. **Agents MUST NOT modify auth, tier gating, or rate limiting** without explicit human instruction.
+55. **Agents MUST NOT commit `.env` files, secrets, or credentials** under any circumstances.
+56. **Agents MUST run `pytest -x`** (or verify tests pass) before claiming a task is complete.
+57. **Agents MUST verify 0 new CodeQL alerts** are introduced by their changes.
 
 ---
 
-## 12. Compliance Checklist
+## 13. Compliance Checklist
 
 For any PR, the author (human or agent) must verify:
 
@@ -204,4 +216,4 @@ or contact the maintainer directly. Do NOT open a public issue for security vuln
 
 ---
 
-*Last updated: 2026-02-14 | Baseline: 425 alerts fixed, 0 open | Enforced by: CodeQL + Bandit + pip-audit + TruffleHog*
+*Last updated: 2026-02-15 | Baseline: 425 alerts fixed, 0 open, 0 Dependabot alerts | Enforced by: CodeQL + Bandit + pip-audit + TruffleHog + Dependabot*
