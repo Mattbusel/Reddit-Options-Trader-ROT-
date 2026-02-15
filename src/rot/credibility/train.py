@@ -38,7 +38,7 @@ from rot.credibility.features import FEATURE_NAMES, extract_features_from_row
 
 _PRICE_COL = "COALESCE(sp.price_1d, sp.price_4h, sp.price_1h)"
 
-_TRAINING_SQL = f"""  # nosec B608 - SQL uses constants only, values parameterized
+_TRAINING_SQL = f"""
     SELECT
         s.id,
         s.event_type,

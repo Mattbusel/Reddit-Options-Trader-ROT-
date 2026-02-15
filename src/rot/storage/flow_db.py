@@ -106,7 +106,7 @@ class FlowMixin:
             params.append(min_score)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_events
             WHERE {where}
             ORDER BY detected_at DESC
@@ -262,7 +262,7 @@ class FlowMixin:
             params.append(pattern_type)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_patterns
             WHERE {where}
             ORDER BY detected_at DESC
@@ -334,7 +334,7 @@ class FlowMixin:
             params.append(convergence_type)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_convergences
             WHERE {where}
             ORDER BY convergence_score DESC, detected_at DESC
