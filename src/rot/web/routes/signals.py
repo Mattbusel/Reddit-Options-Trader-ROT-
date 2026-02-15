@@ -379,7 +379,8 @@ async def byok_reason_signal(request: Request, signal_id: str):
                 detail=f"Could not initialize {provider} client. Check your API key and that the required package is installed.",
             )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"LLM client init failed: {e}")
+        # Don't expose internal error details to users (CWE-209)
+        raise HTTPException(status_code=400, detail="LLM client initialization failed")
 
     # Reconstruct the prompt from stored signal data
     event_data = signal.get("event_data", {})
@@ -418,7 +419,8 @@ async def byok_reason_signal(request: Request, signal_id: str):
         reasoning_packet = parse_reasoning_response(raw_response, [ticker])
     except Exception as e:
         log.warning("BYOK reasoning failed for signal %s: %s", signal_id, e)
-        raise HTTPException(status_code=500, detail=f"LLM reasoning failed: {e}")
+        # Don't expose internal error details to users (CWE-209)
+        raise HTTPException(status_code=500, detail="LLM reasoning failed")
 
     # Convert to dict for storage
     new_reasoning = {
