@@ -225,12 +225,12 @@ class EarningsCalendar:
                 eps_act = row.get("Reported EPS")
                 surprise = row.get("Surprise(%)")
 
-                # Clean NaN
-                if eps_est is not None and (isinstance(eps_est, float) and math.isnan(eps_est)):
+                # Clean NaN - simplified: isinstance handles None check
+                if isinstance(eps_est, float) and math.isnan(eps_est):
                     eps_est = None
-                if eps_act is not None and (isinstance(eps_act, float) and math.isnan(eps_act)):
+                if isinstance(eps_act, float) and math.isnan(eps_act):
                     eps_act = None
-                if surprise is not None and (isinstance(surprise, float) and math.isnan(surprise)):
+                if isinstance(surprise, float) and math.isnan(surprise):
                     surprise = None
 
                 quarter = idx.strftime("%Y-Q") + str((idx.month - 1) // 3 + 1)
