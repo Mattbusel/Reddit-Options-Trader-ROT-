@@ -14,6 +14,7 @@
         {% endif %}
 
         <form method="post" action="/register" class="space-y-4">
+            <input type="hidden" name="csrf_token" id="csrf_token" value="">
             <div>
                 <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">Email</label>
                 <input type="email" name="email" required

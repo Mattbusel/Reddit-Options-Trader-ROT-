@@ -26,6 +26,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not csrf_cookie:
             csrf_cookie = generate_csrf_token()
 
+        # Only set secure flag when behind HTTPS (Railway yes, localhost no)
+        is_secure = request.url.scheme == "https"
+
         # Skip validation for safe methods
         if request.method in SAFE_METHODS:
             response = await call_next(request)
@@ -34,7 +37,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 csrf_cookie,
                 httponly=False,  # JS needs to read this for HTMX
                 samesite="lax",
-                secure=True,
+                secure=is_secure,
                 max_age=86400,
             )
             return response
@@ -45,6 +48,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         # Skip CSRF for Stripe webhooks (they use signature verification)
         if request.url.path.endswith("/webhook") and "stripe-signature" in request.headers:
+            return await call_next(request)
+
+        # Skip CSRF for JSON API requests (they use Authorization header, not cookies)
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type and request.url.path.startswith("/api/"):
             return await call_next(request)
 
         # Validate CSRF token for all other POST/PUT/DELETE requests
@@ -67,7 +75,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             csrf_cookie,
             httponly=False,
             samesite="lax",
-            secure=True,
+            secure=is_secure,
             max_age=86400,
         )
         return response
