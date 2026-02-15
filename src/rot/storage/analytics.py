@@ -616,7 +616,8 @@ class AnalyticsMixin:
                 # Parse reasoning JSON
                 reasoning_str = d.get("reasoning", "{}")
                 try:
-                    d["reasoning"] = json.loads(reasoning_str) if isinstance(reasoning_str, str) else reasoning_str
+                    reasoning = json.loads(reasoning_str) if isinstance(reasoning_str, str) else reasoning_str
+                    d["reasoning"] = reasoning if isinstance(reasoning, dict) else {}
                 except (json.JSONDecodeError, TypeError):
                     d["reasoning"] = {}
                 # Extract AI summary if present
