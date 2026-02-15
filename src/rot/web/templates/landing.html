@@ -8,7 +8,7 @@
 {% block twitter_description %}Real-time AI trade signals from 15+ sources. Backtesting, unusual activity, terminal view. Free forever, Pro $9.99/mo.{% endblock %}
 
 {% block structured_data %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -28,7 +28,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
 /* Hero aurora: breathing neon glow behind headline */
 .hero-aurora::before {
     content: '';

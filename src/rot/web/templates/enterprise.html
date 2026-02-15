@@ -330,7 +330,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function requestExport() {
     const fmt = document.getElementById('export-format').value;
     const ticker = document.getElementById('export-ticker').value.trim() || null;

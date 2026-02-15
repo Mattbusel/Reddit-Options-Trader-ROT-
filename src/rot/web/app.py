@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from rot.web.nonce_templates import NonceTemplates
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -197,7 +197,7 @@ Get your API key at [/account](/account) after registration.
     # Templates (lightweight — just reads directory listing)
     template_dir = Path(__file__).parent / "templates"
     template_dir.mkdir(exist_ok=True)
-    app.state.templates = Jinja2Templates(directory=str(template_dir))
+    app.state.templates = NonceTemplates(directory=str(template_dir))
 
     # Static files
     static_dir = Path(__file__).parent / "static"
@@ -245,89 +245,110 @@ async def connect_db(app: FastAPI):
         size = os.path.getsize(db_path)
         log.info("Database connected: %s (size=%d bytes)", db_path, size)
 
+    # Initialize service layer
+    from rot.services.paper_trading_service import PaperTradingService
+    from rot.services.signal_service import SignalService
+    from rot.services.user_service import UserService
+
+    app.state.paper_trading_service = PaperTradingService(db=db)
+    app.state.signal_service = SignalService(db=db, cache=app.state.query_cache)
+    app.state.user_service = UserService(db=db)
+
     # Start periodic cleanup task
     app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
 
 
 def register_routes(app: FastAPI):
-    """Register all route modules. Called after port bind to avoid slow imports blocking startup."""
-    from rot.web.routes import signals, health, websocket
+    """Register all route modules, organized by domain.
 
-    # Routes — export MUST be registered before signals so /signals/export
+    Called after port bind to avoid slow imports blocking startup.
+
+    Domain groups:
+    - core-api: health, signals, export, websocket
+    - auth: authentication, billing (stripe)
+    - admin: error dashboard (admin-only)
+    - trading: paper trading, agents, strategy, terminal, backtest, replay
+    - analytics: performance, accuracy, confidence, quality, correlations,
+                 unusual activity, flow, social, sector rotation, sentiment
+    - market-data: macro, ticker dive, tradingview, news, congress
+    - dashboard: landing pages, informational (glossary, faq, badges, etc.)
+    - integrations: brokers, affiliates, enterprise, widgets, leaderboard, API status
+    """
+    # ── Core API ──────────────────────────────────────────────────────
+    # Export MUST be registered before signals so /signals/export
     # matches before /signals/{signal_id} catch-all
-    from rot.web.routes import auth_routes, export, stripe_routes
+    from rot.web.routes import signals, health, websocket, export
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(export.router, prefix="/api/v1", tags=["export"])
     app.include_router(signals.router, prefix="/api/v1", tags=["signals"])
     app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 
-    # Auth & billing routes
+    # ── Auth & Billing ────────────────────────────────────────────────
+    from rot.web.routes import auth_routes, stripe_routes
     app.include_router(auth_routes.router, prefix="/api/v1", tags=["auth"])
     app.include_router(stripe_routes.router, prefix="/api/v1", tags=["billing"])
 
-    # Error monitoring (admin only)
+    # ── Admin ─────────────────────────────────────────────────────────
     from rot.web.routes import error_dashboard
-    app.include_router(error_dashboard.router, tags=["monitoring"])
+    app.include_router(error_dashboard.router, tags=["admin"])
 
-    # TradingView, broker, affiliate, and enterprise routes (mixed HTML + API)
-    from rot.web.routes import tradingview, brokers, affiliates, enterprise
-    app.include_router(tradingview.router, tags=["tradingview"])
-    app.include_router(brokers.router, tags=["brokers"])
-    app.include_router(affiliates.router, tags=["affiliates"])
-    app.include_router(enterprise.router, tags=["enterprise"])
+    # ── Trading ───────────────────────────────────────────────────────
+    from rot.web.routes import paper_trading, agents, strategy, terminal, backtest, replay
+    app.include_router(paper_trading.router, tags=["trading"])
+    app.include_router(agents.router, tags=["trading"])
+    app.include_router(strategy.router, tags=["trading"])
+    app.include_router(terminal.router, tags=["trading"])
+    app.include_router(backtest.router, tags=["trading"])
+    app.include_router(replay.router, tags=["trading"])
 
-    # Widget, paper trading, badges, correlation, unusual activity, flow, social routes
-    from rot.web.routes import widgets, paper_trading, badges, correlations, unusual_activity, flow, social, strategy
-    app.include_router(widgets.router, tags=["widgets"])
-    app.include_router(paper_trading.router, tags=["paper-trading"])
-    app.include_router(badges.router, tags=["badges"])
-    app.include_router(correlations.router, tags=["correlations"])
-    app.include_router(unusual_activity.router, tags=["unusual-activity"])
-    app.include_router(flow.router, tags=["flow"])
-    app.include_router(social.router, tags=["social"])
-    app.include_router(strategy.router, tags=["strategy"])
-
-    # Competitor-killer routes: news feed, congress tracker, paper leaderboard
-    from rot.web.routes import news_feed, congress_tracker, paper_leaderboard, api_status
-    app.include_router(news_feed.router, tags=["news"])
-    app.include_router(congress_tracker.router, tags=["congress"])
-    app.include_router(paper_leaderboard.router, tags=["leaderboard"])
-    app.include_router(api_status.router, tags=["api-status"])
-
-    # Terminal and Agents routes
-    from rot.web.routes import terminal, agents
-    app.include_router(terminal.router, tags=["terminal"])
-    app.include_router(agents.router, tags=["agents"])
-
-    # Dashboard routes (HTML)
+    # ── Analytics ─────────────────────────────────────────────────────
     from rot.web.routes import (
-        dashboard, performance, backtest, raid_tracker, sports_tracker,
-        hall_of_legends, glossary, ceo_rap_sheet,
-        sentiment, ticker_dive, weekly_wrap, replay, seo, faq,
-        accuracy_breakdown, confidence_calibration, sector_rotation,
-        signal_quality,
+        performance, accuracy_breakdown, confidence_calibration,
+        signal_quality, correlations, unusual_activity, flow, social,
+        sector_rotation, sentiment,
+    )
+    app.include_router(performance.router, tags=["analytics"])
+    app.include_router(accuracy_breakdown.router, tags=["analytics"])
+    app.include_router(confidence_calibration.router, tags=["analytics"])
+    app.include_router(signal_quality.router, tags=["analytics"])
+    app.include_router(correlations.router, tags=["analytics"])
+    app.include_router(unusual_activity.router, tags=["analytics"])
+    app.include_router(flow.router, tags=["analytics"])
+    app.include_router(social.router, tags=["analytics"])
+    app.include_router(sector_rotation.router, tags=["analytics"])
+    app.include_router(sentiment.router, tags=["analytics"])
+
+    # ── Market Data ───────────────────────────────────────────────────
+    from rot.web.routes import macro, ticker_dive, tradingview, news_feed, congress_tracker
+    app.include_router(macro.router, tags=["market-data"])
+    app.include_router(ticker_dive.router, tags=["market-data"])
+    app.include_router(tradingview.router, tags=["market-data"])
+    app.include_router(news_feed.router, tags=["market-data"])
+    app.include_router(congress_tracker.router, tags=["market-data"])
+
+    # ── Dashboard & Informational ─────────────────────────────────────
+    from rot.web.routes import (
+        dashboard, raid_tracker, sports_tracker, hall_of_legends,
+        glossary, ceo_rap_sheet, weekly_wrap, seo, faq, badges,
     )
     app.include_router(dashboard.router, tags=["dashboard"])
-    app.include_router(performance.router, tags=["performance"])
-    app.include_router(accuracy_breakdown.router, tags=["accuracy-breakdown"])
-    app.include_router(confidence_calibration.router, tags=["confidence-calibration"])
-    app.include_router(sector_rotation.router, tags=["sector-rotation"])
-    app.include_router(signal_quality.router, tags=["signal-quality"])
-    app.include_router(backtest.router, tags=["backtest"])
-    app.include_router(raid_tracker.router, tags=["raid-tracker"])
-    app.include_router(sports_tracker.router, tags=["sports-tracker"])
-    app.include_router(hall_of_legends.router, tags=["hall-of-legends"])
-    app.include_router(glossary.router, tags=["glossary"])
-    app.include_router(ceo_rap_sheet.router, tags=["ceo-rap-sheet"])
-    app.include_router(sentiment.router, tags=["sentiment"])
-    app.include_router(ticker_dive.router, tags=["ticker-dive"])
-    app.include_router(weekly_wrap.router, tags=["weekly-wrap"])
-    app.include_router(replay.router, tags=["replay"])
-    app.include_router(seo.router, tags=["seo"])
-    app.include_router(faq.router, tags=["faq"])
+    app.include_router(raid_tracker.router, tags=["dashboard"])
+    app.include_router(sports_tracker.router, tags=["dashboard"])
+    app.include_router(hall_of_legends.router, tags=["dashboard"])
+    app.include_router(glossary.router, tags=["dashboard"])
+    app.include_router(ceo_rap_sheet.router, tags=["dashboard"])
+    app.include_router(weekly_wrap.router, tags=["dashboard"])
+    app.include_router(seo.router, tags=["dashboard"])
+    app.include_router(faq.router, tags=["dashboard"])
+    app.include_router(badges.router, tags=["dashboard"])
 
-    # Macro events & economic calendar
-    from rot.web.routes import macro
-    app.include_router(macro.router, tags=["macro"])
+    # ── Integrations ──────────────────────────────────────────────────
+    from rot.web.routes import brokers, affiliates, enterprise, widgets, paper_leaderboard, api_status
+    app.include_router(brokers.router, tags=["integrations"])
+    app.include_router(affiliates.router, tags=["integrations"])
+    app.include_router(enterprise.router, tags=["integrations"])
+    app.include_router(widgets.router, tags=["integrations"])
+    app.include_router(paper_leaderboard.router, tags=["integrations"])
+    app.include_router(api_status.router, tags=["integrations"])
 
     log.info("All routes registered (%d routes)", len(app.routes))

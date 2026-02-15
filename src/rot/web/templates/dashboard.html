@@ -195,7 +195,7 @@
         <a href="/pricing" class="inline-block px-4 py-2 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition">View Plans</a>
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const ctx = document.getElementById('stanceBarChart').getContext('2d');
     new Chart(ctx, {
@@ -317,7 +317,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const chartData = {{ chart_data|tojson|safe }};
     const timeSeries = {{ time_series|tojson|safe }};
@@ -798,7 +798,7 @@
 <!-- WATCHLIST: add/remove tickers via API                          -->
 <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 {% if user %}
-<script>
+<script nonce="{{ csp_nonce }}">
 async function addWatchlistTicker() {
     const input = document.getElementById('watchlist-input');
     const ticker = input.value.trim().toUpperCase();
@@ -849,7 +849,7 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!-- AUTO-REFRESH: polls for new signals every 30s                  -->
 <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-<style>
+<style nonce="{{ csp_nonce }}">
 @keyframes signal-flash {
     0% { background-color: rgba(0,180,255,0.12); box-shadow: inset 0 0 20px rgba(0,180,255,0.1); }
     50% { background-color: rgba(255,50,100,0.06); }
@@ -878,7 +878,7 @@ document.getElementById('watchlist-input')?.addEventListener('keypress', functio
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const POLL_INTERVAL = 30000; // 30 seconds
     const feed = document.getElementById('signal-feed');

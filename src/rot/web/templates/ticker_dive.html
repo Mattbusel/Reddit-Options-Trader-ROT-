@@ -193,7 +193,7 @@
 </div>
 
 {% if access.has_chart and chart_data %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const chartData = {{ chart_data|tojson }};
     const ctx = document.getElementById('confidenceChart').getContext('2d');

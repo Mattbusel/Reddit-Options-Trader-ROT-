@@ -1,27 +1,34 @@
+"""Auth API routes.
+
+Registration, login, and profile management. Business logic for
+register/authenticate is delegated to UserService; route handlers
+map service exceptions to HTTP status codes.
+"""
 from __future__ import annotations
 
-import re
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from rot.services.user_service import (
+    InvalidCredentialsError,
+    InvalidEmailError,
+    UserAlreadyExistsError,
+    WeakPasswordError,
+)
 from rot.web.auth import (
     create_access_token,
     generate_api_key,
     hash_api_key,
-    hash_password,
     require_user,
-    verify_password,
 )
 from rot.web.rate_limit import check_auth_rate_limit
 from rot.core.security_logger import log_auth_attempt
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth")
-
-_EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
 class RegisterRequest(BaseModel):
@@ -45,24 +52,22 @@ async def register(body: RegisterRequest, request: Request):
     # Brute-force protection: 3 attempts per IP per hour
     await check_auth_rate_limit(request, "register")
 
-    if not _EMAIL_RE.match(body.email):
+    svc = request.app.state.user_service
+    ip = request.client.host if request.client else "unknown"
+
+    try:
+        user = await svc.register(body.email, body.password)
+    except InvalidEmailError:
         raise HTTPException(status_code=400, detail="Invalid email format")
-    if len(body.password) < 8:
+    except WeakPasswordError:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-
-    db = request.app.state.db
-    existing = await db.get_user_by_email(body.email.lower())
-    if existing:
+    except UserAlreadyExistsError:
         raise HTTPException(status_code=409, detail="Email already registered")
-
-    pw_hash = hash_password(body.password)
-    user = await db.create_user(body.email.lower(), pw_hash)
 
     settings = request.app.state.settings
     token = create_access_token(user["id"], user["email"], user["tier"], settings)
 
     # Log successful registration
-    ip = request.client.host if request.client else "unknown"
     log_auth_attempt(
         event="register",
         email=user["email"],
@@ -88,40 +93,22 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
-    from rot.core.logging import sanitize_for_log
-    safe_email = sanitize_for_log(body.email)
-    safe_ip = sanitize_for_log(request.client.host if request.client else 'unknown')
-    log.warning(f"[LOGIN_DEBUG] Login attempt for email={safe_email}, ip={safe_ip}")
-
     # Brute-force protection: 5 attempts per IP per 15 minutes
-    log.warning("[LOGIN_DEBUG] About to call check_auth_rate_limit")
     await check_auth_rate_limit(request, "login")
-    log.warning("[LOGIN_DEBUG] check_auth_rate_limit completed successfully")
 
-    db = request.app.state.db
-    user = await db.get_user_by_email(body.email.lower())
+    svc = request.app.state.user_service
     ip = request.client.host if request.client else "unknown"
 
-    if not user or not user.get("password_hash"):
-        # Log failed login - user not found
+    try:
+        user = await svc.authenticate(body.email, body.password)
+    except InvalidCredentialsError:
+        # Log failed login
         log_auth_attempt(
             event="login",
             email=body.email.lower(),
             ip=ip,
             success=False,
-            reason="user_not_found"
-        )
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    if not verify_password(body.password, user["password_hash"]):
-        # Log failed login - invalid password
-        log_auth_attempt(
-            event="login",
-            email=body.email.lower(),
-            ip=ip,
-            success=False,
-            reason="invalid_password",
-            metadata={"user_id": user["id"]}
+            reason="invalid_credentials"
         )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -141,6 +128,7 @@ async def login(body: LoginRequest, request: Request):
     try:
         from rot.gamification import BadgeTracker
 
+        db = request.app.state.db
         tracker = BadgeTracker(db)
         await tracker.record_login(user["id"])
     except Exception as e:
@@ -171,8 +159,8 @@ async def logout():
 @router.get("/me")
 async def me(request: Request):
     user = await require_user(request)
-    db = request.app.state.db
-    sub = await db.get_subscription(user["id"])
+    svc = request.app.state.user_service
+    sub = await svc.get_subscription(user["id"])
 
     return {
         "id": user["id"],

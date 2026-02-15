@@ -99,7 +99,7 @@
 </div>
 
 {% if calibration %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const data = {{ calibration|tojson }};
     const labels = data.map(d => d.bucket_label);

@@ -5,6 +5,9 @@ Provides:
   - /api/v1/paper-trading/trade — execute a paper trade on a signal
   - /api/v1/paper-trading/close/{trade_id} — close an open position
   - /api/v1/paper-trading/portfolio — JSON portfolio stats
+
+Business logic is delegated to PaperTradingService; route handlers are
+thin wrappers that map service exceptions to HTTP status codes.
 """
 from __future__ import annotations
 
@@ -14,6 +17,14 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from rot.services.paper_trading_service import (
+    InsufficientBalanceError,
+    NoPriceDataError,
+    NotOwnerError,
+    SignalNotFoundError,
+    TradeAlreadyClosedError,
+    TradeNotFoundError,
+)
 from rot.web.auth import get_current_user_optional, require_user
 
 log = logging.getLogger(__name__)
@@ -33,19 +44,16 @@ async def paper_trading_page(request: Request):
     """Paper trading dashboard."""
     user = await get_current_user_optional(request)
     templates = request.app.state.templates
-    db = request.app.state.db
+    svc = request.app.state.paper_trading_service
 
     portfolio = None
     open_trades = []
     closed_trades = []
 
     if user:
-        portfolio = await db.get_paper_portfolio(user["id"])
-        if not portfolio:
-            await db.init_paper_portfolio(user["id"])
-            portfolio = await db.get_paper_portfolio(user["id"])
-        open_trades = await db.get_paper_trades(user["id"], status="open", limit=50)
-        closed_trades = await db.get_paper_trades(user["id"], status="closed", limit=50)
+        portfolio = await svc.get_or_create_portfolio(user["id"])
+        open_trades = await svc.get_trades(user["id"], status="open", limit=50)
+        closed_trades = await svc.get_trades(user["id"], status="closed", limit=50)
 
     return templates.TemplateResponse("paper_trading.html", {
         "request": request,
@@ -63,49 +71,16 @@ async def paper_trading_page(request: Request):
 async def execute_paper_trade(body: PaperTradeRequest, request: Request):
     """Paper-buy a signal position."""
     user = await require_user(request)
-    db = request.app.state.db
+    svc = request.app.state.paper_trading_service
 
-    # Get or init portfolio
-    portfolio = await db.get_paper_portfolio(user["id"])
-    if not portfolio:
-        await db.init_paper_portfolio(user["id"])
-        portfolio = await db.get_paper_portfolio(user["id"])
-
-    # Validate allocation
-    dollars = min(max(body.dollars, 10.0), portfolio["balance"])
-    if portfolio["balance"] < 10.0:
-        raise HTTPException(status_code=400, detail="Insufficient paper balance")
-
-    # Get signal + price
-    signal = await db.get_signal(body.signal_id)
-    if not signal:
+    try:
+        trade = await svc.execute_trade(user["id"], body.signal_id, body.dollars)
+    except InsufficientBalanceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except SignalNotFoundError:
         raise HTTPException(status_code=404, detail="Signal not found")
-
-    # Get entry price from performance data or market_data
-    perf = await db.get_performance_for_signal(body.signal_id)
-    entry_price = None
-    if perf:
-        entry_price = perf.get("price_at_signal")
-    if not entry_price:
-        md = signal.get("market_data", {})
-        ticker = signal.get("ticker", "")
-        if isinstance(md, dict) and ticker in md:
-            entry_price = md[ticker].get("price") or md[ticker].get("currentPrice")
-    if not entry_price or entry_price <= 0:
-        raise HTTPException(status_code=400, detail="No price data for this signal")
-
-    # Calculate quantity (fractional shares ok)
-    quantity = round(dollars / entry_price, 4)
-
-    trade = await db.create_paper_trade(
-        user_id=user["id"],
-        signal_id=body.signal_id,
-        ticker=signal["ticker"],
-        stance=signal.get("stance", "unknown"),
-        entry_price=entry_price,
-        quantity=quantity,
-        dollars=dollars,
-    )
+    except NoPriceDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     return {"ok": True, "trade": trade}
 
@@ -116,30 +91,19 @@ async def execute_paper_trade(body: PaperTradeRequest, request: Request):
 async def close_paper_trade(trade_id: str, request: Request):
     """Close an open paper trade at current price."""
     user = await require_user(request)
-    db = request.app.state.db
+    svc = request.app.state.paper_trading_service
 
-    trade = await db.get_paper_trade(trade_id)
-    if not trade:
+    try:
+        result = await svc.close_trade(user["id"], trade_id)
+    except TradeNotFoundError:
         raise HTTPException(status_code=404, detail="Trade not found")
-    if trade["user_id"] != user["id"]:
+    except NotOwnerError:
         raise HTTPException(status_code=403, detail="Not your trade")
-    if trade["status"] != "open":
+    except TradeAlreadyClosedError:
         raise HTTPException(status_code=400, detail="Trade already closed")
+    except NoPriceDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    # Get current price from performance table
-    perf = await db.get_performance_for_signal(trade["signal_id"])
-    exit_price = None
-    if perf:
-        # Use the latest available price snapshot
-        for field in ("price_1w", "price_1d", "price_4h", "price_1h", "price_at_signal"):
-            p = perf.get(field)
-            if p and p > 0:
-                exit_price = p
-                break
-    if not exit_price:
-        raise HTTPException(status_code=400, detail="No current price available yet — try again later")
-
-    result = await db.close_paper_trade(trade_id, exit_price)
     return {"ok": True, "trade": result}
 
 
@@ -149,16 +113,5 @@ async def close_paper_trade(trade_id: str, request: Request):
 async def paper_portfolio(request: Request):
     """Return portfolio stats as JSON."""
     user = await require_user(request)
-    db = request.app.state.db
-
-    portfolio = await db.get_paper_portfolio(user["id"])
-    if not portfolio:
-        await db.init_paper_portfolio(user["id"])
-        portfolio = await db.get_paper_portfolio(user["id"])
-
-    open_trades = await db.get_paper_trades(user["id"], status="open", limit=50)
-
-    return {
-        "portfolio": portfolio,
-        "open_positions": len(open_trades),
-    }
+    svc = request.app.state.paper_trading_service
+    return await svc.get_portfolio_summary(user["id"])

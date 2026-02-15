@@ -49,8 +49,18 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data
+# gosu for dropping privileges in entrypoint + non-root user
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 rot \
+    && useradd --uid 1000 --gid rot --shell /bin/false rot
+
+# Create data directory for SQLite (owned by non-root user)
+RUN mkdir -p /app/data && chown rot:rot /app/data
+
+# Entrypoint: fix ownership of volume-mounted data dir then drop to non-root
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Default env vars (Railway overrides these)
 ENV ROT_STORAGE_ROOT=/app/data
@@ -59,4 +69,6 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
+# Start as root so entrypoint can chown the volume, then exec as rot
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "-m", "rot.app.server"]

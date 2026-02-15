@@ -201,7 +201,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function searchCorrelations() {
     const ticker = document.getElementById('corr-ticker').value.trim().toUpperCase();
     if (!ticker) return;

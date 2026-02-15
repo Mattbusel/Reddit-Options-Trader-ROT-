@@ -3,6 +3,39 @@
 > **UPDATE RULE**: Any agent modifying features, modules, routes, tables, or config MUST update
 > this doc AND the relevant `docs/*.md` file before the task is complete.
 
+## CRITICAL: Worktree Is Stale
+
+The local worktree may not reflect the latest commits on GitHub. **ALWAYS run `git pull origin main` before any analysis, counting, or code review.** The GitHub repo is the source of truth. Never trust local file counts without pulling first.
+
+## MANDATORY: 2:1 Test-to-Production Ratio
+
+**BLOCKING REQUIREMENT:** Every commit MUST maintain a minimum 2:1 test-to-production code ratio.
+
+**Current baseline:**
+- Production: 58,863 LOC
+- Test: 117,726 LOC (2.0:1 ratio)
+
+**Rules:**
+1. **Before committing:** Calculate test ratio. Verify ratio ≥ 2.0:1
+2. **New production code:** MUST be accompanied by 2× test code in the same commit
+3. **Deleting production code:** Preserve or increase test code (don't delete tests)
+4. **No exceptions:** This applies to all code - features, fixes, refactors
+
+**Verification command:**
+```bash
+python -c "
+import subprocess
+prod = int(subprocess.check_output('find src/rot -name \"*.py\" -exec wc -l {} + | tail -1 | awk \"{print \\$1}\"', shell=True))
+test = int(subprocess.check_output('find tests -name \"*.py\" -exec wc -l {} + | tail -1 | awk \"{print \\$1}\"', shell=True))
+ratio = test / prod
+print(f'Test-to-Prod Ratio: {ratio:.2f}:1')
+assert ratio >= 2.0, f'BLOCKED: Ratio {ratio:.2f}:1 < 2.0:1 requirement'
+print('✅ PASSED: 2:1 ratio requirement met')
+"
+```
+
+**Why this matters:** This codebase is historic. No other production system has achieved 2:1 test coverage at scale. This is our standard. This is our legacy.
+
 ## Quick Reference
 
 | Key | Value |

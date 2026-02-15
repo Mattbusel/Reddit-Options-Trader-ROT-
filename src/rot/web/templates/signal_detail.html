@@ -8,7 +8,7 @@
 {% block twitter_description %}{{ signal.ticker }} {{ signal.stance|default('unknown') }} signal with {{ "%.0f"|format((signal.confidence|default(0)) * 100) }}% confidence from Reddit.{% endblock %}
 
 {% block structured_data %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -714,7 +714,7 @@
 </div>
 
 {% if has_byok %}
-<script>
+<script nonce="{{ csp_nonce }}">
 async function reanalyzeSignal(signalId) {
     const btn = document.getElementById('byok-btn');
     const status = document.getElementById('byok-status');
@@ -753,7 +753,7 @@ async function reanalyzeSignal(signalId) {
 {% endif %}
 
 {% if user %}
-<script>
+<script nonce="{{ csp_nonce }}">
 async function executePaperTrade(signalId) {
     const btn = document.getElementById('paper-trade-btn');
     const status = document.getElementById('paper-trade-status');

@@ -6,7 +6,7 @@
 {% block twitter_title %}FAQ - How ROT Tracks Win Rate{% endblock %}
 
 {% block structured_data %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 {{ faq_schema|safe }}
 </script>
 {% endblock %}
@@ -124,7 +124,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleFAQ(btn) {
     const answer = btn.nextElementSibling;
     const chevron = btn.querySelector('.faq-chevron');

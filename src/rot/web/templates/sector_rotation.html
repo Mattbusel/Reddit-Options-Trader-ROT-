@@ -149,7 +149,7 @@
 </div>
 
 {% if sectors %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     // Stacked bar chart
     const data = {{ sectors|tojson }};

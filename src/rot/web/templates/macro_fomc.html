@@ -138,7 +138,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Format all timestamp spans
         document.querySelectorAll('.ts-fmt').forEach(el => {
@@ -216,7 +216,7 @@
 </div>
 
 {% if not meetings %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.ts-fmt').forEach(el => {
         const ts = parseFloat(el.dataset.ts);

@@ -130,7 +130,7 @@
                 </div>
                 <button type="submit" class="w-full py-2 bg-gradient-to-r from-orange-600 to-pink-600 text-white rounded-lg hover:from-orange-500 hover:to-pink-500 transition font-semibold">Create Agent</button>
             </form>
-            <script>
+            <script nonce="{{ csp_nonce }}">
             document.getElementById('create-agent-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const fd = new FormData(this);

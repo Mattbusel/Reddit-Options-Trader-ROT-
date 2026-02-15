@@ -61,7 +61,7 @@
 </div>
 
 {% if user %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Check badges on page load to update streak
 fetch('/api/v1/badges/check').then(r => r.json()).catch(() => {});
 </script>

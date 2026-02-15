@@ -33,7 +33,7 @@
 
     <!-- Structured Data (JSON-LD) -->
     {% block structured_data %}
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="{{ csp_nonce }}">
     {
         "@context": "https://schema.org",
         "@type": "Organization",
@@ -44,13 +44,13 @@
     </script>
     {% endblock %}
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/static/js/chart.umd.min.js"></script>
-    <script src="/static/js/htmx.min.js"></script>
-    <script src="/static/js/htmx-ws.js"></script>
+    <script src="https://cdn.tailwindcss.com" nonce="{{ csp_nonce }}"></script>
+    <script src="/static/js/chart.umd.min.js" nonce="{{ csp_nonce }}"></script>
+    <script src="/static/js/htmx.min.js" nonce="{{ csp_nonce }}"></script>
+    <script src="/static/js/htmx-ws.js" nonce="{{ csp_nonce }}"></script>
     <link rel="stylesheet" href="/static/css/loading.css">
-    <script src="/static/js/loading.js"></script>
-    <style>
+    <script src="/static/js/loading.js" nonce="{{ csp_nonce }}"></script>
+    <style nonce="{{ csp_nonce }}">
         /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
            1980s MANHATTAN AT NIGHT â€” SNOW & NEON
            Wet streets, neon reflections, snow drifting past skyscrapers
@@ -427,7 +427,7 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
-    <script>
+    <script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         var csrf = document.cookie.split('; ')
             .find(function(c) { return c.startsWith('rot_csrf='); });
@@ -682,7 +682,7 @@
         <span class="fire-bounce inline-block">&#128293;</span> <span style="text-shadow: 0 0 10px rgba(255,50,100,0.3);">ROT v0.1.0</span> - Signal intelligence, not financial advice.
     </footer>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // WebSocket connection for live updates (paid tiers only)
         let ws;
         const userTier = '{{ tier|default("free") }}';
@@ -801,7 +801,7 @@
     </script>
 
     <!-- â”€â”€ Mobile Menu Logic â”€â”€ -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         const btn = document.getElementById('mobile-menu-btn');
         const overlay = document.getElementById('mobile-menu-overlay');
@@ -846,7 +846,7 @@
     </script>
 
     <!-- â"€â"€ Floating Out-of-Focus Bokeh Bubbles (site-wide) + Cursor Interaction â"€â"€ -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         if (document.getElementById('bokeh-bubbles')) return;
 
@@ -958,7 +958,7 @@
     </script>
 
     <!-- Card Tilt - cards subtly rotate toward cursor -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         if ('ontouchstart' in window) return;
         const maxTilt = 4;
@@ -999,7 +999,7 @@
     </script>
 
     <!-- â"€â"€ Scroll-Triggered Reveal Observer â"€â"€ -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         const observer = new IntersectionObserver(function(entries) {
             entries.forEach(function(entry) {
@@ -1022,7 +1022,7 @@
     </script>
 
     <!-- Neural Grid - ambient pulse network behind content -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         if (document.getElementById('neural-grid')) return;
         const canvas = document.createElement('canvas');

@@ -126,7 +126,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function closeTrade(tradeId) {
     if (!confirm('Close this position at current price?')) return;
     try {

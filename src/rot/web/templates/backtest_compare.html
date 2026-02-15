@@ -49,7 +49,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const checks = document.querySelectorAll('.compare-check');
     const btn = document.getElementById('compareBtn');

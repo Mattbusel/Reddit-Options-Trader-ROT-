@@ -6,7 +6,7 @@
 {% block twitter_title %}Glossary of Degens - {{ total_terms }} WSB Trading Terms Explained{% endblock %}
 
 {% block structured_data %}
-<script type="application/ld+json">
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
 {{ faq_schema|safe }}
 </script>
 {% endblock %}

@@ -175,26 +175,57 @@ These rules prevent the categories of issues found in the 425 CodeQL alerts:
 
 ---
 
-## 12. Agent & AI Policy
+## 12. Test Coverage Requirements
+
+**MANDATORY 2:1 RATIO:** All commits must maintain or exceed a 2:1 test-to-production code ratio.
+
+This is enforced through:
+- Pre-commit verification (see CLAUDE.md)
+- GitHub Actions CI/CD (blocks merge if ratio < 2.0)
+- Code review policy (reviewers must verify ratio)
+
+**Rationale:** Comprehensive test coverage is the foundation of security. Untested code is vulnerable code.
+
+**Current baseline:**
+- Production: 58,863 LOC
+- Test: 117,726 LOC (2.0:1 ratio)
+
+**Verification before commit:**
+```bash
+python -c "
+import subprocess
+prod = int(subprocess.check_output('find src/rot -name \"*.py\" -exec wc -l {} + | tail -1 | awk \"{print \\$1}\"', shell=True))
+test = int(subprocess.check_output('find tests -name \"*.py\" -exec wc -l {} + | tail -1 | awk \"{print \\$1}\"', shell=True))
+ratio = test / prod
+assert ratio >= 2.0, f'BLOCKED: {ratio:.2f}:1 < 2.0:1'
+print(f'✅ Ratio: {ratio:.2f}:1')
+"
+```
+
+---
+
+## 13. Agent & AI Policy
 
 > These rules apply to ALL AI agents (Claude, sub-agents, GitHub Copilot, etc.) producing code for this repo.
 
 50. **Agents MUST read `CLAUDE.md` and `AGENTS.md`** before writing any code.
 51. **Agents MUST follow the pre-commit checklist** in CLAUDE.md section "Code Quality Guardrails".
-52. **Agents MUST NOT add CodeQL exclusions** without human approval and documented justification.
-53. **Agents MUST NOT introduce new dependencies** without human approval.
-54. **Agents MUST NOT modify auth, tier gating, or rate limiting** without explicit human instruction.
-55. **Agents MUST NOT commit `.env` files, secrets, or credentials** under any circumstances.
-56. **Agents MUST run `pytest -x`** (or verify tests pass) before claiming a task is complete.
-57. **Agents MUST verify 0 new CodeQL alerts** are introduced by their changes.
+52. **Agents MUST maintain 2:1 test-to-production ratio** for all new code.
+53. **Agents MUST NOT add CodeQL exclusions** without human approval and documented justification.
+54. **Agents MUST NOT introduce new dependencies** without human approval.
+55. **Agents MUST NOT modify auth, tier gating, or rate limiting** without explicit human instruction.
+56. **Agents MUST NOT commit `.env` files, secrets, or credentials** under any circumstances.
+57. **Agents MUST run `pytest -x`** (or verify tests pass) before claiming a task is complete.
+58. **Agents MUST verify 0 new CodeQL alerts** are introduced by their changes.
 
 ---
 
-## 13. Compliance Checklist
+## 14. Compliance Checklist
 
 For any PR, the author (human or agent) must verify:
 
 ```
+[ ] Test-to-production ratio ≥ 2.0:1 (mandatory)
 [ ] No new CodeQL alerts introduced
 [ ] No secrets in code (checked by TruffleHog)
 [ ] No known CVEs in dependencies (checked by pip-audit)
@@ -216,4 +247,4 @@ or contact the maintainer directly. Do NOT open a public issue for security vuln
 
 ---
 
-*Last updated: 2026-02-15 | Baseline: 425 alerts fixed, 0 open, 0 Dependabot alerts | Enforced by: CodeQL + Bandit + pip-audit + TruffleHog + Dependabot*
+*Last updated: 2026-02-15 | Baseline: 425 alerts fixed, 0 open, 0 Dependabot alerts, 2.0:1 test ratio | Enforced by: CodeQL + Bandit + pip-audit + TruffleHog + Dependabot + ratio verification*
