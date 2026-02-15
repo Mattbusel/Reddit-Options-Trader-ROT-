@@ -31,7 +31,8 @@ RUN pip install --no-cache-dir \
     "python-multipart>=0.0.6" \
     "stripe>=7.0" \
     "scikit-learn>=1.3" \
-    "numpy>=1.24"
+    "numpy>=1.24" \
+    "psutil>=5.9"
 
 COPY src/ ./src/
 RUN pip install --no-cache-dir --no-deps .
