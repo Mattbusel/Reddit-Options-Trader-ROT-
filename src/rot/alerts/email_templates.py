@@ -136,7 +136,6 @@ def render_daily_digest(
     bearish = summary.get("bearish_count", 0)
     unique = summary.get("unique_tickers", 0)
     avg_conf = summary.get("avg_confidence", 0)
-    _avg_conf_pct = int(avg_conf * 100) if avg_conf and avg_conf <= 1 else int(avg_conf or 0)
 
     # Build signal cards (already deduplicated by the query)
     signal_cards = ""

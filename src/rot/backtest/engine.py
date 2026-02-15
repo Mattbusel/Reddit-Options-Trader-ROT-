@@ -19,10 +19,8 @@ from rot.backtest.config import BacktestConfig
 from rot.backtest.metrics import (
     compute_annual_return,
     compute_calmar_ratio,
-    compute_cvar,
     compute_drawdown_periods,
     compute_expectancy,
-    compute_mae_mfe,
     compute_max_drawdown,
     compute_monthly_returns,
     compute_profit_factor,

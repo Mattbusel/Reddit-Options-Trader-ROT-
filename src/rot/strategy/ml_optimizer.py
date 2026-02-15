@@ -16,7 +16,7 @@ import json
 import logging
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from rot.strategy.types import StrategyRule

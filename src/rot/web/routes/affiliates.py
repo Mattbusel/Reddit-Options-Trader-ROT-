@@ -12,10 +12,8 @@ from __future__ import annotations
 
 import logging
 import re
-import time
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 

@@ -26,6 +26,11 @@ query-filters:
   - exclude:
       id: py/weak-cryptographic-algorithm
 
+  # Weak sensitive data hashing - false positive on HMAC-SHA1 (OAuth 1.0a, RFC 5849)
+  # and SHA-256 API key hashing (high-entropy random tokens, not passwords)
+  - exclude:
+      id: py/weak-sensitive-data-hashing
+
   # Cyclic imports - standard Python __init__.py pattern for package exports
   # These are module-level imports in __init__.py files to make imports convenient
   - exclude:

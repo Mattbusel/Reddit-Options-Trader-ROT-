@@ -14,7 +14,6 @@ from rot.analysis.correlation_types import (
     CorrelationPair,
     LeadLagPair,
     NetworkGraph,
-    PredictivePair,
     SignalCorrelationMatrix,
     TickerCluster,
 )

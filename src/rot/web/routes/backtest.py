@@ -43,7 +43,6 @@ async def backtest_page(request: Request):
         return RedirectResponse(url="/pricing", status_code=302)
 
     db = request.app.state.db
-    tier = (user or {}).get("tier", "free")
 
     # Get strategy list for dropdown
     strategy_pnl = await db.get_strategy_pnl(days=365)

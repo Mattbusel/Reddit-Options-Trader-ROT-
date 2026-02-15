@@ -15,7 +15,6 @@ from rot.macro.types import InsiderTrade
 log = logging.getLogger(__name__)
 
 # SEC EDGAR Form 4 RSS feed
-_SEC_FORM4_RSS = "https://efts.sec.gov/LATEST/search-index?q=%22form+4%22&dateRange=custom&startdt={start}&enddt={end}&forms=4"
 
 
 

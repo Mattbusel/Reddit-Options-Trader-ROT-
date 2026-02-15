@@ -376,7 +376,6 @@ async def byok_reason_signal(request: Request, signal_id: str):
     # Reconstruct the prompt from stored signal data
     event_data = signal.get("event_data", {})
     market_data = signal.get("market_data", {})
-    reasoning_old = signal.get("reasoning", {})
 
     ticker = signal.get("ticker", "UNKNOWN")
     subreddit = signal.get("subreddit", "unknown")
