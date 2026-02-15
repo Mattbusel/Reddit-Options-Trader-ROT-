@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from rot.web.auth import require_user
+from rot.web.request_id_middleware import get_client_ip
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +103,12 @@ async def stripe_webhook(request: Request):
     settings = request.app.state.settings
     db = request.app.state.db
 
+    # Guard: if webhook_secret is empty, construct_event will fail with a
+    # confusing error. Fail cleanly instead.
+    if not settings.stripe.webhook_secret:
+        log.error("Stripe webhook received but ROT_STRIPE_WEBHOOK_SECRET is not configured")
+        raise HTTPException(status_code=500, detail="Webhook not configured")
+
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
@@ -110,7 +117,11 @@ async def stripe_webhook(request: Request):
             payload, sig_header, settings.stripe.webhook_secret
         )
     except (ValueError, stripe.error.SignatureVerificationError) as e:
-        log.warning("Webhook signature verification failed: %s", e)
+        log.warning(
+            "Webhook signature verification failed from %s: %s",
+            get_client_ip(request),
+            e,
+        )
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event["type"]
