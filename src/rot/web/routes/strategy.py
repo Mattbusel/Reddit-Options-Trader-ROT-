@@ -266,7 +266,8 @@ async def discover_strategies(request: Request):
         })
     except Exception as e:
         logger.exception("Strategy discovery failed")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        # Don't expose internal error details to users (CWE-209)
+        return JSONResponse({"ok": False, "error": "Strategy discovery failed"}, status_code=500)
 
 
 @router.post("/api/v1/strategies/ml-optimize")
@@ -296,7 +297,8 @@ async def ml_optimize(request: Request):
         return JSONResponse({"ok": True, **result})
     except Exception as e:
         logger.exception("ML optimization failed")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        # Don't expose internal error details to users (CWE-209)
+        return JSONResponse({"ok": False, "error": "Strategy optimization failed"}, status_code=500)
 
 
 @router.post("/api/v1/strategies/evolve")
@@ -331,7 +333,8 @@ async def evolve_strategies(request: Request):
         return JSONResponse({"ok": True, **result})
     except Exception as e:
         logger.exception("Genetic evolution failed")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        # Don't expose internal error details to users (CWE-209)
+        return JSONResponse({"ok": False, "error": "Strategy evolution failed"}, status_code=500)
 
 
 @router.get("/api/v1/strategies/regimes")

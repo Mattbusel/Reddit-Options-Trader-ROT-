@@ -94,7 +94,8 @@ async def register_affiliate(body: AffiliateRegisterRequest, request: Request):
 
     except Exception as e:
         log.error("Error registering affiliate: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details to users (CWE-209)
+        raise HTTPException(status_code=500, detail="Failed to register affiliate")
 
 
 # ── Affiliate stats ──
@@ -129,7 +130,8 @@ async def affiliate_stats(request: Request, days: int = 30):
 
     except Exception as e:
         log.error("Error fetching affiliate stats: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details to users (CWE-209)
+        raise HTTPException(status_code=500, detail="Failed to fetch affiliate stats")
 
 
 # ── Request payout ──
@@ -160,10 +162,12 @@ async def request_payout(body: PayoutRequest, request: Request):
         }
 
     except ValueError as e:
+        # ValueError is expected for validation errors, safe to expose
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         log.error("Error requesting payout: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details to users (CWE-209)
+        raise HTTPException(status_code=500, detail="Failed to process payout request")
 
 
 # ── Embeddable widget code ──
