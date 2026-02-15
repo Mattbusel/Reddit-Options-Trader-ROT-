@@ -1076,11 +1076,13 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
       - Purge old/duplicate signals, performance, x_posts, referrals, closed paper trades
       - Rotate JSONL log files (keep 7 days)
       - Clean stale market_cache.json entries
+      - Create database backups (keep 7 backups)
       - VACUUM SQLite to reclaim disk space
     NEVER touches: users, subscriptions, email_alert_settings, paper_portfolios
     """
     from rot.core.logging import JsonlLogger
     from rot.core.logging import cleanup_market_cache
+    from rot.storage.backup import BackupManager
 
     CLEANUP_INTERVAL = 1800  # 30 minutes
     log.info("Cleanup loop starting (interval=%ds)", CLEANUP_INTERVAL)
@@ -1126,6 +1128,20 @@ async def _cleanup_loop(db, storage_root: str, stop_event: threading.Event):
                 log.info("Cleanup: auth attempts — removed %d old entries", deleted)
         except Exception as e:
             log.error("Cleanup auth attempts error: %s", e, exc_info=True)
+
+        try:
+            # 5. Database backup (every cleanup cycle = every 30 minutes)
+            # Creates compressed backup and rotates old ones (keep last 7)
+            backup_mgr = BackupManager(
+                db_path=f"{storage_root}/rot.db",
+                backup_dir=f"{storage_root}/backups",
+                keep_count=7,
+                compress=True,
+            )
+            backup_path = await backup_mgr.create_backup()
+            log.info("Cleanup: database backup created — %s", backup_path.name)
+        except Exception as e:
+            log.error("Cleanup database backup error: %s", e, exc_info=True)
 
         log.info("Cleanup cycle complete — next run in %dh", CLEANUP_INTERVAL // 3600)
 
