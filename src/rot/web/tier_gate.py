@@ -260,8 +260,8 @@ def gate_news_feed_access(tier: str) -> dict:
         "has_realtime": tier in _PAID_TIERS,  # Pro+ gets real-time
         "has_source_filter": tier in _PAID_TIERS,  # Pro+ can filter by source
         "has_ai_summary": tier in ("premium", "ultra", "enterprise", _ADMIN_TIER),  # Premium+ sees AI summaries
-        "max_hours": 6 if tier == "free" else 24 if tier == "pro" else 72 if tier == "premium" else 168,
-        "max_items": 15 if tier == "free" else 50 if tier == "pro" else 100,
+        "max_hours": 24 if tier == "free" else 24 if tier == "pro" else 72 if tier == "premium" else 168,
+        "max_items": 20 if tier == "free" else 50 if tier == "pro" else 100,
     }
 
 
