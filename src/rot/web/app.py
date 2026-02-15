@@ -14,6 +14,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from rot.core.config import Settings
+from rot.web.request_id_middleware import RequestIDMiddleware
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description="Real-time Reddit trend detection and options trade signal API",
         version="0.1.0",
     )
+
+    # Request ID tracking — must be first middleware for proper context
+    app.add_middleware(RequestIDMiddleware)
 
     # GZip compression — reduces HTML/JSON response sizes by ~70%
     # minimum_size=500: Only compress responses >= 500 bytes (small responses not worth overhead)

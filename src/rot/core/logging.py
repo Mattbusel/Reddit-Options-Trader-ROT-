@@ -8,6 +8,8 @@ import time
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict
 
+from rot.core.request_context import RequestContextFilter, configure_request_logging
+
 log = logging.getLogger(__name__)
 
 
@@ -143,3 +145,25 @@ def cleanup_market_cache(storage_root: str, max_age_days: int = 7) -> int:
                  removed, len(evicted))
 
     return removed
+
+
+def setup_logging_with_request_context(level: int = logging.INFO) -> None:
+    """Configure logging with request context tracking.
+
+    Sets up:
+    - Basic logging configuration
+    - Request context filter on all handlers
+    - Enhanced log format with request_id, user_id
+
+    Args:
+        level: Log level (default: INFO)
+    """
+    # Configure basic logging
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(request_id)s] [user:%(user_id)s] %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # Add request context filter to all handlers
+    configure_request_logging()
