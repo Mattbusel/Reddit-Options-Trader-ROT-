@@ -38,13 +38,12 @@ Usage::
 
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
 import itertools
 import logging
 import math
 import random
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from rot.backtest.config import BacktestConfig

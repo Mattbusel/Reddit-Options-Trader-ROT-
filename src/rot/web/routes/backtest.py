@@ -7,13 +7,10 @@ Pro+ access (tiered features).
 from __future__ import annotations
 
 import json
-import time
 
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from rot.backtest.benchmark import compare_to_benchmark
-from rot.backtest.comparator import compare_strategies
 from rot.backtest.config import BacktestConfig
 from rot.backtest.engine import BacktestEngine
 from rot.backtest.monte_carlo import run_monte_carlo
@@ -46,7 +43,6 @@ async def backtest_page(request: Request):
         return RedirectResponse(url="/pricing", status_code=302)
 
     db = request.app.state.db
-    tier = (user or {}).get("tier", "free")
 
     # Get strategy list for dropdown
     strategy_pnl = await db.get_strategy_pnl(days=365)

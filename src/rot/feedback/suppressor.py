@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Tuple
 
 from rot.core.types import Event
 

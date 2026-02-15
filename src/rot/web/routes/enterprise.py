@@ -14,7 +14,6 @@ Provides:
 """
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
 import csv
 import io
 import json
@@ -24,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from rot.web.auth import get_current_user_optional, require_tier
@@ -272,7 +271,7 @@ async def analytics_signals(
     days: int = Query(7, ge=1, le=365),
 ):
     """Signal statistics. Enterprise only."""
-    user = await require_tier("enterprise")(request)
+    await require_tier("enterprise")(request)
     db = request.app.state.db
 
     from rot.export.analytics import AnalyticsAPI
@@ -289,7 +288,7 @@ async def analytics_performance(
     days: int = Query(7, ge=1, le=365),
 ):
     """Performance statistics. Enterprise only."""
-    user = await require_tier("enterprise")(request)
+    await require_tier("enterprise")(request)
     db = request.app.state.db
 
     from rot.export.analytics import AnalyticsAPI
@@ -307,7 +306,7 @@ async def analytics_trends(
     bucket_hours: int = Query(24, ge=1, le=168),
 ):
     """Signal volume trends. Enterprise only."""
-    user = await require_tier("enterprise")(request)
+    await require_tier("enterprise")(request)
     db = request.app.state.db
 
     from rot.export.analytics import AnalyticsAPI
@@ -324,7 +323,7 @@ async def analytics_sources(
     days: int = Query(7, ge=1, le=365),
 ):
     """Source breakdown. Enterprise only."""
-    user = await require_tier("enterprise")(request)
+    await require_tier("enterprise")(request)
     db = request.app.state.db
 
     from rot.export.analytics import AnalyticsAPI
@@ -341,7 +340,7 @@ async def signal_lineage(
     signal_id: str = Path(...),
 ):
     """Get full provenance chain for a signal. Enterprise only."""
-    user = await require_tier("enterprise")(request)
+    await require_tier("enterprise")(request)
     db = request.app.state.db
 
     from rot.export.lineage import LineageBuilder

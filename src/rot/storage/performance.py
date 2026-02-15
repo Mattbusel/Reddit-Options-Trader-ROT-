@@ -50,7 +50,6 @@ from .sql_helpers import (
     _LOSS_CASE_SQL,
     _LOSS_SQL,
     _NEUTRAL_SQL,
-    _PRICE_COL,
     _UNIFIED_CTE,
     _WIN_CASE_SQL,
     _WIN_SQL,
@@ -147,7 +146,7 @@ class PerformanceMixin:
 
         where = f"WHERE {' AND '.join(conditions)}"
         # Stance-aware win/loss evaluation: bullish/bearish only
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 SUM({_WIN_SQL}) as winners,
@@ -366,7 +365,7 @@ class PerformanceMixin:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT id as signal_id, ticker, created_at,
                    price_at_signal, price_1h, price_4h, price_1d,
@@ -406,7 +405,7 @@ class PerformanceMixin:
             params.append(ticker.upper())
 
         where = f"WHERE {' AND '.join(conditions)}"
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT id as signal_id, ticker, created_at,
                    price_at_signal, price_1h, price_4h, price_1d,
@@ -438,7 +437,7 @@ class PerformanceMixin:
         """
         cutoff = time.time() - (days * 86400)
         bucket_s = 86400 if interval == "daily" else 3600
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CAST(created_at / ? AS INTEGER) * ? as time_bucket,
@@ -470,7 +469,7 @@ class PerformanceMixin:
             List of dicts with bucket, label, total, winners, losers, win_rate
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CASE
@@ -516,7 +515,7 @@ class PerformanceMixin:
             win_rate, avg_return_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 event_type,
@@ -564,7 +563,7 @@ class PerformanceMixin:
         # Use 1d-only price column for avg_gain/avg_loss (more reliable)
         _a_1d_win = _WIN_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
         _a_1d_loss = _LOSS_CASE_SQL.format(price_col="price_1d").replace("s.stance", "stance").replace("sp.price_at_signal", "price_at_signal")
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 strategy,
@@ -620,7 +619,7 @@ class PerformanceMixin:
             avg_loss_pct, avg_1d_return_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 strategy,
@@ -660,7 +659,7 @@ class PerformanceMixin:
             avg_gain_pct, avg_loss_pct
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 ticker,
@@ -696,7 +695,7 @@ class PerformanceMixin:
             avg_confidence, expected_win_rate, actual_win_rate
         """
         cutoff = time.time() - (days * 86400)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CAST(confidence * 10 AS INTEGER) as decile,
@@ -726,87 +725,6 @@ class PerformanceMixin:
                 d["label"] = d["bucket_label"]  # backward compat
                 results.append(d)
             return results
-
-    # ── Snapshot & Archival ──
-
-    async def snapshot_win_rate_before_purge(self, keep_days: int = 14) -> int:
-        """Snapshot win/loss counts for signals that are about to be purged.
-
-        Called BEFORE purge_old_signals so the resolved outcomes are preserved
-        permanently in the win_rate_snapshots table. This allows long-term
-        historical win rate tracking even after old signals are deleted.
-
-        Args:
-            keep_days: Signals older than this will be snapshotted (default 14)
-
-        Returns:
-            Number of signals included in the snapshot
-        """
-        cutoff = time.time() - (keep_days * 86400)
-        # Only snapshot signals that will be deleted (older than cutoff)
-        # AND that have price data to evaluate
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
-            SELECT
-                COUNT(*) as total_tracked,
-                MIN(s.created_at) as period_start,
-                MAX(s.created_at) as period_end,
-                SUM({_WIN_SQL}) as winners,
-                SUM({_LOSS_SQL}) as losers,
-                SUM({_NEUTRAL_SQL}) as neutral,
-                AVG(sp.max_gain_pct) as avg_gain_pct,
-                AVG(sp.max_loss_pct) as avg_loss_pct,
-                AVG(CASE WHEN sp.price_1d IS NOT NULL
-                    THEN CASE WHEN s.stance = 'bearish'
-                        THEN (1.0 - sp.price_1d / sp.price_at_signal) * 100
-                        ELSE (sp.price_1d / sp.price_at_signal - 1.0) * 100
-                    END
-                    ELSE NULL END) as avg_1d_return_pct
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE s.created_at < ?
-            AND sp.price_at_signal > 0
-            AND (COALESCE(sp.price_1d, sp.price_4h, sp.price_1h) IS NOT NULL
-                 OR sp.max_gain_pct IS NOT NULL)
-        """
-        async with self.db.execute(query, (cutoff,)) as cursor:
-            row = await cursor.fetchone()
-            if not row:
-                return 0
-            d = _row_to_dict(row)
-
-        total = d.get("total_tracked", 0) or 0
-        if total == 0:
-            return 0
-
-        now = time.time()
-        await self.db.execute(
-            """INSERT INTO win_rate_snapshots
-               (snapshot_at, period_start, period_end, winners, losers, neutral,
-                total_tracked, avg_gain_pct, avg_loss_pct, avg_1d_return_pct)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                now,
-                d.get("period_start", 0) or 0,
-                d.get("period_end", 0) or 0,
-                d.get("winners", 0) or 0,
-                d.get("losers", 0) or 0,
-                d.get("neutral", 0) or 0,
-                total,
-                d.get("avg_gain_pct"),
-                d.get("avg_loss_pct"),
-                d.get("avg_1d_return_pct"),
-            ),
-        )
-        await self.db.commit()
-        log.info(
-            "Win-rate snapshot: %dW / %dL / %dN (total %d) from signals before %d days",
-            d.get("winners", 0) or 0,
-            d.get("losers", 0) or 0,
-            d.get("neutral", 0) or 0,
-            total,
-            keep_days,
-        )
-        return total
 
     async def get_cumulative_win_rate(self, days: int = 30) -> Dict[str, Any]:
         """Get cumulative win/loss from snapshots, optionally filtered by time range.

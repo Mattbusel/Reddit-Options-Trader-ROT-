@@ -9,7 +9,7 @@ minimum number of decided predictions before it activates.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from rot.social.types import AuthorProfile

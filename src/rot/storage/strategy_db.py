@@ -5,7 +5,7 @@ Assumes self.db (aiosqlite Connection) exists.
 """
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 
 class StrategyMixin:
@@ -302,42 +302,6 @@ class StrategyMixin:
                 d["best_strategies"] = json.loads(d.pop("result_json", "[]"))
                 result.append(d)
             return result
-
-    # ── Data Cleanup ──
-
-    async def purge_old_strategy_data(self, keep_days: int = 90) -> int:
-        """Delete old strategy trades and discovery data. Returns total deleted."""
-        cutoff = time.time() - (keep_days * 86400)
-        total = 0
-        # Purge old resolved trades
-        async with self.db.execute(
-            "SELECT COUNT(*) as cnt FROM strategy_trades WHERE resolved_at IS NOT NULL AND resolved_at < ?",
-            (cutoff,),
-        ) as cur:
-            row = await cur.fetchone()
-            count = row["cnt"] if row else 0
-        if count > 0:
-            await self.db.execute(
-                "DELETE FROM strategy_trades WHERE resolved_at IS NOT NULL AND resolved_at < ?",
-                (cutoff,),
-            )
-            total += count
-        # Purge old discovery runs
-        async with self.db.execute(
-            "SELECT COUNT(*) as cnt FROM strategy_discoveries WHERE created_at < ?",
-            (cutoff,),
-        ) as cur:
-            row = await cur.fetchone()
-            count = row["cnt"] if row else 0
-        if count > 0:
-            await self.db.execute(
-                "DELETE FROM strategy_discoveries WHERE created_at < ?",
-                (cutoff,),
-            )
-            total += count
-        if total > 0:
-            await self.db.commit()
-        return total
 
     # ── Helper Methods ──
 

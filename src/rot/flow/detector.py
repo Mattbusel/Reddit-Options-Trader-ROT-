@@ -21,7 +21,7 @@ import logging
 import math
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from rot.flow.history import FlowHistory
 from rot.flow.types import FlowEvent, FlowScore
@@ -501,7 +501,7 @@ class FlowDetector:
         if baseline and baseline.flow_count > 3:
             avg_volume = baseline.avg_volume
             if avg_volume > 0 and volume > 0:
-                vol_oi_ratio = volume / total_oi if total_oi > 0 else 0
+                vol_oi_ratio = volume / total_oi  # total_oi > 0 guaranteed above
                 # Low ratio = positions added without proportional visible volume
                 if vol_oi_ratio > self._config.dark_pool_volume_ratio:
                     return None  # Normal ratio, not dark pool

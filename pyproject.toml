@@ -7,25 +7,37 @@ name = "rot"
 version = "0.1.0"
 description = "Reddit -> Events -> Reasoning -> Options Trade Ideas"
 requires-python = ">=3.10"
+# ============================================================
+# SECURITY-CRITICAL DEPENDENCIES — PINNED TO EXACT VERSIONS
+# Do not update without reviewing changelogs and running full
+# test suite. Dependabot will flag updates for review.
+# Last audited: 2026-02-15 via `pip freeze`.
+# ============================================================
 dependencies = [
+    # -- Security-critical (exact pin) --
+    "fastapi==0.128.5",
+    "starlette==0.52.1",
+    "pydantic==2.12.5",
+    "pydantic-settings==2.12.0",
+    "aiosqlite==0.22.1",
+    "python-jose[cryptography]==3.5.0",
+    "cryptography==46.0.5",
+    "bcrypt==5.0.0",
+    "uvicorn[standard]==0.40.0",
+    "jinja2==3.1.6",
+    "httpx==0.28.1",
+    # -- Application (loose) --
     "praw",
     "yfinance",
     "feedparser>=6.0",
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
     "openai>=1.0",
     "anthropic>=0.20",
-    "fastapi>=0.109",
-    "uvicorn[standard]>=0.27",
-    "aiosqlite>=0.19",
-    "python-jose[cryptography]>=3.3",
-    "bcrypt>=4.0",
-    "httpx>=0.26",
-    "jinja2>=3.1",
     "python-multipart>=0.0.6",
     "stripe>=7.0",
     "scikit-learn>=1.3",
     "numpy>=1.24",
+    # -- Defense-in-depth (new) --
+    "nh3>=0.2.14",
 ]
 
 [project.optional-dependencies]

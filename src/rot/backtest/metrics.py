@@ -116,14 +116,12 @@ def compute_max_drawdown(equity_curve: List[EquityPoint]) -> Tuple[float, float]
 
     peak = equity_curve[0].equity
     max_dd_pct = 0.0
-    peak_ts = equity_curve[0].timestamp
     max_dd_duration = 0.0
     current_dd_start = equity_curve[0].timestamp
 
     for ep in equity_curve:
         if ep.equity >= peak:
             peak = ep.equity
-            peak_ts = ep.timestamp
             current_dd_start = ep.timestamp
         else:
             dd_pct = (peak - ep.equity) / peak * 100 if peak > 0 else 0.0

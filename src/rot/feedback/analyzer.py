@@ -16,7 +16,6 @@ log = logging.getLogger(__name__)
 
 # Reuse the stance-aware win/loss SQL from sql_helpers.py — single source of truth.
 from rot.storage.sql_helpers import (
-    _WIN_SQL, _LOSS_SQL, _NEUTRAL_SQL, _PRICE_COL,
     _A_WIN_SQL, _A_LOSS_SQL, _A_NEUTRAL_SQL, _A_PRICE_COL, _UNIFIED_CTE,
 )
 
@@ -118,7 +117,7 @@ class FeedbackAnalyzer:
     async def get_category_performance(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate grouped by (event_type, stance, strategy)."""
         cutoff = time.time() - days * 86400
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 event_type,
@@ -162,7 +161,7 @@ class FeedbackAnalyzer:
     async def get_source_reliability(self, days: int = 30) -> List[Dict[str, Any]]:
         """Win rate grouped by (subreddit/source, event_type), min 5 signals."""
         cutoff = time.time() - days * 86400
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 subreddit as source,
@@ -238,7 +237,7 @@ class FeedbackAnalyzer:
     async def get_quality_trend(self, days: int = 30) -> Dict[str, Any]:
         """Daily win rate trend with simple linear regression slope."""
         cutoff = time.time() - days * 86400
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 DATE(created_at, 'unixepoch') as day,
@@ -292,7 +291,7 @@ class FeedbackAnalyzer:
     ) -> List[Dict[str, Any]]:
         """Per-decile confidence calibration: expected vs actual win rate."""
         cutoff = time.time() - days * 86400
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             {_UNIFIED_CTE}
             SELECT
                 CAST(confidence * 10 AS INTEGER) as decile,

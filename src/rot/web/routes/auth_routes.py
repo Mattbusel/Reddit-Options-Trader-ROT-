@@ -16,7 +16,7 @@ from rot.web.auth import (
     verify_password,
 )
 from rot.web.rate_limit import check_auth_rate_limit
-from rot.core.security_logger import log_auth_attempt, log_api_key_event
+from rot.core.security_logger import log_auth_attempt
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth")
@@ -80,6 +80,7 @@ async def register(body: RegisterRequest, request: Request):
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response
@@ -87,9 +88,7 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
-    import logging
     from rot.core.logging import sanitize_for_log
-    log = logging.getLogger(__name__)
     safe_email = sanitize_for_log(body.email)
     safe_ip = sanitize_for_log(request.client.host if request.client else 'unknown')
     log.warning(f"[LOGIN_DEBUG] Login attempt for email={safe_email}, ip={safe_ip}")
@@ -145,9 +144,7 @@ async def login(body: LoginRequest, request: Request):
         tracker = BadgeTracker(db)
         await tracker.record_login(user["id"])
     except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).warning("Badge tracking failed for login: %s", e)
+        log.warning("Badge tracking failed for login: %s", e)
 
     response = JSONResponse(content={
         "user": {"id": user["id"], "email": user["email"], "tier": user["tier"]},
@@ -158,6 +155,7 @@ async def login(body: LoginRequest, request: Request):
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response

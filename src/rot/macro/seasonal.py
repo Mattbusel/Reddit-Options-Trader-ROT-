@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import statistics
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.macro.types import SeasonalPattern
 

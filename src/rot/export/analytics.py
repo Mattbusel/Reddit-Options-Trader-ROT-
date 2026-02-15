@@ -6,7 +6,6 @@ and source analysis. Used by the enterprise dashboard and API endpoints.
 
 from __future__ import annotations
 
-import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 

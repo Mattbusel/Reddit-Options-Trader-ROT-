@@ -7,7 +7,7 @@ Reuses existing blocklists from enricher.py and event_builder.py.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 from rot.nlp.types import (
     OptionsEntity,
@@ -18,10 +18,10 @@ from rot.nlp.types import (
 
 # Import existing blocklists (no duplication)
 from rot.market.enricher import ALIAS_MAP, NON_EQUITY_TOKENS
-from rot.extract.event_builder import (
-    _BARE_TICKER_BLOCKLIST,
-    _CONTEXT_REQUIRED_TICKERS,
-    _FINANCIAL_CONTEXT_RE,
+from rot.extract.ticker_constants import (
+    BARE_TICKER_BLOCKLIST as _BARE_TICKER_BLOCKLIST,
+    CONTEXT_REQUIRED_TICKERS as _CONTEXT_REQUIRED_TICKERS,
+    FINANCIAL_CONTEXT_RE as _FINANCIAL_CONTEXT_RE,
 )
 
 # ── Implicit entity resolution map ──

@@ -9,7 +9,6 @@ Provides:
 from __future__ import annotations
 
 import logging
-import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -20,8 +19,6 @@ from rot.web.auth import get_current_user_optional, require_user
 log = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_STARTING_BALANCE = 10000.0
 
 
 class PaperTradeRequest(BaseModel):

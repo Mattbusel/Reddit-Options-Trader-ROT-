@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Literal
 
 AgentType = Literal["signal_follower", "contrarian", "momentum_rider", "custom_rule"]
 AgentStatus = Literal["active", "paused", "stopped", "error"]

@@ -7,8 +7,7 @@ from its stored metadata.
 from __future__ import annotations
 
 import json
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.export.types import LineageStep, SignalLineage
 

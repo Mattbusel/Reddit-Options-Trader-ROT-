@@ -13,10 +13,10 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rot.web.auth import get_current_user_optional
@@ -706,15 +706,12 @@ class SportsNewsCache:
                 summary = re.sub(r"<[^>]+>", "", summary).strip()[:300]
 
             # Parse published time
-            published = 0.0
             if hasattr(entry, "published_parsed") and entry.published_parsed:
-                import calendar
                 try:
                     published = float(calendar.timegm(entry.published_parsed))
                 except Exception:
                     published = time.time()
             elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-                import calendar
                 try:
                     published = float(calendar.timegm(entry.updated_parsed))
                 except Exception:

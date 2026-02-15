@@ -11,7 +11,6 @@ This mixin handles all autonomous trading agent operations:
 - Exposure and deduplication checks
 """
 
-import json
 import time
 import uuid
 from typing import Any, Dict, List, Optional

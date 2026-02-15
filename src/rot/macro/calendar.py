@@ -8,7 +8,7 @@ import time
 import uuid
 from calendar import monthcalendar
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 
@@ -99,18 +99,6 @@ _RECURRING_RULES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# ── FOMC scheduled meeting dates (maintained manually per year) ──────
-# These are announced well in advance by the Fed.
-_FOMC_DATES_2026 = [
-    "2026-01-28", "2026-01-29",  # Jan meeting
-    "2026-03-17", "2026-03-18",  # Mar meeting
-    "2026-05-05", "2026-05-06",  # May meeting
-    "2026-06-16", "2026-06-17",  # Jun meeting
-    "2026-07-28", "2026-07-29",  # Jul meeting
-    "2026-09-15", "2026-09-16",  # Sep meeting
-    "2026-11-03", "2026-11-04",  # Nov meeting
-    "2026-12-15", "2026-12-16",  # Dec meeting
-]
 
 # Decision is announced on the second day of each 2-day meeting.
 _FOMC_DECISION_DATES_2026 = [

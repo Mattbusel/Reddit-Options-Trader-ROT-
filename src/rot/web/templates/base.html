@@ -427,6 +427,19 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var csrf = document.cookie.split('; ')
+            .find(function(c) { return c.startsWith('rot_csrf='); });
+        if (csrf) {
+            var token = csrf.split('=')[1];
+            document.body.setAttribute('hx-headers', JSON.stringify({'x-csrf-token': token}));
+            document.querySelectorAll('input[name="csrf_token"]').forEach(function(el) {
+                el.value = token;
+            });
+        }
+    });
+    </script>
 </head>
 <body class="min-h-screen">
     <nav class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">

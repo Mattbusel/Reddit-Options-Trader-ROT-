@@ -17,63 +17,6 @@ class AnalyticsMixin:
     Requires self.db to be an open aiosqlite.Connection.
     """
 
-    # ── Trending & Summary ──
-
-    async def get_trending_tickers(self, hours: int = 24, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get top tickers by signal count and confidence."""
-        cutoff = time.time() - (hours * 3600)
-        query = """
-            SELECT ticker,
-                   COUNT(*) as signal_count,
-                   AVG(confidence) as avg_confidence,
-                   MAX(trend_score) as max_trend_score,
-                   GROUP_CONCAT(DISTINCT stance) as stances,
-                   MAX(created_at) as latest_at
-            FROM signals
-            WHERE created_at > ? AND ticker != 'UNKNOWN'
-            GROUP BY ticker
-            ORDER BY signal_count DESC, avg_confidence DESC
-            LIMIT ?
-        """
-        async with self.db.execute(query, (cutoff, limit)) as cursor:
-            rows = await cursor.fetchall()
-            return [_row_to_dict(row) for row in rows]
-
-    async def get_performance_summary(self, days: int = 30) -> Dict[str, Any]:
-        """Get high-level performance stats (signal counts, stance breakdown, confidence)."""
-        cutoff = time.time() - (days * 86400)
-        now = time.time()
-        cutoff_24h = now - 86400
-        cutoff_7d = now - 7 * 86400
-        query = """
-            SELECT
-                COUNT(*) as total_signals,
-                AVG(confidence) as avg_confidence,
-                SUM(CASE WHEN stance IN ('bullish', 'bearish') THEN 1 ELSE 0 END) as tradeable_signals,
-                SUM(CASE WHEN stance = 'bullish' THEN 1 ELSE 0 END) as bullish_count,
-                SUM(CASE WHEN stance = 'bearish' THEN 1 ELSE 0 END) as bearish_count,
-                SUM(CASE WHEN stance = 'mixed' THEN 1 ELSE 0 END) as mixed_count,
-                SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as signals_today,
-                SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as signals_7d,
-                SUM(CASE WHEN confidence >= 0.5 THEN 1 ELSE 0 END) as high_conf_count,
-                SUM(CASE WHEN strategy = 'debit_spread' THEN 1
-                         WHEN strategy = 'credit_spread' THEN 1
-                         WHEN strategy = 'long_call' OR strategy = 'long_put' THEN 1
-                         ELSE 0 END) as _strat_dummy,
-                COUNT(DISTINCT ticker) as unique_tickers,
-                COUNT(DISTINCT subreddit) as unique_sources
-            FROM signals
-            WHERE created_at > ?
-        """
-        async with self.db.execute(query, (cutoff_24h, cutoff_7d, cutoff)) as cursor:
-            row = await cursor.fetchone()
-            if not row:
-                return {"total_signals": 0}
-            d = _row_to_dict(row)
-            total = d.get("total_signals", 0) or 0
-            d["daily_avg"] = round(total / max(days, 1), 1)
-            return d
-
     async def get_strategy_breakdown(self, days: int = 30) -> List[Dict[str, Any]]:
         """Get top strategies by count for the stat card."""
         cutoff = time.time() - (days * 86400)
@@ -404,7 +347,7 @@ class AnalyticsMixin:
         cutoff = time.time() - (hours * 3600)
         valid_sorts = {"signal_count", "avg_confidence", "max_trend_score"}
         order = sort_by if sort_by in valid_sorts else "signal_count"
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT
                 ticker,
                 COUNT(*) as signal_count,
@@ -598,7 +541,7 @@ class AnalyticsMixin:
             params.extend(_NEWS_SUBS)
 
         where_clause = " AND ".join(conditions)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT id, ticker, event_type, stance, confidence, subreddit,
                    post_title, post_url, created_at, reasoning
             FROM signals
@@ -779,47 +722,6 @@ class AnalyticsMixin:
                 results.append(d)
             return results
 
-    # ------------------------------------------------------------------
-    # Unusual Activity
-    # ------------------------------------------------------------------
-
-    async def get_unusual_activity_signals(
-        self, hours: int = 24, limit: int = 50
-    ) -> List[Dict[str, Any]]:
-        """Get signals with unusual options activity indicators."""
-        cutoff = time.time() - (hours * 3600)
-        query = """
-            SELECT id, created_at, ticker, event_type, stance, confidence,
-                   quality_score, strategy, subreddit, post_title, market_data
-            FROM signals
-            WHERE created_at > ?
-            ORDER BY created_at DESC
-            LIMIT ?
-        """
-        async with self.db.execute(query, (cutoff, limit)) as cursor:
-            rows = await cursor.fetchall()
-
-        results = []
-        for row in rows:
-            d = dict(row)
-            # Parse market_data JSON to check for unusual activity indicators
-            market_data_str = d.get("market_data", "{}")
-            try:
-                market_data = json.loads(market_data_str) if isinstance(market_data_str, str) else market_data_str
-                if isinstance(market_data, dict):
-                    # Check for high IV, volume surge, or OI changes
-                    iv = market_data.get("iv_percentile", 0)
-                    volume_surge = market_data.get("volume_vs_avg", 1.0)
-                    oi_change = market_data.get("oi_change_pct", 0)
-
-                    if iv > 80 or volume_surge > 2.0 or abs(oi_change) > 20:
-                        d["market_data_parsed"] = market_data
-                        results.append(d)
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        return results
-
     async def get_unusual_events(
         self, hours: int = 24, event_type: Optional[str] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
@@ -834,7 +736,7 @@ class AnalyticsMixin:
             params.append(event_type)
 
         where = " AND ".join(conditions)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM unusual_events
             WHERE {where}
             ORDER BY detected_at DESC, score DESC

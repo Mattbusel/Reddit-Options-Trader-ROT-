@@ -12,27 +12,21 @@ Design goals:
 
 from __future__ import annotations
 
-import math
 import time as _time
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from rot.backtest.config import BacktestConfig
 from rot.backtest.metrics import (
     compute_annual_return,
     compute_calmar_ratio,
-    compute_cvar,
     compute_drawdown_periods,
     compute_expectancy,
-    compute_mae_mfe,
     compute_max_drawdown,
     compute_monthly_returns,
     compute_profit_factor,
-    compute_recovery_factor,
     compute_sharpe_ratio,
     compute_sortino_ratio,
     compute_strategy_breakdown,
-    compute_var,
     compute_win_rate,
 )
 from rot.backtest.result import BacktestResult, EquityPoint, TradeRecord
@@ -210,8 +204,6 @@ class BacktestEngine:
         sum_win_pct = 0.0
         sum_loss_pct = 0.0
 
-        # Track concurrent positions (simplified: each signal is one trade)
-        open_count = 0
         # We process signals sequentially; since we use exit prices that
         # are already resolved, each "position" opens and closes instantly
         # in our simulation (entry → known exit). This is a simplification;

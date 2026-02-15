@@ -124,6 +124,7 @@
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-blue-900/30 text-blue-400 border border-blue-700 text-sm font-semibold">Current Plan</div>
                 {% elif stripe_enabled and user %}
                 <button onclick="checkout('pro')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro — $9.99/mo</button>
+                <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
                 {% elif not user %}
                 <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Start Free &rarr; Upgrade to Pro</a>
                 {% else %}
@@ -154,6 +155,7 @@
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-purple-900/30 text-purple-400 border border-purple-700 text-sm font-semibold">Current Plan</div>
                 {% elif stripe_enabled and user %}
                 <button onclick="checkout('premium')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Upgrade to Premium</button>
+                <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
                 {% elif not user %}
                 <a href="/register" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% else %}
@@ -182,6 +184,7 @@
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-amber-900/30 text-amber-400 border border-amber-700 text-sm font-semibold">Current Plan</div>
                 {% elif stripe_enabled and user %}
                 <button onclick="checkout('ultra')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Upgrade to Ultra</button>
+                <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
                 {% elif not user %}
                 <a href="/register" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Sign Up</a>
                 {% else %}
@@ -210,6 +213,7 @@
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-emerald-900/30 text-emerald-400 border border-emerald-700 text-sm font-semibold">Current Plan</div>
                 {% elif stripe_enabled and user %}
                 <button onclick="checkout('enterprise')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Go Enterprise</button>
+                <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
                 {% elif not user %}
                 <a href="/register" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition">Contact Sales</a>
                 {% else %}
@@ -219,6 +223,45 @@
         </div>
     </div>
     <p class="text-center text-xs text-gray-600 mt-4">Founding member pricing &mdash; lock in today's rate before it goes up.</p>
+</div>
+
+<!-- ============================================================
+     TRUST STRIP
+     ============================================================ -->
+<div class="max-w-3xl mx-auto mb-12">
+    <!-- Trust badges -->
+    <div class="flex flex-wrap items-start justify-center gap-8 mb-6">
+        <div class="text-center">
+            <div class="text-lg mb-1">&#128179;</div>
+            <div class="text-[10px] text-gray-500">Stripe Secured</div>
+        </div>
+        <div class="text-center">
+            <div class="text-lg mb-1">&#128737;&#65039;</div>
+            <div class="text-[10px] text-gray-500">0 Vulnerabilities</div>
+        </div>
+        <div class="text-center">
+            <div class="text-lg mb-1">&#128272;</div>
+            <div class="text-[10px] text-gray-500">Bank-Grade Auth</div>
+        </div>
+        <div class="text-center">
+            <div class="text-lg mb-1">&#9203;</div>
+            <div class="text-[10px] text-gray-500">Cancel Anytime</div>
+        </div>
+        <div class="text-center">
+            <div class="text-lg mb-1">&#128274;</div>
+            <div class="text-[10px] text-gray-500">Encrypted</div>
+        </div>
+    </div>
+
+    <!-- Guarantee box -->
+    <div class="signal-card rounded-xl p-5 border-l-2 border-green-500/40">
+        <div class="flex items-start gap-3">
+            <span class="text-xl shrink-0">&#128737;&#65039;</span>
+            <p class="text-xs text-gray-400 leading-relaxed">
+                <strong class="text-white">Your payment is secured by Stripe.</strong> We never store, see, or process your credit card information. Stripe handles all payment data on their PCI-DSS Level 1 certified servers &mdash; the same infrastructure used by Amazon, Google, and Shopify.
+            </p>
+        </div>
+    </div>
 </div>
 
 <!-- ============================================================
@@ -270,6 +313,7 @@
             </a>
             {% endif %}
         </div>
+        <p class="text-[10px] text-gray-600 mt-3">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
     </div>
 </div>
 

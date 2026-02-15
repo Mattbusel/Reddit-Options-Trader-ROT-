@@ -1,7 +1,6 @@
 """Sentiment Heatmap — Reddit sentiment across tickers over time."""
 from __future__ import annotations
 
-import time
 from collections import defaultdict
 
 from fastapi import APIRouter, Request

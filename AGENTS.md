@@ -261,3 +261,72 @@ terminal.py             ticker_dive.py        tradingview.py
 unusual_activity.py     websocket.py          weekly_wrap.py
 widgets.py              __init__.py
 ```
+
+---
+
+## 7. CODE QUALITY GUARDRAILS (MANDATORY)
+
+> **ZERO TOLERANCE**: This codebase maintains a **0 open CodeQL alert** baseline.
+> Every agent MUST follow these rules. Violations will be caught by CI and block merges.
+> For full security policy, see `SECURITY.md`.
+
+### Before Writing ANY Code
+
+1. **Read before edit.** Always read the target file first. Understand existing imports, variables, and patterns.
+2. **Minimal changes only.** Touch only what the task requires. Do not "clean up" surrounding code unless that IS the task.
+
+### Import Discipline
+
+3. **Only import what you use.** After editing a file, verify every imported name is referenced in the file body (not just type comments).
+4. **Cascading check:** If you remove code that used an import, check if the import is now orphaned. Remove it.
+5. **Typing imports with `from __future__ import annotations`:** CodeQL still tracks usage. Only import typing names that appear in annotations or runtime code.
+6. **Circular imports:** Use `if TYPE_CHECKING:` guard. Never create runtime circular imports.
+
+### Variable Discipline
+
+7. **Every assignment must be read.** If you write `x = foo()` and never use `x`, either use it or write `foo()` as a bare expression.
+8. **Auth guards are side-effect calls.** Write `await require_tier("pro")(request)` NOT `_user = await require_tier("pro")(request)`. The `_` prefix does NOT suppress CodeQL alerts.
+9. **Cascading check:** If you remove code that read a variable, check if the assignment is now dead. Remove it.
+10. **No dead initializations.** If every if/elif/else branch assigns a variable, do not initialize before the block.
+
+### Exception Handling
+
+11. **Never `except: pass`.** Always log (`log.error(...)`) or re-raise. Minimum: `log.debug("...", exc_info=True)`.
+12. **Catch specific exceptions.** `except ValueError` not `except Exception` unless handling all exceptions is intentional and documented.
+
+### Security (Critical)
+
+13. **No secrets in responses.** Never expose stack traces, credentials, or internal paths to users.
+14. **No secrets in logs.** `SanitizingLogFilter` is global but don't rely on it as the only defense.
+15. **Password hashing:** bcrypt only. SHA-256 for high-entropy tokens only. SHA-1 only for OAuth 1.0a (must have code comment explaining why).
+16. **Input validation at boundaries.** Validate user input, API responses, config values. Trust internal calls.
+17. **SQL injection prevention.** Always use parameterized queries (`?` placeholders). Never f-string SQL with user data.
+
+### Logic and Comparison
+
+18. **No self-comparisons.** Never write `x == x` or `x != x`. Use `math.isnan()` for NaN checks.
+19. **No redundant conditions.** If both branches have the same condition, consolidate.
+20. **Float equality:** Use `math.isclose()` for comparisons, `math.isnan()` for NaN detection.
+
+### Agent Pre-Commit Checklist
+
+Before committing, mentally verify:
+```
+[ ] Every imported name is used in the file
+[ ] Every assigned variable is read downstream
+[ ] No bare except: pass blocks exist
+[ ] No secrets or stack traces in user-facing output
+[ ] No self-comparisons (x == x, x != x)
+[ ] Tests pass: python -m pytest tests/ -x --tb=short
+```
+
+### Common Agent Mistakes (from 425 fixed alerts)
+
+| Mistake | Frequency | Fix |
+|---------|-----------|-----|
+| Imported `Optional` but used `X \| None` syntax | Very common | Remove `Optional` from import |
+| Copied function + imports, used subset | Very common | Remove unused imports after paste |
+| `_user = await auth(...)` never read | Common | Bare `await auth(...)` |
+| `except Exception: pass` | Common | `log.error(...)` or re-raise |
+| Initialized var before if/else that covers all branches | Moderate | Remove initialization |
+| `x != x` for NaN check | Rare | `math.isnan(x)` |

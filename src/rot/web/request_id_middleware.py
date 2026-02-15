@@ -14,14 +14,12 @@ from typing import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
 from rot.core.request_context import (
     generate_request_id,
     set_request_id,
     set_user_id,
     set_correlation_id,
-    get_request_id,
     clear_context,
 )
 

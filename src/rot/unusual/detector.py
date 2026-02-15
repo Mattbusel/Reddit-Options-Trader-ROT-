@@ -7,7 +7,7 @@ put/call skew shifts, and sweep-like patterns. Produces scored events.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from rot.unusual.config import UnusualDetectorConfig
 from rot.unusual.history import UnusualHistory

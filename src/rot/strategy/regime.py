@@ -18,7 +18,7 @@ import statistics
 import time
 from uuid import uuid4
 
-from rot.strategy.types import MarketRegime, RegimeStrategy, REGIME_TYPES
+from rot.strategy.types import MarketRegime, RegimeStrategy
 
 logger = logging.getLogger(__name__)
 

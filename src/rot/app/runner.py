@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
@@ -89,7 +89,7 @@ class PipelineRunner:
         try:
             self.on_signal(signal_data)
         except Exception:
-            pass
+            pass  # Signal callback errors must not break the pipeline
 
     def run_once(self) -> dict:
         run_id = f"run_{int(time.time())}"

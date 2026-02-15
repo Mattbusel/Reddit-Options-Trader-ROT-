@@ -106,7 +106,7 @@ class FlowMixin:
             params.append(min_score)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_events
             WHERE {where}
             ORDER BY detected_at DESC
@@ -262,7 +262,7 @@ class FlowMixin:
             params.append(pattern_type)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_patterns
             WHERE {where}
             ORDER BY detected_at DESC
@@ -334,7 +334,7 @@ class FlowMixin:
             params.append(convergence_type)
 
         where = " AND ".join(clauses)
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT * FROM flow_convergences
             WHERE {where}
             ORDER BY convergence_score DESC, detected_at DESC
@@ -359,28 +359,3 @@ class FlowMixin:
             results.append(d)
         return results
 
-    # ── Data Management ──────────────────────────────────────────────────
-
-    async def purge_old_flow_data(self, keep_days: int = 90) -> int:
-        """Delete flow events, patterns, and convergences older than keep_days.
-        Returns total count deleted."""
-        cutoff = time.time() - (keep_days * 86400)
-        total = 0
-
-        for table in ("flow_events", "flow_patterns", "flow_convergences"):
-            async with self.db.execute(
-                f"SELECT COUNT(*) as cnt FROM {table} WHERE detected_at < ?",  # nosec B608 - SQL uses constants only, values parameterized
-                (cutoff,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                count = row["cnt"] if row else 0
-            if count > 0:
-                await self.db.execute(
-                    f"DELETE FROM {table} WHERE detected_at < ?",  # nosec B608 - SQL uses constants only, values parameterized
-                    (cutoff,),
-                )
-                total += count
-
-        if total > 0:
-            await self.db.commit()
-        return total

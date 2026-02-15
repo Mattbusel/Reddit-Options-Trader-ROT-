@@ -6,10 +6,9 @@ maintenance operations. It assumes self.db (aiosqlite Connection) exists.
 """
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ class CleanupMixin:
         cutoff = time.time() - (keep_days * 86400)
         # Only snapshot signals that will be deleted (older than cutoff)
         # AND that have price data to evaluate
-        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
+        query = f"""
             SELECT
                 COUNT(*) as total_tracked,
                 MIN(s.created_at) as period_start,
@@ -529,8 +528,6 @@ class CleanupMixin:
 
         This is a rule-based fallback when no LLM is available.
         """
-        from rot.storage.database import Database
-
         # Get signals needing post-mortem
         query = """
             SELECT s.id, s.ticker, s.stance, s.confidence, s.event_type, s.strategy,
@@ -551,7 +548,7 @@ class CleanupMixin:
         count = 0
         for sig in signals:
             try:
-                pm = Database._build_post_mortem_text(sig)
+                pm = self._build_post_mortem_text(sig)
                 if pm:
                     await self.db.execute(
                         "UPDATE signals SET post_mortem = ? WHERE id = ?",
@@ -572,11 +569,11 @@ class CleanupMixin:
         try:
             await self.db.execute("PRAGMA incremental_vacuum(200)")  # Free up to 200 pages
         except Exception:
-            pass
+            pass  # Intentionally suppressed
         try:
             await self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # Shrink WAL file
         except Exception:
-            pass
+            pass  # Intentionally suppressed
         await self.db.execute("VACUUM")
         log.info("Purge: VACUUM + WAL checkpoint complete")
 
@@ -754,7 +751,7 @@ class CleanupMixin:
                      size_info.get("signal_performance_rows", 0),
                      size_info.get("users_rows", 0))
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
         total = sum(results.values())
         log.info("Cleanup complete: %d total rows deleted/compacted | %s", total, results)

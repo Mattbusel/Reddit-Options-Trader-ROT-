@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from rot.analysis.sector_types import (
     CapitalFlow,

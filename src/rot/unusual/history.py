@@ -11,7 +11,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, Optional
 
 
 @dataclass
@@ -119,8 +119,8 @@ class UnusualHistory:
         variance = sum((v - mean) ** 2 for v in history) / len(history)
         std = math.sqrt(variance) if variance > 0 else 0.0
         if std < 1.0:
-            # Low variance — use ratio instead
-            return (current_volume / mean) - 1.0 if mean > 0 else None
+            # Low variance — use ratio instead (mean >= 1.0 guaranteed above)
+            return (current_volume / mean) - 1.0
         return (current_volume - mean) / std
 
     def get_volume_ratio(self, ticker: str, current_volume: float) -> Optional[float]:

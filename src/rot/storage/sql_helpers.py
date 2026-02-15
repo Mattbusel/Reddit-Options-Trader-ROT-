@@ -27,6 +27,12 @@ Utility Functions:
 import json
 from typing import Any, Dict
 
+__all__ = [
+    "_WIN_SQL", "_LOSS_SQL", "_NEUTRAL_SQL", "_PRICE_COL",
+    "_A_WIN_SQL", "_A_LOSS_SQL", "_A_NEUTRAL_SQL", "_A_PRICE_COL",
+    "_UNIFIED_CTE", "_to_dict", "_row_to_dict",
+]
+
 # ── Standard macros (for signals JOIN signal_performance queries) ──
 
 _WIN_CASE_SQL = """

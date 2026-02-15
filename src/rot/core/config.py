@@ -69,6 +69,7 @@ class WebConfig(BaseSettings):
     host: str = "0.0.0.0"  # nosec B104 - intentional for containerized deployment
     port: int = 8000
     secret_key: str = "change-me-in-production"
+    cors_origins: str = os.environ.get("ROT_CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
 
 
 class RSSFeedEntry(BaseSettings):

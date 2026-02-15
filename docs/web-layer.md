@@ -3,9 +3,9 @@
 
 > See [CLAUDE.md](../CLAUDE.md) for full index.
 
-**Key files:** `src/rot/web/routes/` (40+ files), `auth.py`, `tier_gate.py`, `query_cache.py`, `rate_limit.py`, `api_models.py`, `request_id_middleware.py`
+**Key files:** `src/rot/web/routes/` (40+ files), `auth.py`, `tier_gate.py`, `query_cache.py`, `rate_limit.py`, `api_models.py`, `request_id_middleware.py`, `security_headers.py`, `error_middleware.py`
 **Stack:** FastAPI + Jinja2 + Tailwind CSS + Chart.js + HTMX (all self-hosted in `/static/js/`) + GZipMiddleware(min=500)
-**Factory:** `src/rot/web/server.py` creates app, mounts routes, starts background pipeline
+**Factory:** `src/rot/web/app.py` creates app, mounts routes, starts background pipeline
 **Docs:** OpenAPI/Swagger UI at `/docs`, ReDoc at `/redoc`
 
 ---
@@ -177,6 +177,29 @@ if access["has_quadrant"]:
 ## Stripe Config
 
 `ROT_STRIPE_SECRET_KEY`, `ROT_STRIPE_WEBHOOK_SECRET`, `ROT_STRIPE_{PRO|PREMIUM|ULTRA|ENTERPRISE}_PRICE_ID`
+
+Webhook (`POST /api/v1/billing/webhook`): signature verified via `stripe.Webhook.construct_event()`, empty secret guard (500), failed verification logs client IP.
+
+---
+
+## Security Middleware
+
+**Module:** `src/rot/web/security_headers.py` — `SecurityHeadersMiddleware` adds 6 headers to all responses:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-inline' ...` | XSS mitigation |
+| `X-Content-Type-Options` | `nosniff` | MIME-sniffing prevention |
+| `X-Frame-Options` | `DENY` | Clickjacking prevention |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Referrer leakage |
+| `X-XSS-Protection` | `0` | Disable legacy XSS filter (OWASP) |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(self)` | Feature restriction |
+
+CSP allows: Tailwind CDN, Stripe JS/API, WebSocket (`ws:`, `wss:`). Uses `'unsafe-inline'` for `script-src` (102 inline scripts). Nonce-based CSP is a future phase.
+
+**Sanitizer:** `src/rot/core/sanitize.py` — defense-in-depth for `|safe` content: `sanitize_html()` (nh3/Rust), `strip_html()`, `sanitize_for_json()`.
+
+**Middleware stack order** (in `app.py`): RequestIDMiddleware → GZipMiddleware → CORSMiddleware → SecurityHeadersMiddleware
 
 ---
 

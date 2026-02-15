@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from rot.backtest.metrics import _daily_returns
 from rot.backtest.result import BacktestResult, EquityPoint

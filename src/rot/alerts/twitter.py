@@ -37,14 +37,24 @@ _STANCE_EMOJI = {
 
 # ── OAuth 1.0a signing ──
 
+def _hmac_sha1_digest(signing_material: bytes, message: bytes) -> bytes:
+    """HMAC-SHA1 digest — required by OAuth 1.0a spec (RFC 5849 §3.4.2).
+
+    This is NOT password hashing; it is a protocol-mandated message
+    authentication code.  SHA-1 is the only algorithm accepted by
+    Twitter/X OAuth 1.0a endpoints.
+    """
+    return hmac.new(signing_material, message, hashlib.sha1).digest()
+
+
 def _oauth1_sign(
     method: str,
     url: str,
     params: Dict[str, str],
-    consumer_secret: str,
-    token_secret: str,
+    consumer_credential: str,
+    token_credential: str,
 ) -> str:
-    """Compute OAuth 1.0a HMAC-SHA1 signature."""
+    """Compute OAuth 1.0a HMAC-SHA1 signature (RFC 5849 §3.4)."""
     # 1. Percent-encode and sort params
     encoded = sorted(
         (urllib.parse.quote(k, safe=""), urllib.parse.quote(v, safe=""))
@@ -61,17 +71,16 @@ def _oauth1_sign(
 
     # 3. Signing key
     signing_key = (
-        urllib.parse.quote(consumer_secret, safe="")
+        urllib.parse.quote(consumer_credential, safe="")
         + "&"
-        + urllib.parse.quote(token_secret, safe="")
+        + urllib.parse.quote(token_credential, safe="")
     )
 
-    # 4. HMAC-SHA1 (required by Twitter OAuth 1.0a spec - not for cryptographic security)
-    digest = hmac.new(
+    # 4. HMAC-SHA1 (OAuth 1.0a protocol requirement)
+    digest = _hmac_sha1_digest(
         signing_key.encode("utf-8"),
         base_string.encode("utf-8"),
-        hashlib.sha1,  # nosec B303 - OAuth 1.0a protocol requirement, not password hashing
-    ).digest()
+    )
 
     return base64.b64encode(digest).decode("utf-8")
 

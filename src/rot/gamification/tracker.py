@@ -6,11 +6,10 @@ It handles login streaks, activity tracking, and badge eligibility evaluation.
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
 from .badges import BADGE_REGISTRY, get_badge
-from .types import Badge, BadgeProgress, UserStats, Streak
+from .types import Badge, BadgeProgress, UserStats
 
 
 class BadgeTracker:
@@ -53,7 +52,6 @@ class BadgeTracker:
             # First login ever
             await self.db.create_user_stats(user_id, now)
             await self._start_new_streak(user_id, now)
-            stats = await self.db.get_user_stats(user_id)
             new_badges = await self.evaluate_badge_eligibility(user_id)
             return {
                 "login_count": 1,
@@ -328,7 +326,6 @@ class BadgeTracker:
 
     async def _check_badge_criteria(self, user_id: str, badge: Badge, stats: UserStats) -> bool:
         """Check if badge unlock criteria are met."""
-        metric = badge.unlock_criteria.get("metric")
         threshold = badge.unlock_criteria.get("threshold")
         reverse = badge.unlock_criteria.get("reverse", False)
 

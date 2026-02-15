@@ -19,7 +19,7 @@ import logging
 import time
 import uuid
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from rot.flow.types import FlowEvent, FlowPattern
 

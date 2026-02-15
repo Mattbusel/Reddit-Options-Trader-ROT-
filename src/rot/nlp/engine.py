@@ -78,7 +78,7 @@ class NLPEngine:
         try:
             temporal = self._temporal.analyze(all_tokens, full_text)
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
         # ── 6. Thread analysis ──
         thread: Optional[ThreadResult] = None
@@ -86,7 +86,7 @@ class NLPEngine:
             try:
                 thread = self._thread.analyze(sentiment, comments)
             except Exception:
-                pass
+                pass  # Intentionally suppressed
 
         # ── 7. Derive convenience fields ──
         ticker_symbols = sorted(set(

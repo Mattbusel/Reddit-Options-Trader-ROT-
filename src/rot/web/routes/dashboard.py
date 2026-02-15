@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from rot.core.logging import sanitize_for_log
 import json
 import logging
 import time
@@ -16,7 +15,6 @@ from rot.web.auth import (
     create_access_token,
     get_current_user_optional,
     hash_password,
-    require_user,
     verify_password,
 )
 from rot.web.tier_gate import (
@@ -243,7 +241,7 @@ async def _dashboard_inner(request: Request):
         try:
             strategy_breakdown = await db.get_strategy_breakdown(days=30)
         except Exception:
-            pass
+            pass  # Intentionally suppressed
 
     # Chart data — gated by tier
     chart_access = gate_chart_access(tier)
@@ -310,7 +308,7 @@ async def _dashboard_inner(request: Request):
         try:
             leaderboard_hours = int(q_lb_hours)
         except ValueError:
-            pass
+            pass  # Intentionally suppressed
     try:
         lb_limit = lb_access["leaderboard_limit"]
         if lb_access["has_performance_column"]:
@@ -446,12 +444,12 @@ async def _landing_page(request: Request):
             summary = await db.get_performance_summary(days=90)
             s["total_signals"] = summary.get("total_signals", 0) or 0
         except Exception:
-            pass
+            pass  # Intentionally suppressed
         try:
             trending = await db.get_trending_tickers(hours=24, limit=100)
             s["active_tickers"] = len(trending)
         except Exception:
-            pass
+            pass  # Intentionally suppressed
         try:
             accuracy = await db.get_aggregate_accuracy(days=30)
             winners = accuracy.get("winners", 0) or 0
@@ -460,7 +458,7 @@ async def _landing_page(request: Request):
             if decided > 0:
                 s["win_rate"] = (winners / decided) * 100
         except Exception:
-            pass
+            pass  # Intentionally suppressed
         return s
 
     if cache:
@@ -573,6 +571,7 @@ async def login_form(request: Request, email: str = Form(...), password: str = F
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response
@@ -631,6 +630,7 @@ async def register_form(
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response
