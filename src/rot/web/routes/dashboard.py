@@ -147,13 +147,11 @@ async def landing_or_dashboard(request: Request):
             return await _dashboard_inner(request)
         return await _landing_page(request)
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
         log.exception("Landing/dashboard route failed: %s", e)
+        # Don't expose internal error details to users (CWE-209)
         return HTMLResponse(
             f"<h1>Something went wrong</h1><p>The page encountered an error. "
-            f"Please try <a href='/dashboard'>refresh</a>.</p>"
-            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            f"Please try <a href='/dashboard'>refresh</a>.</p>",
             status_code=500,
         )
 
@@ -163,14 +161,12 @@ async def dashboard(request: Request):
     try:
         return await _dashboard_inner(request)
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
         log.exception("Dashboard route failed: %s", e)
+        # Don't expose internal error details to users (CWE-209)
         return HTMLResponse(
             f"<h1>Something went wrong</h1><p>The dashboard encountered an error. "
             f"Please try <a href='/logout'>logging out</a> and back in, or "
-            f"<a href='/dashboard'>refresh</a>.</p>"
-            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            f"<a href='/dashboard'>refresh</a>.</p>",
             status_code=500,
         )
 
@@ -483,13 +479,11 @@ async def signal_detail(request: Request, signal_id: str):
     try:
         return await _signal_detail_inner(request, signal_id)
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
         log.exception("Signal detail route failed: %s", e)
+        # Don't expose internal error details to users (CWE-209)
         return HTMLResponse(
             f"<h1>Something went wrong</h1><p>Error loading signal. "
-            f"<a href='/dashboard'>Back to dashboard</a>.</p>"
-            f"<pre>{type(e).__name__}: {e}\n\n{tb}</pre>",
+            f"<a href='/dashboard'>Back to dashboard</a>.</p>",
             status_code=500,
         )
 
