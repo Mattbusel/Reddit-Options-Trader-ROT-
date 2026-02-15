@@ -24,7 +24,7 @@ build/
 
 # Data / SQLite
 data/
-storage/
+/storage/
 *.db
 *.sqlite
 
