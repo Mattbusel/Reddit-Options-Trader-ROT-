@@ -5,7 +5,7 @@
 
 [![Security: 0 alerts](https://img.shields.io/badge/security%20alerts-0-brightgreen)]()
 [![Tests: 6,916](https://img.shields.io/badge/tests-6%2C916-blue)]()
-[![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.57%3A1-blue)]()
+[![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.62%3A1-blue)]()
 
 
 ---
@@ -16,7 +16,7 @@ ROT is a full-stack signal intelligence platform. It monitors Reddit in real tim
 
 This is not a trading bot. ROT is the intelligence layer that surfaces what matters before price fully reacts.
 
-**Live deployment:** [rot.up.railway.app](https://rot.up.railway.app)
+**Live deployment:** [rot.up.railway.app](https://web-production-71423.up.railway.app/)
 
 ---
 
@@ -250,6 +250,12 @@ Full audit reports available in [`docs/`](docs/).
 This project is for research and experimentation only. Nothing in this repository constitutes financial advice. ROT is a signal intelligence platform, not an execution engine.
 
 ---
+
+
+
+
+
+
 
 
 
