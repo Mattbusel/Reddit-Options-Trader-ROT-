@@ -26,6 +26,9 @@ build/
 data/
 /storage/
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 *.sqlite
 
 # OS
