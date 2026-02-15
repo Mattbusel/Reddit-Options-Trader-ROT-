@@ -1,0 +1,82 @@
+version: 2
+updates:
+  # Python dependency updates
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "00:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "Mattbusel"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group updates to reduce PR noise
+    groups:
+      fastapi-ecosystem:
+        patterns:
+          - "fastapi*"
+          - "starlette*"
+          - "uvicorn*"
+          - "pydantic*"
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage*"
+          - "httpx*"
+      data-science:
+        patterns:
+          - "pandas*"
+          - "numpy*"
+          - "scikit-learn*"
+      security:
+        patterns:
+          - "cryptography*"
+          - "pyjwt*"
+          - "passlib*"
+    # Security updates only for production dependencies
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+
+  # GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "00:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Mattbusel"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker updates (if Dockerfile exists)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "00:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Mattbusel"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
