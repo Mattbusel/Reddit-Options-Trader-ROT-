@@ -13,7 +13,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import combinations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.social.types import ManipulationAlert
 

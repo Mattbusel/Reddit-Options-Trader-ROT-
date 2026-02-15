@@ -24,11 +24,9 @@ from rot.backtest.metrics import (
     compute_max_drawdown,
     compute_monthly_returns,
     compute_profit_factor,
-    compute_recovery_factor,
     compute_sharpe_ratio,
     compute_sortino_ratio,
     compute_strategy_breakdown,
-    compute_var,
     compute_win_rate,
 )
 from rot.backtest.result import BacktestResult, EquityPoint, TradeRecord

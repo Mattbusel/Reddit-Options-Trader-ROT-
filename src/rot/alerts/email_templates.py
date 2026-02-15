@@ -135,7 +135,6 @@ def render_daily_digest(
     bullish = summary.get("bullish_count", 0)
     bearish = summary.get("bearish_count", 0)
     unique = summary.get("unique_tickers", 0)
-    avg_conf = summary.get("avg_confidence", 0)
 
     # Build signal cards (already deduplicated by the query)
     signal_cards = ""

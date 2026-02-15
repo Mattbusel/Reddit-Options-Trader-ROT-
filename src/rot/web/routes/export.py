@@ -127,7 +127,7 @@ async def export_performance(
     ticker: Optional[str] = None,
 ):
     """Export signal performance data as CSV. Requires Ultra tier."""
-    _user = await require_tier("ultra", "enterprise")(request)
+    await require_tier("ultra", "enterprise")(request)
 
     db = request.app.state.db
     records = await db.get_performance_csv_data(days=days, ticker=ticker)

@@ -13,7 +13,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import httpx
 from fastapi import APIRouter, Request
@@ -706,7 +706,6 @@ class SportsNewsCache:
                 summary = re.sub(r"<[^>]+>", "", summary).strip()[:300]
 
             # Parse published time
-            published = 0.0
             if hasattr(entry, "published_parsed") and entry.published_parsed:
                 try:
                     published = float(calendar.timegm(entry.published_parsed))
