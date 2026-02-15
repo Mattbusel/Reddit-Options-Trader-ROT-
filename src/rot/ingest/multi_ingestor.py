@@ -14,7 +14,6 @@ class Ingestor(Protocol):
 
     def poll(self) -> List[ThreadSnapshot]:
         """Poll for new thread snapshots."""
-        ...
 
 
 class MultiSourceIngestor:

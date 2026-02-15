@@ -88,7 +88,6 @@ async def register(body: RegisterRequest, request: Request):
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
     from rot.core.logging import sanitize_for_log
-    log = logging.getLogger(__name__)
     safe_email = sanitize_for_log(body.email)
     safe_ip = sanitize_for_log(request.client.host if request.client else 'unknown')
     log.warning(f"[LOGIN_DEBUG] Login attempt for email={safe_email}, ip={safe_ip}")
@@ -144,8 +143,7 @@ async def login(body: LoginRequest, request: Request):
         tracker = BadgeTracker(db)
         await tracker.record_login(user["id"])
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("Badge tracking failed for login: %s", e)
+        log.warning("Badge tracking failed for login: %s", e)
 
     response = JSONResponse(content={
         "user": {"id": user["id"], "email": user["email"], "tier": user["tier"]},

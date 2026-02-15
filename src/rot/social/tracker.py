@@ -12,7 +12,7 @@ import math
 import time
 import uuid
 from dataclasses import dataclass, replace
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from rot.social.types import (
     AuthorPrediction,

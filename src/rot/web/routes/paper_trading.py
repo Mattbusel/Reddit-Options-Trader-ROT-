@@ -20,8 +20,6 @@ log = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_STARTING_BALANCE = 10000.0
-
 
 class PaperTradeRequest(BaseModel):
     signal_id: str

@@ -6,10 +6,9 @@ maintenance operations. It assumes self.db (aiosqlite Connection) exists.
 """
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 log = logging.getLogger(__name__)
 

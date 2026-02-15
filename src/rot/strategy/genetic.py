@@ -22,7 +22,6 @@ The optimizer is fully deterministic when a random seed is provided via
 
 from __future__ import annotations
 
-import copy
 import logging
 import random
 import time

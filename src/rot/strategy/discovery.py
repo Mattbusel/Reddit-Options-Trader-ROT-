@@ -43,7 +43,7 @@ import logging
 import math
 import random
 import time
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from rot.backtest.config import BacktestConfig

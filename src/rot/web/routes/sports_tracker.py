@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rot.web.auth import get_current_user_optional
@@ -706,7 +706,6 @@ class SportsNewsCache:
                 summary = re.sub(r"<[^>]+>", "", summary).strip()[:300]
 
             # Parse published time
-            import calendar
             published = 0.0
             if hasattr(entry, "published_parsed") and entry.published_parsed:
                 try:
