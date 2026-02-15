@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 import yfinance as yf
 
 from rot.core.types import Event
+from rot.core.retry import retry_with_backoff
 
 # Map common text aliases -> Yahoo symbols
 ALIAS_MAP: Dict[str, str] = {
@@ -161,6 +162,11 @@ class MarketEnricher:
                 return data
         return None
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=1.0,
+        retryable_exceptions=(ConnectionError, TimeoutError, OSError, Exception),
+    )
     def _fetch(self, sym: str) -> Dict[str, Any]:
         out: Dict[str, Any] = {"symbol": sym}
 
@@ -213,6 +219,11 @@ class MarketEnricher:
 
         return out
 
+    @retry_with_backoff(
+        max_attempts=3,
+        base_delay=1.0,
+        retryable_exceptions=(ConnectionError, TimeoutError, OSError, Exception),
+    )
     def _fetch_options_metrics(self, ticker: Any, current_price: Optional[float]) -> Dict[str, Any]:
         """Fetch implied volatility and open interest from nearest options chain."""
         metrics: Dict[str, Any] = {}
