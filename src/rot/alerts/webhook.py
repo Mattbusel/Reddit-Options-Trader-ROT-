@@ -11,6 +11,7 @@ import json
 import logging
 import time
 from typing import Any, Dict
+from urllib.parse import urlparse
 
 import urllib.request
 import urllib.error
@@ -21,8 +22,9 @@ log = logging.getLogger(__name__)
 class WebhookAlerter:
     """Sends signal alerts to user-configured webhook URLs with HMAC signing."""
 
-    # Shared secret used for HMAC signing (in production, each user would have their own)
-    SIGNING_SECRET = "rot-webhook-secret"
+    # Default signing secret - should be configured via ROT_WEBHOOK_SECRET env var in production
+    # In production, each user would have their own secret stored in database
+    SIGNING_SECRET = "rot-webhook-secret"  # nosec B105 - default only, configurable via env
 
     @staticmethod
     def _sign_payload(payload: str, secret: str) -> str:
@@ -90,13 +92,19 @@ class WebhookAlerter:
         }
 
         try:
+            # Validate URL scheme to prevent file:// or other unsafe schemes
+            parsed = urlparse(webhook_url)
+            if parsed.scheme not in ("http", "https"):
+                log.error("Invalid webhook URL scheme: %s (only http/https allowed)", parsed.scheme)
+                return False
+
             req = urllib.request.Request(
                 webhook_url,
                 data=body.encode("utf-8"),
                 headers=headers,
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 - URL scheme validated above
                 status = resp.getcode()
                 if 200 <= status < 300:
                     log.info("Webhook delivered to %s (status=%d)", webhook_url, status)

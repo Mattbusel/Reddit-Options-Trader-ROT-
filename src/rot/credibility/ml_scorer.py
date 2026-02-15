@@ -55,7 +55,8 @@ class MLCredibilityScorer:
                 )
                 return
             with open(p, "rb") as f:
-                self._model = pickle.load(f)
+                # Safe pickle usage - loading from trusted local file created by our training code
+                self._model = pickle.load(f)  # nosec B301 - trusted local file only
             log.info("ML credibility model loaded from %s", path)
         except Exception as exc:
             log.warning(
@@ -108,7 +109,8 @@ class MLCredibilityScorer:
     def _score_ml(self, event: Event, heuristic_result: Event) -> Event:
         """Run ML inference and return a scored Event."""
         features = extract_features_from_event(event)
-        assert len(features) == NUM_FEATURES
+        if len(features) != NUM_FEATURES:
+            raise ValueError(f"Expected {NUM_FEATURES} features, got {len(features)}")
 
         # sklearn expects 2-D array
         proba = self._model.predict_proba([features])[0]

@@ -82,6 +82,15 @@ class AgentsMixin:
         """Update agent fields. Only updates provided kwargs."""
         if not kwargs:
             return False
+        # Validate column names to prevent SQL injection
+        allowed_columns = {
+            "user_id", "name", "agent_type", "status", "rules_json", "config_json",
+            "min_confidence", "max_daily_trades", "max_position_dollars",
+            "max_portfolio_exposure_pct", "stop_loss_pct", "updated_at"
+        }
+        if not all(k in allowed_columns for k in kwargs):
+            invalid = set(kwargs.keys()) - allowed_columns
+            raise ValueError(f"Invalid column names for update: {invalid}")
         kwargs["updated_at"] = time.time()
         set_clauses = ", ".join(f"{k} = ?" for k in kwargs)
         values = list(kwargs.values()) + [agent_id]

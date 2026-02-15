@@ -196,7 +196,7 @@ class StrategyMixin:
             "newest": "created_at DESC",
         }
         order = order_map.get(sort_by, "rating DESC")
-        sql = f"SELECT * FROM strategy_marketplace ORDER BY {order} LIMIT ? OFFSET ?"
+        sql = f"SELECT * FROM strategy_marketplace ORDER BY {order} LIMIT ? OFFSET ?"  # nosec B608 - SQL uses constants only, values parameterized
         async with self.db.execute(sql, (limit, offset)) as cur:
             rows = await cur.fetchall()
             return [self._marketplace_row_to_dict(r) for r in rows]

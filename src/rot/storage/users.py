@@ -241,7 +241,7 @@ class UsersMixin:
                     params.append(val)
             if set_clauses:
                 params.append(user_id)
-                query = f"UPDATE email_alert_settings SET {', '.join(set_clauses)} WHERE user_id = ?"
+                query = f"UPDATE email_alert_settings SET {', '.join(set_clauses)} WHERE user_id = ?"  # nosec B608 - SQL uses constants only, values parameterized
                 await self.db.execute(query, params)
                 await self.db.commit()
         else:

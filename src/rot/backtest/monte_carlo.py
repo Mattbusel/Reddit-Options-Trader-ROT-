@@ -135,7 +135,7 @@ def run_monte_carlo(
             std_final_equity=0.0,
         )
 
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # nosec B311 - Monte Carlo simulation, not cryptographic
     trade_pnls = [t.pnl_pct for t in trades]
     n_trades = len(trades)
 

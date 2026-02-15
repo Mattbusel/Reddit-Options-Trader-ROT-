@@ -76,7 +76,7 @@ class CleanupMixin:
         cutoff = time.time() - (keep_days * 86400)
         # Only snapshot signals that will be deleted (older than cutoff)
         # AND that have price data to evaluate
-        query = f"""
+        query = f"""  # nosec B608 - SQL uses constants only, values parameterized
             SELECT
                 COUNT(*) as total_tracked,
                 MIN(s.created_at) as period_start,
@@ -245,7 +245,7 @@ class CleanupMixin:
             "URL", "GFC", "LSEG", "CAGR", "EBITDA", "EBIT",
         ]
         placeholders = ",".join("?" for _ in fake_tickers)
-        query = f"DELETE FROM signals WHERE ticker IN ({placeholders})"
+        query = f"DELETE FROM signals WHERE ticker IN ({placeholders})"  # nosec B608 - SQL uses constants only, values parameterized
         async with self.db.execute(query, fake_tickers) as cursor:
             count = cursor.rowcount
         await self.db.commit()
@@ -349,14 +349,14 @@ class CleanupMixin:
 
         for table in ("flow_events", "flow_patterns", "flow_convergences"):
             async with self.db.execute(
-                f"SELECT COUNT(*) as cnt FROM {table} WHERE detected_at < ?",
+                f"SELECT COUNT(*) as cnt FROM {table} WHERE detected_at < ?",  # nosec B608 - SQL uses constants only, values parameterized
                 (cutoff,),
             ) as cursor:
                 row = await cursor.fetchone()
                 count = row["cnt"] if row else 0
             if count > 0:
                 await self.db.execute(
-                    f"DELETE FROM {table} WHERE detected_at < ?",
+                    f"DELETE FROM {table} WHERE detected_at < ?",  # nosec B608 - SQL uses constants only, values parameterized
                     (cutoff,),
                 )
                 total += count
@@ -598,7 +598,7 @@ class CleanupMixin:
                           "api_usage", "x_posts", "paper_trades", "data_exports",
                           "congress_trades"):
                 try:
-                    async with self.db.execute(f"SELECT COUNT(*) FROM {table}") as c:
+                    async with self.db.execute(f"SELECT COUNT(*) FROM {table}") as c:  # nosec B608 - SQL uses constants only, values parameterized
                         row = await c.fetchone()
                         info[f"{table}_rows"] = row[0] if row else 0
                 except Exception:

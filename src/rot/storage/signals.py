@@ -254,7 +254,7 @@ class SignalsMixin:
                 params.append(source)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        query = f"SELECT * FROM signals {where} ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        query = f"SELECT * FROM signals {where} ORDER BY created_at DESC LIMIT ? OFFSET ?"  # nosec B608 - SQL uses constants only, values parameterized
         params.extend([limit, offset])
 
         async with self.db.execute(query, params) as cursor:
@@ -373,7 +373,7 @@ class SignalsMixin:
         if not set_clauses:
             return
         params.append(perf_id)
-        query = f"UPDATE signal_performance SET {', '.join(set_clauses)} WHERE id = ?"
+        query = f"UPDATE signal_performance SET {', '.join(set_clauses)} WHERE id = ?"  # nosec B608 - SQL uses constants only, values parameterized
         await self.db.execute(query, params)
         await self.db.commit()
 

@@ -86,7 +86,7 @@ def retry_with_backoff(
                     # Add jitter to prevent thundering herd
                     if jitter:
                         import random
-                        delay *= (0.5 + random.random())  # 50%-150% of calculated delay
+                        delay *= (0.5 + random.random())  # nosec B311 - jitter for retry backoff, not cryptographic
 
                     log.warning(
                         f"{func.__name__} attempt {attempt}/{max_attempts} failed: {e}. "
@@ -156,7 +156,7 @@ def async_retry_with_backoff(
                     # Add jitter to prevent thundering herd
                     if jitter:
                         import random
-                        delay *= (0.5 + random.random())  # 50%-150% of calculated delay
+                        delay *= (0.5 + random.random())  # nosec B311 - jitter for retry backoff, not cryptographic
 
                     log.warning(
                         f"{func.__name__} attempt {attempt}/{max_attempts} failed: {e}. "
