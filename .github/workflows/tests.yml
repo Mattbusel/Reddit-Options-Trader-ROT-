@@ -33,9 +33,10 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (parallel via xdist)
         run: |
           pytest \
+            -n auto \
             --cov=rot \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \

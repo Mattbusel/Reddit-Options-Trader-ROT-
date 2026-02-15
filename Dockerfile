@@ -49,8 +49,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data
+# Create non-root user for defense-in-depth
+RUN groupadd --gid 1000 rot && \
+    useradd --uid 1000 --gid rot --shell /bin/false rot
+
+# Create data directory for SQLite (owned by non-root user)
+RUN mkdir -p /app/data && chown rot:rot /app/data
 
 # Default env vars (Railway overrides these)
 ENV ROT_STORAGE_ROOT=/app/data
@@ -58,5 +62,8 @@ ENV ROT_WEB_HOST=0.0.0.0
 ENV PORT=8000
 
 EXPOSE ${PORT}
+
+# Run as non-root user (Railway may override with its own user)
+USER rot
 
 CMD ["python", "-m", "rot.app.server"]

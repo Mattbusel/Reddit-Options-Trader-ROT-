@@ -145,12 +145,18 @@ async def _async_signal_handler(
     dispatcher: AlertDispatcher | None,
     price_checker: PriceChecker | None = None,
 ):
-    """Handle a signal asynchronously: store in DB, broadcast via WebSocket, dispatch alerts."""
+    """Handle a signal asynchronously: store in DB, broadcast via WebSocket, dispatch alerts.
+
+    Transaction boundaries:
+    - insert_signal() commits its own transaction (signal persists even if later steps fail)
+    - record_initial_price() is best-effort; failure is logged but does not affect the signal
+    - Agent evaluation and alert dispatch are independent side-effects
+    """
     from rot.web.routes.websocket import broadcast_signal
 
     signal_id = None
 
-    # Store in database (dedup check inside — returns None for duplicates)
+    # ── Phase 1: Persist signal (atomic — insert_signal has its own commit) ──
     try:
         db = app.state.db
         signal_id = await db.insert_signal(signal_data)
@@ -159,9 +165,10 @@ async def _async_signal_handler(
         log.info("Signal stored: %s", signal_id)
     except Exception as e:
         log.error("Failed to store signal: %s", e)
+        return  # Cannot proceed without a stored signal
 
-    # Record initial price for performance tracking
-    if signal_id and price_checker:
+    # ── Phase 2: Record initial price (best-effort, logged on failure) ──
+    if price_checker:
         try:
             event = signal_data.get("event")
             if hasattr(event, "entities"):
@@ -174,7 +181,7 @@ async def _async_signal_handler(
             if ticker and ticker != "UNKNOWN":
                 await price_checker.record_initial_price(signal_id, ticker)
         except Exception as e:
-            log.error("Price recording failed: %s", e)
+            log.error("Price recording failed for signal %s: %s", signal_id, e)
 
     # Broadcast via WebSocket
     try:
