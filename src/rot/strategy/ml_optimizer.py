@@ -17,7 +17,7 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from rot.strategy.types import StrategyRule
 
@@ -424,7 +424,7 @@ class MLStrategyOptimizer:
                 hour = float(dt.hour)
                 dow = float(dt.weekday())
             except (OSError, ValueError, OverflowError):
-                pass
+                pass  # Intentionally suppressed
 
         # Extended NLP
         intensity = _safe_float(nlp.get("intensity"), 0.0)
@@ -844,7 +844,7 @@ class MLStrategyOptimizer:
     ) -> Optional[StrategyRule]:
         """Convert a single important feature into a StrategyRule."""
         try:
-            feat_idx = self._feature_names.index(feat_name)
+            self._feature_names.index(feat_name)
         except ValueError:
             return None
 
@@ -1015,7 +1015,7 @@ class MLStrategyOptimizer:
                 feature_matrix.append(features)
                 valid_indices.append(i)
             except Exception:
-                pass
+                pass  # Intentionally suppressed
 
         if not feature_matrix:
             return [(s, 0.5) for s in signals]

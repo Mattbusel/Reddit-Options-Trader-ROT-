@@ -223,10 +223,10 @@ class ExportScheduler:
         filters = config.filters
 
         # Build query params
-        hours = filters.get("hours", 24 * 7)  # default 7 days
-        ticker = filters.get("ticker")
-        stance = filters.get("stance")
-        min_conf = filters.get("min_confidence", 0.0)
+        _hours = filters.get("hours", 24 * 7)  # default 7 days
+        _ticker = filters.get("ticker")
+        _stance = filters.get("stance")
+        _min_conf = filters.get("min_confidence", 0.0)
         limit = min(config.max_rows, 10000)
 
         # Use existing DB method

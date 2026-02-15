@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from itertools import combinations
 from typing import Any, Dict, List, Optional, Tuple
 
-from rot.social.types import ALERT_TYPES, ManipulationAlert
+from rot.social.types import ManipulationAlert
 
 
 # ── Configuration ────────────────────────────────────────────────────────────

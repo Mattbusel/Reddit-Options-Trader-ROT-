@@ -6,7 +6,7 @@ including affiliates, commissions, payouts, and referral statistics.
 """
 
 from dataclasses import dataclass
-from typing import Literal, Optional, Dict, Any
+from typing import Literal, Optional, Dict
 
 
 @dataclass(frozen=True)

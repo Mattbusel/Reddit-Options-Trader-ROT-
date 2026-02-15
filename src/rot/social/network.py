@@ -13,7 +13,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from rot.social.types import AuthorCluster, ContrarianSignal, STANCES
+from rot.social.types import AuthorCluster, ContrarianSignal
 
 
 # ── Configuration ────────────────────────────────────────────────────────────

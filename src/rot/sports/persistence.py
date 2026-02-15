@@ -39,7 +39,6 @@ from rot.sports.types import (
     NewsCategory,
     SportLeague,
     SportsNewsItem,
-    SportsBettingOpportunity,
     UrgencyLevel,
 )
 

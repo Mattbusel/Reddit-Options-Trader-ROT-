@@ -10,7 +10,7 @@ Bootstrap resampling of historical trade P&L to estimate:
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from rot.backtest.result import TradeRecord

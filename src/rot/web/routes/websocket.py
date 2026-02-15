@@ -88,7 +88,7 @@ async def signal_websocket(websocket: WebSocket):
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
-        pass
+        pass  # Intentionally suppressed
     finally:
         _clients.discard(websocket)
         log.info("WebSocket client disconnected (%d remaining)", len(_clients))

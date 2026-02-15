@@ -39,8 +39,6 @@ logger = logging.getLogger(__name__)
 # CompiledRule — pre-parsed for fast evaluation
 # ---------------------------------------------------------------------------
 
-_NUMERIC_OPERATORS = frozenset({"gt", "lt", "gte", "lte"})
-"""Operators that require numeric operands."""
 
 _OPERATOR_LABELS: dict[str, str] = {
     "gt": ">",

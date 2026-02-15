@@ -1553,7 +1553,7 @@ async def _run_server(cfg: Settings):
             try:
                 await db.close()
             except Exception:
-                pass
+                pass  # Best-effort DB close during shutdown
         if pipeline_thread:
             pipeline_thread.join(timeout=5)
         log.info("ROT server stopped")

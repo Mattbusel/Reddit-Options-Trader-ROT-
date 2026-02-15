@@ -14,12 +14,6 @@ import time
 import logging
 from typing import Any, Dict, List, Optional
 
-from .sql_helpers import (
-    _WIN_SQL,
-    _LOSS_SQL,
-    _NEUTRAL_SQL,
-    _UNIFIED_CTE,
-)
 
 log = logging.getLogger(__name__)
 
@@ -322,116 +316,6 @@ class SignalsMixin:
             rows = await cursor.fetchall()
         return [dict(r) for r in rows]
 
-    # ── Signal Performance Tracking ──
-
-    async def insert_signal_performance(
-        self, signal_id: str, ticker: str, price_at_signal: float
-    ) -> None:
-        """Record initial price when a signal is first created."""
-        now = time.time()
-        await self.db.execute(
-            """INSERT INTO signal_performance
-               (signal_id, ticker, price_at_signal, created_at, checked_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (signal_id, ticker, price_at_signal, now, now),
-        )
-        await self.db.commit()
-
-    async def get_unchecked_performances(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Find performance records that still need price updates."""
-        query = """
-            SELECT sp.*, s.created_at as signal_created_at, s.stance as signal_stance
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE sp.price_1h IS NULL OR sp.price_4h IS NULL
-                  OR sp.price_1d IS NULL OR sp.price_1w IS NULL
-            ORDER BY s.created_at ASC
-            LIMIT ?
-        """
-        async with self.db.execute(query, (limit,)) as cursor:
-            rows = await cursor.fetchall()
-            results = []
-            for row in rows:
-                d = _row_to_dict(row)
-                # Use signal_created_at for age calculation
-                if d.get("signal_created_at"):
-                    d["created_at"] = d["signal_created_at"]
-                results.append(d)
-            return results
-
-    async def update_performance_prices(
-        self, perf_id: int, updates: Dict[str, Any]
-    ) -> None:
-        """Update price columns for a performance record."""
-        set_clauses = []
-        params = []
-        for col in ("price_1h", "price_4h", "price_1d", "price_1w",
-                     "max_gain_pct", "max_loss_pct", "checked_at"):
-            if col in updates:
-                set_clauses.append(f"{col} = ?")
-                params.append(updates[col])
-        if not set_clauses:
-            return
-        params.append(perf_id)
-        query = f"UPDATE signal_performance SET {', '.join(set_clauses)} WHERE id = ?"  # nosec B608 - SQL uses constants only, values parameterized
-        await self.db.execute(query, params)
-        await self.db.commit()
-
-    async def get_performance_for_signal(
-        self, signal_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """Get performance record for a specific signal."""
-        async with self.db.execute(
-            "SELECT * FROM signal_performance WHERE signal_id = ?", (signal_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return _row_to_dict(row) if row else None
-
-    async def recalculate_stance_aware_gains(self) -> int:
-        """
-        One-time recalculation of max_gain_pct/max_loss_pct with stance awareness.
-
-        Fixes old records that were calculated without considering signal stance.
-        """
-        query = """
-            SELECT sp.id, sp.price_at_signal, sp.price_1h, sp.price_4h,
-                   sp.price_1d, sp.price_1w, s.stance
-            FROM signal_performance sp
-            JOIN signals s ON sp.signal_id = s.id
-            WHERE sp.price_at_signal > 0
-              AND (sp.price_1h IS NOT NULL OR sp.price_4h IS NOT NULL
-                   OR sp.price_1d IS NOT NULL OR sp.price_1w IS NOT NULL)
-        """
-        updated = 0
-        async with self.db.execute(query) as cursor:
-            rows = await cursor.fetchall()
-            for row in rows:
-                d = dict(row)
-                price_at = d["price_at_signal"]
-                stance = d.get("stance", "bullish")
-                tracked = []
-                for key in ("price_1h", "price_4h", "price_1d", "price_1w"):
-                    if d.get(key) is not None:
-                        tracked.append(d[key])
-                if not tracked:
-                    continue
-                raw_pcts = [(p / price_at - 1.0) * 100 for p in tracked]
-                if stance == "bearish":
-                    pcts = [-pct for pct in raw_pcts]
-                else:
-                    pcts = raw_pcts
-                new_gain = max(pcts)
-                new_loss = min(pcts)
-                await self.db.execute(
-                    "UPDATE signal_performance SET max_gain_pct = ?, max_loss_pct = ? WHERE id = ?",
-                    (new_gain, new_loss, d["id"]),
-                )
-                updated += 1
-        if updated > 0:
-            await self.db.commit()
-            log.info("Recalculated stance-aware gains for %d performance records", updated)
-        return updated
-
     # ── Signal Corroboration ──
 
     async def find_corroborating_signals(
@@ -448,26 +332,6 @@ class SignalsMixin:
         async with self.db.execute(query, (ticker, stance, cutoff)) as cursor:
             rows = await cursor.fetchall()
             return [_row_to_dict(row) for row in rows]
-
-    # ── Signal Expiration ──
-
-    async def expire_stale_signals(self) -> int:
-        """
-        Mark signals past their expires_at as expired (set confidence to 0).
-        Returns count of expired signals.
-        """
-        now = time.time()
-        async with self.db.execute(
-            """UPDATE signals SET quality_score = 0
-               WHERE expires_at IS NOT NULL AND expires_at < ?
-               AND quality_score > 0""",
-            (now,),
-        ) as cursor:
-            count = cursor.rowcount
-        if count > 0:
-            await self.db.commit()
-            log.info("Expired %d stale signals past their expires_at", count)
-        return count
 
     # ── Post-Mortem ──
 
@@ -496,67 +360,6 @@ class SignalsMixin:
         async with self.db.execute(query, (limit,)) as cursor:
             rows = await cursor.fetchall()
             return [_row_to_dict(row) for row in rows]
-
-    async def generate_heuristic_post_mortems(self, limit: int = 50) -> int:
-        """
-        Generate heuristic post-mortem text for resolved signals without one.
-
-        This is a rule-based fallback when no LLM is available.
-        """
-        signals = await self.get_signals_needing_post_mortem(limit=limit)
-        count = 0
-        for sig in signals:
-            try:
-                pm = self._build_post_mortem_text(sig)
-                if pm:
-                    await self.save_post_mortem(sig["id"], pm)
-                    count += 1
-            except Exception as e:
-                log.warning("Post-mortem generation failed for %s: %s", sig.get("id"), e)
-        return count
-
-    @staticmethod
-    def _build_post_mortem_text(sig: dict) -> str:
-        """Build a heuristic post-mortem from price performance data."""
-        ticker = sig.get("ticker", "?")
-        stance = sig.get("stance", "unknown")
-        confidence = sig.get("confidence", 0)
-        strategy = sig.get("strategy", "none")
-        event_type = sig.get("event_type", "other")
-
-        price_at = sig.get("price_at_signal", 0)
-        price_now = sig.get("price_1d") or sig.get("price_4h") or sig.get("price_1h")
-        if not price_at or not price_now or price_at <= 0:
-            return ""
-
-        pct_change = ((price_now - price_at) / price_at) * 100
-        direction = "up" if pct_change > 0 else "down" if pct_change < 0 else "flat"
-        abs_pct = abs(pct_change)
-
-        threshold = 0.5
-        if stance == "bullish":
-            won = pct_change > threshold
-        elif stance == "bearish":
-            won = pct_change < -threshold
-        else:
-            won = False
-
-        outcome = "WIN" if won else "LOSS" if abs_pct > threshold else "NEUTRAL"
-
-        lines = [
-            f"[{outcome}] {ticker} {stance.upper()} signal",
-            f"Price moved {direction} {abs_pct:.1f}% (${price_at:.2f} → ${price_now:.2f})",
-            f"Confidence: {confidence:.2f} | Strategy: {strategy} | Type: {event_type}",
-        ]
-
-        if won:
-            lines.append("✓ Thesis played out as expected.")
-        elif outcome == "LOSS":
-            lines.append("✗ Price moved against prediction.")
-        else:
-            lines.append("○ Price moved within noise threshold (±0.5%).")
-
-        return " | ".join(lines)
 
     # ── Trending Tickers ──
 

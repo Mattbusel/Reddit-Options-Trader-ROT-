@@ -6,7 +6,6 @@ sentiment propagation, and contrarian signals.
 
 from __future__ import annotations
 
-import time
 from typing import Optional
 
 from fastapi import APIRouter, Query, Request

@@ -11,6 +11,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Optional
 
@@ -243,9 +244,10 @@ async def referral_redirect(ref_code: str, request: Request, source: str = ""):
         ip_address=ip_address,
     )
 
-    # Redirect to signup page with ref code in query
-    # Use relative URL to prevent open redirect vulnerability (CWE-601)
+    # Sanitize ref_code to alphanumeric + dash/underscore only (CWE-601)
+    safe_ref = re.sub(r"[^a-zA-Z0-9_-]", "", ref_code)
+    # Redirect to dashboard with sanitized ref code (hardcoded path, not user-controlled)
     return RedirectResponse(
-        url=f"/dashboard?ref={ref_code}",
+        url="/dashboard?ref=" + safe_ref,
         status_code=302,
     )

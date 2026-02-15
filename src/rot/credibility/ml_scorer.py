@@ -16,7 +16,6 @@ from typing import Any, Optional
 from rot.core.types import Event
 from rot.credibility.scorer import CredibilityScorer
 from rot.credibility.features import (
-    FEATURE_NAMES,
     NUM_FEATURES,
     extract_features_from_event,
 )

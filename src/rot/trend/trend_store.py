@@ -78,7 +78,7 @@ class TrendStore:
         try:
             self.path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            pass
+            pass  # Best-effort persistence; trend state is rebuilt on next cycle
 
     def _evict_old(self) -> None:
         cutoff = int(time.time()) - self.max_age_s

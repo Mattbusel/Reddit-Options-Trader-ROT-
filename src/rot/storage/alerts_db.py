@@ -9,7 +9,6 @@ Provides database operations for:
 Assumes self.db (aiosqlite Connection) exists.
 """
 
-import json
 import time
 from typing import Any, Dict, List, Optional
 
@@ -29,91 +28,6 @@ class AlertsMixin:
             settings = {}
         settings["last_visit_at"] = time.time()
         await self.update_user_settings(user_id, settings)
-
-    # ── Email Alert Settings ──
-
-    async def get_users_for_digest(self) -> List[Dict[str, Any]]:
-        """Get users who need a daily digest email."""
-        cutoff = time.time() - 86400  # users not emailed in last 24h
-        query = """
-            SELECT u.id, u.email, u.tier, eas.*
-            FROM email_alert_settings eas
-            JOIN users u ON eas.user_id = u.id
-            WHERE eas.enabled = 1 AND eas.digest_enabled = 1
-                  AND eas.last_digest_at < ?
-        """
-        async with self.db.execute(query, (cutoff,)) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
-
-    async def get_users_for_realtime_alert(
-        self, ticker: str, stance: str, confidence: float, event_type: str
-    ) -> List[Dict[str, Any]]:
-        """Get users whose realtime alert filters match a signal."""
-        query = """
-            SELECT u.id, u.email, u.tier, eas.*
-            FROM email_alert_settings eas
-            JOIN users u ON eas.user_id = u.id
-            WHERE eas.enabled = 1 AND eas.realtime_enabled = 1
-                  AND ? >= eas.min_confidence
-                  AND u.tier IN ('pro', 'premium', 'ultra', 'enterprise')
-        """
-        async with self.db.execute(query, (confidence,)) as cursor:
-            rows = await cursor.fetchall()
-            results = []
-            for row in rows:
-                d = dict(row)
-                # Parse JSON filter fields
-                for key in ("tickers", "stances", "event_types"):
-                    if key in d and isinstance(d[key], str):
-                        try:
-                            d[key] = json.loads(d[key])
-                        except (json.JSONDecodeError, TypeError):
-                            d[key] = []
-                # Check filter match
-                filter_tickers = d.get("tickers", [])
-                filter_stances = d.get("stances", [])
-                filter_events = d.get("event_types", [])
-
-                if filter_tickers and ticker.upper() not in filter_tickers:
-                    continue
-                if filter_stances and stance not in filter_stances:
-                    continue
-                if filter_events and event_type not in filter_events:
-                    continue
-                results.append(d)
-            return results
-
-    async def get_users_with_watchlist_ticker(self, ticker: str) -> List[Dict[str, Any]]:
-        """Get paid users who have this ticker on their watchlist (stored in settings JSON)."""
-        query = """
-            SELECT id, email, tier, settings
-            FROM users
-            WHERE tier IN ('pro', 'premium', 'ultra', 'enterprise')
-        """
-        async with self.db.execute(query) as cursor:
-            rows = await cursor.fetchall()
-            results = []
-            for row in rows:
-                d = dict(row)
-                settings = d.get("settings", "{}")
-                if isinstance(settings, str):
-                    try:
-                        settings = json.loads(settings)
-                    except (json.JSONDecodeError, TypeError):
-                        settings = {}
-                watchlist = settings.get("watchlist", [])
-                if isinstance(watchlist, list) and ticker.upper() in [t.upper() for t in watchlist]:
-                    results.append(d)
-            return results
-
-    async def update_digest_sent(self, user_id: str) -> None:
-        """Mark that a digest was sent to the user."""
-        await self.db.execute(
-            "UPDATE email_alert_settings SET last_digest_at = ? WHERE user_id = ?",
-            (time.time(), user_id),
-        )
-        await self.db.commit()
 
     # ── X / Twitter posting ──
 

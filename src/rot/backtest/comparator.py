@@ -6,7 +6,7 @@ correlation, and rankings.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from rot.backtest.metrics import _daily_returns

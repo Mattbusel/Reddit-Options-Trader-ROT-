@@ -6,7 +6,6 @@ relationships, and builds network data for visualization.
 
 from __future__ import annotations
 
-import math
 import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple

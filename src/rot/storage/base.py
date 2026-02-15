@@ -319,7 +319,7 @@ class DatabaseBase:
             try:
                 await self._db.execute("PRAGMA optimize")  # Optimize query planner stats
             except Exception:
-                pass
+                pass  # Intentionally suppressed
             await self._db.close()
             self._db = None
 

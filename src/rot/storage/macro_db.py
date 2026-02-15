@@ -306,22 +306,6 @@ class MacroMixin:
             rows = await cursor.fetchall()
         return [dict(r) for r in rows]
 
-    async def get_signals_for_ticker(
-        self, ticker: str, limit: int = 10, days: int = 7,
-    ) -> List[Dict[str, Any]]:
-        """Get recent signals for a ticker (used by insider cross-reference)."""
-        cutoff = time.time() - days * 86400
-        async with self.db.execute(
-            """SELECT id, stance, confidence, created_at
-               FROM signals
-               WHERE ticker = ? AND created_at >= ?
-               ORDER BY created_at DESC
-               LIMIT ?""",
-            (ticker, cutoff, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
-
     # ── FOMC Meetings ──
 
     async def upsert_fomc_meeting(self, meeting) -> bool:
@@ -513,47 +497,3 @@ class MacroMixin:
         except Exception:
             return {}
 
-    async def purge_old_congress_trades(self, keep_days: int = 90) -> int:
-        """Delete congressional trades older than keep_days."""
-        cutoff = time.time() - (keep_days * 86400)
-        try:
-            async with self.db.execute(
-                "DELETE FROM congress_trades WHERE filed_at < ?", (cutoff,)
-            ) as cursor:
-                count = cursor.rowcount
-            await self.db.commit()
-            return count
-        except Exception:
-            return 0
-
-    # ── Macro Purge ──
-
-    async def purge_old_macro_events(self, keep_days: int = 365) -> int:
-        """Purge old macro events older than keep_days. Returns count deleted."""
-        cutoff = time.time() - keep_days * 86400
-        cursor = await self.db.execute(
-            "DELETE FROM macro_events WHERE scheduled_at < ?", (cutoff,)
-        )
-        deleted = cursor.rowcount
-        await self.db.commit()
-        return deleted
-
-    async def purge_old_insider_trades(self, keep_days: int = 365) -> int:
-        """Purge old insider trades older than keep_days. Returns count deleted."""
-        cutoff = time.time() - keep_days * 86400
-        cursor = await self.db.execute(
-            "DELETE FROM insider_trades WHERE filing_date < ?", (cutoff,)
-        )
-        deleted = cursor.rowcount
-        await self.db.commit()
-        return deleted
-
-    async def purge_old_earnings_events(self, keep_days: int = 365) -> int:
-        """Purge old earnings events older than keep_days. Returns count deleted."""
-        cutoff = time.time() - keep_days * 86400
-        cursor = await self.db.execute(
-            "DELETE FROM earnings_events WHERE report_date < ?", (cutoff,)
-        )
-        deleted = cursor.rowcount
-        await self.db.commit()
-        return deleted

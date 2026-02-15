@@ -16,7 +16,7 @@ from rot.web.auth import (
     verify_password,
 )
 from rot.web.rate_limit import check_auth_rate_limit
-from rot.core.security_logger import log_auth_attempt, log_api_key_event
+from rot.core.security_logger import log_auth_attempt
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth")
@@ -87,7 +87,6 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
-    import logging
     from rot.core.logging import sanitize_for_log
     log = logging.getLogger(__name__)
     safe_email = sanitize_for_log(body.email)
@@ -146,7 +145,6 @@ async def login(body: LoginRequest, request: Request):
         await tracker.record_login(user["id"])
     except Exception as e:
         import logging
-
         logging.getLogger(__name__).warning("Badge tracking failed for login: %s", e)
 
     response = JSONResponse(content={

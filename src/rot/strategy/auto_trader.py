@@ -636,7 +636,7 @@ class AutoPaperTrader:
                 if price > 0:
                     return price
             except (ValueError, TypeError):
-                pass
+                pass  # Intentionally suppressed
 
         # Nested market_data dict
         market_data = signal.get("market_data")
@@ -646,7 +646,7 @@ class AutoPaperTrader:
                 try:
                     return float(last_close)
                 except (ValueError, TypeError):
-                    pass
+                    pass  # Intentionally suppressed
 
         # market_data as JSON string (some callers may not pre-parse)
         if isinstance(market_data, str):
@@ -659,7 +659,7 @@ class AutoPaperTrader:
                     if last_close is not None:
                         return float(last_close)
             except (ValueError, TypeError):
-                pass
+                pass  # Intentionally suppressed
 
         return None
 
@@ -811,7 +811,7 @@ class AutoPaperTrader:
             try:
                 return float(win_rate)
             except (ValueError, TypeError):
-                pass
+                pass  # Intentionally suppressed
 
         return None
 

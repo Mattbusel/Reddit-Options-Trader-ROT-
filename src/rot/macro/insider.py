@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 
@@ -17,12 +16,7 @@ log = logging.getLogger(__name__)
 
 # SEC EDGAR Form 4 RSS feed
 _SEC_FORM4_RSS = "https://efts.sec.gov/LATEST/search-index?q=%22form+4%22&dateRange=custom&startdt={start}&enddt={end}&forms=4"
-_SEC_FULL_TEXT_SEARCH = "https://efts.sec.gov/LATEST/search-index?q={ticker}+%22form+4%22&forms=4&dateRange=custom&startdt={start}&enddt={end}"
 
-# Congress STOCK Act — periodic disclosure RSS (simplified)
-_CONGRESS_FEEDS = [
-    "https://efts.sec.gov/LATEST/search-index?q=%22periodic+transaction+report%22&forms=&dateRange=custom",
-]
 
 
 class InsiderFeed:

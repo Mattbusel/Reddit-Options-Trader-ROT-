@@ -23,7 +23,7 @@ def _extract_json(text: str) -> Dict[str, Any]:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        pass
+        pass  # Intentionally suppressed
 
     # Try extracting from markdown code block
     match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
@@ -31,7 +31,7 @@ def _extract_json(text: str) -> Dict[str, Any]:
         try:
             return json.loads(match.group(1).strip())
         except json.JSONDecodeError:
-            pass
+            pass  # Intentionally suppressed
 
     # Try finding first { ... } block
     start = text.find("{")
@@ -40,7 +40,7 @@ def _extract_json(text: str) -> Dict[str, Any]:
         try:
             return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
-            pass
+            pass  # Intentionally suppressed
 
     raise ValueError(f"Could not extract valid JSON from LLM response: {text[:200]}")
 

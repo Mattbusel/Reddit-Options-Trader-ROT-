@@ -424,7 +424,6 @@ class GamificationMixin:
 
         settings = user.get("settings", {})
         if isinstance(settings, str):
-            import json
             settings = json.loads(settings)
 
         watchlist = settings.get("watchlist", [])
@@ -440,7 +439,6 @@ class GamificationMixin:
         settings = user.get("settings", {})
         if isinstance(settings, str):
             import json
-            settings = json.loads(settings)
 
         presets = settings.get("filter_presets", [])
         return len(presets) if isinstance(presets, list) else 0

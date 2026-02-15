@@ -6,8 +6,8 @@ wrapping the lower-level functions from ``metrics.py``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import List
 
 from rot.backtest.metrics import (
     compute_cvar,

@@ -39,7 +39,7 @@ async def error_dashboard(
     # Get error stats for different time windows
     stats_24h = tracker.get_error_stats(hours=24)
     stats_1h = tracker.get_error_stats(hours=1)
-    error_rate = tracker.get_error_rate()
+    _error_rate = tracker.get_error_rate()
 
     return f"""
     <!DOCTYPE html>

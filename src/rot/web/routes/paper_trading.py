@@ -9,7 +9,6 @@ Provides:
 from __future__ import annotations
 
 import logging
-import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse

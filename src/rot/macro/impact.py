@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import statistics
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rot.macro.types import (
     CATEGORY_SECTOR_SENSITIVITY,

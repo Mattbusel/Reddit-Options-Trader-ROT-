@@ -9,7 +9,7 @@ import time
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict
 
-from rot.core.request_context import RequestContextFilter, configure_request_logging
+from rot.core.request_context import configure_request_logging
 
 log = logging.getLogger(__name__)
 
@@ -77,18 +77,18 @@ class JsonlLogger:
                 try:
                     os.remove(f"{path}.{i}")
                 except OSError:
-                    pass
+                    pass  # Intentionally suppressed
             if i > 1:
                 prev = f"{path}.{i - 1}"
                 dst = f"{path}.{i}"
                 try:
                     os.replace(prev, dst)
                 except OSError:
-                    pass
+                    pass  # Intentionally suppressed
         try:
             os.replace(path, f"{path}.1")
         except OSError:
-            pass
+            pass  # Intentionally suppressed
 
     def write(self, stream: str, record: Dict[str, Any]) -> None:
         path = os.path.join(self.root, f"{stream}.jsonl")
@@ -114,7 +114,7 @@ class JsonlLogger:
                 results[os.path.basename(backup_path)] = 1
                 log.info("Log rotation: deleted backup %s", os.path.basename(backup_path))
             except OSError:
-                pass
+                pass  # Intentionally suppressed
 
         for path in glob.glob(os.path.join(self.root, "*.jsonl")):
             fname = os.path.basename(path)
