@@ -142,7 +142,9 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
         return default
     try:
         f = float(val)
-        return f if f == f else default  # NaN guard
+        # NaN guard - use math.isnan for clarity instead of f == f
+        import math
+        return default if math.isnan(f) else f
     except (TypeError, ValueError):
         return default
 
