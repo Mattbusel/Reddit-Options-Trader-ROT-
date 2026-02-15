@@ -80,6 +80,7 @@ async def register(body: RegisterRequest, request: Request):
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response
@@ -154,6 +155,7 @@ async def login(body: LoginRequest, request: Request):
         value=token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=settings.auth.jwt_expire_minutes * 60,
     )
     return response
