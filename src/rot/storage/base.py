@@ -14,6 +14,7 @@ Exports:
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
 from pathlib import Path
 from typing import Optional
@@ -125,26 +126,73 @@ class DatabaseBase:
         - optimize: Analyze query planner statistics for better performance
         - analysis_limit=400: Limit ANALYZE to 400 rows (faster, good enough)
         - threads=4: Enable parallel query execution
+
+        If the database is read-only (e.g. Railway volume not yet mounted),
+        write-requiring PRAGMAs are skipped gracefully so the app can still
+        serve read traffic and register routes.
         """
         if not self._db:
             raise RuntimeError("Database connection not initialized")
 
-        await self._db.execute("PRAGMA journal_mode=WAL")
-        await self._db.execute("PRAGMA synchronous=NORMAL")
-        await self._db.execute("PRAGMA cache_size=-16000")  # 16MB cache (up from 8MB)
-        await self._db.execute("PRAGMA temp_store=MEMORY")
-        await self._db.execute("PRAGMA mmap_size=134217728")  # 128MB mmap (up from 64MB)
-        await self._db.execute("PRAGMA page_size=4096")  # 4KB pages for SSD
-        await self._db.execute("PRAGMA busy_timeout=5000")
-        await self._db.execute("PRAGMA auto_vacuum=INCREMENTAL")
-        await self._db.execute("PRAGMA wal_autocheckpoint=1000")  # Less frequent checkpoints
-        await self._db.execute("PRAGMA analysis_limit=400")  # Faster ANALYZE
-        await self._db.execute("PRAGMA threads=4")  # Parallel queries
+        # Read-only safe PRAGMAs (these never write to disk)
+        read_only_pragmas = [
+            ("PRAGMA cache_size=-16000", "16MB cache"),
+            ("PRAGMA temp_store=MEMORY", "temp_store=MEMORY"),
+            ("PRAGMA mmap_size=134217728", "128MB mmap"),
+            ("PRAGMA busy_timeout=5000", "5s busy timeout"),
+            ("PRAGMA analysis_limit=400", "analysis_limit=400"),
+            ("PRAGMA threads=4", "4 threads"),
+        ]
 
-        # Run OPTIMIZE to update query planner statistics
-        await self._db.execute("PRAGMA optimize")
+        # Write-requiring PRAGMAs (need writable DB file or WAL)
+        write_pragmas = [
+            ("PRAGMA journal_mode=WAL", "WAL mode"),
+            ("PRAGMA synchronous=NORMAL", "synchronous=NORMAL"),
+            ("PRAGMA page_size=4096", "4KB page size"),
+            ("PRAGMA auto_vacuum=INCREMENTAL", "incremental auto-vacuum"),
+            ("PRAGMA wal_autocheckpoint=1000", "WAL autocheckpoint=1000"),
+        ]
 
-        log.info("SQLite PRAGMAs applied (WAL, 16MB cache, 128MB mmap, 4 threads, optimized)")
+        applied = []
+        skipped = []
+
+        # Always apply read-only pragmas first
+        for sql, label in read_only_pragmas:
+            try:
+                await self._db.execute(sql)
+                applied.append(label)
+            except sqlite3.OperationalError as e:
+                log.warning("PRAGMA %s failed: %s", label, e)
+                skipped.append(label)
+
+        # Try write pragmas — skip gracefully if DB is read-only
+        self._read_only = False
+        for sql, label in write_pragmas:
+            try:
+                await self._db.execute(sql)
+                applied.append(label)
+            except sqlite3.OperationalError as e:
+                if "readonly" in str(e).lower():
+                    if not self._read_only:
+                        log.warning("Database is read-only — skipping write PRAGMAs (will serve in read-only mode)")
+                        self._read_only = True
+                    skipped.append(label)
+                else:
+                    log.warning("PRAGMA %s failed: %s", label, e)
+                    skipped.append(label)
+
+        # Try OPTIMIZE (writes statistics)
+        try:
+            await self._db.execute("PRAGMA optimize")
+            applied.append("optimize")
+        except sqlite3.OperationalError:
+            skipped.append("optimize")
+
+        if skipped:
+            log.warning("SQLite PRAGMAs applied: [%s] — skipped (read-only): [%s]",
+                        ", ".join(applied), ", ".join(skipped))
+        else:
+            log.info("SQLite PRAGMAs applied (%s)", ", ".join(applied))
 
     async def _run_migrations(self) -> None:
         """
@@ -161,14 +209,27 @@ class DatabaseBase:
         8. Archives existing resolved signals into signal_archive
 
         All migrations are wrapped in try/except to be idempotent and safe
-        to run multiple times.
+        to run multiple times. If the database is read-only, schema creation
+        and write migrations are skipped gracefully.
         """
         if not self._db:
             raise RuntimeError("Database connection not initialized")
 
+        # Skip all write operations if DB was detected as read-only
+        if getattr(self, '_read_only', False):
+            log.warning("Database is read-only — skipping schema creation and migrations")
+            return
+
         # Create schema
-        await self._db.executescript(SCHEMA_SQL)
-        await self._db.commit()
+        try:
+            await self._db.executescript(SCHEMA_SQL)
+            await self._db.commit()
+        except sqlite3.OperationalError as e:
+            if "readonly" in str(e).lower():
+                log.warning("Database is read-only — skipping schema creation and migrations")
+                self._read_only = True
+                return
+            raise
 
         # Safe migrations: add columns that may not exist yet
         for table, column, col_type in _MIGRATIONS:

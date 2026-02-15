@@ -1277,9 +1277,15 @@ async def _run_server(cfg: Settings):
         log.info("Starting heavy initialization (DB, routes, pipeline, background loops)...")
 
         # Phase 1: Connect DB + register all routes
+        # Routes MUST be registered even if DB connection fails (read-only volume,
+        # transient mount delay, etc.) so /dashboard and other endpoints respond
+        # instead of returning 404.
         _ti = time.monotonic()
-        await connect_db(app)
-        log.info("connect_db(): %.0fms", (time.monotonic() - _ti) * 1000)
+        try:
+            await connect_db(app)
+            log.info("connect_db(): %.0fms", (time.monotonic() - _ti) * 1000)
+        except Exception:
+            log.exception("connect_db() failed — routes will still be registered but DB-dependent features may be degraded")
         _ti = time.monotonic()
         register_routes(app)
         log.info("register_routes(): %.0fms", (time.monotonic() - _ti) * 1000)
