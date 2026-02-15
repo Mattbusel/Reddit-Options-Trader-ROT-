@@ -321,12 +321,14 @@ class UnusualDetector:
 
 def _get_float(d: Dict[str, Any], *keys: str) -> Optional[float]:
     """Try multiple keys, return first valid float or None."""
+    import math
     for key in keys:
         val = d.get(key)
         if val is not None:
             try:
                 f = float(val)
-                return f if f == f else None  # NaN check
+                # NaN check - use math.isnan for clarity
+                return None if math.isnan(f) else f
             except (TypeError, ValueError):
                 continue
     return None
