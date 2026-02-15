@@ -194,6 +194,17 @@ async def check_auth_rate_limit(request: Request, endpoint: str) -> None:
     # Get database connection
     db = request.app.state.db
 
+    # Verify auth_attempts table exists
+    try:
+        cursor = await db._db.execute("SELECT COUNT(*) FROM auth_attempts")
+        await cursor.fetchone()
+        log.debug(f"Auth attempts table exists and is accessible")
+    except Exception as e:
+        log.error(f"Auth attempts table not found or inaccessible: {e}")
+        # If table doesn't exist, allow the request (fail open) but log the error
+        log.warning(f"Rate limiting bypassed due to missing table - endpoint={endpoint}, ip={ip}")
+        return
+
     # Check current attempt count from database
     attempt_count = await db.get_auth_attempts(ip, endpoint, since)
 

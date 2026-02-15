@@ -45,7 +45,8 @@
       "Bash(python:*)",
       "Bash(/tmp/test_badges_full.py:*)",
       "Bash(git rebase:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git pull:*)"
     ]
   }
 }
