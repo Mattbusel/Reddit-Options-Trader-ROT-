@@ -245,6 +245,15 @@ async def connect_db(app: FastAPI):
         size = os.path.getsize(db_path)
         log.info("Database connected: %s (size=%d bytes)", db_path, size)
 
+    # Initialize service layer
+    from rot.services.paper_trading_service import PaperTradingService
+    from rot.services.signal_service import SignalService
+    from rot.services.user_service import UserService
+
+    app.state.paper_trading_service = PaperTradingService(db=db)
+    app.state.signal_service = SignalService(db=db, cache=app.state.query_cache)
+    app.state.user_service = UserService(db=db)
+
     # Start periodic cleanup task
     app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
 
