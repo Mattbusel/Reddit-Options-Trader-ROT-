@@ -25,3 +25,8 @@ query-filters:
   # SHA1 is required by Twitter API specification, not used for passwords
   - exclude:
       id: py/weak-cryptographic-algorithm
+
+  # Cyclic imports - standard Python __init__.py pattern for package exports
+  # These are module-level imports in __init__.py files to make imports convenient
+  - exclude:
+      id: py/import-own-module
