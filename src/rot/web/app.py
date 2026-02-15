@@ -58,7 +58,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     # GZip compression — reduces HTML/JSON response sizes by ~70%
-    app.add_middleware(GZipMiddleware, minimum_size=500)
+    # minimum_size=500: Only compress responses >= 500 bytes (small responses not worth overhead)
+    # compresslevel=6: Balanced compression (1=fastest/largest, 9=slowest/smallest)
+    app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
     # CORS
     app.add_middleware(
