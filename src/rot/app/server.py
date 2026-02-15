@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import threading
 import time
@@ -571,6 +572,11 @@ async def _export_scheduler_loop(
     Checks for due export jobs every ``cfg_export.scheduler_interval_s`` seconds
     and generates CSV/JSON output for Enterprise users.
     """
+    from rot.export.scheduler import ExportScheduler
+    from rot.export.types import ExportJob, ScheduleConfig
+
+    scheduler = ExportScheduler(db=db)
+
     log.info(
         "Export scheduler loop starting (interval=%ds)",
         cfg_export.scheduler_interval_s,
@@ -584,9 +590,74 @@ async def _export_scheduler_loop(
 
     while not stop_event.is_set():
         try:
-            # Check for pending export schedules (future: read from export_schedules table)
-            # For now this loop is a placeholder that logs readiness
-            log.debug("Export scheduler: check cycle (no pending jobs)")
+            now = time.time()
+            async with db.db.execute(
+                """SELECT id, user_id, format, frequency, filters_json,
+                          last_run_at, next_run_at, created_at
+                   FROM export_schedules
+                   WHERE is_active = 1 AND next_run_at <= ?""",
+                (now,),
+            ) as cur:
+                rows = await cur.fetchall()
+
+            if not rows:
+                log.debug("Export scheduler: no pending jobs")
+            else:
+                for row in rows:
+                    r = dict(row)
+                    try:
+                        filters = json.loads(r.get("filters_json", "{}"))
+                    except (json.JSONDecodeError, TypeError):
+                        filters = {}
+
+                    config = ScheduleConfig(
+                        frequency=r["frequency"],
+                        format=r["format"],
+                        filters=filters,
+                    )
+                    job = ExportJob(
+                        id=r["id"],
+                        user_id=r["user_id"],
+                        schedule_config=config,
+                        status="pending",
+                        created_at=r["created_at"],
+                        last_run_at=r.get("last_run_at"),
+                        next_run_at=r.get("next_run_at"),
+                    )
+
+                    signals = await scheduler._fetch_signals_for_export(job)
+                    result = await scheduler.generate_export(job, signals)
+
+                    await db.db.execute(
+                        """INSERT INTO data_exports
+                           (user_id, export_type, format, requested_at, completed_at,
+                            row_count, filters)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            job.user_id,
+                            config.export_type,
+                            config.format,
+                            now,
+                            time.time(),
+                            result.row_count,
+                            json.dumps(filters),
+                        ),
+                    )
+
+                    updated_job = scheduler.compute_next_run(job)
+                    await db.db.execute(
+                        """UPDATE export_schedules
+                           SET last_run_at = ?, next_run_at = ?
+                           WHERE id = ?""",
+                        (updated_job.last_run_at, updated_job.next_run_at, job.id),
+                    )
+                    await db.db.commit()
+
+                    log.info(
+                        "Export %s completed: %d rows (%s) for user %s",
+                        job.id, result.row_count, config.format, job.user_id,
+                    )
+
         except Exception as e:
             log.error("Export scheduler error: %s", e, exc_info=True)
 

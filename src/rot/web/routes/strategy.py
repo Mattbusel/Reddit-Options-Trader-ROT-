@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rot.web.auth import get_current_user_optional
 from rot.web.tier_gate import gate_strategy_access
+from rot.web.validation import (
+    CreateStrategyRequest,
+    DiscoverStrategiesRequest,
+    GeneticEvolveRequest,
+    MLOptimizeRequest,
+    PublishToMarketplaceRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +147,7 @@ async def regimes_page(request: Request):
 
 
 @router.post("/api/v1/strategies/create")
-async def create_strategy(request: Request):
+async def create_strategy(body: CreateStrategyRequest, request: Request):
     """Create a new manual strategy."""
     user = await get_current_user_optional(request)
     if not user:
@@ -159,21 +168,13 @@ async def create_strategy(request: Request):
             detail=f"Strategy limit reached ({access['max_strategies']}). Upgrade for more.",
         )
 
-    body = await request.json()
-    name = body.get("name", "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Strategy name required")
-
-    rules = body.get("rules", [])
-    config = body.get("config", {})
-
     strategy = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
-        "name": name,
-        "description": body.get("description", ""),
-        "rules": rules,
-        "config": config,
+        "name": body.name.strip(),
+        "description": body.description,
+        "rules": body.rules,
+        "config": body.config,
         "performance": {},
         "health_score": 1.0,
         "is_active": False,
@@ -218,8 +219,8 @@ async def delete_strategy(request: Request, strategy_id: str):
 
 
 @router.post("/api/v1/strategies/discover")
-async def discover_strategies(request: Request):
-    """Run strategy discovery (HTMX endpoint)."""
+async def discover_strategies(body: DiscoverStrategiesRequest, request: Request):
+    """Run strategy discovery."""
     user = await get_current_user_optional(request)
     if not user:
         raise HTTPException(status_code=401, detail="Login required")
@@ -229,31 +230,27 @@ async def discover_strategies(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Premium+ for discovery")
 
     db = _get_db(request)
-    body = await request.json()
 
     try:
         from rot.backtest import BacktestConfig, BacktestEngine
         from rot.strategy.discovery import StrategyDiscoverer
 
-        # Get signals for backtesting
         signals = await db.get_signals_for_backtest(
-            days=body.get("days", 90), limit=body.get("max_signals", 1000)
+            days=body.days, limit=body.max_signals
         )
 
         discoverer = StrategyDiscoverer(signals)
         search_config = {
-            "max_rules": body.get("max_rules", 3),
-            "max_candidates": body.get("max_candidates", 500),
-            "min_trades": body.get("min_trades", 10),
-            "min_win_rate": body.get("min_win_rate", 0.5),
-            "min_sharpe": body.get("min_sharpe", 0.0),
-            "search_mode": body.get("search_mode", "random"),
-            "walk_forward": body.get("walk_forward", False),
+            "max_rules": body.max_rules,
+            "max_candidates": body.max_candidates,
+            "min_trades": body.min_trades,
+            "min_win_rate": body.min_win_rate,
+            "min_sharpe": body.min_sharpe,
+            "search_mode": body.search_mode,
+            "walk_forward": body.walk_forward,
         }
 
         result = discoverer.discover(search_config)
-
-        # Save discovery result
         await db.save_discovery_result(result.to_dict())
 
         return JSONResponse({
@@ -262,15 +259,14 @@ async def discover_strategies(request: Request):
             "best_strategies": result.best_strategies[:10],
             "elapsed_s": result.elapsed_s,
         })
-    except Exception as e:
+    except Exception:
         logger.exception("Strategy discovery failed")
-        # Don't expose internal error details to users (CWE-209)
         return JSONResponse({"ok": False, "error": "Strategy discovery failed"}, status_code=500)
 
 
 @router.post("/api/v1/strategies/ml-optimize")
-async def ml_optimize(request: Request):
-    """Run ML optimization (HTMX endpoint)."""
+async def ml_optimize(body: MLOptimizeRequest, request: Request):
+    """Run ML optimization."""
     user = await get_current_user_optional(request)
     if not user:
         raise HTTPException(status_code=401, detail="Login required")
@@ -280,28 +276,26 @@ async def ml_optimize(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Premium+ for ML optimization")
 
     db = _get_db(request)
-    body = await request.json()
 
     try:
         from rot.strategy.ml_optimizer import MLStrategyOptimizer
 
         signals = await db.get_signals_for_backtest(
-            days=body.get("days", 90), limit=body.get("max_signals", 1000)
+            days=body.days, limit=body.max_signals
         )
 
-        optimizer = MLStrategyOptimizer(min_signals=body.get("min_signals", 200))
+        optimizer = MLStrategyOptimizer(min_signals=body.min_signals)
         result = optimizer.optimize(signals)
 
         return JSONResponse({"ok": True, **result})
-    except Exception as e:
+    except Exception:
         logger.exception("ML optimization failed")
-        # Don't expose internal error details to users (CWE-209)
         return JSONResponse({"ok": False, "error": "Strategy optimization failed"}, status_code=500)
 
 
 @router.post("/api/v1/strategies/evolve")
-async def evolve_strategies(request: Request):
-    """Run genetic evolution (HTMX endpoint)."""
+async def evolve_strategies(body: GeneticEvolveRequest, request: Request):
+    """Run genetic evolution."""
     user = await get_current_user_optional(request)
     if not user:
         raise HTTPException(status_code=401, detail="Login required")
@@ -311,32 +305,33 @@ async def evolve_strategies(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Ultra+ for genetic optimization")
 
     db = _get_db(request)
-    body = await request.json()
 
     try:
         from rot.strategy.genetic import GeneticOptimizer
 
         signals = await db.get_signals_for_backtest(
-            days=body.get("days", 90), limit=body.get("max_signals", 1000)
+            days=body.days, limit=body.max_signals
         )
 
         optimizer = GeneticOptimizer(
             signals=signals,
-            population_size=min(body.get("population_size", 50), 100),
-            generations=min(body.get("generations", 30), 50),
-            max_rules=body.get("max_rules", 5),
+            population_size=body.population_size,
+            generations=body.generations,
+            max_rules=body.max_rules,
         )
 
         result = optimizer.evolve()
         return JSONResponse({"ok": True, **result})
-    except Exception as e:
+    except Exception:
         logger.exception("Genetic evolution failed")
-        # Don't expose internal error details to users (CWE-209)
         return JSONResponse({"ok": False, "error": "Strategy evolution failed"}, status_code=500)
 
 
 @router.get("/api/v1/strategies/regimes")
-async def get_regimes(request: Request):
+async def get_regimes(
+    request: Request,
+    days: int = Query(90, ge=1, le=365),
+):
     """Get market regime data."""
     user = await get_current_user_optional(request)
     tier = user["tier"] if user else "free"
@@ -346,13 +341,17 @@ async def get_regimes(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Premium+ for regime analysis")
 
     db = _get_db(request)
-    days = int(request.query_params.get("days", "90"))
     regimes = await db.get_market_regimes(days=days)
     return JSONResponse({"regimes": regimes})
 
 
 @router.get("/api/v1/marketplace")
-async def get_marketplace(request: Request):
+async def get_marketplace(
+    request: Request,
+    sort_by: str = Query("rating"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
     """Get marketplace entries."""
     user = await get_current_user_optional(request)
     tier = user["tier"] if user else "free"
@@ -362,15 +361,12 @@ async def get_marketplace(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Ultra+ for marketplace")
 
     db = _get_db(request)
-    sort_by = request.query_params.get("sort_by", "rating")
-    limit = int(request.query_params.get("limit", "20"))
-    offset = int(request.query_params.get("offset", "0"))
     entries = await db.get_marketplace_entries(sort_by=sort_by, limit=limit, offset=offset)
     return JSONResponse({"entries": entries})
 
 
 @router.post("/api/v1/marketplace/publish")
-async def publish_to_marketplace(request: Request):
+async def publish_to_marketplace(body: PublishToMarketplaceRequest, request: Request):
     """Publish a strategy to the marketplace."""
     user = await get_current_user_optional(request)
     if not user:
@@ -381,21 +377,17 @@ async def publish_to_marketplace(request: Request):
         raise HTTPException(status_code=403, detail="Upgrade to Ultra+ for marketplace")
 
     db = _get_db(request)
-    body = await request.json()
-    strategy_id = body.get("strategy_id")
-    if not strategy_id:
-        raise HTTPException(status_code=400, detail="strategy_id required")
 
-    strategy = await db.get_strategy(strategy_id)
+    strategy = await db.get_strategy(body.strategy_id)
     if not strategy or strategy["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
     entry = {
         "id": str(uuid.uuid4()),
-        "strategy_id": strategy_id,
+        "strategy_id": body.strategy_id,
         "author_id": user["id"],
-        "name": body.get("name", strategy["name"]),
-        "description": body.get("description", strategy.get("description", "")),
+        "name": body.name or strategy["name"],
+        "description": body.description or strategy.get("description", ""),
         "performance": strategy.get("performance", {}),
         "subscriber_count": 0,
         "rating": 0.0,

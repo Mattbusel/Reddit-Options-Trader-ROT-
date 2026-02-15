@@ -46,30 +46,9 @@ from .sports_db import SportsMixin
 from .affiliates_db import AffiliatesMixin
 from .auth_db import AuthMixin
 
-# Import backtest and strategy mixins (to be created)
-try:
-    from .backtest_db import BacktestMixin
-except ImportError:
-    # Temporary fallback until backtest_db.py is created
-    class BacktestMixin:
-        """Placeholder for backtest methods."""
-        pass
-
-try:
-    from .strategy_db import StrategyMixin
-except ImportError:
-    # Temporary fallback until strategy_db.py is created
-    class StrategyMixin:
-        """Placeholder for strategy builder methods."""
-        pass
-
-try:
-    from .gamification_db import GamificationMixin
-except ImportError:
-    # Temporary fallback until gamification_db.py is created
-    class GamificationMixin:
-        """Placeholder for gamification methods."""
-        pass
+from .backtest_db import BacktestMixin
+from .strategy_db import StrategyMixin
+from .gamification_db import GamificationMixin
 
 
 class Database(
