@@ -8,6 +8,7 @@ Supports:
 """
 from __future__ import annotations
 
+from rot.core.logging import sanitize_for_log
 import logging
 from typing import Optional
 

@@ -38,6 +38,7 @@ Usage::
 
 from __future__ import annotations
 
+from rot.core.logging import sanitize_for_log
 import itertools
 import logging
 import math
