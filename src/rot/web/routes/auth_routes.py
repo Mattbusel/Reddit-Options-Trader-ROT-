@@ -15,6 +15,7 @@ from rot.web.auth import (
     require_user,
     verify_password,
 )
+from rot.web.rate_limit import check_auth_rate_limit
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth")
@@ -40,6 +41,9 @@ class LLMSettingsRequest(BaseModel):
 
 @router.post("/register")
 async def register(body: RegisterRequest, request: Request):
+    # Brute-force protection: 3 attempts per IP per hour
+    check_auth_rate_limit(request, "register")
+
     if not _EMAIL_RE.match(body.email):
         raise HTTPException(status_code=400, detail="Invalid email format")
     if len(body.password) < 8:
@@ -72,6 +76,9 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
+    # Brute-force protection: 5 attempts per IP per 15 minutes
+    check_auth_rate_limit(request, "login")
+
     db = request.app.state.db
     user = await db.get_user_by_email(body.email.lower())
     if not user or not user.get("password_hash"):
@@ -140,6 +147,9 @@ async def me(request: Request):
 
 @router.post("/api-key")
 async def create_api_key(request: Request):
+    # Brute-force protection: 3 attempts per IP per hour
+    check_auth_rate_limit(request, "api-key")
+
     user = await require_user(request)
     db = request.app.state.db
 

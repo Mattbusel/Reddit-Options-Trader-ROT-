@@ -9,16 +9,24 @@ Rate limits:
   - Premium:    5,000 calls/day (200/min burst)
   - Ultra:     25,000 calls/day (500/min burst)
   - Enterprise: 100,000 calls/day (2,000/min burst)
+
+Auth Rate Limiting (brute-force protection):
+  - /auth/login:     5 attempts per IP per 15 minutes
+  - /auth/register:  3 attempts per IP per hour
+  - /auth/api-key:   3 attempts per user per hour
 """
 from __future__ import annotations
 
 import time
 import logging
-from typing import Optional
+from typing import Optional, Dict, List
 
 from fastapi import HTTPException, Request
 
 log = logging.getLogger(__name__)
+
+# Auth brute-force protection: IP -> list of attempt timestamps
+_auth_attempts: Dict[str, List[float]] = {}
 
 _DEFAULT_LIMITS = {
     "free": 0,         # Zero. The API is not free.
@@ -145,3 +153,69 @@ def rate_limit_headers(user: Optional[dict]) -> dict:
         "X-RateLimit-Burst": str(burst_limit),
         "X-Tier": tier,
     }
+
+
+def check_auth_rate_limit(request: Request, endpoint: str) -> None:
+    """Check brute-force protection for auth endpoints.
+
+    Args:
+        request: FastAPI request object
+        endpoint: One of "login", "register", "api-key"
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Rate limits:
+        - login:     5 attempts per IP per 15 minutes
+        - register:  3 attempts per IP per hour
+        - api-key:   3 attempts per hour (per IP, since user might not be authed yet)
+    """
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    # Define limits
+    limits = {
+        "login": (5, 900),      # 5 attempts, 15 minutes
+        "register": (3, 3600),  # 3 attempts, 1 hour
+        "api-key": (3, 3600),   # 3 attempts, 1 hour
+    }
+
+    if endpoint not in limits:
+        log.warning(f"Unknown auth endpoint for rate limiting: {endpoint}")
+        return
+
+    max_attempts, window_seconds = limits[endpoint]
+
+    # Clean up old attempts (older than window)
+    key = f"{ip}:{endpoint}"
+    if key in _auth_attempts:
+        _auth_attempts[key] = [ts for ts in _auth_attempts[key] if now - ts < window_seconds]
+
+    # Check if limit exceeded
+    attempts = _auth_attempts.get(key, [])
+    if len(attempts) >= max_attempts:
+        # Calculate retry-after
+        oldest_attempt = min(attempts)
+        retry_after_seconds = int(window_seconds - (now - oldest_attempt))
+
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many {endpoint} attempts. Please try again later.",
+            headers={
+                "Retry-After": str(max(1, retry_after_seconds))
+            }
+        )
+
+    # Record this attempt
+    if key not in _auth_attempts:
+        _auth_attempts[key] = []
+    _auth_attempts[key].append(now)
+
+    # Cleanup: Remove entries older than 1 hour to prevent memory buildup
+    cutoff = now - 3600
+    keys_to_delete = []
+    for k, timestamps in _auth_attempts.items():
+        if not timestamps or max(timestamps) < cutoff:
+            keys_to_delete.append(k)
+    for k in keys_to_delete:
+        del _auth_attempts[k]
