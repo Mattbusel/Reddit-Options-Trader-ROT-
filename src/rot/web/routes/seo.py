@@ -6,24 +6,36 @@ from fastapi.responses import PlainTextResponse, Response
 
 router = APIRouter()
 
-# Public pages to include in the sitemap
-_PUBLIC_PAGES = [
-    "/",
-    "/dashboard",
-    "/pricing",
-    "/sentiment",
-    "/weekly-wrap",
-    "/replay",
-    "/hall-of-legends",
-    "/wall-of-shame",
-    "/ceo-rap-sheet",
-    "/glossary",
-    "/sports-tracker",
-    "/sports",
-    "/news",
-    "/leaderboard",
-    "/congress-tracker",
-    "/faq",
+# Public pages with SEO priority (1.0 = highest, 0.1 = lowest)
+# and change frequency hints for search engine crawlers.
+_PUBLIC_PAGES: list[tuple[str, str, str]] = [
+    # (path, changefreq, priority)
+    # Core marketing / high-value landing pages
+    ("/", "daily", "1.0"),
+    ("/pricing", "weekly", "0.9"),
+    ("/dashboard", "hourly", "0.9"),
+    # Content-rich evergreen pages (strong long-tail SEO)
+    ("/glossary", "monthly", "0.8"),
+    ("/hall-of-legends", "monthly", "0.8"),
+    ("/wall-of-shame", "monthly", "0.8"),
+    ("/ceo-rap-sheet", "monthly", "0.8"),
+    ("/faq", "monthly", "0.8"),
+    # Live data pages (high freshness signals to crawlers)
+    ("/news", "hourly", "0.8"),
+    ("/sentiment", "hourly", "0.7"),
+    ("/sports-tracker", "hourly", "0.7"),
+    ("/sports", "hourly", "0.7"),
+    ("/weekly-wrap", "weekly", "0.7"),
+    ("/replay", "daily", "0.6"),
+    ("/leaderboard", "daily", "0.6"),
+    ("/congress-tracker", "daily", "0.7"),
+    # Tool / feature pages
+    ("/unusual-activity", "hourly", "0.6"),
+    ("/correlations", "daily", "0.6"),
+    ("/brokers", "monthly", "0.5"),
+    ("/badges", "monthly", "0.5"),
+    ("/widgets", "monthly", "0.5"),
+    ("/tradingview", "daily", "0.5"),
 ]
 
 
@@ -40,6 +52,11 @@ async def robots_txt(request: Request):
         "Disallow: /logout\n"
         "Disallow: /forgot-password\n"
         "Disallow: /reset-password\n"
+        "Disallow: /checkout\n"
+        "Disallow: /portal\n"
+        "Disallow: /webhook\n"
+        "Disallow: /errors/\n"
+        "Disallow: /static/\n"
         "\n"
         f"Sitemap: {base}/sitemap.xml\n"
     )
@@ -102,10 +119,11 @@ async def sitemap_xml(request: Request):
     base = str(request.base_url).rstrip("/")
     urls = "\n".join(
         f"  <url>\n"
-        f"    <loc>{base}{page}</loc>\n"
-        f"    <changefreq>daily</changefreq>\n"
+        f"    <loc>{base}{path}</loc>\n"
+        f"    <changefreq>{changefreq}</changefreq>\n"
+        f"    <priority>{priority}</priority>\n"
         f"  </url>"
-        for page in _PUBLIC_PAGES
+        for path, changefreq, priority in _PUBLIC_PAGES
     )
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

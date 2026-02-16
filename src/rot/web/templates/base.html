@@ -8,7 +8,7 @@
 
     <!-- SEO Meta Tags -->
     <meta name="description" content="{% block meta_description %}ROT - Reddit Options Trader. Real-time AI-powered signal intelligence from Reddit, with options trade ideas, performance tracking, and market analysis.{% endblock %}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
     <link rel="canonical" href="{% block canonical_url %}{{ request.url }}{% endblock %}">
 
     <!-- Open Graph -->
