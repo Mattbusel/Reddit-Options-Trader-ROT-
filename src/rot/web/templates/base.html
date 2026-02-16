@@ -44,6 +44,15 @@
     </script>
     {% endblock %}
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-J2YVMJBWLX" nonce="{{ csp_nonce }}"></script>
+    <script nonce="{{ csp_nonce }}">
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-J2YVMJBWLX');
+    </script>
+
     <script src="https://cdn.tailwindcss.com" nonce="{{ csp_nonce }}"></script>
     <script src="/static/js/chart.umd.min.js" nonce="{{ csp_nonce }}"></script>
     <script src="/static/js/htmx.min.js" nonce="{{ csp_nonce }}"></script>

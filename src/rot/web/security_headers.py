@@ -30,9 +30,9 @@ from starlette.types import ASGIApp
 # Static CSP directives (do not change per-request)
 _CSP_STATIC_DIRECTIVES = [
     "default-src 'self'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: https: https://www.googletagmanager.com https://www.google-analytics.com",
     "font-src 'self' data:",
-    "connect-src 'self' ws: wss: https://api.stripe.com",
+    "connect-src 'self' ws: wss: https://api.stripe.com https://www.google-analytics.com https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com",
     "frame-src https://js.stripe.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
@@ -50,7 +50,7 @@ def _build_csp(nonce: str) -> str:
     generates <style> tags at runtime that cannot carry a server-side nonce.
     """
     return (
-        f"script-src 'self' 'nonce-{nonce}' https://cdn.tailwindcss.com https://js.stripe.com; "
+        f"script-src 'self' 'nonce-{nonce}' https://cdn.tailwindcss.com https://js.stripe.com https://www.googletagmanager.com; "
         f"style-src 'self' 'unsafe-inline'; "
         f"{_CSP_STATIC_PART}"
     )
