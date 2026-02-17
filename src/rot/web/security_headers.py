@@ -69,6 +69,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
+        # Skip security headers for MCP SSE transport — BaseHTTPMiddleware
+        # can buffer streaming responses and break SSE event delivery.
+        if request.url.path.startswith("/mcp/"):
+            return response
+
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
