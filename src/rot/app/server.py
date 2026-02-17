@@ -1631,6 +1631,12 @@ async def _run_server(cfg: Settings):
         if cleanup_task:
             cleanup_task.cancel()
         # flow/social/strategy tasks are in background_tasks list (cancelled above)
+        # Close MCP event store
+        try:
+            from rot.web.mcp_integration import close_mcp_event_store
+            await close_mcp_event_store()
+        except Exception:
+            pass  # Best-effort MCP event store close
         # Close DB connection
         db = getattr(app.state, "db", None)
         if db:

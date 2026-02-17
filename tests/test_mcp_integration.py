@@ -1,8 +1,9 @@
-"""Tests for the MCP SSE integration module.
+"""Tests for the MCP Streamable HTTP integration module.
 
 Verifies that the FastMCP server is properly configured, tools are
-registered, resources are available, the SSE app can be created,
-and the HTTP helper handles errors correctly.
+registered, resources are available, both Streamable HTTP and legacy SSE
+apps can be created, the HTTP helper handles errors correctly, and
+the event store lifecycle functions work properly.
 """
 from __future__ import annotations
 
@@ -21,7 +22,12 @@ os.environ.setdefault("ROT_REDDIT_USER_AGENT", "test")
 from rot.web.mcp_integration import (
     _get,
     get_mcp_sse_app,
+    get_mcp_streamable_http_app,
+    connect_mcp_event_store,
+    close_mcp_event_store,
+    cleanup_mcp_events,
     mcp,
+    _event_store,
     get_trending_tickers,
     get_signals,
     get_sentiment,
@@ -32,6 +38,7 @@ from rot.web.mcp_integration import (
     server_status,
     pricing_info,
 )
+from rot.web.mcp_event_store import InMemoryEventStore
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -359,11 +366,11 @@ class TestPricingResource:
 
 
 class TestFastAPIIntegration:
-    """Verify MCP SSE endpoint is mounted in the main app."""
+    """Verify MCP endpoint is mounted in the main app."""
 
     @pytest.mark.asyncio
     async def test_mcp_mount_in_app(self):
-        """MCP SSE app is mounted at /mcp in the main FastAPI app."""
+        """MCP Streamable HTTP app is mounted at /mcp in the main FastAPI app."""
         from rot.core.config import Settings
         from rot.web.app import create_app, connect_db, register_routes
 
@@ -395,7 +402,7 @@ class TestFastAPIIntegration:
             cleanup.cancel()
 
     def test_mcp_sse_app_created_independently(self):
-        """SSE app can be created without the full FastAPI app."""
+        """Legacy SSE app can still be created without the full FastAPI app."""
         app = get_mcp_sse_app()
         assert app is not None
 
@@ -405,3 +412,142 @@ class TestFastAPIIntegration:
         app2 = get_mcp_sse_app()
         assert app1 is not None
         assert app2 is not None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Streamable HTTP Transport
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestStreamableHttpApp:
+    """Verify the Streamable HTTP transport app."""
+
+    def test_streamable_http_app_is_starlette(self):
+        """get_mcp_streamable_http_app returns a Starlette ASGI app."""
+        app = get_mcp_streamable_http_app()
+        assert app is not None
+        assert type(app).__name__ == "Starlette"
+
+    def test_streamable_http_app_callable(self):
+        """Streamable HTTP app is callable (ASGI interface)."""
+        app = get_mcp_streamable_http_app()
+        assert callable(app)
+
+    def test_streamable_http_app_has_routes(self):
+        """Streamable HTTP app has the root path route."""
+        app = get_mcp_streamable_http_app()
+        paths = [getattr(r, "path", None) for r in app.routes]
+        # streamable_http_path="/" means root route
+        assert "/" in paths
+
+    def test_multiple_streamable_http_app_calls_succeed(self):
+        """Calling get_mcp_streamable_http_app() multiple times doesn't error."""
+        app1 = get_mcp_streamable_http_app()
+        app2 = get_mcp_streamable_http_app()
+        assert app1 is not None
+        assert app2 is not None
+
+    def test_event_store_is_configured(self):
+        """FastMCP instance has an event store configured."""
+        assert mcp._event_store is not None
+
+    def test_streamable_http_path_is_root(self):
+        """streamable_http_path is '/' so mounting at /mcp gives /mcp/."""
+        assert mcp.settings.streamable_http_path == "/"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Event Store Lifecycle
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestEventStoreLifecycle:
+    """Verify connect/close/cleanup lifecycle functions."""
+
+    @pytest.mark.asyncio
+    async def test_connect_mcp_event_store_creates_sqlite(self, tmp_path):
+        """connect_mcp_event_store upgrades to SQLite in a valid directory."""
+        import rot.web.mcp_integration as mod
+
+        # Save original state
+        original_store = mod._event_store
+
+        try:
+            # Reset to InMemory for this test
+            mod._event_store = InMemoryEventStore()
+            mod.mcp._event_store = mod._event_store
+
+            await connect_mcp_event_store(str(tmp_path))
+
+            from rot.web.mcp_event_store import SqliteEventStore
+            assert isinstance(mod._event_store, SqliteEventStore)
+
+            # Clean up
+            await mod._event_store.close()
+        finally:
+            # Restore original state
+            mod._event_store = original_store
+            mod.mcp._event_store = original_store
+
+    @pytest.mark.asyncio
+    async def test_close_mcp_event_store_noop_for_inmemory(self):
+        """close_mcp_event_store is a no-op when using InMemoryEventStore."""
+        import rot.web.mcp_integration as mod
+
+        original_store = mod._event_store
+        try:
+            mod._event_store = InMemoryEventStore()
+            # Should not raise
+            await close_mcp_event_store()
+        finally:
+            mod._event_store = original_store
+
+    @pytest.mark.asyncio
+    async def test_cleanup_mcp_events_returns_zero_for_inmemory(self):
+        """cleanup_mcp_events returns 0 when using InMemoryEventStore."""
+        import rot.web.mcp_integration as mod
+
+        original_store = mod._event_store
+        try:
+            mod._event_store = InMemoryEventStore()
+            result = await cleanup_mcp_events()
+            assert result == 0
+        finally:
+            mod._event_store = original_store
+
+    @pytest.mark.asyncio
+    async def test_connect_handles_bad_directory(self, tmp_path):
+        """connect_mcp_event_store gracefully handles bad paths."""
+        import rot.web.mcp_integration as mod
+
+        original_store = mod._event_store
+        try:
+            mod._event_store = InMemoryEventStore()
+            # A file path that can't be a directory
+            bad_path = str(tmp_path / "nonexistent" / "deeply" / "nested")
+            # Should not raise — falls back to keeping in-memory
+            await connect_mcp_event_store(bad_path)
+        finally:
+            mod._event_store = original_store
+
+    @pytest.mark.asyncio
+    async def test_connect_skips_if_already_sqlite(self, tmp_path):
+        """connect_mcp_event_store is idempotent — skips if already SQLite."""
+        import rot.web.mcp_integration as mod
+        from rot.web.mcp_event_store import SqliteEventStore
+
+        original_store = mod._event_store
+        try:
+            # Set up a SqliteEventStore
+            mod._event_store = InMemoryEventStore()
+            await connect_mcp_event_store(str(tmp_path))
+            first_store = mod._event_store
+            assert isinstance(first_store, SqliteEventStore)
+
+            # Call again — should be a no-op
+            await connect_mcp_event_store(str(tmp_path))
+            assert mod._event_store is first_store  # same object
+
+            await mod._event_store.close()
+        finally:
+            mod._event_store = original_store

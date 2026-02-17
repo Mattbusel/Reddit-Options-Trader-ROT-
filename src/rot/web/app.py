@@ -35,6 +35,15 @@ async def _periodic_db_cleanup(db, interval_s: int = 3600):
         except Exception as e:
             log.error("DB cleanup error: %s", e)
 
+        # Cleanup stale MCP session events
+        try:
+            from rot.web.mcp_integration import cleanup_mcp_events
+            mcp_deleted = await cleanup_mcp_events()
+            if mcp_deleted:
+                log.info("MCP event cleanup: removed %d stale events", mcp_deleted)
+        except Exception as e:
+            log.debug("MCP event cleanup: %s", e)
+
         # Backfill AI summaries for signals that don't have one
         try:
             from rot.reasoner.ai_summary import backfill_ai_summaries
@@ -254,6 +263,13 @@ async def connect_db(app: FastAPI):
     app.state.signal_service = SignalService(db=db, cache=app.state.query_cache)
     app.state.user_service = UserService(db=db)
 
+    # Upgrade MCP event store to SQLite for cross-restart session persistence
+    try:
+        from rot.web.mcp_integration import connect_mcp_event_store
+        await connect_mcp_event_store(str(db.db_path.parent))
+    except Exception as exc:
+        log.warning("MCP event store upgrade skipped: %s", exc)
+
     # Start periodic cleanup task
     app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
 
@@ -351,19 +367,20 @@ def register_routes(app: FastAPI):
     app.include_router(paper_leaderboard.router, tags=["integrations"])
     app.include_router(api_status.router, tags=["integrations"])
 
-    # ── MCP (API + landing page + SSE protocol endpoint) ─────────
+    # ── MCP (API + landing page + Streamable HTTP protocol endpoint) ─
     from rot.web.routes import mcp_api, mcp_landing
     app.include_router(mcp_api.router, tags=["mcp"])
     app.include_router(mcp_landing.router, tags=["mcp"])
 
-    # Mount the MCP SSE transport at /mcp so MCP clients can connect
+    # Mount the MCP Streamable HTTP transport at /mcp so MCP clients can connect.
+    # Streamable HTTP replaces legacy SSE with built-in session resumability.
     try:
-        from rot.web.mcp_integration import get_mcp_sse_app
-        app.mount("/mcp", get_mcp_sse_app())
-        log.info("MCP SSE endpoint mounted at /mcp")
+        from rot.web.mcp_integration import get_mcp_streamable_http_app
+        app.mount("/mcp", get_mcp_streamable_http_app())
+        log.info("MCP Streamable HTTP endpoint mounted at /mcp")
     except ImportError:
-        log.warning("MCP SSE endpoint not available (mcp package not installed)")
+        log.warning("MCP endpoint not available (mcp package not installed)")
     except Exception as exc:
-        log.warning("MCP SSE mount failed: %s", exc)
+        log.warning("MCP Streamable HTTP mount failed: %s", exc)
 
     log.info("All routes registered (%d routes)", len(app.routes))

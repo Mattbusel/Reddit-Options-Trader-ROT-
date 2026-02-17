@@ -219,7 +219,7 @@
             <pre id="claude-config"><code>{
   <span class="json-key">"mcpServers"</span>: {
     <span class="json-key">"rot"</span>: {
-      <span class="json-key">"url"</span>: <span class="json-string">"https://web-production-71423.up.railway.app/mcp"</span>
+      <span class="json-key">"url"</span>: <span class="json-string">"https://web-production-71423.up.railway.app/mcp/"</span>
     }
   }
 }</code></pre>
@@ -228,7 +228,7 @@
 
     <!-- Step 1b: Alternative — mcp-remote proxy -->
     <div class="mb-8 ml-0 md:ml-14 fade-in" style="animation-delay: 0.28s">
-        <p class="text-gray-500 text-xs mb-2">Alternative: If your Claude Desktop doesn't support the <code class="text-gray-400">url</code> field, use <code class="text-gray-400">mcp-remote</code>:</p>
+        <p class="text-gray-500 text-xs mb-2">Alternative: If your client only supports legacy SSE transport, use <code class="text-gray-400">mcp-remote</code>:</p>
         <div class="code-block p-4 relative">
             <button onclick="copyCode('mcp-remote-config')" class="copy-btn absolute top-3 right-3 text-gray-500 hover:text-orange-400" title="Copy to clipboard">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
@@ -257,7 +257,7 @@
             <button onclick="copyCode('mcp-url')" class="copy-btn absolute top-3 right-3 text-gray-500 hover:text-orange-400" title="Copy to clipboard">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
             </button>
-            <pre id="mcp-url"><code>https://web-production-71423.up.railway.app/mcp/sse</code></pre>
+            <pre id="mcp-url"><code>https://web-production-71423.up.railway.app/mcp/</code></pre>
         </div>
     </div>
 

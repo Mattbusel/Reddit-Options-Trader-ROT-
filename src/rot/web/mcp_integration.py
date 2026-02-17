@@ -1,8 +1,12 @@
-"""MCP Server integration — mounts FastMCP SSE endpoint into the FastAPI app.
+"""MCP Server integration — mounts FastMCP Streamable HTTP endpoint into FastAPI.
 
 This module creates a FastMCP server with 7 tools and 2 resources,
-then exposes ``get_mcp_sse_app()`` which returns a Starlette ASGI app
-that should be mounted at ``/mcp`` in the main FastAPI application.
+then exposes ``get_mcp_streamable_http_app()`` which returns a Starlette
+ASGI app that should be mounted at ``/mcp`` in the main FastAPI application.
+
+The Streamable HTTP transport (replacing legacy SSE) provides built-in
+session resumability via ``EventStore`` and ``Last-Event-ID`` headers.
+Clients auto-reconnect on disconnection without user intervention.
 
 The MCP tools proxy to the same ``/api/mcp/*`` REST endpoints on
 localhost, keeping the implementation DRY — the backend API routes
@@ -11,8 +15,8 @@ MCP protocol consumption.
 
 Usage in app.py::
 
-    from rot.web.mcp_integration import get_mcp_sse_app
-    app.mount("/mcp", get_mcp_sse_app())
+    from rot.web.mcp_integration import get_mcp_streamable_http_app
+    app.mount("/mcp", get_mcp_streamable_http_app())
 """
 from __future__ import annotations
 
@@ -23,6 +27,8 @@ from typing import Optional
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+
+from rot.web.mcp_event_store import InMemoryEventStore, SqliteEventStore
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +42,11 @@ _INTERNAL_BASE = f"http://127.0.0.1:{_PORT}"
 _TIMEOUT = 10.0
 
 # ── MCP Server ───────────────────────────────────────────────────────
+
+# Start with an in-memory event store; upgraded to SQLite via
+# connect_mcp_event_store() during app startup if persistent storage
+# is available.
+_event_store: InMemoryEventStore | SqliteEventStore = InMemoryEventStore()
 
 mcp = FastMCP(
     "ROT — Reddit Options Trader",
@@ -52,6 +63,10 @@ mcp = FastMCP(
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
     ),
+    # Streamable HTTP transport with session resumability
+    event_store=_event_store,
+    # Path "/" so mounted at /mcp in FastAPI the endpoint is /mcp/ (not /mcp/mcp)
+    streamable_http_path="/",
 )
 
 
@@ -228,11 +243,61 @@ async def pricing_info() -> str:
 # ── Public API ───────────────────────────────────────────────────────
 
 
-def get_mcp_sse_app():
-    """Return the Starlette ASGI app for the MCP SSE endpoint.
+def get_mcp_streamable_http_app():
+    """Return the Starlette ASGI app for the MCP Streamable HTTP endpoint.
 
     Mount this at ``/mcp`` in the main FastAPI application::
 
-        app.mount("/mcp", get_mcp_sse_app())
+        app.mount("/mcp", get_mcp_streamable_http_app())
+    """
+    return mcp.streamable_http_app()
+
+
+def get_mcp_sse_app():
+    """Deprecated — use ``get_mcp_streamable_http_app()`` instead.
+
+    Kept for backward compatibility.  Returns the legacy SSE transport app.
     """
     return mcp.sse_app()
+
+
+async def connect_mcp_event_store(db_dir: str) -> None:
+    """Upgrade the event store to SQLite for cross-restart persistence.
+
+    Called during app startup after the storage directory is known.
+    If SQLite connection succeeds, the FastMCP server's event store
+    is hot-swapped from InMemoryEventStore to SqliteEventStore.
+
+    Args:
+        db_dir: Directory for the ``mcp_events.db`` file
+            (typically the ROT_STORAGE_ROOT).
+    """
+    global _event_store
+    if isinstance(_event_store, SqliteEventStore):
+        return  # already upgraded
+
+    db_path = os.path.join(db_dir, "mcp_events.db")
+    sqlite_store = SqliteEventStore(db_path)
+    try:
+        await sqlite_store.connect()
+    except Exception as exc:
+        log.warning("MCP SqliteEventStore failed, keeping in-memory: %s", exc)
+        return
+
+    # Hot-swap the event store on the FastMCP instance
+    mcp._event_store = sqlite_store
+    _event_store = sqlite_store
+    log.info("MCP event store upgraded to SQLite: %s", db_path)
+
+
+async def close_mcp_event_store() -> None:
+    """Close the event store on shutdown (no-op for InMemoryEventStore)."""
+    if isinstance(_event_store, SqliteEventStore):
+        await _event_store.close()
+
+
+async def cleanup_mcp_events() -> int:
+    """Remove stale MCP events.  Returns number of deleted rows."""
+    if isinstance(_event_store, SqliteEventStore):
+        return await _event_store.cleanup()
+    return 0

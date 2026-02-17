@@ -10,7 +10,7 @@ Usage:
     python rot_mcp_server.py
 
     # Or connect any MCP client to the hosted URL:
-    # https://web-production-71423.up.railway.app/mcp
+    # https://web-production-71423.up.railway.app/mcp/
 """
 from __future__ import annotations
 
@@ -221,4 +221,4 @@ async def pricing_info() -> str:
 # ── Entrypoint ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    mcp.run(transport="sse")
+    mcp.run(transport="streamable-http")
