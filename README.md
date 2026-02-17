@@ -2,11 +2,71 @@
 
 **A 165K-line financial intelligence platform that turns Reddit into structured options trade ideas. Built solo in 9 days.**
 
+**The first financial intelligence MCP server in existence.** Connect Claude, Cursor, or any MCP-compatible AI to live trading signals, sentiment analysis, and unusual options activity — in one line of config.
 
 [![Security: 0 alerts](https://img.shields.io/badge/security%20alerts-0-brightgreen)]()
 [![Tests: 6,916](https://img.shields.io/badge/tests-6%2C916-blue)]()
 [![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.62%3A1-blue)]()
+[![MCP Server: Live](https://img.shields.io/badge/MCP%20Server-Live-brightgreen)]()
 
+
+---
+
+## MCP Server — Talk to Wall Street Through Your AI
+
+ROT is the **world's first financial intelligence MCP server**. No other MCP server gives your AI real-time access to trading signals, sentiment data, unusual options activity, and sports betting intelligence — all sourced from Reddit, RSS, and social media, analyzed by a 9-stage AI pipeline.
+
+### Connect in 30 Seconds (Zero Install)
+
+The server is hosted. No packages, no Docker, no API keys. Just add one block to your config:
+
+**Claude Desktop** — Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "rot": {
+      "url": "https://web-production-71423.up.railway.app/mcp"
+    }
+  }
+}
+```
+
+**Cursor / Windsurf / Any MCP Client** — Point at:
+
+```
+https://web-production-71423.up.railway.app/mcp
+```
+
+That's it. Your AI can now query live financial intelligence.
+
+### What Your AI Can Do
+
+| Tool | What It Does |
+|------|-------------|
+| `get_trending_tickers` | See what Wall Street and Reddit are buzzing about right now |
+| `get_signals` | Get AI-analyzed trading signals with strategies and confidence scores |
+| `get_sentiment` | Bull/bear breakdown and net sentiment for any ticker |
+| `get_market_overview` | 30-day snapshot: win rate, signal volume, avg confidence |
+| `get_unusual_activity` | Detect IV spikes, volume surges, and institutional positioning |
+| `get_sports_feed` | Sports betting intel with line mover scores (0-100) |
+| `search_signals` | Search all signals by keyword ("FDA approval", "earnings beat") |
+
+### Try These Prompts
+
+Once connected, just ask your AI in natural language:
+
+- *"What stocks are trending on Reddit right now?"*
+- *"Show me bearish signals for TSLA"*
+- *"What's the sentiment on NVDA?"*
+- *"Are there any unusual options activity alerts?"*
+- *"Search for signals about FDA approvals"*
+- *"Give me a full market overview for the last 30 days"*
+- *"What NFL injuries might move betting lines today?"*
+
+No API key needed. Every tool is free.
+
+> Full MCP documentation: [MCP_README.md](MCP_README.md)
 
 ---
 
@@ -52,6 +112,8 @@ INFRASTRUCTURE
 ──────────────────────────────────────
 Database Tables:      33+
 API Endpoints:       100+
+MCP Tools:             7  (first financial MCP server)
+MCP Resources:         2
 Tier Gates:           35+
 NLP Modules:          10
 Background Loops:      8
@@ -116,6 +178,7 @@ Independently audited at **A (93-95/100)** across two separate assessments.
 | **Dual-Path NLP** | Custom 10-module engine with regex fallback |
 | **Query Cache** | Async TTL with thundering-herd prevention (per-key locks) |
 | **Tier Gating** | Returns dicts of flags, not exceptions. Admin bypasses all. |
+| **MCP Server** | Remote HTTP/SSE, 7 tools + 2 resources, zero-config connection |
 | **Non-root Docker** | gosu-based entrypoint with volume permission handling |
 
 ---
@@ -157,6 +220,7 @@ FastAPI + Jinja2. Real-time signal feed (WebSockets), confidence bars, stance ba
 Discord webhooks, email, Twitter. High-confidence signals only. Rich embeds with ticker, stance, confidence, strategy, option legs, risks, catalyst window.
 
 ### Additional Systems
+- **MCP Server:** World's first financial intelligence MCP server — 7 tools, 2 resources, zero-install remote connection
 - **Backtesting Engine:** Monte Carlo simulation, walk-forward optimization, 12 modules
 - **Strategy Builder:** Rule-based, ML optimizer, genetic algorithms, regime detection, marketplace
 - **Social Intelligence:** Manipulation detection, bot detection, pump-dump patterns, coordination tracking
