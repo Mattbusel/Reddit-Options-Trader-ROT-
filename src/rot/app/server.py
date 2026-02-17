@@ -1600,16 +1600,6 @@ async def _run_server(cfg: Settings):
             cfg.strategy.health_check_interval_s,
         )
 
-        # Start MCP Streamable HTTP session manager
-        try:
-            from rot.web.mcp_integration import start_mcp_session_manager
-            background_tasks.append(asyncio.create_task(
-                start_mcp_session_manager(stop_event)
-            ))
-            log.info("MCP Streamable HTTP session manager task started")
-        except Exception as exc:
-            log.warning("MCP session manager start failed: %s", exc)
-
         log.info("Heavy initialization complete — all background loops running")
 
     # Schedule heavy init to run AFTER uvicorn binds the port
@@ -1618,6 +1608,17 @@ async def _run_server(cfg: Settings):
     log.info("Starting ROT server on %s:%d", cfg.web.host, cfg.web.port)
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
+
+    # Start MCP Streamable HTTP session manager as a background task.
+    # Must run BEFORE server.serve() so it's ready for requests immediately.
+    # FastAPI doesn't trigger sub-app lifespans, so we start it manually.
+    try:
+        from rot.web.mcp_integration import start_mcp_session_manager
+        mcp_task = asyncio.create_task(start_mcp_session_manager(stop_event))
+        background_tasks.append(mcp_task)
+        log.info("MCP Streamable HTTP session manager task started")
+    except Exception as exc:
+        log.warning("MCP session manager start failed: %s", exc)
 
     # Run uvicorn as an awaitable inside the CURRENT event loop (no new loop created)
     _t2 = time.monotonic()
