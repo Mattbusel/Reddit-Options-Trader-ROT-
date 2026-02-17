@@ -22,6 +22,7 @@ from typing import Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,13 @@ mcp = FastMCP(
         "AI-powered options signals, sentiment analysis, unusual activity "
         "detection, and sports betting intelligence. "
         "Use the available tools to query live data."
+    ),
+    # Disable DNS rebinding protection — this is a public-facing MCP server
+    # deployed on Railway, not a localhost-only dev server.  The default
+    # auto-enables protection for localhost hosts, which causes 421 responses
+    # when the Host header is the Railway public hostname.
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
     ),
 )
 

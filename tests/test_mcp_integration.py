@@ -51,6 +51,12 @@ class TestMcpServerConfig:
         assert mcp.instructions is not None
         assert "trading" in mcp.instructions.lower()
 
+    def test_dns_rebinding_protection_disabled(self):
+        """DNS rebinding protection is disabled for public deployment."""
+        settings = mcp.settings.transport_security
+        assert settings is not None
+        assert settings.enable_dns_rebinding_protection is False
+
     def test_sse_app_is_starlette(self):
         """get_mcp_sse_app returns a Starlette ASGI app."""
         app = get_mcp_sse_app()
