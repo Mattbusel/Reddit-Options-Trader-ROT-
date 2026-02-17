@@ -83,11 +83,13 @@ class MCPDispatcher:
         self.mcp_app = mcp_app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "http" and scope.get("path", "").startswith("/mcp"):
+        path = scope.get("path", "")
+        # Match /mcp/ and /mcp/sse etc, but NOT /mcp-server or /api/mcp/*
+        if scope["type"] == "http" and (path == "/mcp" or path.startswith("/mcp/")):
             # Strip the /mcp prefix so the sub-app sees / , /sse, /messages/
             scope = dict(scope)
-            path = scope["path"][4:]  # Remove "/mcp"
-            scope["path"] = path or "/"
+            stripped = path[4:]  # Remove "/mcp"
+            scope["path"] = stripped or "/"
             scope["root_path"] = scope.get("root_path", "") + "/mcp"
             await self.mcp_app(scope, receive, send)
         else:
