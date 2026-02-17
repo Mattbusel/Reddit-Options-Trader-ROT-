@@ -723,7 +723,12 @@ class AnalyticsMixin:
             return results
 
     async def get_unusual_events(
-        self, hours: int = 24, event_type: Optional[str] = None, limit: int = 100
+        self,
+        hours: int = 24,
+        event_type: Optional[str] = None,
+        limit: int = 100,
+        ticker: Optional[str] = None,
+        min_score: float = 0.0,
     ) -> List[Dict[str, Any]]:
         """Get unusual activity events from the unusual_events table."""
         cutoff = time.time() - (hours * 3600)
@@ -734,6 +739,14 @@ class AnalyticsMixin:
         if event_type:
             conditions.append("event_type = ?")
             params.append(event_type)
+
+        if ticker:
+            conditions.append("ticker = ?")
+            params.append(ticker.upper())
+
+        if min_score > 0:
+            conditions.append("score >= ?")
+            params.append(min_score)
 
         where = " AND ".join(conditions)
         query = f"""
@@ -759,6 +772,45 @@ class AnalyticsMixin:
             results.append(d)
 
         return results
+
+    async def save_unusual_events(self, events: list) -> int:
+        """Batch-insert unusual activity events into the unusual_events table.
+
+        Accepts either dicts with keys (ticker, event_type, score, details,
+        signal_id, detected_at) or dataclass objects with matching attributes.
+        Returns the number of rows inserted.
+        """
+        if not events:
+            return 0
+
+        rows = []
+        for evt in events:
+            if isinstance(evt, dict):
+                ticker = evt.get("ticker", "")
+                event_type = evt.get("event_type", "")
+                score = evt.get("score", 0.0)
+                details = evt.get("details", {})
+                signal_id = evt.get("signal_id")
+                detected_at = evt.get("detected_at", time.time())
+            else:
+                ticker = getattr(evt, "ticker", "")
+                event_type = getattr(evt, "event_type", "")
+                score = getattr(evt, "score", 0.0)
+                details = getattr(evt, "details", {})
+                signal_id = getattr(evt, "signal_id", None)
+                detected_at = getattr(evt, "detected_at", time.time())
+
+            details_json = json.dumps(details) if isinstance(details, dict) else str(details)
+            rows.append((ticker, event_type, score, details_json, signal_id, detected_at))
+
+        await self.db.executemany(
+            "INSERT INTO unusual_events "
+            "(ticker, event_type, score, details_json, signal_id, detected_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        await self.db.commit()
+        return len(rows)
 
     async def get_unusual_summary(self, hours: int = 24) -> Dict[str, Any]:
         """Get aggregate summary of unusual activity."""

@@ -186,8 +186,8 @@ class TestGetUnusualSummary:
             _make_event_row("SPY", "sweep", 50.0),
         ])
         summary = await db.get_unusual_summary(hours=1)
-        assert summary["type_breakdown"]["iv_spike"] == 2
-        assert summary["type_breakdown"]["sweep"] == 1
+        assert summary["type_breakdown"]["iv_spike"]["count"] == 2
+        assert summary["type_breakdown"]["sweep"]["count"] == 1
 
     @pytest.mark.asyncio
     async def test_summary_top_tickers(self, db):
@@ -198,7 +198,7 @@ class TestGetUnusualSummary:
         ])
         summary = await db.get_unusual_summary(hours=1)
         assert summary["top_tickers"][0]["ticker"] == "SPY"
-        assert summary["top_tickers"][0]["count"] == 2
+        assert summary["top_tickers"][0]["event_count"] == 2
 
 
 # ── get_unusual_timeline ──
@@ -258,3 +258,85 @@ class TestPurgeUnusualEvents:
         remaining = await db.get_unusual_events(hours=24 * 365)
         assert len(remaining) == 1
         assert remaining[0]["ticker"] == "AAPL"
+
+
+# ── get_unusual_events — combined filter tests ──
+
+
+class TestGetUnusualEventsCombinedFilters:
+    """Tests for combined ticker + min_score + event_type filtering."""
+
+    @pytest.mark.asyncio
+    async def test_ticker_and_min_score(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+            _make_event_row("SPY", "volume_surge", 30.0),
+            _make_event_row("AAPL", "iv_spike", 90.0),
+        ])
+        results = await db.get_unusual_events(hours=1, ticker="SPY", min_score=50.0)
+        assert len(results) == 1
+        assert results[0]["ticker"] == "SPY"
+        assert results[0]["score"] == 80.0
+
+    @pytest.mark.asyncio
+    async def test_ticker_and_event_type(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+            _make_event_row("SPY", "sweep", 60.0),
+            _make_event_row("AAPL", "iv_spike", 70.0),
+        ])
+        results = await db.get_unusual_events(hours=1, ticker="SPY", event_type="sweep")
+        assert len(results) == 1
+        assert results[0]["event_type"] == "sweep"
+        assert results[0]["ticker"] == "SPY"
+
+    @pytest.mark.asyncio
+    async def test_all_filters_combined(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+            _make_event_row("SPY", "sweep", 90.0),
+            _make_event_row("SPY", "sweep", 30.0),
+            _make_event_row("AAPL", "sweep", 95.0),
+        ])
+        results = await db.get_unusual_events(
+            hours=1, ticker="SPY", event_type="sweep", min_score=50.0,
+        )
+        assert len(results) == 1
+        assert results[0]["ticker"] == "SPY"
+        assert results[0]["event_type"] == "sweep"
+        assert results[0]["score"] == 90.0
+
+    @pytest.mark.asyncio
+    async def test_ticker_case_insensitive(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+        ])
+        results = await db.get_unusual_events(hours=1, ticker="spy")
+        assert len(results) == 1
+        assert results[0]["ticker"] == "SPY"
+
+    @pytest.mark.asyncio
+    async def test_min_score_zero_returns_all(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+            _make_event_row("AAPL", "volume_surge", 10.0),
+        ])
+        results = await db.get_unusual_events(hours=1, min_score=0.0)
+        assert len(results) == 2
+
+    @pytest.mark.asyncio
+    async def test_ticker_no_match(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 80.0),
+        ])
+        results = await db.get_unusual_events(hours=1, ticker="AAPL")
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_min_score_excludes_all(self, db):
+        await db.save_unusual_events([
+            _make_event_row("SPY", "iv_spike", 30.0),
+            _make_event_row("AAPL", "volume_surge", 40.0),
+        ])
+        results = await db.get_unusual_events(hours=1, min_score=99.0)
+        assert len(results) == 0
