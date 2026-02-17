@@ -1,12 +1,14 @@
 # ROT MCP Server — Reddit Options Trader
 
+**The world's first financial intelligence MCP server.**
+
 Real-time trading intelligence from Reddit, RSS, and social media, exposed as MCP tools for any LLM client. Get AI-powered options signals, sentiment analysis, unusual activity alerts, and sports betting intelligence — all through natural language.
 
 ## Connect (Zero Install)
 
 Just add the remote URL to your MCP client. No packages to install, no local server to run.
 
-### Claude Desktop
+### Claude Desktop (Recommended)
 
 Add this to your `claude_desktop_config.json`:
 
@@ -20,15 +22,32 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
-### Cursor / Other MCP Clients
+**Alternative** — If your Claude Desktop version doesn't support the `url` field, use `mcp-remote`:
+
+```json
+{
+  "mcpServers": {
+    "rot": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://web-production-71423.up.railway.app/mcp/sse"]
+    }
+  }
+}
+```
+
+### Cursor / Windsurf / Other MCP Clients
 
 Point your MCP client at:
 
 ```
-https://web-production-71423.up.railway.app/mcp
+https://web-production-71423.up.railway.app/mcp/sse
 ```
 
 That's it. The server is hosted — no local setup required.
+
+### Landing Page
+
+Full setup guide with interactive examples: [/mcp-server](https://web-production-71423.up.railway.app/mcp-server)
 
 ## Available Tools
 
@@ -66,5 +85,6 @@ No API key required — all tools are free at launch. An optional `ROT_API_KEY` 
 
 ## Links
 
+- **Landing Page**: [web-production-71423.up.railway.app/mcp-server](https://web-production-71423.up.railway.app/mcp-server)
 - **Dashboard**: [web-production-71423.up.railway.app](https://web-production-71423.up.railway.app)
 - **GitHub**: [github.com/Mattbusel/Reddit-Options-Trader-ROT-](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-)

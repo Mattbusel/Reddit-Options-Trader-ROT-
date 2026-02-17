@@ -351,9 +351,19 @@ def register_routes(app: FastAPI):
     app.include_router(paper_leaderboard.router, tags=["integrations"])
     app.include_router(api_status.router, tags=["integrations"])
 
-    # ── MCP (API + landing page) ──────────────────────────────────
+    # ── MCP (API + landing page + SSE protocol endpoint) ─────────
     from rot.web.routes import mcp_api, mcp_landing
     app.include_router(mcp_api.router, tags=["mcp"])
     app.include_router(mcp_landing.router, tags=["mcp"])
+
+    # Mount the MCP SSE transport at /mcp so MCP clients can connect
+    try:
+        from rot.web.mcp_integration import get_mcp_sse_app
+        app.mount("/mcp", get_mcp_sse_app())
+        log.info("MCP SSE endpoint mounted at /mcp")
+    except ImportError:
+        log.warning("MCP SSE endpoint not available (mcp package not installed)")
+    except Exception as exc:
+        log.warning("MCP SSE mount failed: %s", exc)
 
     log.info("All routes registered (%d routes)", len(app.routes))
