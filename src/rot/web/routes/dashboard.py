@@ -512,7 +512,7 @@ async def _signal_detail_inner(request: Request, signal_id: str):
     if not isinstance(user_settings, dict):
         user_settings = {}
     has_byok = bool(
-        tier in ("pro", "premium", "ultra", "enterprise")
+        tier in ("pro", "premium", "ultra", "enterprise", "admin")
         and user_settings.get("llm_api_key")
     )
     reasoning = gated.get("reasoning", {})

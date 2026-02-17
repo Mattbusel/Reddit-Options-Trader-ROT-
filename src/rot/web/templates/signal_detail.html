@@ -209,7 +209,7 @@
                         <span>&#10024;</span>
                         <span>{{ 'Re-analyze' if reasoning_is_dict and reasoning.get('byok') else 'Analyze' }} with AI</span>
                     </button>
-                    {% elif user and user.tier in ['pro', 'premium', 'ultra', 'enterprise'] %}
+                    {% elif user and user.tier in ['pro', 'premium', 'ultra', 'enterprise', 'admin'] %}
                     <a href="/account" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
                         <span>&#10024;</span>
                         <span>Analyze with AI</span>

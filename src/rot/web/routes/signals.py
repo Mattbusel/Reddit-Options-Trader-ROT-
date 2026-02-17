@@ -327,7 +327,7 @@ async def byok_reason_signal(request: Request, signal_id: str):
     """Re-analyze a signal using the user's BYOK LLM key (pro+ only)."""
     user = await require_user(request)
     tier = user.get("tier", "free")
-    if tier not in ("pro", "premium", "ultra", "enterprise"):
+    if tier not in ("pro", "premium", "ultra", "enterprise", "admin"):
         raise HTTPException(status_code=403, detail="BYOK reasoning requires a paid tier")
 
     # Get user's LLM settings
