@@ -20,6 +20,7 @@ Usage in app.py::
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Optional
@@ -83,9 +84,13 @@ class MCPDispatcher:
         self.mcp_app = mcp_app
 
     async def __call__(self, scope, receive, send):
+        # Non-HTTP scopes (lifespan, websocket) always go to FastAPI
+        if scope["type"] != "http":
+            await self.fastapi_app(scope, receive, send)
+            return
         path = scope.get("path", "")
         # Match /mcp/ and /mcp/sse etc, but NOT /mcp-server or /api/mcp/*
-        if scope["type"] == "http" and (path == "/mcp" or path.startswith("/mcp/")):
+        if path == "/mcp" or path.startswith("/mcp/"):
             # Strip the /mcp prefix so the sub-app sees / , /sse, /messages/
             scope = dict(scope)
             stripped = path[4:]  # Remove "/mcp"
@@ -368,7 +373,8 @@ async def start_mcp_session_manager(stop_event) -> None:
 
     async with mcp.session_manager.run():
         log.info("MCP Streamable HTTP session manager started")
-        await stop_event.wait()
+        while not stop_event.is_set():
+            await asyncio.sleep(1)
     log.info("MCP Streamable HTTP session manager stopped")
 
 
