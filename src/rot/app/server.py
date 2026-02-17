@@ -1609,20 +1609,10 @@ async def _run_server(cfg: Settings):
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
 
-    # Start MCP Streamable HTTP session manager as a background task.
-    # Must run BEFORE server.serve() so it's ready for requests immediately.
-    # FastAPI doesn't trigger sub-app lifespans, so we start it manually.
-    try:
-        from rot.web.mcp_integration import start_mcp_session_manager
-        mcp_task = asyncio.create_task(start_mcp_session_manager(stop_event))
-        background_tasks.append(mcp_task)
-        log.info("MCP Streamable HTTP session manager task started")
-    except Exception as exc:
-        log.warning("MCP session manager start failed: %s", exc)
-
     # Wrap FastAPI with MCP dispatcher so /mcp/* requests bypass
     # FastAPI's middleware stack (BaseHTTPMiddleware is incompatible
-    # with the MCP streaming ASGI transport).
+    # with the MCP streaming ASGI transport).  Must happen BEFORE
+    # starting the session manager so the session manager exists.
     asgi_app = app
     try:
         from rot.web.mcp_integration import MCPDispatcher, get_mcp_streamable_http_app
@@ -1631,6 +1621,17 @@ async def _run_server(cfg: Settings):
         log.info("MCP dispatcher: /mcp/* routes bypass FastAPI middleware")
     except Exception as exc:
         log.warning("MCP dispatcher setup failed, /mcp will use FastAPI: %s", exc)
+
+    # Start MCP Streamable HTTP session manager as a background task.
+    # Must run AFTER get_mcp_streamable_http_app() which creates the
+    # session manager.  FastAPI doesn't trigger sub-app lifespans.
+    try:
+        from rot.web.mcp_integration import start_mcp_session_manager
+        mcp_task = asyncio.create_task(start_mcp_session_manager(stop_event))
+        background_tasks.append(mcp_task)
+        log.info("MCP Streamable HTTP session manager task started")
+    except Exception as exc:
+        log.warning("MCP session manager start failed: %s", exc)
 
     # Run uvicorn as an awaitable inside the CURRENT event loop (no new loop created)
     _t2 = time.monotonic()
