@@ -66,6 +66,34 @@ class _MCPErrorMiddleware:
             await response(scope, receive, send)
 
 
+class MCPDispatcher:
+    """Top-level ASGI app that routes /mcp/* directly to the MCP app.
+
+    Requests whose path starts with ``/mcp`` are forwarded to the MCP
+    ASGI app (with the ``/mcp`` prefix stripped so the sub-app sees
+    ``/``, ``/sse``, etc.).  Everything else goes to the FastAPI app.
+
+    This bypasses FastAPI's middleware stack (GZip, CSRF, SecurityHeaders)
+    which uses ``BaseHTTPMiddleware`` — incompatible with the streaming
+    ASGI responses produced by the MCP Streamable HTTP transport.
+    """
+
+    def __init__(self, fastapi_app, mcp_app):
+        self.fastapi_app = fastapi_app
+        self.mcp_app = mcp_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path", "").startswith("/mcp"):
+            # Strip the /mcp prefix so the sub-app sees / , /sse, /messages/
+            scope = dict(scope)
+            path = scope["path"][4:]  # Remove "/mcp"
+            scope["path"] = path or "/"
+            scope["root_path"] = scope.get("root_path", "") + "/mcp"
+            await self.mcp_app(scope, receive, send)
+        else:
+            await self.fastapi_app(scope, receive, send)
+
+
 # ── Configuration ────────────────────────────────────────────────────
 
 # When running inside the same process as FastAPI, we call localhost

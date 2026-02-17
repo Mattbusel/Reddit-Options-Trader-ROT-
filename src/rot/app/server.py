@@ -1620,10 +1620,22 @@ async def _run_server(cfg: Settings):
     except Exception as exc:
         log.warning("MCP session manager start failed: %s", exc)
 
+    # Wrap FastAPI with MCP dispatcher so /mcp/* requests bypass
+    # FastAPI's middleware stack (BaseHTTPMiddleware is incompatible
+    # with the MCP streaming ASGI transport).
+    asgi_app = app
+    try:
+        from rot.web.mcp_integration import MCPDispatcher, get_mcp_streamable_http_app
+        mcp_app = get_mcp_streamable_http_app()
+        asgi_app = MCPDispatcher(app, mcp_app)
+        log.info("MCP dispatcher: /mcp/* routes bypass FastAPI middleware")
+    except Exception as exc:
+        log.warning("MCP dispatcher setup failed, /mcp will use FastAPI: %s", exc)
+
     # Run uvicorn as an awaitable inside the CURRENT event loop (no new loop created)
     _t2 = time.monotonic()
     config = uvicorn.Config(
-        app,
+        asgi_app,
         host=cfg.web.host,
         port=cfg.web.port,
         log_level="info",
