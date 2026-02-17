@@ -28,7 +28,6 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 
 from rot.web.mcp_event_store import InMemoryEventStore, SqliteEventStore
@@ -291,24 +290,27 @@ def get_mcp_streamable_http_app():
 
         app.mount("/mcp", get_mcp_streamable_http_app())
 
-    The combined app includes error-handling middleware so that
-    edge-case requests return clean HTTP responses instead of 500s.
+    Uses the original Starlette app from ``streamable_http_app()``
+    (which has the correct lifespan and middleware stack) and injects
+    the SSE routes into it.  The session manager lifespan is started
+    separately via ``start_mcp_session_manager()`` because FastAPI
+    does not trigger sub-app lifespans.
     """
-    # Build both transport apps from the same FastMCP instance.
-    # streamable_http_app() must be called first — it lazily
-    # initialises the StreamableHTTPSessionManager.
+    # Get the original Starlette app — preserves lifespan, middleware,
+    # and internal references that break if routes are transplanted.
     streamable_app = mcp.streamable_http_app()
+
+    # Inject legacy SSE routes into the same app.
+    # SSE routes (/sse, /messages/) don't overlap with streamable (/).
     sse_app = mcp.sse_app()
+    for route in sse_app.routes:
+        streamable_app.routes.append(route)
 
-    # Merge routes: "/" from streamable, "/sse" + "/messages/" from SSE.
-    # Paths are non-overlapping — no conflicts.
-    combined_routes = list(streamable_app.routes) + list(sse_app.routes)
+    # Force Starlette to rebuild middleware stack on next request
+    # so the new routes are included.
+    streamable_app.middleware_stack = None
 
-    # NOTE: Sub-app lifespans are NOT triggered by FastAPI's app.mount().
-    # The session manager is started separately via start_mcp_session_manager().
-    combined = Starlette(routes=combined_routes)
-
-    return _MCPErrorMiddleware(combined)
+    return _MCPErrorMiddleware(streamable_app)
 
 
 def get_mcp_sse_app():

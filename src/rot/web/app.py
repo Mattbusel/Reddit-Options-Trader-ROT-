@@ -372,15 +372,16 @@ def register_routes(app: FastAPI):
     app.include_router(mcp_api.router, tags=["mcp"])
     app.include_router(mcp_landing.router, tags=["mcp"])
 
-    # Mount the MCP Streamable HTTP transport at /mcp so MCP clients can connect.
-    # Streamable HTTP replaces legacy SSE with built-in session resumability.
+    # Mount MCP dual-transport endpoint at /mcp.
+    # Streamable HTTP: POST/GET/DELETE /mcp/
+    # Legacy SSE:      GET /mcp/sse + POST /mcp/messages/
     try:
         from rot.web.mcp_integration import get_mcp_streamable_http_app
         app.mount("/mcp", get_mcp_streamable_http_app())
-        log.info("MCP Streamable HTTP endpoint mounted at /mcp")
+        log.info("MCP endpoints mounted at /mcp (Streamable HTTP + SSE fallback)")
     except ImportError:
         log.warning("MCP endpoint not available (mcp package not installed)")
     except Exception as exc:
-        log.warning("MCP Streamable HTTP mount failed: %s", exc)
+        log.warning("MCP mount failed: %s", exc)
 
     log.info("All routes registered (%d routes)", len(app.routes))
