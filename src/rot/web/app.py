@@ -351,8 +351,9 @@ def register_routes(app: FastAPI):
     app.include_router(paper_leaderboard.router, tags=["integrations"])
     app.include_router(api_status.router, tags=["integrations"])
 
-    # ── MCP API (unauthenticated, for MCP server consumption) ─────
-    from rot.web.routes import mcp_api
+    # ── MCP (API + landing page) ──────────────────────────────────
+    from rot.web.routes import mcp_api, mcp_landing
     app.include_router(mcp_api.router, tags=["mcp"])
+    app.include_router(mcp_landing.router, tags=["mcp"])
 
     log.info("All routes registered (%d routes)", len(app.routes))
