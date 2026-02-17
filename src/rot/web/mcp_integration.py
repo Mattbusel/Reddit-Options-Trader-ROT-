@@ -304,12 +304,9 @@ def get_mcp_streamable_http_app():
     # Paths are non-overlapping — no conflicts.
     combined_routes = list(streamable_app.routes) + list(sse_app.routes)
 
-    # Preserve the streamable HTTP lifespan which manages session
-    # tracking and event replay.  The SSE app has no lifespan.
-    combined = Starlette(
-        routes=combined_routes,
-        lifespan=lambda _app: mcp.session_manager.run(),
-    )
+    # NOTE: Sub-app lifespans are NOT triggered by FastAPI's app.mount().
+    # The session manager is started separately via start_mcp_session_manager().
+    combined = Starlette(routes=combined_routes)
 
     return _MCPErrorMiddleware(combined)
 
@@ -320,6 +317,27 @@ def get_mcp_sse_app():
     Kept for backward compatibility.  Returns the legacy SSE transport app.
     """
     return mcp.sse_app()
+
+
+async def start_mcp_session_manager(stop_event) -> None:
+    """Run the Streamable HTTP session manager until *stop_event* is set.
+
+    FastAPI does NOT trigger sub-app lifespans, so the session manager
+    must be started as an independent background task from ``server.py``.
+
+    Args:
+        stop_event: ``asyncio.Event`` — set to signal shutdown.
+    """
+    # Ensure streamable_http_app() has been called first so the
+    # session manager exists.
+    if mcp._session_manager is None:
+        log.warning("MCP session manager not initialised — skipping")
+        return
+
+    async with mcp.session_manager.run():
+        log.info("MCP Streamable HTTP session manager started")
+        await stop_event.wait()
+    log.info("MCP Streamable HTTP session manager stopped")
 
 
 async def connect_mcp_event_store(db_dir: str) -> None:

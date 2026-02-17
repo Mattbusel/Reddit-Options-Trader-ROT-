@@ -1600,6 +1600,16 @@ async def _run_server(cfg: Settings):
             cfg.strategy.health_check_interval_s,
         )
 
+        # Start MCP Streamable HTTP session manager
+        try:
+            from rot.web.mcp_integration import start_mcp_session_manager
+            background_tasks.append(asyncio.create_task(
+                start_mcp_session_manager(stop_event)
+            ))
+            log.info("MCP Streamable HTTP session manager task started")
+        except Exception as exc:
+            log.warning("MCP session manager start failed: %s", exc)
+
         log.info("Heavy initialization complete — all background loops running")
 
     # Schedule heavy init to run AFTER uvicorn binds the port
