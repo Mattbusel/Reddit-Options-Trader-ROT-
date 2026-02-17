@@ -28,9 +28,44 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+
 from rot.web.mcp_event_store import InMemoryEventStore, SqliteEventStore
 
 log = logging.getLogger(__name__)
+
+
+# ── Error Middleware ─────────────────────────────────────────────────
+
+
+class _MCPErrorMiddleware:
+    """ASGI middleware wrapping the combined MCP app.
+
+    Catches unhandled exceptions from the MCP transports and returns
+    a clean JSON 500 instead of leaking stack traces to clients.
+    Non-HTTP scopes (lifespan, websocket) pass through unchanged.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        try:
+            await self.app(scope, receive, send)
+        except Exception:
+            method = scope.get("method", "?")
+            path = scope.get("path", "?")
+            log.exception("MCP transport error: %s %s", method, path)
+            response = JSONResponse(
+                {"error": "Internal MCP transport error"},
+                status_code=500,
+            )
+            await response(scope, receive, send)
+
 
 # ── Configuration ────────────────────────────────────────────────────
 
@@ -244,13 +279,39 @@ async def pricing_info() -> str:
 
 
 def get_mcp_streamable_http_app():
-    """Return the Starlette ASGI app for the MCP Streamable HTTP endpoint.
+    """Return a combined ASGI app serving both MCP transports.
+
+    Routes (relative to the ``/mcp`` mount point):
+
+    - ``POST/GET/DELETE /``  — Streamable HTTP (new protocol)
+    - ``GET /sse``           — Legacy SSE endpoint
+    - ``POST /messages/``    — Legacy SSE message posting
 
     Mount this at ``/mcp`` in the main FastAPI application::
 
         app.mount("/mcp", get_mcp_streamable_http_app())
+
+    The combined app includes error-handling middleware so that
+    edge-case requests return clean HTTP responses instead of 500s.
     """
-    return mcp.streamable_http_app()
+    # Build both transport apps from the same FastMCP instance.
+    # streamable_http_app() must be called first — it lazily
+    # initialises the StreamableHTTPSessionManager.
+    streamable_app = mcp.streamable_http_app()
+    sse_app = mcp.sse_app()
+
+    # Merge routes: "/" from streamable, "/sse" + "/messages/" from SSE.
+    # Paths are non-overlapping — no conflicts.
+    combined_routes = list(streamable_app.routes) + list(sse_app.routes)
+
+    # Preserve the streamable HTTP lifespan which manages session
+    # tracking and event replay.  The SSE app has no lifespan.
+    combined = Starlette(
+        routes=combined_routes,
+        lifespan=lambda _app: mcp.session_manager.run(),
+    )
+
+    return _MCPErrorMiddleware(combined)
 
 
 def get_mcp_sse_app():

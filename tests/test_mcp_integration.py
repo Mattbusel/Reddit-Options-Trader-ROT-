@@ -21,6 +21,7 @@ os.environ.setdefault("ROT_REDDIT_USER_AGENT", "test")
 
 from rot.web.mcp_integration import (
     _get,
+    _MCPErrorMiddleware,
     get_mcp_sse_app,
     get_mcp_streamable_http_app,
     connect_mcp_event_store,
@@ -422,21 +423,22 @@ class TestFastAPIIntegration:
 class TestStreamableHttpApp:
     """Verify the Streamable HTTP transport app."""
 
-    def test_streamable_http_app_is_starlette(self):
-        """get_mcp_streamable_http_app returns a Starlette ASGI app."""
+    def test_streamable_http_app_wrapped_in_error_middleware(self):
+        """get_mcp_streamable_http_app returns an error-wrapped combined app."""
         app = get_mcp_streamable_http_app()
         assert app is not None
-        assert type(app).__name__ == "Starlette"
+        assert isinstance(app, _MCPErrorMiddleware)
+        assert type(app.app).__name__ == "Starlette"
 
     def test_streamable_http_app_callable(self):
-        """Streamable HTTP app is callable (ASGI interface)."""
+        """Combined MCP app is callable (ASGI interface)."""
         app = get_mcp_streamable_http_app()
         assert callable(app)
 
     def test_streamable_http_app_has_routes(self):
-        """Streamable HTTP app has the root path route."""
+        """Combined app has the streamable HTTP root path route."""
         app = get_mcp_streamable_http_app()
-        paths = [getattr(r, "path", None) for r in app.routes]
+        paths = [getattr(r, "path", None) for r in app.app.routes]
         # streamable_http_path="/" means root route
         assert "/" in paths
 
@@ -454,6 +456,70 @@ class TestStreamableHttpApp:
     def test_streamable_http_path_is_root(self):
         """streamable_http_path is '/' so mounting at /mcp gives /mcp/."""
         assert mcp.settings.streamable_http_path == "/"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Combined Dual-Transport App + Error Middleware
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCombinedAppAndMiddleware:
+    """Combined MCP app serves both transports; middleware catches errors."""
+
+    def test_combined_app_has_all_routes(self):
+        """Combined app has /, /sse, and /messages/ routes with middleware."""
+        app = get_mcp_streamable_http_app()
+        assert isinstance(app, _MCPErrorMiddleware)
+        assert type(app.app).__name__ == "Starlette"
+        paths = [getattr(r, "path", None) for r in app.app.routes]
+        assert "/" in paths, f"Missing streamable HTTP route, got {paths}"
+        assert "/sse" in paths, f"Missing SSE route, got {paths}"
+        assert "/messages/" in paths, f"Missing messages route, got {paths}"
+        # Streamable HTTP route comes first
+        assert getattr(app.app.routes[0], "path", None) == "/"
+
+    def test_sse_app_still_independent(self):
+        """get_mcp_sse_app() still works independently of combined app."""
+        sse = get_mcp_sse_app()
+        assert type(sse).__name__ == "Starlette"
+        paths = [getattr(r, "path", None) for r in sse.routes]
+        assert "/sse" in paths
+
+    @pytest.mark.asyncio
+    async def test_middleware_catches_exceptions(self):
+        """Error middleware returns 500 JSON and passes non-HTTP through."""
+        async def failing_app(scope, receive, send):
+            raise RuntimeError("test crash")
+
+        middleware = _MCPErrorMiddleware(failing_app)
+        scope = {"type": "http", "method": "GET", "path": "/"}
+        received_status = None
+        received_body = b""
+
+        async def mock_receive():
+            return {"type": "http.request", "body": b""}
+
+        async def mock_send(message):
+            nonlocal received_status, received_body
+            if message["type"] == "http.response.start":
+                received_status = message["status"]
+            elif message["type"] == "http.response.body":
+                received_body = message.get("body", b"")
+
+        await middleware(scope, mock_receive, mock_send)
+        assert received_status == 500
+        assert b"Internal MCP transport error" in received_body
+
+        # Non-HTTP scopes pass through unchanged
+        called = False
+
+        async def inner_app(scope, receive, send):
+            nonlocal called
+            called = True
+
+        middleware2 = _MCPErrorMiddleware(inner_app)
+        await middleware2({"type": "lifespan"}, None, None)
+        assert called
 
 
 # ═══════════════════════════════════════════════════════════════════════════
