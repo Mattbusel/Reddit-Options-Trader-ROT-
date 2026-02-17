@@ -67,10 +67,10 @@ class TradeBuilder:
 
         # Earnings rumor confidence clamp — historically ~11% win rate
         if event_type == "earnings_rumor" and confidence >= 0.35:
-            confidence = 0.30
+            confidence = 0.25
 
         # Low confidence = no trade
-        if confidence < 0.4:
+        if confidence < 0.30:
             return [self._no_trade(underlying, packet.thesis, ["confidence_too_low"])]
 
         # Get price for strike calculation
@@ -234,7 +234,7 @@ class TradeBuilder:
         return 0.0
 
     def _quality_score(self, confidence: float, event: Event, packet: ReasoningPacket) -> float:
-        score = confidence * 0.5
+        score = confidence * 0.7
 
         # Boost for classified event type
         if event.event_type != "other":

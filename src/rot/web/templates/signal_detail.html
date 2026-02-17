@@ -202,16 +202,29 @@
                     <span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded ml-2">Template</span>
                     {% endif %}
                 </h3>
-                {% if has_byok and not (reasoning_is_dict and reasoning.get('_locked')) %}
-                <button id="byok-btn" onclick="reanalyzeSignal('{{ signal.id }}')"
-                        class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
-                    <span>&#10024;</span>
-                    <span>{{ 'Re-analyze' if reasoning_is_dict and reasoning.get('byok') else 'Analyze' }} with AI</span>
-                </button>
-                {% elif not has_byok and user and user.tier in ['pro', 'premium', 'ultra'] %}
-                <a href="/account" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition">
-                    Add API key to enable AI
-                </a>
+                {% if not (reasoning_is_dict and reasoning.get('_locked')) %}
+                    {% if has_byok %}
+                    <button id="byok-btn" onclick="reanalyzeSignal('{{ signal.id }}')"
+                            class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
+                        <span>&#10024;</span>
+                        <span>{{ 'Re-analyze' if reasoning_is_dict and reasoning.get('byok') else 'Analyze' }} with AI</span>
+                    </button>
+                    {% elif user and user.tier in ['pro', 'premium', 'ultra', 'enterprise'] %}
+                    <a href="/account" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center space-x-1.5">
+                        <span>&#10024;</span>
+                        <span>Analyze with AI</span>
+                    </a>
+                    {% elif user and user.tier == 'free' %}
+                    <a href="/pricing" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition flex items-center space-x-1.5">
+                        <span>&#10024;</span>
+                        <span>Upgrade for AI Analysis</span>
+                    </a>
+                    {% else %}
+                    <a href="/login" class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition flex items-center space-x-1.5">
+                        <span>&#10024;</span>
+                        <span>Sign in for AI Analysis</span>
+                    </a>
+                    {% endif %}
                 {% endif %}
             </div>
             <div id="byok-status" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
