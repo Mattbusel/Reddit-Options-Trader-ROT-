@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Contact Us | Reddit Options Trader (ROT){% endblock %}
+{% block meta_description %}Contact Reddit Options Trader for investor inquiries or if you're having issues with the platform. Reach out to mattbusel@gmail.com.{% endblock %}
+{% block og_title %}Contact ROT — Investors &amp; Support{% endblock %}
+{% block og_description %}Get in touch with the Reddit Options Trader team for investor inquiries or platform support.{% endblock %}
+{% block twitter_title %}Contact ROT — Investors &amp; Support{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json" nonce="{{ csp_nonce }}">
+{{ contact_schema|safe }}
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="text-xs text-gray-500 mb-4" aria-label="Breadcrumb">
+    <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="/" itemprop="item" class="hover:text-gray-300 transition"><span itemprop="name">Home</span></a>
+            <meta itemprop="position" content="1" />
+        </li>
+        <li class="text-gray-600">/</li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <span itemprop="name" class="text-gray-400">Contact</span>
+            <meta itemprop="position" content="2" />
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- CTA Banner -->
+    {% if not user %}
+    <div class="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-700/40 rounded-xl px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+        <p class="text-sm text-gray-300">Track live trading signals from Reddit - powered by AI analysis.</p>
+        <a href="/register" class="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition whitespace-nowrap">Sign Up Free</a>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <span class="bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 bg-clip-text text-transparent">Contact Us</span>
+        </h1>
+        <p class="text-gray-400 text-lg">Investor inquiries welcome. Issues? We've got you covered.</p>
+        <p class="text-gray-600 text-sm mt-2">We respond to all emails within 24&ndash;48 hours.</p>
+        <div class="mt-4 flex justify-center">
+            {% include "components/share_buttons.html" %}
+        </div>
+    </div>
+
+    <!-- Two-column cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Investors Card -->
+        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/80 border border-gray-700/50 rounded-xl p-6 flex flex-col gap-4">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl">&#128200;</div>
+                <div>
+                    <h2 class="text-xl font-bold text-white">For Investors</h2>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Partnerships &amp; capital inquiries</p>
+                </div>
+            </div>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                ROT is an AI-powered platform that surfaces high-signal trading ideas from Reddit in real time —
+                scoring credibility, tracking outcomes, and delivering edge to retail and institutional traders alike.
+                If you're interested in investing, partnering, or learning more about our growth trajectory,
+                we'd love to hear from you.
+            </p>
+            <ul class="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
+                <li>Seed &amp; growth-stage capital discussions</li>
+                <li>Strategic partnerships &amp; data licensing</li>
+                <li>White-label or enterprise integrations</li>
+                <li>Press &amp; media inquiries</li>
+            </ul>
+            <a
+                href="mailto:{{ contact_email }}?subject=Investor%20Inquiry%20%E2%80%94%20ROT"
+                class="mt-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition"
+            >
+                &#9993;&#65039; Email for Investor Inquiries
+            </a>
+        </div>
+
+        <!-- Support Card -->
+        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/80 border border-gray-700/50 rounded-xl p-6 flex flex-col gap-4">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl">&#128736;&#65039;</div>
+                <div>
+                    <h2 class="text-xl font-bold text-white">Having an Issue?</h2>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Technical support &amp; feedback</p>
+                </div>
+            </div>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Something not working as expected? Found a bug, a broken feature, or just have feedback
+                on how we can make ROT better? Drop us an email and we'll investigate right away.
+            </p>
+            <ul class="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
+                <li>Account or login problems</li>
+                <li>Signal data discrepancies</li>
+                <li>Feature requests &amp; suggestions</li>
+                <li>Billing or subscription questions</li>
+            </ul>
+            <a
+                href="mailto:{{ contact_email }}?subject=Support%20Request%20%E2%80%94%20ROT"
+                class="mt-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold border border-gray-600 transition"
+            >
+                &#128236; Email Support
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Direct email callout -->
+    <div class="bg-gradient-to-r from-pink-900/20 to-orange-900/20 border border-pink-700/30 rounded-xl px-6 py-5 text-center">
+        <p class="text-gray-400 text-sm mb-1">Prefer to copy the address directly?</p>
+        <a
+            href="mailto:{{ contact_email }}"
+            class="text-lg font-mono font-semibold text-pink-400 hover:text-pink-300 transition break-all"
+        >{{ contact_email }}</a>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="text-center mt-8 space-y-3">
+        <p class="text-gray-500 text-sm">Have a general question first?</p>
+        <div class="flex justify-center gap-3 flex-wrap">
+            <a href="/faq" class="px-5 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition">Read the FAQ</a>
+            <a href="/dashboard" class="px-5 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold border border-gray-700 transition">View Live Dashboard</a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

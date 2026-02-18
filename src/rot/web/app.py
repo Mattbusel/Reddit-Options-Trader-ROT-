@@ -345,7 +345,7 @@ def register_routes(app: FastAPI):
     # ── Dashboard & Informational ─────────────────────────────────────
     from rot.web.routes import (
         dashboard, raid_tracker, sports_tracker, hall_of_legends,
-        glossary, ceo_rap_sheet, weekly_wrap, seo, faq, badges,
+        glossary, ceo_rap_sheet, weekly_wrap, seo, faq, badges, contact,
     )
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(raid_tracker.router, tags=["dashboard"])
@@ -357,6 +357,7 @@ def register_routes(app: FastAPI):
     app.include_router(seo.router, tags=["dashboard"])
     app.include_router(faq.router, tags=["dashboard"])
     app.include_router(badges.router, tags=["dashboard"])
+    app.include_router(contact.router, tags=["dashboard"])
 
     # ── Integrations ──────────────────────────────────────────────────
     from rot.web.routes import brokers, affiliates, enterprise, widgets, paper_leaderboard, api_status
