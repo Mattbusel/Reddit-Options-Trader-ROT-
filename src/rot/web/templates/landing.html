@@ -115,7 +115,7 @@ div:hover > .source-icon {
      LIVE STATS
      ============================================================ -->
 <section class="border-y border-gray-800 py-8 mb-16 reveal reveal-up">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 text-center">
         <div>
             <div class="text-3xl font-black text-white">{{ "{:,}".format(stats.total_signals) }}</div>
             <div class="text-sm text-gray-500 mt-1">Signals Analyzed</div>
@@ -123,14 +123,6 @@ div:hover > .source-icon {
         <div>
             <div class="text-3xl font-black text-white">{{ stats.active_tickers }}</div>
             <div class="text-sm text-gray-500 mt-1">Active Tickers (24h)</div>
-        </div>
-        <div>
-            {% if stats.win_rate is not none %}
-            <div class="text-3xl font-black {% if stats.win_rate >= 50 %}text-green-400{% elif stats.win_rate >= 30 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ "%.0f"|format(stats.win_rate) }}%</div>
-            {% else %}
-            <div class="text-3xl font-black text-gray-400">--</div>
-            {% endif %}
-            <div class="text-sm text-gray-500 mt-1">Win Rate (30d)</div>
         </div>
         <div>
             <div class="text-3xl font-black text-blue-400">15+</div>
