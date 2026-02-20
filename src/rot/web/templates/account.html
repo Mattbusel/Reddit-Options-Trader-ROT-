@@ -85,13 +85,13 @@
             {% if has_api_key %}
             <div class="flex items-center space-x-3">
                 <code class="bg-gray-900 px-3 py-2 rounded text-gray-400 text-sm flex-1">rot_****...****</code>
-                <button onclick="regenerateKey()" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">
+                <button id="btn-regenerate-key" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">
                     Regenerate
                 </button>
             </div>
             <p class="text-xs text-gray-600 mt-2">Regenerating will invalidate the current key.</p>
             {% else %}
-            <button onclick="generateKey()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+            <button id="btn-generate-key" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
                 Generate API Key
             </button>
             {% endif %}
@@ -99,7 +99,7 @@
             <div id="new-key-display" class="hidden mt-4 bg-green-900/20 border border-green-700 rounded-lg p-4">
                 <p class="text-sm text-green-400 mb-2 font-semibold">Save this key now -- it will not be shown again:</p>
                 <code id="new-key-value" class="block bg-gray-900 px-3 py-2 rounded text-white text-sm break-all"></code>
-                <button onclick="copyKey()" class="mt-2 px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs transition">
+                <button id="btn-copy-key" class="mt-2 px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs transition">
                     Copy
                 </button>
             </div>
@@ -141,7 +141,7 @@
                     <p class="text-xs text-green-600 mt-1">Key is configured</p>
                     {% endif %}
                 </div>
-                <button type="button" onclick="saveLLMSettings()"
+                <button type="button" id="btn-save-llm"
                     class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
                     Save LLM Settings
                 </button>
@@ -220,7 +220,7 @@
                 </div>
                 {% endif %}
 
-                <button type="button" onclick="saveEmailAlertSettings()"
+                <button type="button" id="btn-save-email-alerts"
                     class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
                     Save Alert Settings
                 </button>
@@ -367,5 +367,23 @@ async function saveEmailAlertSettings() {
 
 // Load email alert settings on page load
 loadEmailAlertSettings();
+
+// Wire button event listeners (replaces CSP-blocked inline onclick handlers)
+document.addEventListener('DOMContentLoaded', function() {
+    const btnGenerate = document.getElementById('btn-generate-key');
+    if (btnGenerate) btnGenerate.addEventListener('click', generateKey);
+
+    const btnRegenerate = document.getElementById('btn-regenerate-key');
+    if (btnRegenerate) btnRegenerate.addEventListener('click', regenerateKey);
+
+    const btnCopy = document.getElementById('btn-copy-key');
+    if (btnCopy) btnCopy.addEventListener('click', copyKey);
+
+    const btnSaveLLM = document.getElementById('btn-save-llm');
+    if (btnSaveLLM) btnSaveLLM.addEventListener('click', saveLLMSettings);
+
+    const btnSaveEmail = document.getElementById('btn-save-email-alerts');
+    if (btnSaveEmail) btnSaveEmail.addEventListener('click', saveEmailAlertSettings);
+});
 </script>
 {% endblock %}
