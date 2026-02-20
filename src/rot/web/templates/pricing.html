@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing — ROT | Free Forever, Pro $9.99/mo{% endblock %}
-{% block meta_description %}ROT pricing: Free tier forever, Pro $9.99/mo, Premium $29.99/mo, Ultra $49.99/mo, Enterprise $499/mo. AI trading signals from 15+ sources. No contracts, cancel anytime.{% endblock %}
-{% block og_title %}ROT Pricing — Free Forever, Pro $9.99/mo{% endblock %}
-{% block og_description %}AI trade signals from 15+ sources. Free tier forever. Pro $9.99/mo with real-time signals, backtesting, Congress tracker.{% endblock %}
-{% block twitter_title %}ROT Pricing — Free Forever, Pro $9.99/mo{% endblock %}
+{% block title %}Pricing — ROT | Free Forever, Pro $29.99/mo{% endblock %}
+{% block meta_description %}ROT pricing: Free tier forever, Pro $29.99/mo, Premium $79.99/mo, Ultra $149.99/mo, Enterprise $499.99/mo. AI trading signals from 15+ sources. No contracts, cancel anytime.{% endblock %}
+{% block og_title %}ROT Pricing — Free Forever, Pro $29.99/mo{% endblock %}
+{% block og_description %}AI trade signals from 15+ sources. Free tier forever. Pro $29.99/mo with real-time signals, backtesting, Congress tracker.{% endblock %}
+{% block twitter_title %}ROT Pricing — Free Forever, Pro $29.99/mo{% endblock %}
 
 {% block structured_data %}
 <script type="application/ld+json" nonce="{{ csp_nonce }}">
@@ -14,28 +14,28 @@
         "@type": "Product",
         "name": "ROT Pro Plan",
         "description": "Real-time AI trading signals from 15+ sources, backtesting engine, Congress tracker, macro calendar, 1000 API calls/day",
-        "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+        "offers": {"@type": "Offer", "price": "29.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Premium Plan",
         "description": "Everything in Pro plus Bloomberg-lite terminal, AI trade summaries, Monte Carlo backtesting, 5000 API calls/day",
-        "offers": {"@type": "Offer", "price": "29.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+        "offers": {"@type": "Offer", "price": "79.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Ultra Plan",
         "description": "Everything in Premium plus 3 AI trading agents, full backtesting suite, strategy builder, 25000 API calls/day",
-        "offers": {"@type": "Offer", "price": "49.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+        "offers": {"@type": "Offer", "price": "149.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     },
     {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": "ROT Enterprise Plan",
         "description": "Everything in Ultra plus 10 AI agents, data licensing, custom webhooks, dedicated support, 100000 API calls/day",
-        "offers": {"@type": "Offer", "price": "499.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
+        "offers": {"@type": "Offer", "price": "499.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock"}
     }
 ]
 </script>
@@ -108,7 +108,7 @@
             <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-full tracking-widest uppercase shadow-lg shadow-blue-900/50">MOST POPULAR</div>
             <div class="mb-5">
                 <h3 class="text-base font-bold text-blue-400">Pro</h3>
-                <div class="text-3xl font-black text-white mt-1">$9.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <div class="text-3xl font-black text-white mt-1">$29.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
                 <p class="text-xs text-gray-500 mt-1">Everything you need</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
@@ -123,7 +123,7 @@
                 {% if tier == 'pro' %}
                 <div class="w-full text-center py-2.5 px-4 rounded-lg bg-blue-900/30 text-blue-400 border border-blue-700 text-sm font-semibold">Current Plan</div>
                 {% elif user %}
-                <button data-checkout="pro" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro — $9.99/mo</button>
+                <button data-checkout="pro" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Upgrade to Pro — $29.99/mo</button>
                 <p class="text-[10px] text-gray-600 mt-2 text-center">&#128274; Secured by Stripe &middot; No card data stored &middot; Cancel anytime</p>
                 {% else %}
                 <a href="/register" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg transition shadow-lg shadow-blue-900/40">Start Free &rarr; Upgrade to Pro</a>
@@ -137,7 +137,7 @@
             <div class="mb-5 relative">
                 <div class="lg:hidden inline-block mb-2 bg-purple-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full tracking-wide">BEST VALUE</div>
                 <h3 class="text-base font-bold text-purple-400">Premium</h3>
-                <div class="text-3xl font-black text-white mt-1">$29.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <div class="text-3xl font-black text-white mt-1">$79.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
                 <p class="text-xs text-gray-500 mt-1">Pro + Terminal + AI</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
@@ -164,7 +164,7 @@
         <div class="signal-card rounded-xl p-5 flex flex-col h-full" style="border-color: rgba(245, 158, 11, 0.4);">
             <div class="mb-5">
                 <h3 class="text-base font-bold text-amber-400">Ultra</h3>
-                <div class="text-3xl font-black text-white mt-1">$49.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <div class="text-3xl font-black text-white mt-1">$149.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
                 <p class="text-xs text-gray-500 mt-1">AI agents + full suite</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">
@@ -191,7 +191,7 @@
         <div class="signal-card rounded-xl p-5 flex flex-col h-full" style="border-color: rgba(16, 185, 129, 0.4);">
             <div class="mb-5">
                 <h3 class="text-base font-bold text-emerald-400">Enterprise</h3>
-                <div class="text-3xl font-black text-white mt-1">$499<span class="text-sm text-gray-500 font-normal">/mo</span></div>
+                <div class="text-3xl font-black text-white mt-1">$499.99<span class="text-sm text-gray-500 font-normal">/mo</span></div>
                 <p class="text-xs text-gray-500 mt-1">Quant funds &amp; data teams</p>
             </div>
             <ul class="space-y-2 text-xs text-gray-300 flex-1">

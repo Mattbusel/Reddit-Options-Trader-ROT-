@@ -78,7 +78,7 @@ async def llms_txt(request: Request):
         "- /glossary: Trading terminology dictionary with 75 terms, definitions, examples, and degen ratings\n"
         "- /hall-of-legends: Historical greatest trades with profit data, strategies, and lessons\n"
         "- /ceo-rap-sheet: Corporate executive scandal tracker with charges, outcomes, and fines\n"
-        "- /pricing: Subscription plans — Free ($0), Pro ($9.99/mo), Premium ($29.99/mo), Ultra ($49.99/mo)\n"
+        "- /pricing: Subscription plans — Free ($0), Pro ($29.99/mo), Premium ($79.99/mo), Ultra ($149.99/mo)\n"
         "- /sentiment: Real-time Reddit sentiment heatmap by ticker\n"
         "- /weekly-wrap: Auto-generated weekly market signal summary\n"
         "- /sports-tracker: Sports betting intelligence — Line Mover Scores (0-100), AI betting analysis, team tracking, injury impact across NFL, NBA, MLB, NHL, NCAA, Soccer from 20+ sources\n"
