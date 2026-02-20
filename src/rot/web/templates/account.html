@@ -245,7 +245,10 @@
 
 <script nonce="{{ csp_nonce }}">
 async function generateKey() {
-    const resp = await fetch('/api/v1/auth/api-key', {method: 'POST'});
+    const resp = await fetch('/api/v1/auth/api-key', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+    });
     const data = await resp.json();
     if (data.api_key) {
         document.getElementById('new-key-value').textContent = data.api_key;
