@@ -59,6 +59,10 @@ class PipelineRunner:
         self.top_n = top_n
         self.on_signal = on_signal
         self.suppressor: Optional[Any] = None  # SignalSuppressor, set externally
+        # Unified capability hooks — set externally after construction, never block pipeline
+        self.attention_radar: Optional[Any] = None   # AttentionRadar (Capability 2)
+        self.stream_processor: Optional[Any] = None  # StreamProcessor (Capability 3)
+        self.telemetry_bus: Optional[Any] = None     # TelemetryBus (Capability 1)
         self._emitted_keys: set = set()  # (post_url, ticker) dedup
 
     def _emit_signal(self, signal_data: Dict[str, Any]) -> None:
@@ -98,6 +102,36 @@ class PipelineRunner:
         snapshots = self.ingestor.poll()
         # Note: raw snapshot logging removed to reduce JSONL volume
         # (~150 entries/cycle × 4320 cycles/day was the largest JSONL stream)
+
+        # Capability 3: feed ingested posts to StreamProcessor word-by-word
+        # Circuit-breaker: any exception here is silently caught — pipeline continues
+        if self.stream_processor and snapshots:
+            try:
+                from rot.probability.stream_processor import DocumentChunk, ChunkSource
+                _CHUNK_WORDS = 8  # words per chunk for pre-signal opportunity
+                for _snap in snapshots:
+                    _full_text = (_snap.post.title + " " + (_snap.post.selftext or "")).strip()
+                    _words = _full_text.split()
+                    _n = max(1, len(_words))
+                    _chunks = [_words[i:i + _CHUNK_WORDS] for i in range(0, _n, _CHUNK_WORDS)]
+                    for _ci, _cw in enumerate(_chunks):
+                        _is_final = (_ci == len(_chunks) - 1)
+                        # Use "UNKNOWN" ticker at ingestion time; stream_processor
+                        # tracks per-doc_id and maps tickers from entity extraction
+                        # We record one doc per (snap.post.id, source)
+                        self.stream_processor.process_chunk(
+                            DocumentChunk(
+                                ticker="REDDIT",  # generic until ticker resolved
+                                source=ChunkSource.REDDIT,
+                                text=" ".join(_cw),
+                                doc_id=_snap.post.id,
+                                chunk_index=_ci,
+                                is_final=_is_final,
+                                ts=_snap.post.created_utc or time.time(),
+                            )
+                        )
+            except Exception:
+                pass  # Capability 3 failure must not affect main pipeline
 
         # Save trend store state after detection
         # 2) trend detect
@@ -208,6 +242,20 @@ class PipelineRunner:
         for e in scored:
             self.log.write("events", {"run_id": run_id, "event": e})
 
+        # Capability 2: record ticker mention volumes for AttentionRadar baseline
+        # Also store counts so the radar check below can look them up
+        self._cap2_vol_counts: Dict[str, int] = {}
+        if self.attention_radar:
+            try:
+                for _e in scored:
+                    _t = _e.entities[0] if _e.entities else None
+                    if _t:
+                        self._cap2_vol_counts[_t] = self._cap2_vol_counts.get(_t, 0) + 1
+                for _t, _cnt in self._cap2_vol_counts.items():
+                    self.attention_radar.record_volume(_t, float(_cnt))
+            except Exception:
+                pass  # Capability 2 failure must not affect main pipeline
+
         # 3.5) Adaptive signal suppression (Stage 6.5)
         # Skip LLM reasoning for categories with historically low win rates.
         suppressed_count = 0
@@ -245,6 +293,41 @@ class PipelineRunner:
                     })
                     continue
             active_events.append(e)
+
+            # Capability 2: check AttentionRadar for non-suppressed events
+            if self.attention_radar:
+                try:
+                    _ticker = e.entities[0] if e.entities else "UNKNOWN"
+                    _vol_counts_cap2 = getattr(self, '_cap2_vol_counts', {})
+                    _vol = float(_vol_counts_cap2.get(_ticker, 1))
+                    _, _radar_ev = self.attention_radar.check(
+                        e,
+                        signal_volume=_vol,
+                        source_signal_id=run_id,
+                    )
+                    if _radar_ev is not None:
+                        self.log.write("attention_radar", {
+                            "run_id": run_id,
+                            "ticker": _radar_ev.ticker,
+                            "confidence": _radar_ev.confidence,
+                            "vol_z": _radar_ev.signal_volume_zscore,
+                        })
+                        # Enqueue DB write via on_signal metadata
+                        # The async signal handler will persist via RadarMixin
+                        if self.on_signal:
+                            try:
+                                from rot.radar.attention_radar import AttentionRadarEvent as _ARE
+                                self.on_signal({
+                                    "run_id": run_id,
+                                    "radar_event": _radar_ev,
+                                    "event": e,
+                                    "reasoning": None,
+                                    "trade_idea": None,
+                                })
+                            except Exception:
+                                pass
+                except Exception:
+                    pass  # Capability 2 radar check must not affect main pipeline
 
         # 4) reason + ideas
         idea_count = 0
@@ -327,7 +410,7 @@ class PipelineRunner:
                     "trade_idea": idea,
                 })
 
-        return {
+        summary = {
             "run_id": run_id,
             "snapshots": len(snapshots),
             "candidates": len(candidates),
@@ -341,3 +424,43 @@ class PipelineRunner:
             "top_signals": len(top_all),
             "top_ticker_signals": len(top_ticker_pairs),
         }
+
+        # Capability 1: report pipeline telemetry to TelemetryBus
+        if self.telemetry_bus:
+            try:
+                from rot.control.telemetry_bus import StageMetrics
+                _run_ms = (time.time() - float(run_id.split("_")[1])) * 1000
+                self.telemetry_bus.report(
+                    "pipeline",
+                    StageMetrics(
+                        stage="pipeline",
+                        ts=time.time(),
+                        latency_ms=_run_ms,
+                        items_in=len(snapshots),
+                        items_out=idea_count,
+                        errors=stub_count,
+                        extra={
+                            "suppressed": float(suppressed_count),
+                            "events": float(len(scored)),
+                            "candidates": float(len(candidates)),
+                        },
+                    ),
+                )
+                if scored:
+                    _avg_conf = sum(e.confidence for e in scored) / len(scored)
+                    self.telemetry_bus.report(
+                        "credibility",
+                        StageMetrics(
+                            stage="credibility",
+                            ts=time.time(),
+                            latency_ms=0.0,
+                            items_in=len(events),
+                            items_out=len(scored),
+                            errors=0,
+                            extra={"avg_confidence": _avg_conf},
+                        ),
+                    )
+            except Exception:
+                pass  # Capability 1 telemetry must not affect main pipeline
+
+        return summary

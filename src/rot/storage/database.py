@@ -24,6 +24,9 @@ Architecture:
 - BacktestMixin: Backtesting runs and saved strategies
 - StrategyMixin: Strategy builder, marketplace, regimes, discovery
 - SportsMixin: Sports news, line mover scores, betting opportunities
+- ControlMixin: PID control plane snapshots and adjustment history
+- RadarMixin: AttentionRadar events and lead time tracking
+- ProbabilityMixin: Pre-signal events and accuracy tracking
 """
 
 from __future__ import annotations
@@ -49,6 +52,9 @@ from .auth_db import AuthMixin
 from .backtest_db import BacktestMixin
 from .strategy_db import StrategyMixin
 from .gamification_db import GamificationMixin
+from .control_db import ControlMixin
+from .radar_db import RadarMixin
+from .probability_db import ProbabilityMixin
 
 
 class Database(
@@ -71,6 +77,9 @@ class Database(
     SportsMixin,
     AffiliatesMixin,
     AuthMixin,
+    ControlMixin,
+    RadarMixin,
+    ProbabilityMixin,
 ):
     """
     Main database class composed of domain-specific mixins.

@@ -369,6 +369,30 @@ class DatabaseBase:
             except Exception as e:
                 log.warning("Affiliates tables init skipped: %s", e)
 
+        # Initialize unified control plane tables (via ControlMixin)
+        if hasattr(self, 'ensure_control_schema'):
+            try:
+                await self.ensure_control_schema()
+                log.info("Control plane tables initialized")
+            except Exception as e:
+                log.warning("Control plane tables init skipped: %s", e)
+
+        # Initialize attention radar tables (via RadarMixin)
+        if hasattr(self, 'ensure_radar_schema'):
+            try:
+                await self.ensure_radar_schema()
+                log.info("Attention radar tables initialized")
+            except Exception as e:
+                log.warning("Attention radar tables init skipped: %s", e)
+
+        # Initialize probability pipeline tables (via ProbabilityMixin)
+        if hasattr(self, 'ensure_probability_schema'):
+            try:
+                await self.ensure_probability_schema()
+                log.info("Probability pipeline tables initialized")
+            except Exception as e:
+                log.warning("Probability pipeline tables init skipped: %s", e)
+
     async def close(self) -> None:
         """
         Close the database connection.

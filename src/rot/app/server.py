@@ -156,6 +156,27 @@ async def _async_signal_handler(
 
     signal_id = None
 
+    # ── Capability 2: Persist AttentionRadar event if present ─────────────────
+    radar_event = signal_data.get("radar_event")
+    if radar_event is not None:
+        try:
+            db = app.state.db
+            await db.save_radar_event(
+                ticker=radar_event.ticker,
+                timestamp=radar_event.timestamp,
+                confidence=radar_event.confidence,
+                signal_volume_zscore=radar_event.signal_volume_zscore,
+                event_type=radar_event.event_type,
+                stance=radar_event.stance,
+                source_signal_id=radar_event.source_signal_id,
+                meta=radar_event.meta,
+            )
+        except Exception as _re:
+            log.warning("Failed to persist radar event: %s", _re)
+        # Radar-only signals don't need the rest of the handler
+        if signal_data.get("reasoning") is None and signal_data.get("trade_idea") is None:
+            return
+
     # ── Phase 1: Persist signal (atomic — insert_signal has its own commit) ──
     try:
         db = app.state.db
@@ -1350,6 +1371,80 @@ async def _run_server(cfg: Settings):
 
         # Create pipeline (triggers heavy imports: scikit-learn, yfinance, PRAW, etc.)
         runner = _create_pipeline(cfg, on_signal=on_signal)
+
+        # ── Capability 1: Unified Control Plane ──────────────────────────────
+        # Circuit-breaker: if ANY part of this fails, runner continues unchanged.
+        try:
+            from rot.control import LiveTuning, HelixConfig, TelemetryBus, AnomalyDetector, TuningController
+            _live_tuning = LiveTuning()
+            _helix = HelixConfig(_live_tuning)
+            _anomaly = AnomalyDetector()
+            _telemetry_bus = TelemetryBus(interval_s=5.0)
+            _tuning_controller = TuningController(
+                live_tuning=_live_tuning,
+                helix_config=_helix,
+                anomaly_detector=_anomaly,
+                tick_s=30.0,
+                rollback_threshold=0.05,
+            )
+            runner.telemetry_bus = _telemetry_bus
+            app.state.live_tuning = _live_tuning
+            app.state.helix_config = _helix
+            app.state.telemetry_bus = _telemetry_bus
+            app.state.tuning_controller = _tuning_controller
+            # Start TelemetryBus broadcast loop
+            background_tasks.append(asyncio.create_task(_telemetry_bus.start()))
+            background_tasks.append(asyncio.create_task(_tuning_controller.start()))
+            log.info("Unified control plane: ACTIVE (PID tuning, telemetry bus, rollback)")
+        except Exception as _cp_exc:
+            log.warning("Control plane init failed (pipeline continues): %s", _cp_exc)
+
+        # ── Capability 2: Attention Radar ────────────────────────────────────
+        try:
+            from rot.radar.attention_radar import AttentionRadar, RadarResolver
+            _radar = AttentionRadar(enabled=True)
+            _radar_resolver = RadarResolver(db=app.state.db)
+            runner.attention_radar = _radar
+            app.state.attention_radar = _radar
+            app.state.radar_resolver = _radar_resolver
+            log.info("Attention radar: ACTIVE (confidence_threshold=%.0f%%)", 88.0)
+        except Exception as _radar_exc:
+            log.warning("Attention radar init failed (pipeline continues): %s", _radar_exc)
+
+        # ── Capability 3: Probability Pipeline ───────────────────────────────
+        try:
+            from rot.probability.stream_processor import StreamProcessor
+            _stream_proc = StreamProcessor(alpha=0.15, presignal_threshold=0.72, min_chunks=5)
+            runner.stream_processor = _stream_proc
+            app.state.stream_processor = _stream_proc
+            log.info("Probability pipeline (stream processor): ACTIVE (alpha=0.15, threshold=0.72)")
+        except Exception as _sp_exc:
+            log.warning("Stream processor init failed (pipeline continues): %s", _sp_exc)
+
+        # ── Radar resolver nightly loop ───────────────────────────────────────
+        async def _radar_resolver_loop(stop_event: threading.Event) -> None:
+            """Run RadarResolver once per night (every 24h)."""
+            await asyncio.sleep(3600)  # initial delay — wait for events to accumulate
+            while not stop_event.is_set():
+                try:
+                    resolver = getattr(app.state, 'radar_resolver', None)
+                    if resolver is not None:
+                        resolved = await resolver.run_once()
+                        if resolved > 0:
+                            log.info("Radar resolver: resolved %d attention events", resolved)
+                except Exception as exc:
+                    log.warning("Radar resolver loop error: %s", exc)
+                # Sleep 24h between resolution passes
+                for _ in range(86400):
+                    if stop_event.is_set():
+                        break
+                    await asyncio.sleep(1)
+
+        background_tasks.append(asyncio.create_task(_radar_resolver_loop(stop_event)))
+
+        # ── Wire radar events into DB from signal handler (via app.state) ─────
+        # The on_signal callback already handles `radar_event` key — no further
+        # wiring needed here; _async_signal_handler is extended below.
 
         # Start pipeline in background thread
         pipeline_thread = threading.Thread(

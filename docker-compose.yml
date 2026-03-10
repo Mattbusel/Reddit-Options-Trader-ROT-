@@ -1,0 +1,94 @@
+version: "3.9"
+
+# ROT Unified System — local development environment
+# Boots ROT with all three new capability layers active.
+# Run: docker-compose up --build
+# Test: docker-compose run --rm test
+
+services:
+  rot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Core ROT config
+      - ROT_ENV=development
+      - ROT_DB_PATH=/app/data/rot.db
+      - ROT_STORAGE_ROOT=/app/data
+      # Control Plane
+      - ROT_CONTROL_ENABLED=true
+      - ROT_CONTROL_TICK_S=30
+      - ROT_CONTROL_ROLLBACK_THRESHOLD=0.05
+      # Attention Radar
+      - ROT_RADAR_ENABLED=true
+      - ROT_RADAR_CONFIDENCE_THRESHOLD=0.88
+      - ROT_RADAR_VOLUME_ZSCORE_THRESHOLD=2.0
+      # Probability Pipeline
+      - ROT_PROBABILITY_ENABLED=true
+      - ROT_PROBABILITY_ALPHA=0.15
+      - ROT_PROBABILITY_PRESIGNAL_THRESHOLD=0.72
+      # Disable external APIs in dev
+      - ROT_REDDIT_ENABLED=false
+      - ROT_LLM_ENABLED=false
+      # Seed synthetic data for deterministic testing
+      - ROT_SEED_SYNTHETIC_DATA=true
+    volumes:
+      - rot_data:/app/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: python -m rot.app.server
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ROT_ENV=test
+      - ROT_DB_PATH=:memory:
+      - ROT_STORAGE_ROOT=/tmp/rot_test
+      - ROT_CONTROL_ENABLED=true
+      - ROT_RADAR_ENABLED=true
+      - ROT_PROBABILITY_ENABLED=true
+      - ROT_REDDIT_ENABLED=false
+      - ROT_LLM_ENABLED=false
+      # Pytest settings
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      - .:/app
+      - test_tmp:/tmp/rot_test
+    command: >
+      pytest tests/ -x -v
+        --tb=short
+        --asyncio-mode=auto
+        -k "not integration"
+    depends_on:
+      - rot
+    profiles:
+      - test
+
+  # Synthetic data seeder: populates 30 days of resolved outcome data
+  # for deterministic testing of control plane and attention radar.
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ROT_ENV=development
+      - ROT_DB_PATH=/app/data/rot.db
+      - ROT_STORAGE_ROOT=/app/data
+    volumes:
+      - rot_data:/app/data
+    command: python scripts/seed_synthetic_data.py
+    profiles:
+      - seed
+
+volumes:
+  rot_data:
+    driver: local
+  test_tmp:
+    driver: local
