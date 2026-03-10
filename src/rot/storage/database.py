@@ -55,6 +55,7 @@ from .gamification_db import GamificationMixin
 from .control_db import ControlMixin
 from .radar_db import RadarMixin
 from .probability_db import ProbabilityMixin
+from .access_log_db import AccessLogMixin
 
 
 class Database(
@@ -80,6 +81,7 @@ class Database(
     ControlMixin,
     RadarMixin,
     ProbabilityMixin,
+    AccessLogMixin,
 ):
     """
     Main database class composed of domain-specific mixins.

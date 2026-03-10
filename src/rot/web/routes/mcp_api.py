@@ -3,9 +3,13 @@
 These endpoints power the ROT MCP server, providing structured data
 that LLMs can consume via the Model Context Protocol.
 
-All endpoints are unauthenticated at launch to maximize distribution.
-An optional ``Authorization: Bearer {key}`` header is accepted for
-future tier gating but has no effect yet.
+Authentication required: all MCP endpoints require a valid API key or JWT.
+Unauthenticated requests return 401. Free-tier accounts are blocked.
+
+Pass your API key as:
+    Authorization: Bearer rot_<your_key>
+or:
+    X-API-Key: rot_<your_key>
 
 Routes:
     GET /api/mcp/trending     — Top trending tickers (24h)
@@ -24,6 +28,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
+
+from rot.web.auth import get_current_user_optional
+from rot.web.rate_limit import check_rate_limit, require_api_auth
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +54,9 @@ async def mcp_trending(
     limit: int = Query(20, ge=1, le=100),
 ):
     """Top trending tickers with signal counts and average confidence."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
     tickers = await db.get_trending_tickers(hours=hours, limit=limit)
     return _json({
@@ -67,6 +77,9 @@ async def mcp_signals(
     limit: int = Query(10, ge=1, le=50),
 ):
     """Latest trading signals with source, confidence, event type, and timestamp."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
     signals = await db.get_signals(
         limit=limit,
@@ -110,6 +123,9 @@ async def mcp_sentiment(
     ticker: str = Query(..., min_length=1, max_length=10),
 ):
     """Sentiment breakdown for a specific ticker — bull/bear/mixed ratio and signal count."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
     upper_ticker = ticker.upper()
 
@@ -158,6 +174,9 @@ async def mcp_sentiment(
 @router.get("/overview")
 async def mcp_overview(request: Request):
     """Market overview — total signals (30d), tradeable count, avg confidence, win rate, top strategies."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
 
     summary = await db.get_performance_summary(days=30)
@@ -190,6 +209,9 @@ async def mcp_unusual(
     limit: int = Query(20, ge=1, le=100),
 ):
     """Tickers with unusual signal volume or confidence spikes."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
     events = await db.get_unusual_events(hours=hours, limit=limit)
 
@@ -220,6 +242,9 @@ async def mcp_sports(
     limit: int = Query(20, ge=1, le=100),
 ):
     """Sports betting intelligence with line mover scores."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     # Use the in-memory sports cache (same as the sports tracker page)
     from rot.web.routes.sports_tracker import _news_cache
 
@@ -260,6 +285,9 @@ async def mcp_search(
     limit: int = Query(10, ge=1, le=50),
 ):
     """Full-text search across all signals — matches ticker, post title, event type."""
+    user = await get_current_user_optional(request)
+    await require_api_auth(request, user)
+    await check_rate_limit(request, user)
     db = request.app.state.db
     query_upper = q.upper().strip()
     query_lower = q.lower().strip()

@@ -17,6 +17,7 @@ from rot.web.csrf import CSRFMiddleware
 from rot.web.request_id_middleware import RequestIDMiddleware
 from rot.web.error_middleware import ErrorTrackingMiddleware
 from rot.web.security_headers import SecurityHeadersMiddleware
+from rot.auth.middleware import RequestLogMiddleware
 
 log = logging.getLogger(__name__)
 
@@ -173,6 +174,9 @@ Get your API key at [/account](/account) after registration.
         }
     )
 
+    # Request logging — records all requests to api_request_log for security monitoring
+    app.add_middleware(RequestLogMiddleware)
+
     # Error tracking — captures unhandled exceptions and HTTP errors
     app.add_middleware(ErrorTrackingMiddleware)
 
@@ -272,6 +276,22 @@ async def connect_db(app: FastAPI):
 
     # Start periodic cleanup task
     app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
+
+    # Ensure access log tables exist (idempotent)
+    try:
+        await db.ensure_access_log_schema()
+        log.info("Access log schema ready")
+    except Exception as exc:
+        log.warning("Access log schema init failed: %s", exc)
+
+    # Start access monitor background task
+    try:
+        from rot.auth.access_monitor import AccessMonitor
+        monitor = AccessMonitor(db)
+        monitor._task = asyncio.create_task(monitor.run())
+        app.state._access_monitor = monitor
+    except Exception as exc:
+        log.warning("AccessMonitor start failed: %s", exc)
 
 
 def register_routes(app: FastAPI):

@@ -222,11 +222,12 @@ class ControlledPipelineRunner:
         Each stage attribute update is wrapped in its own try/except so a
         missing attribute on one stage never blocks the others.
         """
-        # Stage 6.5: suppress_threshold → SignalSuppressor.threshold
+        # Stage 6.5: suppress_threshold → SignalSuppressor.threshold (if present)
         suppress_t = self._lt.get(ParameterId.SUPPRESS_THRESHOLD)
-        if self._base.suppressor is not None:
+        suppressor = getattr(self._base, "suppressor", None)
+        if suppressor is not None:
             try:
-                self._base.suppressor.threshold = suppress_t
+                suppressor.threshold = suppress_t
             except AttributeError:
                 pass
 
@@ -427,11 +428,11 @@ class ControlledPipelineRunner:
 
     @property
     def suppressor(self):  # type: ignore[return]
-        return self._base.suppressor
+        return getattr(self._base, "suppressor", None)
 
     @suppressor.setter
     def suppressor(self, v: Any) -> None:
-        self._base.suppressor = v
+        self._base.suppressor = v  # type: ignore[attr-defined]
 
     @property
     def on_signal(self):  # type: ignore[return]

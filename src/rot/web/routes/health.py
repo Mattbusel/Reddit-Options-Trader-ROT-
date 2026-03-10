@@ -8,6 +8,8 @@ from pathlib import Path
 import psutil
 from fastapi import APIRouter, Request
 
+from rot.web.auth import get_current_user_optional
+
 router = APIRouter()
 
 # Track server start time for uptime calculation
@@ -16,15 +18,18 @@ _SERVER_START_TIME = time.time()
 
 @router.get("/health")
 async def health_check(request: Request):
-    """Enhanced health check with system metrics, DB status, and backup info.
+    """Health check endpoint.
 
-    Returns comprehensive system health information:
-    - Basic: status, version, uptime
-    - Database: connection status, signal count, DB size
-    - System: memory usage, CPU usage, disk usage
-    - Backups: last backup time, backup count, total backup size
-    - Environment: Python version, platform, deployment environment
+    Unauthenticated: returns {"status": "ok"} only.
+    Admin-authenticated: returns full diagnostic data.
     """
+    user = await get_current_user_optional(request)
+    tier = (user or {}).get("tier", "")
+
+    # Unauthenticated and non-admin users get minimal response only
+    if tier != "admin":
+        return {"status": "ok"}
+
     from rot.storage.backup import BackupManager
 
     health_data = {

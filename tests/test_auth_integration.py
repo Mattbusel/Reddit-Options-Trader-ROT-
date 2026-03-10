@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from fastapi.testclient import TestClient
 
-from rot.app.server import create_app
+from rot.web.app import create_app
 from rot.core.config import Settings
 
 
@@ -34,7 +34,7 @@ async def test_app():
             reddit={"client_id": "test", "client_secret": "test", "user_agent": "test"},
         )
 
-        app = await create_app(settings)
+        app = create_app(settings)
         yield app
 
         # Cleanup
