@@ -267,6 +267,14 @@ async def connect_db(app: FastAPI):
     app.state.signal_service = SignalService(db=db, cache=app.state.query_cache)
     app.state.user_service = UserService(db=db)
 
+    # Inject DB + settings into MCP auth gate (must run before any /mcp requests)
+    try:
+        from rot.web.mcp_integration import set_mcp_auth_context
+        set_mcp_auth_context(db, settings)
+        log.info("MCP auth context set")
+    except Exception as exc:
+        log.warning("MCP auth context setup failed: %s", exc)
+
     # Upgrade MCP event store to SQLite for cross-restart session persistence
     try:
         from rot.web.mcp_integration import connect_mcp_event_store

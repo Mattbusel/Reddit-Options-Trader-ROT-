@@ -21,6 +21,7 @@ Usage in app.py::
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import os
 from typing import Optional
@@ -34,6 +35,24 @@ from starlette.responses import JSONResponse
 from rot.web.mcp_event_store import InMemoryEventStore, SqliteEventStore
 
 log = logging.getLogger(__name__)
+
+# ── Auth context ─────────────────────────────────────────────────────
+# Set by _MCPAuthGate for each request so _get() can forward the
+# validated credential to the protected /api/mcp/* endpoints.
+_mcp_auth_header: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_mcp_auth_header", default=""
+)
+
+# DB and settings references injected at startup via set_mcp_auth_context()
+_mcp_db = None
+_mcp_settings = None
+
+
+def set_mcp_auth_context(db, settings) -> None:
+    """Called from connect_db() after DB is ready."""
+    global _mcp_db, _mcp_settings
+    _mcp_db = db
+    _mcp_settings = settings
 
 
 # ── Error Middleware ─────────────────────────────────────────────────
@@ -65,6 +84,87 @@ class _MCPErrorMiddleware:
                 status_code=500,
             )
             await response(scope, receive, send)
+
+
+class _MCPAuthGate:
+    """ASGI middleware: validates API key or JWT before the MCP handshake.
+
+    Returns HTTP 401 immediately for unauthenticated requests so the MCP
+    protocol session is never established.  On success, stores the raw
+    credential in a ContextVar so _get() can forward it to the protected
+    /api/mcp/* endpoints.
+
+    Non-HTTP scopes (lifespan, websocket) pass through without auth check.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = {k.lower(): v for k, v in scope.get("headers", [])}
+        api_key = headers.get(b"x-api-key", b"").decode()
+        auth_header = headers.get(b"authorization", b"").decode()
+
+        user = await self._resolve_user(api_key, auth_header)
+        if user is None:
+            body = b'{"detail":"Authentication required","signup_url":"/pricing"}'
+            await send({
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"www-authenticate", b'Bearer realm="ROT API"'),
+                ],
+            })
+            await send({"type": "http.response.body", "body": body})
+            return
+
+        # Thread the credential through to _get() calls inside tools
+        credential = api_key or auth_header
+        token = _mcp_auth_header.set(credential)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _mcp_auth_header.reset(token)
+
+    async def _resolve_user(
+        self, api_key: str, auth_header: str
+    ) -> Optional[dict]:
+        db = _mcp_db
+        settings = _mcp_settings
+        if db is None:
+            # DB not ready yet — fail closed
+            return None
+
+        from rot.web.auth import hash_api_key
+        # 1. X-API-Key header
+        if api_key:
+            key_hash = hash_api_key(api_key)
+            return await db.get_user_by_api_key_hash(key_hash)
+
+        # 2. Authorization: Bearer <jwt or rot_ key>
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            if token.startswith("rot_"):
+                key_hash = hash_api_key(token)
+                return await db.get_user_by_api_key_hash(key_hash)
+            # JWT
+            if settings is not None:
+                try:
+                    from jose import jwt, JWTError
+                    secret = settings.auth.jwt_secret or settings.web.secret_key
+                    algorithm = settings.auth.jwt_algorithm
+                    payload = jwt.decode(token, secret, algorithms=[algorithm])
+                    return await db.get_user_by_id(payload["sub"])
+                except Exception:
+                    return None
+
+        return None
 
 
 class MCPDispatcher:
@@ -143,11 +243,23 @@ mcp = FastMCP(
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
-    """Make a GET request to the local ROT backend API."""
+    """Make a GET request to the local ROT backend API.
+
+    Forwards the validated credential from the MCP auth gate so the
+    protected /api/mcp/* endpoints accept the request.
+    """
     url = f"{_INTERNAL_BASE}{path}"
+    # Forward the auth credential that was validated by _MCPAuthGate
+    credential = _mcp_auth_header.get("")
+    headers: dict[str, str] = {}
+    if credential.startswith("rot_"):
+        headers["X-API-Key"] = credential
+    elif credential:
+        headers["Authorization"] = f"Bearer {credential}" if not credential.startswith("Bearer ") else credential
+
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         try:
-            resp = await client.get(url, params=params)
+            resp = await client.get(url, params=params, headers=headers)
             resp.raise_for_status()
             return resp.json()
         except httpx.TimeoutException:
@@ -345,7 +457,9 @@ def get_mcp_streamable_http_app():
     # so the new routes are included.
     streamable_app.middleware_stack = None
 
-    return _MCPErrorMiddleware(streamable_app)
+    # Auth gate wraps the error middleware — auth check happens first,
+    # before the MCP transport sees any bytes.
+    return _MCPAuthGate(_MCPErrorMiddleware(streamable_app))
 
 
 def get_mcp_sse_app():
