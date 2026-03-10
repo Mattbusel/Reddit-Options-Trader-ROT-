@@ -32,7 +32,8 @@ RUN pip install --no-cache-dir \
     "stripe>=7.0" \
     "scikit-learn>=1.3" \
     "numpy>=1.24" \
-    "psutil>=5.9"
+    "psutil>=5.9" \
+    "mcp[cli]>=1.0"
 
 COPY src/ ./src/
 RUN pip install --no-cache-dir --no-deps .

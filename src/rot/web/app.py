@@ -35,6 +35,15 @@ async def _periodic_db_cleanup(db, interval_s: int = 3600):
         except Exception as e:
             log.error("DB cleanup error: %s", e)
 
+        # Cleanup stale MCP session events
+        try:
+            from rot.web.mcp_integration import cleanup_mcp_events
+            mcp_deleted = await cleanup_mcp_events()
+            if mcp_deleted:
+                log.info("MCP event cleanup: removed %d stale events", mcp_deleted)
+        except Exception as e:
+            log.debug("MCP event cleanup: %s", e)
+
         # Backfill AI summaries for signals that don't have one
         try:
             from rot.reasoner.ai_summary import backfill_ai_summaries
@@ -254,6 +263,13 @@ async def connect_db(app: FastAPI):
     app.state.signal_service = SignalService(db=db, cache=app.state.query_cache)
     app.state.user_service = UserService(db=db)
 
+    # Upgrade MCP event store to SQLite for cross-restart session persistence
+    try:
+        from rot.web.mcp_integration import connect_mcp_event_store
+        await connect_mcp_event_store(str(db.db_path.parent))
+    except Exception as exc:
+        log.warning("MCP event store upgrade skipped: %s", exc)
+
     # Start periodic cleanup task
     app.state._db_cleanup_task = asyncio.create_task(_periodic_db_cleanup(db))
 
@@ -329,7 +345,7 @@ def register_routes(app: FastAPI):
     # ── Dashboard & Informational ─────────────────────────────────────
     from rot.web.routes import (
         dashboard, raid_tracker, sports_tracker, hall_of_legends,
-        glossary, ceo_rap_sheet, weekly_wrap, seo, faq, badges,
+        glossary, ceo_rap_sheet, weekly_wrap, seo, faq, badges, contact,
     )
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(raid_tracker.router, tags=["dashboard"])
@@ -341,6 +357,7 @@ def register_routes(app: FastAPI):
     app.include_router(seo.router, tags=["dashboard"])
     app.include_router(faq.router, tags=["dashboard"])
     app.include_router(badges.router, tags=["dashboard"])
+    app.include_router(contact.router, tags=["dashboard"])
 
     # ── Integrations ──────────────────────────────────────────────────
     from rot.web.routes import brokers, affiliates, enterprise, widgets, paper_leaderboard, api_status
@@ -350,5 +367,18 @@ def register_routes(app: FastAPI):
     app.include_router(widgets.router, tags=["integrations"])
     app.include_router(paper_leaderboard.router, tags=["integrations"])
     app.include_router(api_status.router, tags=["integrations"])
+
+    # ── MCP (API + landing page + Streamable HTTP protocol endpoint) ─
+    from rot.web.routes import mcp_api, mcp_landing
+    app.include_router(mcp_api.router, tags=["mcp"])
+    app.include_router(mcp_landing.router, tags=["mcp"])
+
+    # NOTE: The MCP protocol endpoints (/mcp/, /mcp/sse, /mcp/messages/)
+    # are mounted at the ASGI level in server.py via MCPDispatcher, NOT
+    # inside FastAPI.  This is required because FastAPI's BaseHTTPMiddleware
+    # (GZip, SecurityHeaders) is incompatible with streaming ASGI responses
+    # used by the MCP Streamable HTTP transport.  The /api/mcp/* REST routes
+    # and /mcp-server landing page above ARE in FastAPI (they return normal
+    # JSON/HTML responses).
 
     log.info("All routes registered (%d routes)", len(app.routes))

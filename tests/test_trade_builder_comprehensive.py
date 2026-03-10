@@ -307,21 +307,21 @@ class TestNoTrade:
         assert "unknown_stance" in trades[0].do_not_trade_reasons
 
     def test_low_confidence(self, builder):
-        event = _make_event(confidence=0.2)
-        packet = _make_packet(confidence=0.3)
+        event = _make_event(confidence=0.1)
+        packet = _make_packet(confidence=0.2)
         trades = builder.build(packet, event)
         assert trades[0].strategy == "none"
         assert "confidence_too_low" in trades[0].do_not_trade_reasons
 
-    def test_confidence_exactly_0_4_passes(self, builder):
-        event = _make_event(confidence=0.4)
-        packet = _make_packet(confidence=0.4)
+    def test_confidence_exactly_0_30_passes(self, builder):
+        event = _make_event(confidence=0.30)
+        packet = _make_packet(confidence=0.30)
         trades = builder.build(packet, event)
         assert trades[0].strategy != "none" or "confidence_too_low" not in trades[0].do_not_trade_reasons
 
-    def test_confidence_0_39_fails(self, builder):
-        event = _make_event(confidence=0.39)
-        packet = _make_packet(confidence=0.39)
+    def test_confidence_0_29_fails(self, builder):
+        event = _make_event(confidence=0.29)
+        packet = _make_packet(confidence=0.29)
         trades = builder.build(packet, event)
         assert "confidence_too_low" in trades[0].do_not_trade_reasons
 
@@ -362,7 +362,7 @@ class TestEarningsRumorClamp:
         event = _make_event(event_type="earnings_rumor", confidence=0.6)
         packet = _make_packet(confidence=0.6, event_type="earnings_rumor")
         trades = builder.build(packet, event)
-        # Confidence clamped to 0.30, which is below 0.4 threshold → no trade
+        # Confidence clamped to 0.25, which is below 0.30 threshold → no trade
         assert "confidence_too_low" in trades[0].do_not_trade_reasons
 
     def test_earnings_rumor_low_confidence_not_clamped(self, builder):

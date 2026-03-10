@@ -31,7 +31,7 @@ class PriceChecker:
             try:
                 with _quiet_yfinance():
                     t = yf.Ticker(ticker)
-                    hist = t.history(period="1d", interval="1d")
+                    hist = t.history(period="1d", interval="1m")
                     if hist is not None and len(hist) > 0:
                         return float(hist["Close"].iloc[-1])
             except Exception as e:
@@ -55,7 +55,7 @@ class PriceChecker:
         try:
             with _quiet_yfinance():
                 data = yf.download(
-                    tickers, period="1d", interval="1d",
+                    tickers, period="1d", interval="1m",
                     group_by="ticker", progress=False, threads=True,
                 )
                 for t in tickers:

@@ -183,7 +183,7 @@ class EventBuilder:
         horizon = self._detect_horizon(f"{post.title} {post.selftext}")
 
         # Richer confidence calculation using NLP signals
-        base_confidence = 0.4 if self._has_explicit_ticker(post.title, post.selftext) else 0.25
+        base_confidence = 0.55 if self._has_explicit_ticker(post.title, post.selftext) else 0.40
 
         # Boost for classified event type
         if event_type != "other":
@@ -301,8 +301,8 @@ class EventBuilder:
         stance = self._detect_stance(full_text)
         horizon = self._detect_horizon(full_text)
 
-        # Base confidence: explicit $TICKER = 0.4, bare = 0.25
-        base_confidence = 0.4 if self._has_explicit_ticker(post.title, post.selftext) else 0.25
+        # Base confidence: explicit $TICKER = 0.55, bare = 0.40
+        base_confidence = 0.55 if self._has_explicit_ticker(post.title, post.selftext) else 0.40
         # Boost for classified event type
         if event_type != "other":
             base_confidence += 0.1

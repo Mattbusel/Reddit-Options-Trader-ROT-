@@ -693,4 +693,16 @@ CREATE TABLE IF NOT EXISTS export_schedules (
 
 CREATE INDEX IF NOT EXISTS idx_export_schedules_user ON export_schedules(user_id);
 CREATE INDEX IF NOT EXISTS idx_export_schedules_next_run ON export_schedules(next_run_at);
+
+CREATE TABLE IF NOT EXISTS mcp_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL UNIQUE,
+    stream_id TEXT NOT NULL,
+    message_json TEXT,
+    created_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mcp_events_stream ON mcp_events(stream_id, id);
+CREATE INDEX IF NOT EXISTS idx_mcp_events_event_id ON mcp_events(event_id);
+CREATE INDEX IF NOT EXISTS idx_mcp_events_created ON mcp_events(created_at);
 """

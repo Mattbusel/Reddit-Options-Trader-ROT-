@@ -1704,10 +1704,34 @@ async def _run_server(cfg: Settings):
     log.info("Dashboard: http://%s:%d/dashboard", cfg.web.host, cfg.web.port)
     log.info("API: http://%s:%d/api/v1/health", cfg.web.host, cfg.web.port)
 
+    # Wrap FastAPI with MCP dispatcher so /mcp/* requests bypass
+    # FastAPI's middleware stack (BaseHTTPMiddleware is incompatible
+    # with the MCP streaming ASGI transport).  Must happen BEFORE
+    # starting the session manager so the session manager exists.
+    asgi_app = app
+    try:
+        from rot.web.mcp_integration import MCPDispatcher, get_mcp_streamable_http_app
+        mcp_app = get_mcp_streamable_http_app()
+        asgi_app = MCPDispatcher(app, mcp_app)
+        log.info("MCP dispatcher: /mcp/* routes bypass FastAPI middleware")
+    except Exception as exc:
+        log.warning("MCP dispatcher setup failed, /mcp will use FastAPI: %s", exc)
+
+    # Start MCP Streamable HTTP session manager as a background task.
+    # Must run AFTER get_mcp_streamable_http_app() which creates the
+    # session manager.  FastAPI doesn't trigger sub-app lifespans.
+    try:
+        from rot.web.mcp_integration import start_mcp_session_manager
+        mcp_task = asyncio.create_task(start_mcp_session_manager(stop_event))
+        background_tasks.append(mcp_task)
+        log.info("MCP Streamable HTTP session manager task started")
+    except Exception as exc:
+        log.warning("MCP session manager start failed: %s", exc)
+
     # Run uvicorn as an awaitable inside the CURRENT event loop (no new loop created)
     _t2 = time.monotonic()
     config = uvicorn.Config(
-        app,
+        asgi_app,
         host=cfg.web.host,
         port=cfg.web.port,
         log_level="info",
@@ -1726,6 +1750,12 @@ async def _run_server(cfg: Settings):
         if cleanup_task:
             cleanup_task.cancel()
         # flow/social/strategy tasks are in background_tasks list (cancelled above)
+        # Close MCP event store
+        try:
+            from rot.web.mcp_integration import close_mcp_event_store
+            await close_mcp_event_store()
+        except Exception:
+            pass  # Best-effort MCP event store close
         # Close DB connection
         db = getattr(app.state, "db", None)
         if db:

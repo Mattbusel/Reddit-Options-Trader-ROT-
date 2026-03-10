@@ -76,6 +76,11 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Skip CSRF for MCP protocol endpoints (SSE transport)
+        if path.startswith("/mcp/"):
+            await self.app(scope, receive, send)
+            return
+
         # Skip CSRF for JSON API requests
         content_type = headers.get(b"content-type", b"").decode()
         if "application/json" in content_type and path.startswith("/api/"):

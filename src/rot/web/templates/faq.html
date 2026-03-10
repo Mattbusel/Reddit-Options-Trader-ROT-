@@ -85,8 +85,7 @@
         {% for item in faqs %}
         <div class="bg-gray-800/50 border border-gray-700/40 rounded-lg overflow-hidden">
             <button
-                class="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-gray-700/30 transition"
-                onclick="toggleFAQ(this)"
+                class="faq-toggle w-full text-left px-5 py-4 flex items-center justify-between hover:bg-gray-700/30 transition"
                 aria-expanded="false"
             >
                 <span class="text-sm font-semibold text-white pr-4">{{ item.q }}</span>
@@ -105,10 +104,10 @@
 
     <!-- Expand/Collapse All -->
     <div class="flex justify-center gap-3">
-        <button onclick="expandAll()" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
+        <button id="faq-expand-all" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
             Expand All
         </button>
-        <button onclick="collapseAll()" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
+        <button id="faq-collapse-all" class="px-4 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-700 transition">
             Collapse All
         </button>
     </div>
@@ -146,5 +145,15 @@ function collapseAll() {
         toggleFAQ(btn);
     });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.faq-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() { toggleFAQ(btn); });
+    });
+    var expandBtn = document.getElementById('faq-expand-all');
+    var collapseBtn = document.getElementById('faq-collapse-all');
+    if (expandBtn) expandBtn.addEventListener('click', expandAll);
+    if (collapseBtn) collapseBtn.addEventListener('click', collapseAll);
+});
 </script>
 {% endblock %}

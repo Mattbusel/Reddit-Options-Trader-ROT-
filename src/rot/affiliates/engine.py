@@ -15,10 +15,10 @@ log = logging.getLogger(__name__)
 
 # Commission rates by tier (20% of monthly subscription)
 TIER_COMMISSION_RATES: Dict[str, float] = {
-    "pro": 4.00,        # 20% of $20/mo
-    "premium": 10.00,   # 20% of $50/mo
-    "ultra": 20.00,     # 20% of $100/mo
-    "enterprise": 40.00, # 20% of $200/mo (estimated)
+    "pro": 6.00,          # 20% of $29.99/mo
+    "premium": 16.00,     # 20% of $79.99/mo
+    "ultra": 30.00,       # 20% of $149.99/mo
+    "enterprise": 100.00, # 20% of $499.99/mo
 }
 
 # Configuration

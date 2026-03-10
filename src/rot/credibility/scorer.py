@@ -7,10 +7,10 @@ from rot.core.types import Event
 
 
 _SUBREDDIT_WEIGHTS: Dict[str, float] = {
-    "wallstreetbets": -0.10,
-    "wallstreetbetsogs": -0.05,
-    "shortsqueeze": -0.10,
-    "pennystocks": -0.10,
+    "wallstreetbets": -0.05,
+    "wallstreetbetsogs": -0.03,
+    "shortsqueeze": -0.05,
+    "pennystocks": -0.05,
     "stocks": 0.0,
     "options": 0.05,
     "investing": 0.05,
@@ -70,8 +70,8 @@ class CredibilityScorer:
         # Factor 2: Entity count - too many tickers = watchlist noise
         entity_count = len(event.entities)
         if entity_count >= 5:
-            factors["too_many_tickers"] = -0.15
-            adjustment -= 0.15
+            factors["too_many_tickers"] = -0.08
+            adjustment -= 0.08
         elif entity_count == 1:
             factors["focused_ticker"] = 0.05
             adjustment += 0.05
@@ -132,16 +132,16 @@ class CredibilityScorer:
                 factors["author_good_karma"] = 0.05
                 adjustment += 0.05
             elif author_karma < 100:
-                factors["author_low_karma"] = -0.10
-                adjustment -= 0.10
+                factors["author_low_karma"] = -0.05
+                adjustment -= 0.05
 
         if isinstance(author_age_days, (int, float)):
             if author_age_days >= 365:
                 factors["author_established"] = 0.05
                 adjustment += 0.05
             elif author_age_days < 30:
-                factors["author_new_account"] = -0.10
-                adjustment -= 0.10
+                factors["author_new_account"] = -0.05
+                adjustment -= 0.05
 
         # ── NLP-powered factors (when NLP engine is active) ──
         nlp = meta.get("nlp", {})
@@ -180,8 +180,8 @@ class CredibilityScorer:
             # Factor 12: Temporal actionability — past-tense = less tradeable
             actionability = nlp.get("actionability", 0.5)
             if isinstance(actionability, (int, float)) and actionability < 0.3:
-                factors["nlp_low_actionability"] = -0.10
-                adjustment -= 0.10
+                factors["nlp_low_actionability"] = -0.05
+                adjustment -= 0.05
 
         # Apply adjustment to confidence
         new_confidence = max(0.05, min(1.0, event.confidence + adjustment))
