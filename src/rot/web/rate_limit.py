@@ -113,13 +113,13 @@ async def check_rate_limit(request: Request, user: Optional[dict]) -> None:
         raise HTTPException(
             status_code=429,
             detail=f"Daily rate limit exceeded ({daily_limit} calls/day for {tier} tier). "
-                   f"Resets in ~{int((since_24h + 86400 - now) / 3600)}h. "
+                   f"Resets in ~24h. "
                    f"Upgrade at /pricing for higher limits.",
             headers={
-                "Retry-After": str(int(since_24h + 86400 - now)),
+                "Retry-After": str(86400),
                 "X-RateLimit-Limit": str(daily_limit),
                 "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(int(since_24h + 86400)),
+                "X-RateLimit-Reset": str(int(now + 86400)),
             },
         )
 

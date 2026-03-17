@@ -60,7 +60,7 @@ def compute_sharpe_ratio(
     daily_rf = risk_free_rate / 252
     excess = [r - daily_rf for r in returns]
     mean_excess = sum(excess) / len(excess)
-    variance = sum((r - mean_excess) ** 2 for r in excess) / len(excess)
+    variance = sum((r - mean_excess) ** 2 for r in excess) / (len(excess) - 1)
     std_dev = math.sqrt(variance)
 
     if std_dev < 1e-10:

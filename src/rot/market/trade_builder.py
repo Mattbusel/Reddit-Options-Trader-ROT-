@@ -17,14 +17,10 @@ def _next_friday() -> str:
 
 def _next_monthly() -> str:
     today = datetime.date.today()
-    # Third Friday of next month
-    if today.day > 15:
-        month = today.month + 1
-        year = today.year + (1 if month > 12 else 0)
-        month = month if month <= 12 else month - 12
-    else:
-        month = today.month
-        year = today.year
+    # Third Friday of next month (always advance to next month)
+    month = today.month + 1
+    year = today.year + (1 if month > 12 else 0)
+    month = month if month <= 12 else month - 12
 
     # Find third Friday
     first_day = datetime.date(year, month, 1)

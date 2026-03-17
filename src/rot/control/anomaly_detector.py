@@ -277,5 +277,5 @@ def _welford_stats(values: Sequence[float]) -> tuple[float, float]:
         delta = x - mean
         mean += delta / n
         m2 += delta * (x - mean)
-    std = math.sqrt(m2 / n) if n > 1 else 0.0
+    std = math.sqrt(m2 / (n - 1)) if n > 1 else 0.0
     return mean, std
