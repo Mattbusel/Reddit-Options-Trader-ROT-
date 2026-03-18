@@ -261,6 +261,7 @@ class WelfordVarianceTracker:
 
     @property
     def mean(self) -> float:
+        """Running mean of all IIR values seen so far."""
         return self._mean
 
     @property
@@ -272,10 +273,12 @@ class WelfordVarianceTracker:
 
     @property
     def std(self) -> float:
+        """Standard deviation of all IIR values seen so far."""
         return math.sqrt(self.variance)
 
     @property
     def n(self) -> int:
+        """Number of observations recorded."""
         return self._n
 
 
@@ -291,6 +294,7 @@ class _TickerState:
         self.fired_presignals: Dict[str, PreSignal] = {}
 
     def get_or_create_iir(self, doc_id: str) -> tuple[IIRAccumulator, int]:
+        """Return the (IIRAccumulator, chunks_seen) pair for doc_id, creating it if needed."""
         if doc_id not in self.active_docs:
             self.active_docs[doc_id] = (IIRAccumulator(), 0, 0.0)
         iir, chunks, fire_ts = self.active_docs[doc_id]
