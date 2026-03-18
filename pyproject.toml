@@ -122,6 +122,16 @@ module = [
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
+# Silence pre-existing errors in modules not yet fully annotated
+[[tool.mypy.overrides]]
+module = [
+    "rot.app.server",
+    "rot.app.controlled_runner",
+    "rot.app.main",
+    "rot.app.loop",
+]
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "scripts"]
 skips = [

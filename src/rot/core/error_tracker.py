@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,9 +23,9 @@ from collections import defaultdict
 
 log = logging.getLogger(__name__)
 
-# Error storage directory
-ERROR_LOG_DIR = Path("/app/data/errors")
-ERROR_LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Error storage directory — defer mkdir to ErrorTracker.__init__ so module
+# import never fails in environments where the path does not yet exist.
+ERROR_LOG_DIR = Path(os.environ.get("ROT_ERROR_LOG_DIR", "/app/data/errors"))
 
 
 class ErrorTracker:
@@ -160,7 +161,7 @@ class ErrorTracker:
         """
         cutoff = datetime.utcnow() - timedelta(hours=hours)
 
-        stats = {
+        stats: Dict[str, Any] = {
             "total_errors": 0,
             "by_type": defaultdict(int),
             "by_level": defaultdict(int),

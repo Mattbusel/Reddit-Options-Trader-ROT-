@@ -48,7 +48,7 @@ def sanitize_for_log(value: str) -> str:
 
 
 def _to_jsonable(obj: Any) -> Any:
-    if is_dataclass(obj):
+    if is_dataclass(obj) and not isinstance(obj, type):
         return asdict(obj)
     if isinstance(obj, (list, tuple)):
         return [_to_jsonable(x) for x in obj]
@@ -204,7 +204,7 @@ class SanitizingLogFilter(logging.Filter):
 
         # Sanitize any string arguments
         if record.args:
-            sanitized_args = []
+            sanitized_args: list[Any] = []
             for arg in record.args if isinstance(record.args, tuple) else [record.args]:
                 if isinstance(arg, str):
                     sanitized_args.append(sanitize_for_log(arg))
@@ -216,7 +216,7 @@ class SanitizingLogFilter(logging.Filter):
 
 
 # Auto-install sanitizing filter on module import (defense in depth)
-def _install_global_log_sanitization():
+def _install_global_log_sanitization() -> None:
     """Install log sanitization filter on all existing handlers."""
     root_logger = logging.getLogger()
     sanitizing_filter = SanitizingLogFilter()

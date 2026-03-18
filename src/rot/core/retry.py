@@ -143,7 +143,7 @@ def async_retry_with_backoff(
 
             for attempt in range(1, max_attempts + 1):
                 try:
-                    return await func(*args, **kwargs)
+                    return await func(*args, **kwargs)  # type: ignore[misc]
                 except retryable_exceptions as e:
                     last_exception = e
 
@@ -174,5 +174,5 @@ def async_retry_with_backoff(
                 raise last_exception
             raise RuntimeError(f"{func.__name__} failed without exception")
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
     return decorator

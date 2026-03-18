@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import replace
+from typing import Any, Callable
 from uuid import uuid4
 
 from rot.strategy.types import MarketplaceEntry, Strategy
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Sort key helpers
 # ---------------------------------------------------------------------------
 
-_SORT_KEYS: dict[str, callable] = {
+_SORT_KEYS: dict[str, Callable[..., Any]] = {
     "rating": lambda e: (e.rating, e.subscriber_count),
     "subscribers": lambda e: (e.subscriber_count, e.rating),
     "newest": lambda e: e.created_at,

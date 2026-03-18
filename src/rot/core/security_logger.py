@@ -147,7 +147,7 @@ def log_admin_elevation(
         "email": sanitize_for_log(email),
         "ip_address": sanitize_for_log(ip),
         "granted_by": sanitize_for_log(granted_by) if granted_by else None,
-        "reason": sanitize_for_log(reason),
+        "reason": sanitize_for_log(reason) if reason else None,
         "metadata": metadata or {},
     }
 

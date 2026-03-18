@@ -124,7 +124,7 @@ def get_log_context() -> Dict[str, Any]:
     Returns:
         Dict with request_id, user_id, correlation_id
     """
-    context = {}
+    context: Dict[str, Any] = {}
 
     request_id = get_request_id()
     if request_id:
@@ -244,7 +244,7 @@ class RequestContext:
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context - restore previous values."""
         # Restore previous values
         if self._prev_request_id:

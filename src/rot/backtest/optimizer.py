@@ -76,7 +76,7 @@ def _apply_params_to_config(
     params: Dict[str, float],
 ) -> BacktestConfig:
     """Create a new config with overridden params."""
-    overrides = {}
+    overrides: Dict[str, Any] = {}
     for key, value in params.items():
         if hasattr(base_config, key):
             # Cast to appropriate type

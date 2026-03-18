@@ -79,6 +79,6 @@ class BacktestConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "BacktestConfig":
         """Create from a plain dict (e.g. loaded from JSON)."""
-        known_fields = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+        known_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in d.items() if k in known_fields}
         return cls(**filtered)
