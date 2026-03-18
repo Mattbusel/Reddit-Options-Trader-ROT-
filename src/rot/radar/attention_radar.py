@@ -62,6 +62,7 @@ class RadarFireCondition:
 
     @property
     def fired(self) -> bool:
+        """``True`` if all three trigger conditions (confidence, event type, volume) are met."""
         return self.confidence_met and self.event_type_met and self.volume_met
 
 
@@ -148,6 +149,7 @@ class _TickerVolumeBaseline:
 
     @property
     def sample_count(self) -> int:
+        """Number of observations stored in the rolling window."""
         return len(self._samples)
 
 
@@ -259,10 +261,12 @@ class AttentionRadar:
 
     @property
     def fired_count(self) -> int:
+        """Total number of times the radar has fired since instantiation."""
         return self._fired_count
 
     @property
     def enabled(self) -> bool:
+        """``True`` if the radar is active and will evaluate incoming events."""
         return self._enabled
 
     # ── Internal ──────────────────────────────────────────────────────────────

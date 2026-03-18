@@ -468,6 +468,7 @@ class CleanupMixin:
     # ── Cleanup Helpers ──
 
     async def cleanup_old_api_usage(self, older_than_s: int = 172800) -> int:
+        """Delete API usage records older than *older_than_s* seconds and return the row count."""
         cutoff = time.time() - older_than_s
         async with self.db.execute(
             "DELETE FROM api_usage WHERE called_at < ?", (cutoff,)

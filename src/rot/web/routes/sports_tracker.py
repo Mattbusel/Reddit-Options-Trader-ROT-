@@ -570,6 +570,8 @@ def _time_ago(ts: float) -> str:
 
 @dataclass
 class NewsItem:
+    """A parsed news article from an RSS feed used in sports-market correlation analysis."""
+
     title: str
     link: str
     summary: str

@@ -51,6 +51,52 @@ jobs:
       - name: Run mypy
         run: mypy src/rot/core/ src/rot/app/ src/rot/backtest/ src/rot/flow/ src/rot/strategy/ --ignore-missing-imports
 
+  security-scan:
+    name: Security scan (bandit + pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dev + production dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+
+      - name: Run bandit (SAST)
+        run: |
+          bandit -r src/ \
+            --configfile pyproject.toml \
+            -f json \
+            -o bandit-results.json \
+            || true  # non-zero exit on findings should not block CI (reviewed separately)
+
+      - name: Upload bandit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-results
+          path: bandit-results.json
+
+      - name: Run pip-audit (dependency CVE scan)
+        run: |
+          pip-audit \
+            --desc \
+            --format json \
+            --output pip-audit-results.json \
+            || true  # findings are reviewed; do not block CI unconditionally
+
+      - name: Upload pip-audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-results
+          path: pip-audit-results.json
+
   test:
     name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest

@@ -63,8 +63,10 @@ def retry_with_backoff(
             return yfinance.Ticker(ticker).info["regularMarketPrice"]
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        """Wrap *func* with retry-on-exception logic."""
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
+            """Execute the wrapped function, retrying on retryable exceptions."""
             last_exception: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):
@@ -133,8 +135,10 @@ def async_retry_with_backoff(
                     return await resp.json()
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        """Wrap *func* with async retry-on-exception logic."""
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> T:
+            """Execute the wrapped async function, retrying on retryable exceptions."""
             last_exception: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):

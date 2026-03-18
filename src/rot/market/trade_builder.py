@@ -8,6 +8,7 @@ from rot.market.gates import check_trade_gates
 
 
 def _next_friday() -> str:
+    """Return the ISO date string of the next Friday (for weekly options expiry)."""
     today = datetime.date.today()
     days_ahead = 4 - today.weekday()  # Friday = 4
     if days_ahead <= 0:
@@ -16,6 +17,7 @@ def _next_friday() -> str:
 
 
 def _next_monthly() -> str:
+    """Return the ISO date string of the third Friday of next month (standard options expiry)."""
     today = datetime.date.today()
     # Third Friday of next month (always advance to next month)
     month = today.month + 1
@@ -43,6 +45,12 @@ class TradeBuilder:
     """
 
     def __init__(self, min_market_cap: float = 1e8) -> None:
+        """Initialize TradeBuilder with a minimum market-cap filter.
+
+        Args:
+            min_market_cap: Minimum market capitalisation (USD) required before a
+                trade idea is generated.  Defaults to $100 million.
+        """
         self.min_market_cap = min_market_cap
 
     # Minimum liquidity thresholds for options chain filtering
@@ -235,6 +243,17 @@ class TradeBuilder:
         return "none", [], expiry
 
     def _estimate_max_loss(self, strategy: Strategy, legs: List[OptionLeg], price: float) -> float:
+        """Estimate the maximum dollar loss for a single options contract.
+
+        Args:
+            strategy: Strategy type identifier (e.g. ``"debit_spread"``).
+            legs: List of option legs making up the structure.
+            price: Current underlying price used for percentage-based estimates.
+
+        Returns:
+            Estimated max loss in USD per contract.  Returns 0.0 when the
+            strategy is unrecognised or ``"none"``.
+        """
         if strategy in ("debit_spread", "credit_spread"):
             # Max loss is width of spread (approximate)
             strikes = [leg.strike for leg in legs]
@@ -253,6 +272,20 @@ class TradeBuilder:
         return 0.0
 
     def _quality_score(self, confidence: float, event: Event, packet: ReasoningPacket) -> float:
+        """Compute a composite trade-quality score in the range [0, 1].
+
+        Weights base credibility confidence at 70% and adds bonuses for a
+        classified event type, a detailed thesis, and recommended structures,
+        with a penalty for excessive risk notes.
+
+        Args:
+            confidence: Credibility confidence in [0, 1].
+            event: Structured market event (used for event_type).
+            packet: LLM reasoning output (used for thesis and structures).
+
+        Returns:
+            Float quality score clamped to [0.0, 1.0].
+        """
         score = confidence * 0.7
 
         # Boost for classified event type

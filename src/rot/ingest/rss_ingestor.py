@@ -104,6 +104,7 @@ class RSSIngestor:
         return feedparser.parse(url)
 
     def poll(self) -> List[ThreadSnapshot]:
+        """Fetch all configured RSS feeds and return new or updated entries as snapshots."""
         now = int(time.time())
         snaps: List[ThreadSnapshot] = []
 

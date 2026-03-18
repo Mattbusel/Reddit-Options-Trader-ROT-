@@ -63,6 +63,8 @@ dev = [
     "pytest-xdist>=3.5",
     "ruff>=0.2",
     "mypy>=1.8",
+    "bandit[toml]>=1.7",
+    "pip-audit>=2.7",
 ]
 
 [tool.setuptools]
@@ -77,14 +79,29 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+addopts = [
+    "-q",
+    "--tb=short",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
 
 [tool.ruff]
 target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in default arguments (FastAPI pattern)
+    "SIM108", # ternary operator (readability preference)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B", "SIM"]  # test files have different conventions
 
 [tool.mypy]
 python_version = "3.10"
@@ -93,6 +110,27 @@ warn_unused_ignores = true
 warn_return_any = false
 no_implicit_optional = true
 strict_optional = true
+# Gradually tighten: modules below are fully annotated
+[[tool.mypy.overrides]]
+module = [
+    "rot.core.*",
+    "rot.app.*",
+    "rot.backtest.*",
+    "rot.market.*",
+    "rot.credibility.*",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = [
+    "B101",  # assert used (fine in tests and internal validation)
+    "B104",  # possible binding to all interfaces (intentional for Docker)
+    "B311",  # random module — ROT uses it only for synthetic test data, not secrets
+]
+severity = "medium"
+confidence = "medium"
 
 [project.urls]
 Homepage = "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-"

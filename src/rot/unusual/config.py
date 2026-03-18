@@ -35,6 +35,7 @@ class UnusualDetectorConfig:
     max_events_per_signal: int = 5        # cap events per signal scan
 
     def total_weight(self) -> float:
+        """Sum of all detector component weights (used to normalise composite scores)."""
         return (
             self.iv_weight + self.volume_weight + self.oi_weight
             + self.skew_weight + self.sweep_weight

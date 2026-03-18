@@ -545,6 +545,7 @@ class RuleEvalDetail:
         )
 
     def to_dict(self) -> dict:
+        """Serialise the rule evaluation detail to a JSON-compatible dictionary."""
         return {
             "field": self.field,
             "operator": self.operator,
@@ -587,6 +588,7 @@ class EvalResult:
         )
 
     def to_dict(self) -> dict:
+        """Serialise the overall evaluation result to a JSON-compatible dictionary."""
         return {
             "matched": self.matched,
             "rules_passed": self.rules_passed,

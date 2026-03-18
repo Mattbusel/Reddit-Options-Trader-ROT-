@@ -81,6 +81,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        """Attach auth timing metadata to the request state and pass it downstream."""
         if _path_prefix_skip(request.url.path):
             return await call_next(request)
 

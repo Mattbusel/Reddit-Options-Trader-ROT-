@@ -182,6 +182,7 @@ class XPoster:
 
     @property
     def is_configured(self) -> bool:
+        """``True`` if all four OAuth 1.0a credentials are present and non-empty."""
         return bool(
             self.api_key and self.api_secret
             and self.access_token and self.access_secret

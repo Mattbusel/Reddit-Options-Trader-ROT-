@@ -169,8 +169,10 @@ class HelixConfig:
 
     @property
     def rollback_count(self) -> int:
+        """Number of configuration rollbacks performed since startup."""
         return self._rollback_count
 
     @property
     def snapshot_count(self) -> int:
+        """Total number of configuration snapshots taken since startup."""
         return self._counter

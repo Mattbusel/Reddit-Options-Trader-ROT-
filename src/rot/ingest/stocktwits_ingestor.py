@@ -42,6 +42,7 @@ class StockTwitsIngestor:
         self._client = httpx.Client(timeout=15.0, follow_redirects=True)
 
     def poll(self) -> List[ThreadSnapshot]:
+        """Fetch the latest StockTwits messages for all configured symbols and return snapshots."""
         now = int(time.time())
         snaps: List[ThreadSnapshot] = []
 

@@ -61,6 +61,7 @@ class UnusualHistory:
 
     @property
     def ticker_count(self) -> int:
+        """Number of distinct tickers tracked in the rolling history window."""
         with self._lock:
             return len(self._tickers)
 

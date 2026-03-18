@@ -27,6 +27,7 @@ class MultiSourceIngestor:
         self._ingestors = ingestors
 
     def poll(self) -> List[ThreadSnapshot]:
+        """Poll all registered ingestors and return the combined list of snapshots."""
         all_snaps: List[ThreadSnapshot] = []
         for ing in self._ingestors:
             try:

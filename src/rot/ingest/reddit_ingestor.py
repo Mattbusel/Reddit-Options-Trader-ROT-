@@ -30,6 +30,22 @@ class RedditIngestor:
         top_comments: int = 10,
         state_path: str = "storage/seen_posts.json",
     ) -> None:
+        """Initialize the Reddit ingestor.
+
+        Args:
+            subreddits: List of subreddit names to monitor (without ``r/`` prefix).
+            listing: Feed type — one of ``"rising"``, ``"hot"``, ``"new"``, ``"top"``.
+            limit_per_sub: Maximum posts to fetch per subreddit per poll cycle.
+            include_comments: Whether to fetch and attach top-level comments.
+            top_comments: Number of top comments to include when
+                ``include_comments`` is ``True``.
+            state_path: Path to the JSON file used to persist seen-post state
+                across restarts.
+
+        Raises:
+            RuntimeError: If ``ROT_REDDIT_CLIENT_ID``, ``ROT_REDDIT_CLIENT_SECRET``,
+                or ``ROT_REDDIT_USER_AGENT`` environment variables are not set.
+        """
         self.subreddits = subreddits
         self.listing = listing
         self.limit_per_sub = limit_per_sub
@@ -63,6 +79,7 @@ class RedditIngestor:
         raise ValueError(f"Unknown listing: {self.listing}")
 
     def poll(self) -> List[ThreadSnapshot]:
+        """Fetch the latest posts from all configured subreddits and return thread snapshots."""
         now = int(time.time())
         snaps: List[ThreadSnapshot] = []
 

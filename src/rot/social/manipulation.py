@@ -742,6 +742,7 @@ class ManipulationDetector:
         parent: Dict[str, str] = {}
 
         def find(x: str) -> str:
+            """Return the root representative of *x* in the union-find structure."""
             root = x
             while parent.get(root, root) != root:
                 root = parent[root]
@@ -753,6 +754,7 @@ class ManipulationDetector:
             return root
 
         def union(a: str, b: str) -> None:
+            """Merge the sets containing *a* and *b* in the union-find structure."""
             ra, rb = find(a), find(b)
             if ra != rb:
                 parent[ra] = rb

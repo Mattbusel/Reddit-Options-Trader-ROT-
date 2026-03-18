@@ -117,11 +117,13 @@ class TuningController:
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     async def start(self) -> None:
+        """Launch the background tuning tick loop as an asyncio task."""
         import asyncio
         self._running = True
         self._task = asyncio.create_task(self._tick_loop())
 
     async def stop(self) -> None:
+        """Cancel the background tuning loop and await its clean shutdown."""
         self._running = False
         if self._task is not None:
             self._task.cancel()

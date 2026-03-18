@@ -37,10 +37,12 @@ class UnusualDetector:
 
     @property
     def history(self) -> UnusualHistory:
+        """The rolling history store used to derive baselines for anomaly detection."""
         return self._history
 
     @property
     def config(self) -> UnusualDetectorConfig:
+        """The detector configuration (thresholds, weights, and scan parameters)."""
         return self._config
 
     def scan_signal(self, signal: Dict[str, Any]) -> List[UnusualEvent]:

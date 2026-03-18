@@ -33,6 +33,8 @@ _DEFAULT_PRESSURE_CRIT = 0.85    # pressure score → CRITICAL
 
 
 class AnomalySeverity(Enum):
+    """Severity levels for detected pipeline anomalies."""
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"

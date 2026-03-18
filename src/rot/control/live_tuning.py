@@ -193,22 +193,27 @@ class LiveTuning:
 
     @property
     def sentiment_threshold(self) -> float:
+        """Current live value of the sentiment threshold parameter."""
         return self.get(ParameterId.SENTIMENT_THRESHOLD)
 
     @property
     def confidence_floor(self) -> float:
+        """Current live value of the confidence floor parameter."""
         return self.get(ParameterId.CONFIDENCE_FLOOR)
 
     @property
     def suppress_threshold(self) -> float:
+        """Current live value of the feedback suppression threshold parameter."""
         return self.get(ParameterId.SUPPRESS_THRESHOLD)
 
     @property
     def position_sizing_factor(self) -> float:
+        """Current live value of the position sizing factor parameter."""
         return self.get(ParameterId.POSITION_SIZING_FACTOR)
 
     @property
     def iv_threshold(self) -> float:
+        """Current live value of the implied volatility threshold parameter."""
         return self.get(ParameterId.IV_THRESHOLD)
 
 

@@ -50,6 +50,7 @@ class TwitterIngestor:
         )
 
     def poll(self) -> List[ThreadSnapshot]:
+        """Fetch recent tweets for configured cashtags/accounts and return snapshots."""
         now = int(time.time())
         snaps: List[ThreadSnapshot] = []
 
