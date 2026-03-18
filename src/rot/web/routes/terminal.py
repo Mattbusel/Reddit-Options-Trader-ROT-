@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -40,6 +43,7 @@ async def terminal_page(request: Request):
             signals_raw = await db.get_recent_signals(limit=limit)
             signals = signals_raw if signals_raw else []
         except Exception:
+            logger.exception("Failed to fetch recent signals for terminal panel")
             signals = []
 
         # Fetch trending tickers for ticker bar
@@ -51,6 +55,7 @@ async def terminal_page(request: Request):
             else:
                 trending = await db.get_trending_tickers(limit=20)
         except Exception:
+            logger.exception("Failed to fetch trending tickers for terminal panel")
             trending = []
 
         # Fetch unusual activity for options flow panel
@@ -58,6 +63,7 @@ async def terminal_page(request: Request):
             try:
                 unusual_events = await db.query_unusual_events(limit=10)
             except Exception:
+                logger.exception("Failed to fetch unusual options events for terminal panel")
                 unusual_events = []
 
         # Fetch performance summary for quick stats
@@ -69,6 +75,7 @@ async def terminal_page(request: Request):
             else:
                 perf_summary = await db.get_performance_summary()
         except Exception:
+            logger.exception("Failed to fetch performance summary for terminal panel")
             perf_summary = {}
 
         # Build quick stats
@@ -85,6 +92,7 @@ async def terminal_page(request: Request):
                 if watchlist_tickers:
                     watchlist = await _build_watchlist(db, watchlist_tickers)
             except Exception:
+                logger.exception("Failed to build user watchlist for terminal panel")
                 watchlist = []
 
     return templates.TemplateResponse("terminal.html", {
@@ -116,6 +124,7 @@ async def terminal_ticker_bar(request: Request):
     try:
         trending = await db.get_trending_tickers(limit=20)
     except Exception:
+        logger.exception("Failed to fetch trending tickers for ticker-bar partial")
         trending = []
 
     return templates.TemplateResponse("terminal_ticker_bar_partial.html", {
@@ -142,6 +151,7 @@ async def terminal_quick_stats(request: Request):
         trending = await db.get_trending_tickers(limit=10)
         quick_stats = _build_quick_stats(perf, signals, trending)
     except Exception:
+        logger.exception("Failed to build quick stats for terminal partial")
         quick_stats = {}
 
     return templates.TemplateResponse("terminal_quick_stats_partial.html", {
@@ -170,6 +180,7 @@ async def terminal_watchlist(request: Request):
         watchlist_tickers = settings.get("watchlist", [])
         watchlist = await _build_watchlist(db, watchlist_tickers) if watchlist_tickers else []
     except Exception:
+        logger.exception("Failed to build watchlist partial for user")
         watchlist = []
 
     return templates.TemplateResponse("terminal_watchlist_partial.html", {
