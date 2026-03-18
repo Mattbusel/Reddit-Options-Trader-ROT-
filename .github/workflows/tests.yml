@@ -35,7 +35,8 @@ jobs:
 
       - name: Run database migration tests explicitly
         run: |
-          pytest tests/test_database_split.py tests/test_database.py -v --tb=short
+          pytest tests/test_database_split.py tests/test_database.py -v --tb=short \
+            --cov=src/rot --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
