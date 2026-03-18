@@ -76,7 +76,7 @@ jobs:
             -o bandit-results.json
 
       - name: Upload bandit results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bandit-results
@@ -90,7 +90,7 @@ jobs:
             --output pip-audit-results.json
 
       - name: Upload pip-audit results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-results
@@ -129,7 +129,7 @@ jobs:
             -q
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report-py${{ matrix.python-version }}
@@ -157,7 +157,7 @@ jobs:
           pdoc --output-dir docs/api rot
 
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-docs
           path: docs/api/
