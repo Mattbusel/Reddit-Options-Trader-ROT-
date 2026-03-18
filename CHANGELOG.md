@@ -8,7 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added (2026-03-18 production-readiness pass)
+---
+
+## [1.0.0] - 2026-03-18
+
+### Added (production-readiness pass)
 - **CI:** `security-scan` job added to `ci.yml` running `bandit` (SAST) and
   `pip-audit` (dependency CVE scan) on every push and pull-request; results
   uploaded as GitHub Actions artifacts.
