@@ -54,7 +54,7 @@ async def db_no_connect():
         database = Database(db_path)
         yield database
         # Close if connected
-        if database._conn:
+        if database._db:
             await database.close()
 
 
@@ -263,17 +263,17 @@ class TestConnectionLifecycle:
     @pytest.mark.asyncio
     async def test_connect_creates_connection(self, db_no_connect):
         """Verify connect() establishes database connection."""
-        assert db_no_connect._conn is None
+        assert db_no_connect._db is None
         await db_no_connect.connect()
-        assert db_no_connect._conn is not None
+        assert db_no_connect._db is not None
 
     @pytest.mark.asyncio
     async def test_close_closes_connection(self, db_no_connect):
         """Verify close() closes database connection."""
         await db_no_connect.connect()
-        assert db_no_connect._conn is not None
+        assert db_no_connect._db is not None
         await db_no_connect.close()
-        assert db_no_connect._conn is None
+        assert db_no_connect._db is None
 
     @pytest.mark.asyncio
     async def test_reconnect_works(self, db_no_connect):
@@ -281,7 +281,7 @@ class TestConnectionLifecycle:
         await db_no_connect.connect()
         await db_no_connect.close()
         await db_no_connect.connect()
-        assert db_no_connect._conn is not None
+        assert db_no_connect._db is not None
 
     @pytest.mark.asyncio
     async def test_database_file_created(self, db_no_connect):
@@ -297,7 +297,7 @@ class TestSchemaCreation:
     @pytest.mark.asyncio
     async def test_all_tables_created(self, db):
         """Verify all expected tables are created."""
-        cursor = await db._conn.execute(
+        cursor = await db._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
         )
         tables = [row[0] for row in await cursor.fetchall()]
@@ -330,7 +330,7 @@ class TestSchemaCreation:
     @pytest.mark.asyncio
     async def test_signals_table_schema(self, db):
         """Verify signals table has correct columns."""
-        cursor = await db._conn.execute("PRAGMA table_info(signals)")
+        cursor = await db._db.execute("PRAGMA table_info(signals)")
         columns = {row[1] for row in await cursor.fetchall()}
 
         expected_columns = {
@@ -346,7 +346,7 @@ class TestSchemaCreation:
     @pytest.mark.asyncio
     async def test_indexes_created(self, db):
         """Verify indexes are created."""
-        cursor = await db._conn.execute(
+        cursor = await db._db.execute(
             "SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"
         )
         indexes = [row[0] for row in await cursor.fetchall()]
@@ -376,7 +376,7 @@ class TestMigrations:
             await database.connect()
 
             # Check archive table exists
-            cursor = await database._conn.execute(
+            cursor = await database._db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='signal_archive'"
             )
             result = await cursor.fetchone()
@@ -399,7 +399,7 @@ class TestMigrations:
             await database2.connect()
 
             # Should still have all tables
-            cursor = await database2._conn.execute(
+            cursor = await database2._db.execute(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
             )
             count = (await cursor.fetchone())[0]
@@ -414,56 +414,56 @@ class TestWALPragmas:
     @pytest.mark.asyncio
     async def test_wal_mode_enabled(self, db):
         """Verify WAL mode is enabled."""
-        cursor = await db._conn.execute("PRAGMA journal_mode")
+        cursor = await db._db.execute("PRAGMA journal_mode")
         mode = (await cursor.fetchone())[0]
         assert mode.lower() == 'wal'
 
     @pytest.mark.asyncio
     async def test_synchronous_normal(self, db):
         """Verify synchronous is set to NORMAL."""
-        cursor = await db._conn.execute("PRAGMA synchronous")
+        cursor = await db._db.execute("PRAGMA synchronous")
         sync = (await cursor.fetchone())[0]
         assert sync == 1  # NORMAL = 1
 
     @pytest.mark.asyncio
     async def test_foreign_keys_enabled(self, db):
         """Verify foreign keys are enabled."""
-        cursor = await db._conn.execute("PRAGMA foreign_keys")
+        cursor = await db._db.execute("PRAGMA foreign_keys")
         fk = (await cursor.fetchone())[0]
         assert fk == 1
 
     @pytest.mark.asyncio
     async def test_cache_size_set(self, db):
         """Verify cache size is set."""
-        cursor = await db._conn.execute("PRAGMA cache_size")
+        cursor = await db._db.execute("PRAGMA cache_size")
         cache = (await cursor.fetchone())[0]
         assert cache == -64000  # 64MB
 
     @pytest.mark.asyncio
     async def test_temp_store_memory(self, db):
         """Verify temp store is set to memory."""
-        cursor = await db._conn.execute("PRAGMA temp_store")
+        cursor = await db._db.execute("PRAGMA temp_store")
         temp = (await cursor.fetchone())[0]
         assert temp == 2  # MEMORY = 2
 
     @pytest.mark.asyncio
     async def test_mmap_size_set(self, db):
         """Verify mmap size is set."""
-        cursor = await db._conn.execute("PRAGMA mmap_size")
+        cursor = await db._db.execute("PRAGMA mmap_size")
         mmap = (await cursor.fetchone())[0]
         assert mmap == 134217728  # 128MB
 
     @pytest.mark.asyncio
     async def test_page_size_set(self, db):
         """Verify page size is set."""
-        cursor = await db._conn.execute("PRAGMA page_size")
+        cursor = await db._db.execute("PRAGMA page_size")
         page = (await cursor.fetchone())[0]
         assert page == 4096
 
     @pytest.mark.asyncio
     async def test_busy_timeout_set(self, db):
         """Verify busy timeout is set."""
-        cursor = await db._conn.execute("PRAGMA busy_timeout")
+        cursor = await db._db.execute("PRAGMA busy_timeout")
         timeout = (await cursor.fetchone())[0]
         assert timeout == 5000
 
