@@ -72,8 +72,7 @@ jobs:
           bandit -r src/ \
             --configfile pyproject.toml \
             -f json \
-            -o bandit-results.json \
-            || true  # non-zero exit on findings should not block CI (reviewed separately)
+            -o bandit-results.json
 
       - name: Upload bandit results
         uses: actions/upload-artifact@v4
@@ -87,8 +86,7 @@ jobs:
           pip-audit \
             --desc \
             --format json \
-            --output pip-audit-results.json \
-            || true  # findings are reviewed; do not block CI unconditionally
+            --output pip-audit-results.json
 
       - name: Upload pip-audit results
         uses: actions/upload-artifact@v4
