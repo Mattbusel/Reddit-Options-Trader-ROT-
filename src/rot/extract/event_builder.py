@@ -52,6 +52,13 @@ _EARNINGS_WORDS = re.compile(r"\b(?:earnings|ER|before\s*open|after\s*close|repo
 
 
 class EventBuilder:
+    """Constructs structured ``Event`` objects from trend candidates.
+
+    Supports two extraction paths: a full NLP pipeline (when ``nlp_engine`` is
+    provided) and a fast regex/keyword fallback. Handles ticker extraction,
+    stance detection, horizon classification, and event-type assignment.
+    """
+
     def __init__(self, nlp_engine: Optional["NLPEngine"] = None) -> None:
         self._nlp = nlp_engine
         if nlp_engine:

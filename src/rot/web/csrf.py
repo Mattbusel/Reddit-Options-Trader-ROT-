@@ -22,6 +22,7 @@ CSRF_TOKEN_LENGTH = 32
 
 
 def generate_csrf_token() -> str:
+    """Generate a URL-safe random CSRF token of ``CSRF_TOKEN_LENGTH`` bytes."""
     return secrets.token_urlsafe(CSRF_TOKEN_LENGTH)
 
 
@@ -127,6 +128,7 @@ class CSRFMiddleware:
         body_sent = False
 
         async def replay_receive() -> dict:
+            """Re-emit the buffered request body so downstream handlers can read it."""
             nonlocal body_sent
             if not body_sent:
                 body_sent = True
@@ -147,6 +149,7 @@ class CSRFMiddleware:
             cookie_value += "; Secure"
 
         async def send_with_cookie(message: dict) -> None:
+            """Inject the CSRF ``Set-Cookie`` header into the HTTP response start message."""
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
                 headers.append((b"set-cookie", cookie_value.encode()))

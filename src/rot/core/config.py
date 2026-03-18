@@ -9,6 +9,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class RedditConfig(BaseSettings):
+    """Reddit ingestion settings, populated from ``ROT_REDDIT_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_REDDIT_")
 
     client_id: str = ""
@@ -23,6 +25,8 @@ class RedditConfig(BaseSettings):
 
 
 class LLMConfig(BaseSettings):
+    """LLM provider settings, populated from ``ROT_LLM_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_LLM_")
 
     provider: Literal["openai", "anthropic", "deepseek"] = "openai"
@@ -34,6 +38,8 @@ class LLMConfig(BaseSettings):
 
 
 class MarketConfig(BaseSettings):
+    """Market data enrichment settings, populated from ``ROT_MARKET_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_MARKET_")
 
     cache_ttl_s: int = 3600
@@ -46,6 +52,8 @@ class MarketConfig(BaseSettings):
 
 
 class TrendConfig(BaseSettings):
+    """Trend detection tuning parameters, populated from ``ROT_TREND_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_TREND_")
 
     window_s: int = 1800
@@ -55,6 +63,8 @@ class TrendConfig(BaseSettings):
 
 
 class AlertConfig(BaseSettings):
+    """Outbound alert settings, populated from ``ROT_ALERT_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_ALERT_")
 
     discord_webhook_url: Optional[str] = None
@@ -62,6 +72,8 @@ class AlertConfig(BaseSettings):
 
 
 class WebConfig(BaseSettings):
+    """FastAPI web server settings, populated from ``ROT_WEB_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_WEB_")
 
     # Default to 0.0.0.0 for Docker/containerized deployments (behind reverse proxy)
@@ -83,6 +95,8 @@ class RSSFeedEntry(BaseSettings):
 
 
 class RSSConfig(BaseSettings):
+    """RSS feed ingestion settings, populated from ``ROT_RSS_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_RSS_")
 
     enabled: bool = False
@@ -163,6 +177,8 @@ class RSSConfig(BaseSettings):
 
 
 class StockTwitsConfig(BaseSettings):
+    """StockTwits ingestion settings, populated from ``ROT_STOCKTWITS_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_STOCKTWITS_")
 
     enabled: bool = False
@@ -206,6 +222,8 @@ class TwitterPosterConfig(BaseSettings):
 
 
 class EmailConfig(BaseSettings):
+    """Email alert settings, populated from ``ROT_EMAIL_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_EMAIL_")
 
     # Resend HTTP API (recommended for cloud providers like Railway)
@@ -224,6 +242,8 @@ class EmailConfig(BaseSettings):
 
 
 class AuthConfig(BaseSettings):
+    """JWT and admin authentication settings, populated from ``ROT_AUTH_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_AUTH_")
 
     jwt_secret: str = ""  # falls back to web.secret_key if empty
@@ -251,6 +271,8 @@ class AuthConfig(BaseSettings):
 
 
 class StripeConfig(BaseSettings):
+    """Stripe billing settings, populated from ``ROT_STRIPE_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_STRIPE_")
 
     secret_key: str = ""  # empty = Stripe disabled
@@ -264,6 +286,8 @@ class StripeConfig(BaseSettings):
 
 
 class TierConfig(BaseSettings):
+    """Subscription tier limits and quotas, populated from ``ROT_TIER_*`` environment variables."""
+
     model_config = SettingsConfigDict(env_prefix="ROT_TIER_")
 
     free_signal_delay_s: int = 900  # 15 minutes
@@ -440,6 +464,12 @@ class StrategyConfig(BaseSettings):
 
 
 class Settings(BaseSettings):
+    """Root application settings aggregating all sub-configs.
+
+    All ``ROT_*`` environment variables (and values from a ``.env`` file) are
+    automatically mapped to the appropriate nested config object via pydantic-settings.
+    """
+
     model_config = SettingsConfigDict(
         env_prefix="ROT_",
         env_file=".env",

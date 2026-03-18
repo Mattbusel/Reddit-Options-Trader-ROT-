@@ -12,6 +12,11 @@ def top_ticker_candidates(
     validator: SymbolValidator,
     n: int = 5,
 ) -> List[Tuple[TrendCandidate, List[str]]]:
+    """Return the top *n* (candidate, tickers) pairs ordered by trend score.
+
+    Filters *extracted* symbols through *validator*, deduplicates, and pairs
+    each valid candidate with up to five normalised ticker symbols.
+    """
     pairs: List[Tuple[TrendCandidate, List[str]]] = []
 
     for c in candidates:

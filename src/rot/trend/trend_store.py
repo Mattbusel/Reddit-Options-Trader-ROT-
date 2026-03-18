@@ -9,6 +9,13 @@ from rot.core.types import ThreadSnapshot, Post
 
 
 class TrendStore:
+    """Persists the most recent ``ThreadSnapshot`` for each tracked post key.
+
+    Used by ``TrendEngine`` to compute rate-of-change between successive polls.
+    State is flushed to disk after each pipeline pass and reloaded on startup
+    so trend continuity is preserved across process restarts.
+    """
+
     def __init__(self, path: str = "storage/trend_state.json", max_age_s: int = 3600) -> None:
         self.path = Path(path)
         self.max_age_s = max_age_s
@@ -48,6 +55,7 @@ class TrendStore:
             self._last = {}
 
     def save(self) -> None:
+        """Evict stale entries and write current state to disk (best-effort)."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         cutoff = int(time.time()) - self.max_age_s
         raw: Dict[str, Any] = {}
@@ -87,6 +95,7 @@ class TrendStore:
             del self._last[k]
 
     def update(self, key: str, snap: ThreadSnapshot) -> Optional[ThreadSnapshot]:
+        """Store *snap* under *key* and return the previous snapshot, if any."""
         prev = self._last.get(key)
         self._last[key] = snap
         # Prune more aggressively (every 20 updates instead of 100)

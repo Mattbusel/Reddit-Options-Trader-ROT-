@@ -8,6 +8,16 @@ from rot.trend.trend_store import TrendStore
 
 
 class TrendEngine:
+    """Detects trending Reddit posts and social-media items using rate-of-change analysis.
+
+    For Reddit posts the engine computes the rate of change in score and comment
+    count between consecutive polls and emits a ``TrendCandidate`` whenever the
+    composite trend score exceeds ``threshold``.
+
+    RSS, StockTwits, and Twitter items bypass rate-of-change logic and are
+    promoted directly as candidates if they fall within the freshness window.
+    """
+
     def __init__(
         self,
         store: TrendStore,
@@ -33,6 +43,7 @@ class TrendEngine:
         self.social_synthetic_score = social_synthetic_score
 
     def detect(self, snapshots: List[ThreadSnapshot]) -> List[TrendCandidate]:
+        """Evaluate *snapshots* and return the subset that qualify as trending candidates."""
         out: List[TrendCandidate] = []
         now = int(time.time())
 

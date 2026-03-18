@@ -20,6 +20,7 @@ from rot.app.runner import PipelineRunner
 
 
 def main() -> None:
+    """Execute a single pipeline pass and exit. Useful for one-shot CLI invocations."""
     cfg = Settings()
 
     logger = JsonlLogger(root=cfg.storage_root)
@@ -46,7 +47,7 @@ def main() -> None:
             max_entries_per_feed=cfg.rss.max_entries_per_feed,
         )
         ingestor = MultiSourceIngestor([reddit_ingestor, rss_ingestor])
-        print(f"📡 RSS feeds: ACTIVE ({len(feed_configs)} feeds)")
+        log.info("RSS feeds: ACTIVE (%d feeds)", len(feed_configs))
     else:
         ingestor = reddit_ingestor
 

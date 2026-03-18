@@ -232,7 +232,8 @@ async def _dashboard_inner(request: Request):
                 lambda: db.get_strategy_breakdown(days=30),
                 ttl=120,
             )
-        except Exception:
+        except Exception as _e:
+            log.warning("strategy_breakdown fetch failed (cache path): %s", _e)
             strategy_breakdown = []
     else:
         trending = await db.get_trending_tickers(hours=24, limit=10)
@@ -240,8 +241,8 @@ async def _dashboard_inner(request: Request):
         strategy_breakdown = []
         try:
             strategy_breakdown = await db.get_strategy_breakdown(days=30)
-        except Exception:
-            pass  # Intentionally suppressed
+        except Exception as _e:
+            log.warning("strategy_breakdown fetch failed: %s", _e)
 
     # Chart data — gated by tier
     chart_access = gate_chart_access(tier)
@@ -443,13 +444,13 @@ async def _landing_page(request: Request):
         try:
             summary = await db.get_performance_summary(days=90)
             s["total_signals"] = summary.get("total_signals", 0) or 0
-        except Exception:
-            pass  # Intentionally suppressed
+        except Exception as _e:
+            log.warning("landing stats: performance_summary failed: %s", _e)
         try:
             trending = await db.get_trending_tickers(hours=24, limit=100)
             s["active_tickers"] = len(trending)
-        except Exception:
-            pass  # Intentionally suppressed
+        except Exception as _e:
+            log.warning("landing stats: trending_tickers failed: %s", _e)
         try:
             accuracy = await db.get_aggregate_accuracy(days=30)
             winners = accuracy.get("winners", 0) or 0
@@ -457,8 +458,8 @@ async def _landing_page(request: Request):
             decided = winners + losers
             if decided > 0:
                 s["win_rate"] = (winners / decided) * 100
-        except Exception:
-            pass  # Intentionally suppressed
+        except Exception as _e:
+            log.warning("landing stats: aggregate_accuracy failed: %s", _e)
         return s
 
     if cache:

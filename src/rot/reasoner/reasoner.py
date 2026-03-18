@@ -59,6 +59,20 @@ class Reasoner:
         return self._llm is not None
 
     def reason(self, event: Event) -> ReasoningPacket:
+        """Produce a reasoning packet for a market event.
+
+        Uses the configured LLM provider when available.  After
+        ``_max_failures`` consecutive LLM errors the circuit breaker trips and
+        all subsequent calls use the stub fallback until the object is
+        re-instantiated.
+
+        Args:
+            event: Structured market event to reason about.
+
+        Returns:
+            A ``ReasoningPacket`` with ``thesis``, ``confidence``, ``stance``,
+            and the raw LLM JSON payload (or stub values on fallback).
+        """
         if not self._llm or self._consecutive_failures >= self._max_failures:
             return self._stub_reason(event)
 

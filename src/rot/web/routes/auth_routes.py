@@ -32,16 +32,21 @@ router = APIRouter(prefix="/auth")
 
 
 class RegisterRequest(BaseModel):
+    """Request body for the user registration endpoint."""
+
     email: str
     password: str
 
 
 class LoginRequest(BaseModel):
+    """Request body for the user login endpoint."""
+
     email: str
     password: str
 
 
 class LLMSettingsRequest(BaseModel):
+    """Request body for updating a user's personal LLM provider settings."""
     llm_provider: str = "openai"
     llm_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
@@ -49,6 +54,7 @@ class LLMSettingsRequest(BaseModel):
 
 @router.post("/register")
 async def register(body: RegisterRequest, request: Request):
+    """Register a new user account and return a session JWT."""
     # Brute-force protection: 3 attempts per IP per hour
     await check_auth_rate_limit(request, "register")
 
@@ -93,6 +99,7 @@ async def register(body: RegisterRequest, request: Request):
 
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
+    """Authenticate credentials and return a session JWT."""
     # Brute-force protection: 5 attempts per IP per 15 minutes
     await check_auth_rate_limit(request, "login")
 
@@ -151,6 +158,7 @@ async def login(body: LoginRequest, request: Request):
 
 @router.post("/logout")
 async def logout():
+    """Clear the session cookie to log the current user out."""
     response = JSONResponse(content={"ok": True})
     response.delete_cookie("rot_session")
     return response
@@ -158,6 +166,7 @@ async def logout():
 
 @router.get("/me")
 async def me(request: Request):
+    """Return the authenticated user's profile, tier, and subscription status."""
     user = await require_user(request)
     svc = request.app.state.user_service
     sub = await svc.get_subscription(user["id"])
@@ -181,6 +190,7 @@ async def me(request: Request):
 
 @router.post("/api-key")
 async def create_api_key(request: Request):
+    """Generate and return a new API key for the authenticated user (shown once)."""
     # Brute-force protection: 3 attempts per IP per hour
     await check_auth_rate_limit(request, "api-key")
 
@@ -218,6 +228,8 @@ async def update_llm_settings(body: LLMSettingsRequest, request: Request):
 
 
 class WatchlistRequest(BaseModel):
+    """Request body for adding or removing a ticker from the user's watchlist."""
+
     ticker: str
 
 
@@ -289,6 +301,8 @@ async def get_watchlist(request: Request):
 # ── Saved Filter Presets (ultra only) ──
 
 class FilterPresetRequest(BaseModel):
+    """Request body for saving a named signal-filter preset (Ultra tier only)."""
+
     name: str
     ticker: str = ""
     stance: str = ""

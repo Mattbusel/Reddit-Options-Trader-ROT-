@@ -68,10 +68,12 @@ class BackgroundLoop:
         log.info("%s loop stopped", self.name)
 
     def start(self) -> asyncio.Task:
+        """Schedule the loop as an asyncio task and return it."""
         self._task = asyncio.create_task(self._run())
         return self._task
 
     def cancel(self) -> None:
+        """Cancel the underlying asyncio task if it is running."""
         if self._task:
             self._task.cancel()
 
@@ -115,6 +117,7 @@ class LoopManager:
 
     @property
     def names(self) -> List[str]:
+        """Return the names of all registered background loops."""
         return list(self._loops.keys())
 
     def __len__(self) -> int:

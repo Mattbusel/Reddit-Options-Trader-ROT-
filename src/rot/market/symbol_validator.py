@@ -13,6 +13,13 @@ from rot.market.enricher import ALIAS_MAP, NON_EQUITY_TOKENS, _quiet_yfinance
 
 @dataclass
 class SymbolValidator:
+    """Validates and normalises equity ticker symbols against live market data.
+
+    Results are cached on disk for ``ttl_s`` seconds to avoid redundant
+    yfinance lookups. The cache is capped at ``max_cache_size`` entries and
+    stale records are pruned automatically on initialisation and before each
+    save.
+    """
     cache_path: str = "storage/symbol_valid_cache.json"
     ttl_s: int = 7 * 24 * 3600  # 7d
     max_cache_size: int = 1000
@@ -47,12 +54,18 @@ class SymbolValidator:
             json.dump(self._cache, f)
 
     def normalize(self, sym: str) -> str:
+        """Strip whitespace, uppercase, remove leading ``$``, and apply alias mapping."""
         s = sym.strip().upper()
         if s.startswith("$"):
             s = s[1:]
         return ALIAS_MAP.get(s, s)
 
     def is_valid(self, sym: str) -> bool:
+        """Return ``True`` if *sym* resolves to a real, tradeable equity ticker.
+
+        Applies length and noise-list hard filters before consulting the TTL
+        cache and, on a cache miss, a live yfinance price/history lookup.
+        """
         s = self.normalize(sym)
 
         # hard filters

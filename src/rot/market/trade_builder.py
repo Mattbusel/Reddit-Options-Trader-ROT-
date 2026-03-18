@@ -30,6 +30,18 @@ def _next_monthly() -> str:
 
 
 class TradeBuilder:
+    """Converts a ``ReasoningPacket`` + ``Event`` into structured trade ideas.
+
+    Applies a series of gates (market cap, confidence threshold, unknown stance,
+    options liquidity) and then constructs directional options strategies:
+    bull call spreads for bullish signals, bear put spreads for bearish signals,
+    and straddles for high-uncertainty catalysts.
+
+    Strike prices are selected as ATM ±5% of last close.  Expiry heuristics
+    use the next weekly Friday for short-horizon signals and the third Friday
+    of the following month for medium/long-horizon signals.
+    """
+
     def __init__(self, min_market_cap: float = 1e8) -> None:
         self.min_market_cap = min_market_cap
 
@@ -39,6 +51,17 @@ class TradeBuilder:
     MAX_BID_ASK_SPREAD_PCT = 0.15  # maximum bid-ask spread as % of mid price
 
     def build(self, packet: ReasoningPacket, event: Event) -> List[TradeIdea]:
+        """Build trade ideas for the primary ticker in ``event``.
+
+        Args:
+            packet: Reasoning output containing thesis, confidence, and stance.
+            event: Structured market event with entities, meta, and market data.
+
+        Returns:
+            A list of ``TradeIdea`` objects.  Returns a single ``no_trade``
+            entry when any gate check fails (no tickers, low confidence,
+            unknown stance, missing price data, or illiquid options chain).
+        """
         if not event.entities:
             return [self._no_trade("UNKNOWN", packet.thesis, ["no_tickers_extracted"])]
 

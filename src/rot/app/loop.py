@@ -23,6 +23,7 @@ from rot.app.runner import PipelineRunner
 
 
 def loop() -> None:
+    """Build all pipeline components from settings and run the pipeline in a continuous loop."""
     cfg = Settings()
 
     logger = JsonlLogger(root=cfg.storage_root)
@@ -55,7 +56,7 @@ def loop() -> None:
             max_entries_per_feed=cfg.rss.max_entries_per_feed,
         )
         sources.append(rss_ingestor)
-        print(f"📡 RSS feeds: ACTIVE ({len(feed_configs)} feeds)")
+        log.info("RSS feeds: ACTIVE (%d feeds)", len(feed_configs))
 
     stocktwits_active = cfg.stocktwits.enabled
     if stocktwits_active:
@@ -65,7 +66,7 @@ def loop() -> None:
             trending_enabled=cfg.stocktwits.trending_enabled,
         )
         sources.append(stocktwits_ingestor)
-        print(f"📊 StockTwits: ACTIVE ({len(cfg.stocktwits.symbols)} symbols)")
+        log.info("StockTwits: ACTIVE (%d symbols)", len(cfg.stocktwits.symbols))
 
     twitter_active = cfg.twitter_ingest.enabled and bool(cfg.twitter_ingest.bearer_token)
     if twitter_active:
@@ -77,7 +78,7 @@ def loop() -> None:
             max_results=cfg.twitter_ingest.max_results,
         )
         sources.append(twitter_ingestor)
-        print(f"🐦 Twitter/X ingest: ACTIVE ({len(cfg.twitter_ingest.cashtags)} cashtags, {len(cfg.twitter_ingest.accounts)} accounts)")
+        log.info("Twitter/X ingest: ACTIVE (%d cashtags, %d accounts)", len(cfg.twitter_ingest.cashtags), len(cfg.twitter_ingest.accounts))
 
     ingestor = MultiSourceIngestor(sources) if len(sources) > 1 else sources[0]
 

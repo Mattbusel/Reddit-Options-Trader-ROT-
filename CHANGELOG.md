@@ -14,6 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `mypy>=1.8` added to `[project.optional-dependencies.dev]`.
 - `[tool.mypy]` and `[tool.ruff.lint]` configuration sections in `pyproject.toml`.
 - `[project.urls]` metadata in `pyproject.toml`.
+- `logging` import and module-level `log` logger added to `src/rot/app/runner.py`.
+- `logging` import and module-level `log` logger added to `src/rot/web/routes/health.py`.
+- Google-style docstrings added to `PipelineRunner` class and its `__init__` / `run_once` methods.
+- Google-style docstring added to `TradeBuilder` class and `build()` method.
+- Google-style docstring added to `Reasoner.reason()`.
 
 ### Changed
 - `README.md` rewritten: CI/security/coverage badges, Docker + manual quickstart,
@@ -24,8 +29,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `tests.yml`: action versions corrected from `v6` to `v4/v5`; Python matrix expanded
   to include 3.10 and 3.11 alongside 3.12.
 - `security.yml`: action versions corrected from `v6` to `v4/v5`.
-- `src/rot/app/loop.py`: replaced `print()` calls with structured `logging` statements.
-- `src/rot/app/main.py`: replaced `print()` calls with structured `logging` statements.
+- `src/rot/app/loop.py`: replaced all remaining `print()` calls with structured
+  `log.info()` statements (RSS feeds, StockTwits, Twitter/X activation messages).
+- `src/rot/app/main.py`: replaced `print()` call with `log.info()`.
+- `src/rot/app/runner.py`: replaced `print()` calls for "Top signals" and "Top ticker
+  signals" banners with `log.info()` statements.
+- `src/rot/web/routes/dashboard.py`: `except Exception: pass` blocks in dashboard and
+  landing-stats handlers upgraded to `except Exception as _e: log.warning(...)` so
+  failures are observable without breaking the response.
+- `src/rot/web/routes/health.py`: silent `except Exception: pass` in disk-usage and
+  environment-info blocks replaced with `log.debug(...)` to aid diagnostics.
 
 ---
 

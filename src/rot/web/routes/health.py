@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import time
@@ -7,6 +8,8 @@ from pathlib import Path
 
 import psutil
 from fastapi import APIRouter, Request
+
+log = logging.getLogger(__name__)
 
 from rot.web.auth import get_current_user_optional
 
@@ -81,8 +84,8 @@ async def health_check(request: Request):
             disk_usage = psutil.disk_usage(str(storage_path))
             health_data["system"]["disk_usage_percent"] = round(disk_usage.percent, 2)
             health_data["system"]["disk_free_gb"] = round(disk_usage.free / (1024**3), 2)
-        except Exception:
-            pass  # Intentionally suppressed
+        except Exception as _e:
+            log.debug("health: disk usage unavailable: %s", _e)
 
     except Exception as e:
         health_data["system"] = {"error": str(e)}
@@ -121,7 +124,7 @@ async def health_check(request: Request):
             "deployment": "railway" if os.getenv("RAILWAY_ENVIRONMENT") else "local",
             "railway_env": os.getenv("RAILWAY_ENVIRONMENT", "n/a"),
         }
-    except Exception:
-        pass  # Intentionally suppressed
+    except Exception as _e:
+        log.debug("health: environment info unavailable: %s", _e)
 
     return health_data

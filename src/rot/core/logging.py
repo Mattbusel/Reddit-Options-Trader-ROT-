@@ -58,6 +58,13 @@ def _to_jsonable(obj: Any) -> Any:
 
 
 class JsonlLogger:
+    """Append-only JSONL file logger with size-based rotation and age-based purging.
+
+    Each named stream is written to ``<root>/<stream>.jsonl``. Files are
+    rotated once they exceed ``MAX_FILE_BYTES``, keeping up to ``MAX_BACKUPS``
+    compressed copies.
+    """
+
     MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB per file
     MAX_BACKUPS = 2  # keep .1 and .2 rotated copies
 
@@ -91,6 +98,7 @@ class JsonlLogger:
             pass  # Intentionally suppressed
 
     def write(self, stream: str, record: Dict[str, Any]) -> None:
+        """Append *record* as a JSONL line to ``<root>/<stream>.jsonl``, rotating if needed."""
         path = os.path.join(self.root, f"{stream}.jsonl")
         self._rotate_if_needed(path)
         record = dict(record)
@@ -189,6 +197,7 @@ class SanitizingLogFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Sanitize *record* message and args in-place; always returns ``True``."""
         # Sanitize the main log message if it's a string
         if isinstance(record.msg, str):
             record.msg = sanitize_for_log(record.msg)

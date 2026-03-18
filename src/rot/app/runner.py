@@ -36,6 +36,29 @@ _INFORMATIONAL_ONLY_SOURCES = {
 
 
 class PipelineRunner:
+    """Orchestrates the full ROT 9-stage signal pipeline.
+
+    Wires together ingestion, trend detection, NLP, event building, market
+    enrichment, credibility scoring, LLM reasoning, and trade idea generation
+    into a single ``run_once()`` call.  Optional capability hooks
+    (``attention_radar``, ``stream_processor``, ``telemetry_bus``) can be
+    attached after construction; failures in those hooks never propagate to the
+    main pipeline.
+
+    Args:
+        ingestor: Source of raw post snapshots (Reddit, RSS, or multi-source).
+        trend_engine: Detects trending candidates from ingested snapshots.
+        event_builder: Builds structured events from trend candidates.
+        cred: Credibility scorer (heuristic or ML-backed).
+        reasoner: LLM reasoning layer with circuit-breaker fallback.
+        trade_builder: Converts reasoning packets into trade ideas.
+        logger: JSONL append logger for pipeline audit trail.
+        enricher: Market data enricher (default: ``MarketEnricher()``).
+        symbol_validator: Validates extracted ticker symbols (default: ``SymbolValidator()``).
+        top_n: Number of top candidates to surface per run (default: 10).
+        on_signal: Optional callback invoked for each emitted signal dict.
+    """
+
     def __init__(
         self,
         ingestor: RedditIngestor,
@@ -99,6 +122,23 @@ class PipelineRunner:
             pass  # Signal callback errors must not break the pipeline
 
     def run_once(self) -> dict:
+        """Execute a single end-to-end pipeline pass and return a run summary.
+
+        Stages executed in order:
+            1. Ingest posts from the configured source(s).
+            2. Trend detection — score and rank candidates.
+            3. NLP / entity extraction — map candidates to ticker symbols.
+            4. Event building — construct structured ``Event`` objects.
+            5. Market enrichment — attach price, market cap, and options data.
+            6. Credibility scoring — compute ``P(signal_quality)``.
+            7. Feedback suppression — skip signals with poor historical accuracy.
+            8. LLM reasoning — generate thesis and confidence with circuit breaker.
+            9. Trade idea generation — produce directional options structures.
+
+        Returns:
+            A dict with keys ``run_id``, ``snapshots``, ``candidates``,
+            ``events``, ``signals``, and ``run_time_s``.
+        """
         run_id = f"run_{int(time.time())}"
 
         # 1) ingest
@@ -219,10 +259,10 @@ class PipelineRunner:
             )
 
         if top_ticker_pairs:
-            print("🎯 Top ticker signals:")
+            log.info("Top ticker signals (%d):", len(top_ticker_pairs))
             for i, (c, syms) in enumerate(top_ticker_pairs, 1):
                 p = c.snapshot.post
-                print(f"  {i}. {p.subreddit} | {p.title[:80]} [{','.join(syms)}] (score={c.trend_score:.3f})")
+                log.info("  %d. %s | %s [%s] (score=%.3f)", i, p.subreddit, p.title[:80], ",".join(syms), c.trend_score)
 
         # 3) validate entities, enrich, score
         # Pre-filter: only keep entities that pass SymbolValidator (uses cached yfinance lookups)
