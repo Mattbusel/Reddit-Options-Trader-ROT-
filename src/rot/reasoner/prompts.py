@@ -150,6 +150,7 @@ def format_event_prompt(
     market_data: dict | None,
     nlp_data: dict | None = None,
 ) -> str:
+    """Build the user-turn prompt for the LLM from event fields and market context."""
     if market_data:
         lines = []
         for sym, data in market_data.items():

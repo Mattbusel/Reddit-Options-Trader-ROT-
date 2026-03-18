@@ -63,6 +63,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
 
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
+        """Attach a CSP nonce to the request state and append all security headers to the response."""
         # Generate a cryptographic nonce for this request
         nonce = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
         request.state.csp_nonce = nonce

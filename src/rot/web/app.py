@@ -220,6 +220,7 @@ Get your API key at [/account](/account) after registration.
     # Root-level /health for Railway health checks — no DB dependency, instant response
     @app.get("/health")
     async def root_health():
+        """Minimal health check endpoint with no database dependency, used by Railway."""
         return {"status": "healthy", "version": "0.1.0"}
 
     return app

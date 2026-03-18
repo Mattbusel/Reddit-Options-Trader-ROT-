@@ -48,6 +48,7 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
+        """``True`` if the underlying LLM client was successfully initialised."""
         return self._client is not None
 
     @retry_with_backoff(
@@ -56,6 +57,7 @@ class LLMClient:
         retryable_exceptions=(ConnectionError, TimeoutError, OSError, Exception),
     )
     def complete(self, system: str, user: str) -> str:
+        """Send *system* + *user* prompts to the configured LLM and return the text response."""
         if not self._client:
             raise RuntimeError("LLM client not initialized (missing API key or package)")
 

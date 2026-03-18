@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Production-readiness audit: verified zero bare except clauses, zero print()
+  calls in production code, zero missing public docstrings, and zero functions
+  without return type annotations across all 230 source files.
 - `ci.yml` GitHub Actions workflow: lint (ruff), type check (mypy), test matrix
   (Python 3.10 / 3.11 / 3.12), Docker build verification.
 - `mypy>=1.8` added to `[project.optional-dependencies.dev]`.

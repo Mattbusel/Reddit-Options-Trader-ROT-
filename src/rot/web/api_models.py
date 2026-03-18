@@ -43,6 +43,8 @@ class APIResponse(BaseModel, Generic[T]):
     )
 
     class Config:
+        """Pydantic model config providing an OpenAPI example for the response schema."""
+
         json_schema_extra = {
             "example": {
                 "success": True,

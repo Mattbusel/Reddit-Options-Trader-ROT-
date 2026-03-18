@@ -25,6 +25,7 @@ class NonceTemplates(Jinja2Templates):
         media_type: str | None = None,
         background: BackgroundTask | None = None,
     ) -> Response:
+        """Inject the per-request CSP nonce into *context* before rendering *name*."""
         request = context.get("request")
         if request and hasattr(getattr(request, "state", None), "csp_nonce"):
             context.setdefault("csp_nonce", request.state.csp_nonce)

@@ -31,10 +31,61 @@ _INSTITUTIONAL_RSS_LABELS = {
 
 
 class CredibilityScorer:
-    """Multi-factor credibility scoring for Reddit-sourced events."""
+    """Multi-factor heuristic credibility scorer for Reddit-sourced events.
+
+    Applies up to 12 weighted adjustment factors to the raw confidence value
+    carried by an ``Event`` and returns an updated copy with the adjusted score
+    clamped to [0.0, 1.0].  The scorer is stateless and thread-safe.
+
+    Scoring factors (applied additively to base confidence):
+
+    +------+----------------------------+--------+
+    | No.  | Factor                     | Range  |
+    +======+============================+========+
+    | 0    | Institutional RSS source   | +0.15  |
+    +------+----------------------------+--------+
+    | 1    | DD flair on Reddit post    | +0.10  |
+    +------+----------------------------+--------+
+    | 2    | Subreddit quality weight   | -0.05 to +0.05 |
+    +------+----------------------------+--------+
+    | 3    | Engagement (score)         | up to +0.10 |
+    +------+----------------------------+--------+
+    | 4    | Comment depth              | up to +0.05 |
+    +------+----------------------------+--------+
+    | 5    | Cross-post penalty         | -0.05  |
+    +------+----------------------------+--------+
+    | 6    | Upvote ratio               | -0.05 to +0.05 |
+    +------+----------------------------+--------+
+    | 7    | Ticker focus (1 entity)    | +0.05  |
+    +------+----------------------------+--------+
+    | 8    | Text depth (body length)   | up to +0.05 |
+    +------+----------------------------+--------+
+    | 9    | Evidence count             | up to +0.05 |
+    +------+----------------------------+--------+
+    | 10   | Known promotional source   | -0.10  |
+    +------+----------------------------+--------+
+    | 11   | Controversial score delta  | -0.05  |
+    +------+----------------------------+--------+
+
+    See ``rot.credibility.ml_scorer.MLCredibilityScorer`` for the GradientBoosting
+    ML variant that wraps this class with a trained model overlay.
+    """
 
     def score(self, event: Event) -> Event:
-        """Apply heuristic credibility factors to *event* and return an updated copy."""
+        """Apply heuristic credibility factors and return an updated Event copy.
+
+        The returned event has ``confidence`` set to ``max(0.0, min(1.0, adjusted))``.
+        Adjustment details are stored in ``event.meta["credibility_factors"]`` as a
+        dict mapping factor name to delta value.
+
+        Args:
+            event: The event to score. Must have at least one evidence entry
+                for subreddit-based factors to apply.
+
+        Returns:
+            A new frozen ``Event`` instance with updated ``confidence`` and
+            ``meta`` fields. The original event is unchanged.
+        """
         factors: Dict[str, float] = {}
         adjustment = 0.0
 

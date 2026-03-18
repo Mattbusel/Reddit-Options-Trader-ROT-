@@ -763,6 +763,7 @@ async def reset_password_form(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ):
+    """Validate the reset token, update the password, and redirect to login on success."""
     # Brute-force protection: 5 attempts per IP per 15 minutes
     from rot.web.rate_limit import check_auth_rate_limit
     await check_auth_rate_limit(request, "reset-password")
@@ -810,6 +811,7 @@ async def reset_password_form(
 
 @router.get("/pricing", response_class=HTMLResponse)
 async def pricing_page(request: Request):
+    """Render the subscription tier pricing page."""
     user = await get_current_user_optional(request)
     ctx = _base_context(request, user)
     templates = request.app.state.templates
@@ -818,6 +820,7 @@ async def pricing_page(request: Request):
 
 @router.get("/account", response_class=HTMLResponse)
 async def account_page(request: Request):
+    """Render the user account settings page; redirect to login if not authenticated."""
     user = await get_current_user_optional(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)

@@ -14,7 +14,31 @@ _PLACEHOLDER_KEYS = {"your_api_key", "sk-...", "your-api-key", "changeme", "test
 
 
 class Reasoner:
-    """LLM-powered event reasoning. Falls back to template if no API key configured."""
+    """LLM-powered event reasoning with circuit breaker and stub fallback.
+
+    Wraps a configurable LLM provider (OpenAI, Anthropic, or DeepSeek) and
+    converts ``Event`` objects into structured ``ReasoningPacket`` objects
+    containing thesis, risk notes, and trade structure recommendations.
+
+    Circuit breaker behaviour: after 3 consecutive LLM failures the reasoner
+    stops sending requests and returns stub packets with ``raw["stub"] = True``
+    until it is reset externally (e.g. by a restart or a successful call in a
+    future run).
+
+    Fallback hierarchy:
+    1. Real LLM call if ``api_key`` is set and non-placeholder.
+    2. Template-based stub if no API key or key is a placeholder.
+    3. Template-based stub if circuit breaker is open.
+    4. Template-based stub if the LLM call fails (and increments failure count).
+
+    Args:
+        provider: One of ``"openai"``, ``"anthropic"``, or ``"deepseek"``.
+        api_key: API key for the provider. Empty string disables LLM reasoning.
+        model: Model name (e.g. ``"gpt-4o-mini"``, ``"claude-sonnet-4-6"``).
+        base_url: Optional custom base URL for OpenAI-compatible endpoints.
+        max_tokens: Maximum output tokens per LLM call.
+        temperature: Sampling temperature (0.0-1.0).
+    """
 
     def __init__(
         self,
@@ -56,6 +80,7 @@ class Reasoner:
 
     @property
     def llm_available(self) -> bool:
+        """``True`` if the LLM client was initialised with a valid API key."""
         return self._llm is not None
 
     def reason(self, event: Event) -> ReasoningPacket:
