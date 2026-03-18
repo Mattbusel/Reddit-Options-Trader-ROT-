@@ -252,6 +252,7 @@ async def _build_watchlist(db, tickers: list) -> list:
                 "latest_time": latest.get("created_at", 0),
             })
         except Exception:
+            logger.exception("Failed to fetch watchlist data for ticker %s", ticker)
             watchlist.append({
                 "ticker": ticker,
                 "signal_count": 0,
