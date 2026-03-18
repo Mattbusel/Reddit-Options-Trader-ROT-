@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 
 from fastapi import APIRouter, Request
@@ -9,6 +10,8 @@ from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
 from rot.web import tier_gate
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -68,6 +71,7 @@ async def ticker_deep_dive(request: Request, symbol: str):
             try:
                 md = json.loads(md)
             except Exception:
+                log.exception("Failed to parse market_data JSON for ticker dive")
                 md = {}
         if isinstance(md, dict):
             # Market data is nested: {ticker: {price, ...}} or flat

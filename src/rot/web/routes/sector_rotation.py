@@ -9,12 +9,15 @@ Provides:
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from rot.web.auth import get_current_user_optional
 from rot.web.tier_gate import gate_sector_rotation_access
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -78,6 +81,7 @@ async def sector_rotation(request: Request):
                     f.to_dict() for f in analyzer.compute_capital_flow(sector_ts, days)
                 ]
         except Exception:
+            log.exception("Sector rotation analysis failed (best-effort; continuing without data)")
             pass  # Analysis is best-effort
 
     from rot.web.routes.dashboard import _base_context

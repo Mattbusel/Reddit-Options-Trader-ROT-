@@ -712,11 +712,13 @@ class SportsNewsCache:
                 try:
                     published = float(calendar.timegm(entry.published_parsed))
                 except Exception:
+                    log.exception("Failed to parse published_parsed timestamp from feed entry")
                     published = time.time()
             elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
                 try:
                     published = float(calendar.timegm(entry.updated_parsed))
                 except Exception:
+                    log.exception("Failed to parse updated_parsed timestamp from feed entry")
                     published = time.time()
             else:
                 published = time.time()

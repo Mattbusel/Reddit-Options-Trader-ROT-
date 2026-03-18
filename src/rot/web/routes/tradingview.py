@@ -110,6 +110,7 @@ async def tradingview_webhook(request: Request):
     try:
         body = await request.json()
     except Exception:
+        log.exception("Failed to parse incoming TradingView webhook JSON payload")
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     # Extract fields from TradingView alert payload

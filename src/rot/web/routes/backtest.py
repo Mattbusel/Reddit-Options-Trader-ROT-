@@ -7,6 +7,7 @@ Pro+ access (tiered features).
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -19,6 +20,8 @@ from rot.backtest.risk import compute_risk_metrics
 from rot.backtest.walk_forward import run_walk_forward
 from rot.web.auth import get_current_user_optional
 from rot.web.tier_gate import gate_backtest_access
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -207,6 +210,7 @@ async def backtest_monte_carlo(request: Request, run_id: str):
                 is_win=t.get("is_win", False),
             ))
         except Exception:
+            log.exception("Failed to parse trade record from backtest run data")
             continue
 
     config_data = json.loads(run.get("config_json", "{}"))

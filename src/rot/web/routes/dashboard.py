@@ -52,6 +52,7 @@ def _format_lag(signal: dict) -> str | None:
             import json as _json
             ed = _json.loads(ed)
         except Exception:
+            log.exception("Failed to parse extra_data JSON for RSS lag calculation")
             return None
 
     # Only show lag for RSS-sourced signals

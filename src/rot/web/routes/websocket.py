@@ -45,6 +45,7 @@ async def broadcast_signal(signal_data: dict) -> None:
         try:
             await ws.send_text(msg)
         except Exception:
+            log.exception("Failed to send WebSocket broadcast message; marking client as dead")
             dead.append(ws)
 
     for ws in dead:

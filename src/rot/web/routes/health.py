@@ -57,6 +57,7 @@ async def health_check(request: Request):
         }
     except Exception as e:
         # DB may not be ready yet — mark as initializing
+        log.warning("Database health check failed (may still be initializing): %s", e)
         health_data["database"] = {
             "status": "initializing",
             "error": str(e),
@@ -88,6 +89,7 @@ async def health_check(request: Request):
             log.debug("health: disk usage unavailable: %s", _e)
 
     except Exception as e:
+        log.exception("System metrics collection failed")
         health_data["system"] = {"error": str(e)}
 
     # Backup status
@@ -116,6 +118,7 @@ async def health_check(request: Request):
             health_data["backups"] = {"count": 0, "status": "no_backups_yet"}
 
     except Exception as e:
+        log.exception("Backup status check failed")
         health_data["backups"] = {"error": str(e)}
 
     # Environment info

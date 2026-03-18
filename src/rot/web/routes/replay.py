@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from rot.web.auth import get_current_user_optional
 from rot.web import tier_gate
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -66,6 +69,7 @@ async def signal_replay(request: Request, hours: str = "24"):
             try:
                 entities = json.loads(entities)
             except Exception:
+                log.exception("Failed to parse entities JSON for signal replay data")
                 entities = []
 
         replay_data.append({

@@ -95,6 +95,7 @@ async def correlations_page(request: Request):
             try:
                 settings = json.loads(settings)
             except Exception:
+                log.exception("Failed to parse user settings JSON in correlations route")
                 settings = {}
         if not settings.get("used_correlations"):
             settings["used_correlations"] = True
@@ -148,6 +149,7 @@ async def correlation_matrix(
         matrix = analyzer.compute_signal_correlations(signals, min_signals=3)
         pairs = [p.to_dict() for p in matrix.pairs[:limit]]
     except Exception:
+        log.exception("Correlation matrix computation failed; falling back to legacy query")
         # Fall back to legacy
         pairs_raw = await db.get_correlation_matrix(days=days, min_co=3, limit=limit)
         pairs = pairs_raw
@@ -241,6 +243,7 @@ async def correlation_clusters(
         clusters = analyzer.detect_clusters(matrix, threshold=threshold)
         result = [c.to_dict() for c in clusters]
     except Exception:
+        log.exception("Cluster detection failed for correlation analysis")
         result = []
 
     return JSONResponse(
@@ -277,6 +280,7 @@ async def correlation_lead_lag(
         lead_lag = analyzer.compute_lead_lag(signals, days=days, min_occurrences=3)
         result = [ll.to_dict() for ll in lead_lag[:20]]
     except Exception:
+        log.exception("Lead-lag computation failed for correlation analysis")
         result = []
 
     return JSONResponse(

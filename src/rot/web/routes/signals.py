@@ -374,6 +374,7 @@ async def byok_reason_signal(request: Request, signal_id: str):
                 detail=f"Could not initialize {provider} client. Check your API key and that the required package is installed.",
             )
     except Exception as e:
+        log.exception("LLM client initialization failed for BYOK reasoning")
         # Don't expose internal error details to users (CWE-209)
         raise HTTPException(status_code=400, detail="LLM client initialization failed")
 
