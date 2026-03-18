@@ -26,6 +26,8 @@ def _to_dict(obj: Any) -> Dict[str, Any]:
 
 
 class DiscordAlerter:
+    """Sends signal alerts to a Discord channel via an Incoming Webhook."""
+
     def __init__(self, webhook_url: str) -> None:
         self.webhook_url = webhook_url
 

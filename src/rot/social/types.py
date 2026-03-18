@@ -57,14 +57,17 @@ class AuthorProfile:
 
     @property
     def decided_count(self) -> int:
+        """Total number of resolved (win + loss) predictions for this author."""
         return self.win_count + self.loss_count
 
     @property
     def computed_accuracy(self) -> Optional[float]:
+        """Win rate as a fraction, or ``None`` if no resolved predictions exist."""
         d = self.decided_count
         return self.win_count / d if d > 0 else None
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the author record to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "platform": self.platform,
@@ -114,17 +117,21 @@ class AuthorPrediction:
 
     @property
     def is_resolved(self) -> bool:
+        """``True`` if the prediction has an outcome recorded."""
         return self.outcome is not None
 
     @property
     def is_win(self) -> bool:
+        """``True`` if the prediction outcome is ``"win"``."""
         return self.outcome == "win"
 
     @property
     def is_loss(self) -> bool:
+        """``True`` if the prediction outcome is ``"loss"``."""
         return self.outcome == "loss"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the prediction to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "author_id": self.author_id,
@@ -163,6 +170,7 @@ class ManipulationAlert:
             raise ValueError("tickers must be non-empty")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the manipulation alert to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "alert_type": self.alert_type,
@@ -201,9 +209,11 @@ class SentimentPropagation:
 
     @property
     def lag_seconds(self) -> float:
+        """Seconds elapsed between the original mention and cross-community spread."""
         return self.spread_ts - self.origin_ts
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the propagation record to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "ticker": self.ticker,
@@ -235,6 +245,7 @@ class AuthorCluster:
             raise ValueError("cluster must have at least 2 authors")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the author cluster to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "authors": list(self.authors),
@@ -272,6 +283,7 @@ class ContrarianSignal:
             raise ValueError("contrarian_authors must be non-empty")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the contrarian signal to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "ticker": self.ticker,

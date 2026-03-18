@@ -377,6 +377,8 @@ async def get_filter_presets(request: Request):
 # ── Email Alert Settings ──
 
 class EmailAlertSettingsRequest(BaseModel):
+    """Request body for updating a user's email alert preferences."""
+
     enabled: int = 0
     digest_enabled: int = 1
     realtime_enabled: int = 0

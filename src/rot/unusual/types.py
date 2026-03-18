@@ -37,6 +37,7 @@ class UnusualEvent:
             raise ValueError(f"Score must be 0-100, got {self.score}")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the unusual event to a JSON-compatible dictionary."""
         return {
             "ticker": self.ticker,
             "event_type": self.event_type,
@@ -62,13 +63,16 @@ class UnusualScore:
 
     @property
     def flag_count(self) -> int:
+        """Number of active unusual-activity flags."""
         return len(self.flags)
 
     @property
     def is_unusual(self) -> bool:
+        """``True`` if at least one flag is active and the composite score is non-zero."""
         return self.composite_score > 0 and len(self.flags) > 0
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the unusual score to a JSON-compatible dictionary."""
         return {
             "composite_score": round(self.composite_score, 1),
             "flags": self.flags,
@@ -89,6 +93,7 @@ class UnusualSummary:
     highest_score_event: Optional[UnusualEvent] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the unusual activity summary to a JSON-compatible dictionary."""
         return {
             "total_events": self.total_events,
             "unique_tickers": self.unique_tickers,

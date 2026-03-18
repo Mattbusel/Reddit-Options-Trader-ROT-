@@ -56,6 +56,7 @@ class StrategyRule:
             )
 
     def to_dict(self) -> dict:
+        """Serialise the rule to a JSON-compatible dictionary."""
         return {
             "field": self.field,
             "operator": self.operator,
@@ -64,6 +65,7 @@ class StrategyRule:
 
     @classmethod
     def from_dict(cls, d: dict) -> "StrategyRule":
+        """Deserialise a rule from a plain dictionary."""
         return cls(
             field=d["field"],
             operator=d["operator"],
@@ -124,6 +126,7 @@ class Strategy:
             raise ValueError("health_score must be between 0.0 and 1.0")
 
     def to_dict(self) -> dict:
+        """Serialise the strategy to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -141,6 +144,7 @@ class Strategy:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Strategy":
+        """Deserialise a strategy from a plain dictionary."""
         return cls(
             id=d["id"],
             user_id=d["user_id"],
@@ -204,6 +208,7 @@ class StrategyResult:
             raise ValueError("entry_price must be positive")
 
     def to_dict(self) -> dict:
+        """Serialise the trade result to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "strategy_id": self.strategy_id,
@@ -255,6 +260,7 @@ class DiscoveryResult:
             raise ValueError("elapsed_s must be >= 0")
 
     def to_dict(self) -> dict:
+        """Serialise the discovery result to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -305,6 +311,7 @@ class MarketRegime:
             raise ValueError("end_ts must be >= start_ts")
 
     def to_dict(self) -> dict:
+        """Serialise the market regime to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "regime_type": self.regime_type,
@@ -353,6 +360,7 @@ class RegimeStrategy:
             raise ValueError("win_rate must be between 0.0 and 1.0")
 
     def to_dict(self) -> dict:
+        """Serialise the regime-strategy mapping to a JSON-compatible dictionary."""
         return {
             "strategy_id": self.strategy_id,
             "regime_type": self.regime_type,
@@ -409,6 +417,7 @@ class MarketplaceEntry:
             raise ValueError("subscriber_count must be >= 0")
 
     def to_dict(self) -> dict:
+        """Serialise the marketplace entry to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "strategy_id": self.strategy_id,

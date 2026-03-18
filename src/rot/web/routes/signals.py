@@ -68,6 +68,7 @@ async def list_signals(
     sort: Optional[str] = Query(None, regex="^(created_at|confidence|trend_score)$"),
     order: Optional[str] = Query(None, regex="^(asc|desc)$"),
 ):
+    """List signals with optional filtering, pagination, field selection, and sorting."""
     user = await get_current_user_optional(request)
     await require_api_auth(request, user)
     await check_rate_limit(request, user)
@@ -130,6 +131,7 @@ async def new_signal_count(request: Request):
 
 @router.get("/signals/{signal_id}")
 async def get_signal(request: Request, signal_id: str, fields: Optional[str] = None):
+    """Retrieve a single signal by ID, serving HTML for browsers or JSON for API clients."""
     from fastapi.responses import HTMLResponse
 
     # Detect if this is a browser request (Accept: text/html) or API request
@@ -175,6 +177,7 @@ async def trending_tickers(
     hours: int = Query(24, ge=1, le=168),
     limit: int = Query(20, ge=1, le=100),
 ):
+    """Return the most-mentioned tickers over the last *hours* hours."""
     user = await get_current_user_optional(request)
     await require_api_auth(request, user)
     await check_rate_limit(request, user)
@@ -189,6 +192,7 @@ async def performance_summary(
     request: Request,
     days: int = Query(30, ge=1, le=365),
 ):
+    """Return aggregate signal performance metrics for the last *days* days."""
     user = await get_current_user_optional(request)
     await require_api_auth(request, user)
     await check_rate_limit(request, user)

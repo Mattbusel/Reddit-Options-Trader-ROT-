@@ -18,6 +18,7 @@ class ScheduleConfig:
     max_rows: int = 10000
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the schedule configuration to a JSON-compatible dictionary."""
         return {
             "frequency": self.frequency,
             "format": self.format,
@@ -42,6 +43,7 @@ class ExportJob:
     run_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the export job to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -66,6 +68,7 @@ class ExportResult:
     duration_s: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the export result metadata to a JSON-compatible dictionary (excludes raw data)."""
         return {
             "job_id": self.job_id,
             "row_count": self.row_count,
@@ -84,6 +87,7 @@ class LineageStep:
     details: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the lineage step to a JSON-compatible dictionary."""
         return {
             "stage": self.stage,
             "timestamp": self.timestamp,
@@ -103,11 +107,13 @@ class SignalLineage:
 
     @property
     def total_processing_time_s(self) -> float:
+        """Elapsed seconds between the first and last pipeline stage for this signal."""
         if len(self.steps) < 2:
             return 0.0
         return self.steps[-1].timestamp - self.steps[0].timestamp
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the signal lineage to a JSON-compatible dictionary."""
         return {
             "signal_id": self.signal_id,
             "ticker": self.ticker,

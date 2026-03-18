@@ -1,3 +1,10 @@
+"""Institutional options flow intelligence package for ROT.
+
+Detects unusual institutional activity (block trades, sweeps), computes
+Black-Scholes Greeks, tracks per-ticker flow history, recognises multi-event
+patterns, and cross-references flow with Reddit sentiment for convergence scoring.
+"""
+
 from rot.flow.convergence import ConvergenceDetector
 from rot.flow.detector import FlowDetector
 from rot.flow.greeks import GreeksEngine

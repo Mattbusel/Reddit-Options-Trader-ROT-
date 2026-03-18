@@ -46,10 +46,12 @@ class AgentRule:
         return False
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the agent rule to a JSON-compatible dictionary."""
         return {"field": self.field, "operator": self.operator, "value": self.value}
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "AgentRule":
+        """Deserialise an agent rule from a plain dictionary."""
         return cls(field=d["field"], operator=d["operator"], value=d["value"])
 
 
@@ -68,6 +70,7 @@ class AgentPerformance:
     trades_today: int
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the agent performance snapshot to a JSON-compatible dictionary."""
         return {
             "agent_id": self.agent_id,
             "total_trades": self.total_trades,

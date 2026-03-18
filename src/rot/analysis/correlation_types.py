@@ -18,6 +18,7 @@ class CorrelationPair:
     sample_size: int              # total observations
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the correlation pair to a JSON-compatible dictionary."""
         return {
             "ticker_a": self.ticker_a,
             "ticker_b": self.ticker_b,
@@ -38,6 +39,7 @@ class SignalCorrelationMatrix:
     strongest_negative: Optional[CorrelationPair] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the correlation matrix to a JSON-compatible dictionary."""
         return {
             "tickers": self.tickers,
             "pair_count": len(self.pairs),
@@ -67,6 +69,7 @@ class TickerCluster:
             object.__setattr__(self, "size", len(self.tickers))
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the ticker cluster to a JSON-compatible dictionary."""
         return {
             "cluster_id": self.cluster_id,
             "tickers": self.tickers,
@@ -87,6 +90,7 @@ class LeadLagPair:
     occurrences: int              # how many times this pattern appeared
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the lead-lag pair to a JSON-compatible dictionary."""
         return {
             "leader": self.leader,
             "follower": self.follower,
@@ -107,6 +111,7 @@ class PredictivePair:
     direction: str                # "same" or "inverse"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the predictive pair to a JSON-compatible dictionary."""
         return {
             "ticker_a": self.ticker_a,
             "ticker_b": self.ticker_b,
@@ -124,6 +129,7 @@ class NetworkGraph:
     edges: List[Dict[str, Any]]   # [{source, target, weight, color}]
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the network graph to a JSON-compatible dictionary."""
         return {
             "nodes": self.nodes,
             "edges": self.edges,

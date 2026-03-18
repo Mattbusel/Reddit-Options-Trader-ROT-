@@ -75,6 +75,7 @@ class FlowEvent:
             raise ValueError(f"Score must be 0-100, got {self.score}")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the flow event to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "ticker": self.ticker,
@@ -126,6 +127,7 @@ class FlowScore:
         return "bullish" if self.net_premium > 0 else "bearish"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the flow score to a JSON-compatible dictionary."""
         return {
             "ticker": self.ticker,
             "score": round(self.score, 1),
@@ -168,6 +170,7 @@ class FlowPattern:
             raise ValueError(f"Confidence must be 0-1, got {self.confidence}")
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the flow pattern to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "pattern_type": self.pattern_type,
@@ -217,6 +220,7 @@ class FlowSignalConvergence:
             )
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the flow-signal convergence to a JSON-compatible dictionary."""
         return {
             "id": self.id,
             "signal_id": self.signal_id,
@@ -255,6 +259,7 @@ class GreeksSnapshot:
     timestamp: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the Greeks snapshot to a JSON-compatible dictionary."""
         return {
             "delta": round(self.delta, 4),
             "gamma": round(self.gamma, 6),
@@ -298,6 +303,7 @@ class FlowSummary:
         return "bullish" if self.net_premium > 0 else "bearish"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the flow summary to a JSON-compatible dictionary."""
         return {
             "total_events": self.total_events,
             "unique_tickers": self.unique_tickers,

@@ -20,6 +20,7 @@ class SectorMomentum:
     bearish_pct: float = 0.0      # % bearish signals
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the sector momentum to a JSON-compatible dictionary."""
         return {
             "sector": self.sector,
             "signal_velocity": round(self.signal_velocity, 2),
@@ -44,6 +45,7 @@ class RotationEvent:
     to_velocity_delta: float      # how much new leader accelerated
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the rotation event to a JSON-compatible dictionary."""
         return {
             "from_sector": self.from_sector,
             "to_sector": self.to_sector,
@@ -67,6 +69,7 @@ class SectorRanking:
     net_sentiment: float          # -1 to +1
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the sector ranking to a JSON-compatible dictionary."""
         return {
             "sector": self.sector,
             "rank": self.rank,
@@ -92,6 +95,7 @@ class CapitalFlow:
     flow_change: float            # change in net_flow vs prior period
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialise the capital flow summary to a JSON-compatible dictionary."""
         return {
             "sector": self.sector,
             "bullish_count": self.bullish_count,
