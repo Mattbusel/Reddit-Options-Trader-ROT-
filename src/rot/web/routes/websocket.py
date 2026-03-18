@@ -70,6 +70,7 @@ def _validate_token(websocket: WebSocket, token: str) -> bool:
 
 @router.websocket("/signals/live")
 async def signal_websocket(websocket: WebSocket):
+    """Accept a WebSocket connection, authenticate via first message, then stream live signals."""
     if len(_clients) >= MAX_WS_CLIENTS:
         await websocket.close(code=4008, reason="Too many connections")
         return

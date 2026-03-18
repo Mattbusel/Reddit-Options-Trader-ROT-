@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 
 class CreateAgentRequest(BaseModel):
+    """Request body for creating a new autonomous trading agent."""
+
     name: str
     agent_type: str = "signal_follower"
     rules: List[Dict[str, Any]] = []
@@ -31,6 +33,8 @@ class CreateAgentRequest(BaseModel):
 
 
 class UpdateAgentRequest(BaseModel):
+    """Request body for updating an existing autonomous trading agent (all fields optional)."""
+
     name: Optional[str] = None
     rules: Optional[List[Dict[str, Any]]] = None
     config: Optional[Dict[str, Any]] = None

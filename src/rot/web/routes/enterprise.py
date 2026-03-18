@@ -36,6 +36,8 @@ router = APIRouter()
 # ── Models ──
 
 class SponsoredSubmitRequest(BaseModel):
+    """Request body for submitting a press release for sponsored priority analysis."""
+
     company_name: str
     ticker: str
     press_url: str
@@ -45,6 +47,8 @@ class SponsoredSubmitRequest(BaseModel):
 
 
 class DataExportRequest(BaseModel):
+    """Request body for triggering an enterprise bulk data export."""
+
     export_type: str = "signals"  # "signals" | "performance" | "full"
     format: str = "csv"  # "csv" | "json"
     ticker: Optional[str] = None

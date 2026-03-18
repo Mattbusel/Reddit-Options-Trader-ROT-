@@ -156,6 +156,7 @@ async def landing_or_dashboard(request: Request):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    """Render the main signal intelligence dashboard page."""
     try:
         return await _dashboard_inner(request)
     except Exception as e:
@@ -475,6 +476,7 @@ async def _landing_page(request: Request):
 
 @router.get("/dashboard/signal/{signal_id}", response_class=HTMLResponse)
 async def signal_detail(request: Request, signal_id: str):
+    """Render the signal detail page for *signal_id*."""
     try:
         return await _signal_detail_inner(request, signal_id)
     except Exception as e:
@@ -538,6 +540,7 @@ async def _signal_detail_inner(request: Request, signal_id: str):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    """Render the login page; redirect to dashboard if already authenticated."""
     user = await get_current_user_optional(request)
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
@@ -550,6 +553,7 @@ async def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login_form(request: Request, email: str = Form(...), password: str = Form(...)):
+    """Handle login form submission, set session cookie, and redirect to dashboard on success."""
     # Brute-force protection: 5 attempts per IP per 15 minutes
     from rot.web.rate_limit import check_auth_rate_limit
     await check_auth_rate_limit(request, "login")
@@ -580,6 +584,7 @@ async def login_form(request: Request, email: str = Form(...), password: str = F
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
+    """Render the registration page; redirect to dashboard if already authenticated."""
     user = await get_current_user_optional(request)
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
@@ -596,6 +601,7 @@ async def register_form(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ):
+    """Handle registration form submission and redirect to dashboard on success."""
     # Brute-force protection: 3 attempts per IP per hour
     from rot.web.rate_limit import check_auth_rate_limit
     await check_auth_rate_limit(request, "register")
@@ -639,6 +645,7 @@ async def register_form(
 
 @router.get("/logout")
 async def logout_page():
+    """Clear the session cookie and redirect to the landing page."""
     response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie("rot_session")
     return response
@@ -648,6 +655,7 @@ async def logout_page():
 
 @router.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page(request: Request):
+    """Render the forgot-password page; redirect to dashboard if authenticated."""
     user = await get_current_user_optional(request)
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
@@ -660,6 +668,7 @@ async def forgot_password_page(request: Request):
 
 @router.post("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_form(request: Request, email: str = Form(...)):
+    """Handle forgot-password form submission and send a reset-link email."""
     # Brute-force protection: 3 attempts per IP per hour (prevent email spam)
     from rot.web.rate_limit import check_auth_rate_limit
     await check_auth_rate_limit(request, "forgot-password")
@@ -723,6 +732,7 @@ async def forgot_password_form(request: Request, email: str = Form(...)):
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request):
+    """Render the password reset page, validating the one-time token from the URL."""
     token = request.query_params.get("token", "")
     settings = request.app.state.settings
     templates = request.app.state.templates

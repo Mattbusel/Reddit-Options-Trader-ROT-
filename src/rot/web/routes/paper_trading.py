@@ -33,6 +33,8 @@ router = APIRouter()
 
 
 class PaperTradeRequest(BaseModel):
+    """Request body for executing a paper trade on a signal."""
+
     signal_id: str
     dollars: float = 1000.0  # how much $ to allocate
 

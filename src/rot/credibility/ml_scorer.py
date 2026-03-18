@@ -80,6 +80,7 @@ class MLCredibilityScorer:
 
     @property
     def ml_available(self) -> bool:
+        """``True`` if a trained ML model is loaded and ML scoring is enabled."""
         return self._model is not None and self._enabled
 
     # ── Scoring ────────────────────────────────────────────────────────

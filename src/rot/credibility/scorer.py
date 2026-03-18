@@ -34,6 +34,7 @@ class CredibilityScorer:
     """Multi-factor credibility scoring for Reddit-sourced events."""
 
     def score(self, event: Event) -> Event:
+        """Apply heuristic credibility factors to *event* and return an updated copy."""
         factors: Dict[str, float] = {}
         adjustment = 0.0
 

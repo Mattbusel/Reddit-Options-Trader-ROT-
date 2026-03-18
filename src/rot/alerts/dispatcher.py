@@ -40,6 +40,7 @@ class AlertDispatcher:
 
     @property
     def has_channels(self) -> bool:
+        """``True`` if at least one delivery channel (Discord, webhook, or database) is configured."""
         return len(self._channels) > 0 or self._db is not None
 
     async def dispatch(self, signal_data: Dict[str, Any]) -> None:

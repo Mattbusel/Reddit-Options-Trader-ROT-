@@ -32,6 +32,7 @@ class DiscordAlerter:
         self.webhook_url = webhook_url
 
     async def send_signal(self, signal_data: Dict[str, Any], dashboard_url: str = "") -> bool:
+        """Format *signal_data* as a Discord embed and POST it to the webhook. Returns ``True`` on success."""
         event = _to_dict(signal_data.get("event"))
         reasoning = _to_dict(signal_data.get("reasoning"))
         idea = _to_dict(signal_data.get("trade_idea"))

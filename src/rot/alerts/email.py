@@ -56,10 +56,12 @@ class EmailAlerter:
 
     @property
     def is_configured(self) -> bool:
+        """``True`` if at least one email backend (Resend or SMTP) has credentials."""
         return bool(self.resend_api_key or (self.smtp_host and self.smtp_user))
 
     @property
     def backend(self) -> str:
+        """Return ``"resend"`` or ``"smtp"`` depending on which credentials are set."""
         if self.resend_api_key:
             return "resend"
         return "smtp"

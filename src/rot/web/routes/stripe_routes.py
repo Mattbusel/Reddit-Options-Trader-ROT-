@@ -55,6 +55,8 @@ def _build_price_to_tier(settings) -> dict:
 
 
 class CheckoutRequest(BaseModel):
+    """Request body for initiating a Stripe Checkout subscription upgrade."""
+
     tier: str  # "pro", "premium", or "ultra"
 
 

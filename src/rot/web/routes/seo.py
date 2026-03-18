@@ -41,6 +41,7 @@ _PUBLIC_PAGES: list[tuple[str, str, str]] = [
 
 @router.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt(request: Request):
+    """Serve a dynamically generated robots.txt that exposes the sitemap URL."""
     base = str(request.base_url).rstrip("/")
     return (
         "User-agent: *\n"
@@ -116,6 +117,7 @@ async def llms_txt(request: Request):
 
 @router.get("/sitemap.xml")
 async def sitemap_xml(request: Request):
+    """Generate and serve an XML sitemap for all public-facing pages."""
     base = str(request.base_url).rstrip("/")
     urls = "\n".join(
         f"  <url>\n"

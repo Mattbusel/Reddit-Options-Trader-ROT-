@@ -32,10 +32,14 @@ REFERRAL_REWARD_DAYS = 7  # 7 days free Pro for both sides
 # ── Models ──
 
 class AffiliateRegisterRequest(BaseModel):
+    """Request body for registering as a ROT affiliate."""
+
     payment_email: str = ""  # PayPal/Stripe email for payouts
 
 
 class PayoutRequest(BaseModel):
+    """Request body for requesting an affiliate commission payout."""
+
     payment_method: str = "paypal"  # paypal, stripe, bank_transfer
 
 

@@ -24,16 +24,21 @@ router = APIRouter()
 # ── Models ──
 
 class BrokerConnectRequest(BaseModel):
+    """Request body for connecting a broker account."""
+
     broker: str  # "robinhood" | "webull" | "tastytrade"
     credentials: dict = {}  # Broker-specific (will be stored encrypted)
 
 
 class OrderPreviewRequest(BaseModel):
+    """Request body for previewing a broker order derived from a signal."""
+
     signal_id: str
     broker: str
 
 
 class OrderExecuteRequest(BaseModel):
+    """Request body for submitting (or dry-running) a broker order."""
     signal_id: str
     broker: str
     dry_run: bool = True  # Safety: default to paper trade
