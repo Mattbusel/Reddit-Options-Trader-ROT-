@@ -192,7 +192,7 @@ class BacktestMixin:
             """INSERT INTO backtest_strategies
                (id, user_id, name, description, config_json,
                 last_run_at, created_at, is_active)
-               VALUES (?, ?, ?, ?, ?, NULL, ?, 1)""",
+               VALUES (?, ?, ?, ?, ?, 0, ?, 1)""",
             (strat_id, user_id, name, description, config_json, now),
         )
         await self.db.commit()
