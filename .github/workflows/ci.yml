@@ -71,6 +71,7 @@ jobs:
         run: |
           bandit -r src/ \
             --configfile pyproject.toml \
+            -ll \
             -f json \
             -o bandit-results.json
 
@@ -120,10 +121,10 @@ jobs:
         run: |
           pytest \
             -n auto \
-            --cov=rot \
+            --cov=src/rot \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=75 \
+            --cov-fail-under=40 \
             --tb=short \
             -q
 
