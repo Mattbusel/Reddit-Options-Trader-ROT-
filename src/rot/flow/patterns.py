@@ -93,6 +93,7 @@ class FlowPatternRecognizer:
 
     @property
     def config(self) -> FlowPatternConfig:
+        """Active FlowPatternConfig governing pattern recognition thresholds."""
         return self._config
 
     def recognize(

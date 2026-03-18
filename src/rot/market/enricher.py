@@ -300,6 +300,7 @@ class MarketEnricher:
         return metrics
 
     def get_symbol(self, raw: str) -> Optional[str]:
+        """Normalize a raw ticker string and return it, or None if it should be excluded."""
         s = raw.upper().strip()
         s = ALIAS_MAP.get(s, s)
         if s in NON_EQUITY_TOKENS:
@@ -309,6 +310,7 @@ class MarketEnricher:
         return s
 
     def enrich_symbols(self, symbols: list[str]) -> Dict[str, Any]:
+        """Fetch and cache market data for a list of raw ticker symbols."""
         market: Dict[str, Any] = {}
         now = int(time.time())
 

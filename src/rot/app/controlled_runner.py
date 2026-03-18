@@ -149,6 +149,7 @@ class ControlledPipelineRunner:
         orig_detect = self._base.trend_engine.detect
 
         def patched_detect(snapshots: list) -> list:
+            """Intercept trend detection to feed snapshots to StreamProcessor and AttentionRadar."""
             if self._stream_enabled:
                 try:
                     self._stream_ingest_snapshots(snapshots)
@@ -167,6 +168,7 @@ class ControlledPipelineRunner:
         orig_score = self._base.cred.score
 
         def patched_score(event: Event) -> Event:
+            """Intercept credibility scoring to check each event against AttentionRadar."""
             scored = orig_score(event)
             if self._radar_enabled:
                 try:
@@ -428,18 +430,22 @@ class ControlledPipelineRunner:
 
     @property
     def suppressor(self):  # type: ignore[return]
+        """Pass-through to the base runner's signal suppressor, if present."""
         return getattr(self._base, "suppressor", None)
 
     @suppressor.setter
     def suppressor(self, v: Any) -> None:
+        """Set the signal suppressor on the base runner."""
         self._base.suppressor = v  # type: ignore[attr-defined]
 
     @property
     def on_signal(self):  # type: ignore[return]
+        """Pass-through to the base runner's on_signal callback."""
         return self._base.on_signal
 
     @on_signal.setter
     def on_signal(self, v: Any) -> None:
+        """Set the on_signal callback on the base runner."""
         self._base.on_signal = v
 
 

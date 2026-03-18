@@ -71,6 +71,7 @@ class ConvergenceDetector:
 
     @property
     def config(self) -> ConvergenceConfig:
+        """Active ConvergenceConfig governing detection thresholds."""
         return self._config
 
     def find_convergences(

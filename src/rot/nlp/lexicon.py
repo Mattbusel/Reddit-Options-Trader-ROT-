@@ -23,6 +23,7 @@ def _build_lexicon() -> Dict[str, LexiconEntry]:
     """Construct the full sentiment lexicon."""
 
     def e(term: str, pol: float, inten: float, cat: str, dom: str) -> LexiconEntry:
+        """Shorthand constructor for a LexiconEntry."""
         return LexiconEntry(term=term, polarity=pol, intensity=inten, category=cat, domain=dom)
 
     entries = [

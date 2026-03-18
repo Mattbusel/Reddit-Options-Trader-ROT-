@@ -301,16 +301,19 @@ class _TickerState:
         return iir, chunks
 
     def update_chunks(self, doc_id: str, chunks: int) -> None:
+        """Update the processed-chunk count for doc_id."""
         if doc_id in self.active_docs:
             iir, _, fire_ts = self.active_docs[doc_id]
             self.active_docs[doc_id] = (iir, chunks, fire_ts)
 
     def mark_fired(self, doc_id: str, fire_ts: float) -> None:
+        """Record the timestamp at which a pre-signal was fired for doc_id."""
         if doc_id in self.active_docs:
             iir, chunks, _ = self.active_docs[doc_id]
             self.active_docs[doc_id] = (iir, chunks, fire_ts)
 
     def has_fired(self, doc_id: str) -> bool:
+        """Return True if a pre-signal has already been fired for doc_id."""
         if doc_id not in self.active_docs:
             return False
         _, _, fire_ts = self.active_docs[doc_id]
@@ -412,10 +415,12 @@ class StreamProcessor:
 
     @property
     def presignal_count(self) -> int:
+        """Total number of pre-signals fired since this processor was created."""
         return self._presignal_count
 
     @property
     def chunks_processed(self) -> int:
+        """Total number of document chunks processed since this processor was created."""
         return self._chunks_processed
 
     # ── Internal ──────────────────────────────────────────────────────────────

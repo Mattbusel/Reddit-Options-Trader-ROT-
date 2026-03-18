@@ -80,6 +80,7 @@ class FlowBaseline:
         return self.bullish_count / total
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize this flow baseline to a JSON-compatible dictionary."""
         return {
             "net_premium": round(self.net_premium, 2),
             "total_premium": round(self.total_premium, 2),
@@ -131,6 +132,7 @@ class FlowHistory:
 
     @property
     def max_tickers(self) -> int:
+        """Maximum number of tickers this history store will track simultaneously."""
         return self._max_tickers
 
     # ── Update ──────────────────────────────────────────

@@ -94,6 +94,7 @@ class GreeksEngine:
 
     @property
     def risk_free_rate(self) -> float:
+        """Annualized risk-free rate used for Black-Scholes pricing."""
         return self._risk_free_rate
 
     # ── Option Pricing ──────────────────────────────────

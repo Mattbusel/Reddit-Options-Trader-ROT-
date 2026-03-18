@@ -282,6 +282,7 @@ async def train_model_from_db(
 # ── CLI entry point ────────────────────────────────────────────────────────
 
 def main() -> None:
+    """CLI entry point: train the ML credibility model from historical signal data."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",

@@ -141,10 +141,12 @@ class FlowDetector:
 
     @property
     def history(self) -> FlowHistory:
+        """FlowHistory store used by this detector."""
         return self._history
 
     @property
     def config(self) -> FlowDetectorConfig:
+        """Active FlowDetectorConfig governing detection thresholds."""
         return self._config
 
     # ── Main Detection ──────────────────────────────────

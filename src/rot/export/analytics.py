@@ -18,10 +18,12 @@ class AnalyticsAPI:
 
     @property
     def db(self) -> Any:
+        """Database connection used for analytics queries."""
         return self._db
 
     @db.setter
     def db(self, value: Any) -> None:
+        """Set the database connection."""
         self._db = value
 
     # ── Signal Stats ──

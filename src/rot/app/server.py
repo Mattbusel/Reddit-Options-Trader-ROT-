@@ -1361,6 +1361,7 @@ async def _run_server(cfg: Settings):
 
         # Signal callback: bridge sync pipeline thread -> async handlers
         def on_signal(signal_data: Dict[str, Any]):
+            """Bridge a synchronous pipeline signal into the async event loop for dispatch."""
             try:
                 asyncio.run_coroutine_threadsafe(
                     _async_signal_handler(signal_data, app, dispatcher, price_checker),
@@ -1769,6 +1770,7 @@ async def _run_server(cfg: Settings):
 
 
 def main():
+    """Parse configuration, validate settings, and start the ROT web server."""
     import os
     _t0 = time.monotonic()
     cfg = Settings()
