@@ -8,6 +8,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added (2026-03-18 production-readiness pass)
+- **CI:** `security-scan` job added to `ci.yml` running `bandit` (SAST) and
+  `pip-audit` (dependency CVE scan) on every push and pull-request; results
+  uploaded as GitHub Actions artifacts.
+- **Dev dependencies:** `bandit[toml]>=1.7` and `pip-audit>=2.7` added to
+  `[project.optional-dependencies.dev]`.
+- **`pyproject.toml` tooling sections:**
+  - `[tool.bandit]` with `exclude_dirs`, `skips`, and severity/confidence thresholds.
+  - `[tool.ruff.lint]` expanded: added `B` (bugbear), `C4` (comprehensions), and
+    `SIM` (simplify) rule groups; per-file ignores for `tests/`.
+  - `[tool.pytest.ini_options]` extended with `addopts` (`-q --tb=short`) and
+    `filterwarnings` to suppress deprecation noise in CI.
+  - `[tool.mypy.overrides]` section: `disallow_untyped_defs` enabled for
+    `rot.core`, `rot.app`, `rot.backtest`, `rot.market`, and `rot.credibility`.
+- **Docstrings:** Google-style docstrings added to `TradeBuilder.__init__`,
+  `_estimate_max_loss`, `_quality_score`, `_next_friday`, `_next_monthly`
+  (`src/rot/market/trade_builder.py`), and `RedditIngestor.__init__`
+  (`src/rot/ingest/reddit_ingestor.py`).
+- **Tests:** `tests/test_pipeline_core.py` — 20+ tests covering `TrendEngine`
+  (rate-of-change, RSS bypass, staleness), `CredibilityScorer` (DD flair,
+  cross-post penalty, ticker count, institutional RSS, range clamping),
+  `TradeBuilder` (bullish/bearish strategy selection, gate failures, expiry helpers),
+  and `Reasoner` stub mode.
+
 ### Added
 - Production-readiness audit: verified zero bare except clauses, zero print()
   calls in production code, zero missing public docstrings, and zero functions

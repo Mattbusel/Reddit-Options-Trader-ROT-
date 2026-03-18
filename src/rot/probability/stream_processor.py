@@ -210,6 +210,7 @@ class IIRAccumulator:
         return self._acc, self._conf_acc
 
     def reset(self) -> None:
+        """Reset all IIR accumulators to their initial state."""
         self._acc = 0.0
         self._conf_acc = 0.5
         self._tokens_processed = 0
@@ -226,6 +227,7 @@ class IIRAccumulator:
 
     @property
     def tokens_processed(self) -> int:
+        """Total number of tokens processed since last reset."""
         return self._tokens_processed
 
     def direction(self) -> str:

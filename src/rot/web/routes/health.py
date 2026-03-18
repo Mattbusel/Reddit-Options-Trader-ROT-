@@ -37,7 +37,7 @@ async def health_check(request: Request):
 
     health_data = {
         "status": "healthy",
-        "version": "0.1.0",
+        "version": "1.0.0",
         "uptime_seconds": int(time.time() - _SERVER_START_TIME),
     }
 
