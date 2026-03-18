@@ -221,6 +221,40 @@ class BacktestMixin:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
+    async def get_backtest_strategy(self, strategy_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch a single backtest strategy by ID regardless of is_active status.
+
+        Args:
+            strategy_id: Strategy ID
+
+        Returns:
+            Strategy dict or None if not found
+        """
+        async with self.db.execute(
+            """SELECT id, user_id, name, description, config_json,
+                      last_result_json, last_run_at, created_at, is_active
+               FROM backtest_strategies WHERE id = ?""",
+            (strategy_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def update_strategy_result(self, strategy_id: str, result_json: str) -> None:
+        """Store the result of a backtest run against a saved strategy.
+
+        Args:
+            strategy_id: Strategy ID
+            result_json: JSON-serialized result payload
+        """
+        now = time.time()
+        await self.db.execute(
+            """UPDATE backtest_strategies
+               SET last_result_json = ?, last_run_at = ?
+               WHERE id = ?""",
+            (result_json, now, strategy_id),
+        )
+        await self.db.commit()
+
     async def delete_backtest_strategy(self, strategy_id: str, user_id: str) -> bool:
         """Soft-delete a strategy (set is_active=0).
 
