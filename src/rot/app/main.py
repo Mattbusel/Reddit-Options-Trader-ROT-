@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
+
 from rot.core.config import Settings
+
+log = logging.getLogger(__name__)
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
 from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
@@ -57,7 +61,7 @@ def main() -> None:
     )
     nlp_engine = NLPEngine()
     event_builder = EventBuilder(nlp_engine=nlp_engine)
-    print("🧬 NLP Engine: ACTIVE (custom pipeline with sarcasm detection, conviction scoring)")
+    log.info("NLP Engine: ACTIVE (custom pipeline with sarcasm detection, conviction scoring)")
     cred = CredibilityScorer()
     reasoner = Reasoner(
         provider=cfg.llm.provider,
@@ -81,9 +85,9 @@ def main() -> None:
     )
 
     if reasoner.llm_available:
-        print("🧠 LLM reasoning: ACTIVE")
+        log.info("LLM reasoning: ACTIVE")
     else:
-        print("⚠️  LLM reasoning: FALLBACK (set ROT_LLM_API_KEY to enable)")
+        log.warning("LLM reasoning: FALLBACK (set ROT_LLM_API_KEY to enable)")
 
     runner.run_once()
 

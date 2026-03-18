@@ -1,70 +1,126 @@
 # Reddit Options Trader (ROT)
 
-**A 165K-line financial intelligence platform that turns Reddit into structured options trade ideas. Built solo in 9 days.**
+[![CI](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml)
+[![Tests](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/tests.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/tests.yml)
+[![Security](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/security.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/security.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Coverage: 75%+](https://img.shields.io/badge/coverage-75%25%2B-brightgreen)]()
+[![CodeQL: 0 alerts](https://img.shields.io/badge/CodeQL-0%20alerts-brightgreen)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+A full-stack financial intelligence platform that monitors Reddit and RSS feeds in real time, classifies market events using a 10-module NLP pipeline, scores credibility via a gradient-boosting model, optionally augments reasoning with an LLM, and generates structured options trade ideas -- all surfaced through a FastAPI web dashboard.
 
-[![Security: 0 alerts](https://img.shields.io/badge/security%20alerts-0-brightgreen)]()
-[![Tests: 6,916](https://img.shields.io/badge/tests-6%2C916-blue)]()
-[![Test Ratio: 1.57:1](https://img.shields.io/badge/test%3Aproduction-1.62%3A1-blue)]()
-
-
----
-
-## What Is This
-
-ROT is a full-stack signal intelligence platform. It monitors Reddit in real time, detects emerging market events, extracts and validates tickers, enriches them with market data, scores credibility, reasons about conviction, and generates structured options trade ideas — complete with strike selection, expiry heuristics, and risk parameters.
-
-This is not a trading bot. ROT is the intelligence layer that surfaces what matters before price fully reacts.
+This is not a trading execution engine. ROT is the intelligence layer that surfaces what matters before price fully reacts.
 
 **Live deployment:** [rot.up.railway.app](https://web-production-71423.up.railway.app/)
 
 ---
 
-## The Numbers
+## Features
 
-```
-CODEBASE
-──────────────────────────────────────
-Production Code:     58,869 lines  │  230 files
-Test Code:           92,182 lines  │  201 files
-Templates:           14,318 lines  │   64 files
-Total Python:       151,116 lines  │  431 files
-Grand Total:       ~165,000+ lines │  564 files
+- **Real-time ingestion** -- Reddit (PRAW streaming) and 13+ RSS feeds including Reuters Business and SEC 8-K filings
+- **9-stage signal pipeline** -- Trend Detection > NLP > Event Classification > Market Enrichment > Credibility Scoring > Feedback Suppression > LLM Reasoning > Trade Ideas
+- **10-module NLP engine** -- custom tokenizer, lexicon, entity extraction, sentiment, sarcasm detection, conviction scoring, temporal reasoning, thread analysis
+- **ML credibility scorer** -- GradientBoosting with 12 heuristic features, transparent score breakdown
+- **LLM reasoning** -- provider-agnostic (OpenAI, Anthropic, DeepSeek), circuit breaker with stub fallback
+- **Trade idea generation** -- bull call spreads, bear put spreads, straddles; ATM +/-5% strike selection; weekly/monthly expiry heuristics; max-loss calculation
+- **FastAPI web dashboard** -- WebSocket signal feed, dark theme, confidence bars, full reasoning display
+- **Backtesting engine** -- Monte Carlo simulation, walk-forward optimization, 12 modules
+- **Strategy builder** -- rule-based, ML optimizer, genetic algorithms, regime detection, marketplace
+- **Options flow intelligence** -- block/sweep/dark pool detection, IV analysis, Greek calculations
+- **Social manipulation detection** -- bot detection, pump-dump patterns, coordination tracking
+- **Macro event calendar** -- FOMC schedule, earnings tracking, seasonal patterns, insider activity
+- **Multi-method authentication** -- JWT + API key + session cookie, 5-tier hierarchy (Free > Pro > Premium > Ultra > Enterprise), 35+ tier gates
+- **Enterprise security** -- CodeQL, Bandit, pip-audit, TruffleHog, Dependabot on every push; 0 open CVEs; nonce-based CSP; CSRF middleware; rate limiting
+- **6,900+ tests** -- 1.57:1 test-to-production ratio; zero external API calls; 75% coverage floor enforced in CI
 
-TESTING
-──────────────────────────────────────
-Test Functions:       6,916  (5,063 sync + 1,853 async)
-Test-to-Prod Ratio:  1.57:1
-External API Calls:  0  (fully mocked)
-CI:                  Pytest on every push, 75% coverage floor
+---
 
-SECURITY
-──────────────────────────────────────
-CodeQL Alerts:         0  (425 fixed)
-Dependabot Alerts:     0
-Open CVEs:             0
-TODO/FIXME Comments:   0
-Bare except: pass:     0
-Hardcoded Secrets:     0
-Security Scanners:     5  (CodeQL, Bandit, pip-audit, TruffleHog, Dependabot)
+## Quickstart (Docker)
 
-INFRASTRUCTURE
-──────────────────────────────────────
-Database Tables:      33+
-API Endpoints:       100+
-Tier Gates:           35+
-NLP Modules:          10
-Background Loops:      8
-Pipeline Stages:       9
+```bash
+git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+cd Reddit-Options-Trader-ROT-
+
+# Configure environment
+cp .env.example .env
+# Edit .env -- see Environment Variables section below
+
+# Build and start
+docker compose up --build
+
+# Dashboard: http://localhost:8000/dashboard
+# API docs:  http://localhost:8000/docs
 ```
 
 ---
 
-## Why This Exists
+## Quickstart (Manual)
 
-In January 2026, Intercontinental Exchange — the $98.8B company that owns the NYSE — launched "Reddit Signals and Sentiment," selling structured Reddit market data to institutional investors.
+```bash
+git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+cd Reddit-Options-Trader-ROT-
 
-ROT does the same thing for everyone else. ICE sells raw data feeds to hedge funds at institutional prices. ROT is the complete platform — ingestion, analysis, trade ideas, dashboard, alerts — at retail scale.
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Configure environment
+cp .env.example .env
+# Edit .env -- see Environment Variables section below
+
+# Run the server
+python -m rot.app.server
+
+# Dashboard: http://localhost:8000/dashboard
+# API docs:  http://localhost:8000/docs
+```
+
+Run the standalone pipeline loop (no web server):
+
+```bash
+python -m rot.app.loop
+```
+
+Run a single pipeline pass:
+
+```bash
+python -m rot.app.main
+```
+
+---
+
+## Environment Variables
+
+All variables are optional unless marked **required**.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ROT_REDDIT_CLIENT_ID` | `""` | **Required for Reddit.** Reddit API client ID |
+| `ROT_REDDIT_CLIENT_SECRET` | `""` | **Required for Reddit.** Reddit API client secret |
+| `ROT_REDDIT_USER_AGENT` | `rot:v1 (by u_rotbot)` | Reddit API user-agent string |
+| `ROT_REDDIT_SUBREDDITS` | `wallstreetbets,stocks,options` | Comma-separated subreddit list |
+| `ROT_REDDIT_LISTING` | `hot` | Feed type: `hot`, `new`, `rising`, `top` |
+| `ROT_REDDIT_LIMIT_PER_SUB` | `50` | Posts to fetch per subreddit per poll |
+| `ROT_REDDIT_POLL_INTERVAL_S` | `20` | Poll interval in seconds |
+| `ROT_LLM_PROVIDER` | `openai` | LLM provider: `openai`, `anthropic`, `deepseek` |
+| `ROT_LLM_API_KEY` | `""` | LLM API key. Leave empty to disable LLM reasoning |
+| `ROT_LLM_MODEL` | `gpt-4o-mini` | Model name to use |
+| `ROT_LLM_MAX_TOKENS` | `1024` | Max response tokens |
+| `ROT_LLM_TEMPERATURE` | `0.3` | Sampling temperature |
+| `ROT_RSS_ENABLED` | `false` | Enable RSS feed ingestion |
+| `ROT_MARKET_MIN_MARKET_CAP` | `100000000` | Minimum market cap filter ($100M) |
+| `ROT_MARKET_CACHE_TTL_S` | `3600` | Market data cache TTL in seconds |
+| `ROT_TREND_WINDOW_S` | `1800` | Trend detection window in seconds |
+| `ROT_TREND_THRESHOLD` | `0.01` | Trend score threshold |
+| `ROT_ALERT_DISCORD_WEBHOOK_URL` | `""` | Discord webhook URL for signal alerts |
+| `ROT_STORAGE_ROOT` | `./data` | Path for SQLite databases and state files |
+| `ROT_SECRET_KEY` | auto-generated | HMAC secret for CSRF and session signing |
+| `STRIPE_SECRET_KEY` | `""` | Stripe secret key for subscription billing |
+| `STRIPE_WEBHOOK_SECRET` | `""` | Stripe webhook signing secret |
 
 ---
 
@@ -73,190 +129,159 @@ ROT does the same thing for everyone else. ICE sells raw data feeds to hedge fun
 ### 9-Stage Pipeline
 
 ```
-Reddit/RSS → Trend Detection → NLP (10 modules) → Event Building → Market Enrichment
-    → Credibility Scoring → Feedback Suppression → LLM Reasoning → Trade Ideas
+Stage 1: Reddit/RSS Ingestion
+      |
+Stage 2: Trend Detection
+      |
+Stage 3: NLP / Entity Extraction
+      |
+Stage 4: Event Building
+      |
+Stage 5: Market Data Enrichment
+      |
+Stage 6: Credibility Scoring
+      |
+Stage 7: Feedback Suppression
+      |
+Stage 8: LLM Reasoning (OpenAI / Anthropic)
+      |
+Stage 9: Trade Idea Generation
 ```
 
-Every stage runs continuously. Memory-bounded dedup (max 2,000). Circuit breaker on LLM (auto-disables after 3 failures, stub fallback). Full pipeline executes in seconds.
+Every stage runs continuously. Memory-bounded dedup (max 2,000 entries). Circuit breaker on LLM (auto-disables after 3 failures, activates stub fallback). Full pipeline executes in seconds per pass.
 
-### Security (Grade: A)
+Signal flow is memory-bounded (max 2,000 dedup entries). The full pipeline runs in seconds per pass.
 
-Independently audited at **A (93-95/100)** across two separate assessments.
-
-- **Authentication:** JWT + API Key + Session Cookie (3 methods)
-- **Authorization:** 5-tier hierarchy (Free → Pro → Premium → Ultra → Enterprise) + Admin. 35+ gate functions.
-- **SQL Injection:** 100% parameterized queries. Field whitelist for dynamic updates.
-- **XSS Prevention:** 3-layer defense — Jinja2 autoescape + nh3 Rust sanitizer + nonce-based CSP
-- **CSRF:** Custom ASGI middleware with timing-safe HMAC comparison
-- **Security Headers:** 6/6 — CSP, X-Frame-Options: DENY, nosniff, Referrer-Policy, Permissions-Policy, X-XSS-Protection
-- **Rate Limiting:** Database-backed, multi-instance safe. Per-tier daily + burst limits. Brute-force protection.
-- **Security Logging:** 10 SIEM-ready JSON event types. Global sanitizing filter. Request ID correlation.
-- **CI/CD:** 5 automated scanners on every push — CodeQL, Bandit, pip-audit, TruffleHog, Dependabot
-
-### Test Suite
-
-1.57:1 test-to-production ratio — more test code than production code.
-
-6,916 tests across 201 files. Zero external API calls (everything mocked). Runs in CI on every push with coverage enforcement.
-
-**What the tests have found:**
-- A ghost endpoint — two health check routes existed, the minimal one shadowed the comprehensive one
-- A tier gate design assumption that didn't match actual product behavior
-- A CVE in `cryptography` caught and patched within hours of enabling dependency pinning
-- A known pytest `caplog` fixture isolation issue triggered by extreme test density (23 tests for a single security logger module)
-- A serialization bug where `Evidence` dataclass objects were silently failing to store, dropping 100% of signals
-
-### Key Design Patterns
-
-| Pattern | Implementation |
-|---------|---------------|
-| **Pipeline Orchestration** | 9-stage DAG with dedup and filtering |
-| **Circuit Breaker** | LLM disabled after 3 failures, stub fallback, auto-recovery |
-| **Mixin Composition** | 16 DB mixins (231 methods) vs monolithic file |
-| **Dual-Path NLP** | Custom 10-module engine with regex fallback |
-| **Query Cache** | Async TTL with thundering-herd prevention (per-key locks) |
-| **Tier Gating** | Returns dicts of flags, not exceptions. Admin bypasses all. |
-| **Non-root Docker** | gosu-based entrypoint with volume permission handling |
-
----
-
-## Core Capabilities
-
-### Real-Time Ingestion
-- **Reddit:** PRAW streaming from r/wallstreetbets, r/stocks (hot, new, rising, top)
-- **RSS:** 13+ feeds including Reuters Business, SEC 8-K filings
-- Deduplication, freshness gating, persistence across restarts
-
-### Trend Detection
-Momentum-based, not mention-based. Score velocity, comment velocity, engagement acceleration. Emits `TrendCandidate` objects when thresholds are exceeded.
-
-### Ticker Extraction & Validation
-- `$TSLA`, bare `TSLA`, multi-ticker posts
-- Aggressive filtering: macro noise, non-equities, slang, delisted symbols
-- Alias normalization (`SPXW` → `^GSPC`, `TSMC` → `TSM`)
-
-### Market Enrichment
-Live data via yfinance with local caching. Price, market cap, volume, IV context.
-
-### Event Classification
-Event types (earnings, squeeze, regulatory, product, macro), sentiment detection (bullish/bearish/mixed), time horizon inference (intraday through earnings window).
-
-### Credibility Scoring
-ML scorer (GradientBoosting) + 12 heuristic factors. DD flair bonus, engagement quality, cross-post penalties, ticker focus, text depth. Transparent score breakdown.
-
-### LLM Reasoning (Optional)
-Provider-agnostic — OpenAI, Anthropic, DeepSeek. Thesis synthesis, risk identification, context expansion. Circuit breaker with safe fallback.
-
-### Trade Idea Generation
-Bull call spreads, bear put spreads, straddles. ATM ± 5% strike selection, weekly/monthly expiry heuristics, max loss calculation, quality scoring. Market cap and data availability gates.
-
-### Web Dashboard
-FastAPI + Jinja2. Real-time signal feed (WebSockets), confidence bars, stance badges, trending tickers, signal detail pages with full reasoning and trade structure. Dark theme.
-
-### Alerts
-Discord webhooks, email, Twitter. High-confidence signals only. Rich embeds with ticker, stance, confidence, strategy, option legs, risks, catalyst window.
-
-### Additional Systems
-- **Backtesting Engine:** Monte Carlo simulation, walk-forward optimization, 12 modules
-- **Strategy Builder:** Rule-based, ML optimizer, genetic algorithms, regime detection, marketplace
-- **Social Intelligence:** Manipulation detection, bot detection, pump-dump patterns, coordination tracking
-- **Options Flow:** Block/sweep/dark pool detection, IV analysis, Greek calculations
-- **Macro Events:** FOMC calendar, earnings tracking, seasonal patterns, insider activity
-- **Gamification:** Badges, leaderboards, progression system
-- **Enterprise Export:** 9-step data lineage, scheduled exports, analytics
-
----
-
-## Project Structure
+### Module Layout
 
 ```
 src/rot/
-├── app/          # Server, pipeline runner, background loops
-├── ingest/       # Reddit + RSS ingestion (7 modules)
-├── trend/        # Trend detection and ranking
-├── nlp/          # 10-module NLP pipeline (500+ lexicon)
-├── extract/      # Event builder (dual-path NLP/regex)
-├── market/       # Trade builder, enrichment, validation
-├── credibility/  # ML scorer + 12 heuristics
-├── reasoner/     # LLM reasoning with circuit breaker
-├── storage/      # 33+ tables, 16 DB mixins, migrations
-├── web/          # FastAPI routes, auth, middleware, templates
-├── strategy/     # ML, genetic, regime, marketplace
-├── social/       # Manipulation, propagation, network analysis
-├── flow/         # Options flow intelligence, Greeks
-├── backtest/     # Monte Carlo, walk-forward, 12 modules
-├── macro/        # FOMC, earnings, seasonal, insider
-├── alerts/       # Discord, email, Twitter, webhook dispatch
-├── agents/       # Autonomous trading agents (safety rails)
-├── gamification/ # Badges, leaderboards, progression
-├── export/       # Enterprise exports, 9-step lineage
-├── core/         # Config, types, logging, sanitization
-└── ...           # + affiliates, sports, integrations, analysis
+  app/           Server, pipeline runner, background loops
+  ingest/        Reddit + RSS ingestion (7 modules)
+  trend/         Trend detection and ranking
+  nlp/           10-module NLP pipeline (500+ lexicon terms)
+  extract/       Event builder (dual-path NLP/regex)
+  market/        Trade builder, enrichment, validation
+  credibility/   ML scorer + 12 heuristics
+  reasoner/      LLM reasoning with circuit breaker
+  storage/       33+ tables, 16 DB mixins, migrations
+  web/           FastAPI routes, auth, middleware, Jinja2 templates
+  strategy/      ML, genetic, regime detection, marketplace
+  social/        Manipulation detection, propagation, network analysis
+  flow/          Options flow intelligence, Greek calculations
+  backtest/      Monte Carlo, walk-forward, 12 modules
+  macro/         FOMC, earnings, seasonal patterns, insider activity
+  alerts/        Discord, email, Twitter, webhook dispatch
+  agents/        Autonomous trading agents (safety rails)
+  gamification/  Badges, leaderboards, progression system
+  export/        Enterprise exports, 9-step data lineage
+  core/          Config, types, structured logging, sanitization
+  affiliates/    Affiliate tracking
+  sports/        Sports event correlation
+  analysis/      Sector and correlation analysis
 
-tests/            # 201 files, 92,182 lines, 6,916 test functions
-templates/        # 64 Jinja2 templates
-docs/             # 17 documentation files
+tests/           201 files, 92,000+ lines, 6,900+ test functions
 ```
+
+### Security
+
+| Control | Implementation |
+|---|---|
+| Authentication | JWT + API key + session cookie (3 independent methods) |
+| Authorization | 5-tier hierarchy; 35+ gate functions; admin bypass |
+| SQL injection | 100% parameterized queries; field whitelist for dynamic updates |
+| XSS | Jinja2 autoescape + nh3 Rust sanitizer + nonce-based CSP |
+| CSRF | Custom ASGI middleware; timing-safe HMAC comparison |
+| Security headers | CSP, X-Frame-Options: DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
+| Rate limiting | Database-backed, multi-instance-safe; per-tier daily + burst limits |
+| Security logging | 10 SIEM-ready JSON event types; global sanitizing filter; request-ID correlation |
+| CI scanners | CodeQL, Bandit, pip-audit, TruffleHog, Dependabot |
 
 ---
 
-## Setup
+## Running Tests
 
 ```bash
-# 1. Clone
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
-cd Reddit-Options-Trader-ROT-
+# Full suite with coverage
+pytest tests/ --cov=rot --cov-report=term-missing --cov-fail-under=75
 
-# 2. Configure
-cp .env.example .env
-# Fill in: Reddit API credentials, optional LLM API key
+# Parallel execution (faster)
+pytest tests/ -n auto -q
 
-# 3. Install
-pip install -e ".[dev]"
+# Single file
+pytest tests/test_nlp_engine.py -v
 
-# 4. Run
-python -m rot.app.server
-# Dashboard: http://localhost:8000/dashboard
-# API docs:  http://localhost:8000/docs
-
-# 5. Test
-pytest tests/ -v
+# With short tracebacks
+pytest tests/ --tb=short
 ```
 
 ---
 
-## Audit Results
+## Development
 
-Two independent AI-assisted audits, both scoring **A overall**:
+### Prerequisites
 
-| Dimension | Score |
-|-----------|-------|
-| Security | A to A+ (93-98/100) |
-| Architecture | A (95/100) |
-| Code Quality | A (94/100) |
-| Test Suite | A (92-95/100) |
-| Dependencies | A to A+ |
-| Documentation | A- to A |
-| **Overall** | **A (93-95/100)** |
+- Python 3.10, 3.11, or 3.12
+- Docker (optional, for containerized deployment)
 
-Zero open recommendations. All P0, P1, P2, and P3 items from both audits have been closed.
+### Setup
 
-Full audit reports available in [`docs/`](docs/).
+```bash
+pip install -e ".[dev]"
+```
+
+### Lint
+
+```bash
+ruff check src/ tests/
+ruff format src/ tests/
+```
+
+### Type check
+
+```bash
+mypy src/rot/core/ src/rot/app/ --ignore-missing-imports
+```
+
+### Pre-commit workflow
+
+```bash
+ruff check src/ tests/ && ruff format src/ tests/ && pytest tests/ -n auto -q --tb=short
+```
+
+---
+
+## Contributing
+
+1. Fork the repository and create a feature branch from `master`.
+2. Write tests for any new behavior. Aim to keep the test-to-production ratio above 1.5:1.
+3. Ensure `ruff check`, `ruff format --check`, and `pytest` all pass locally before opening a pull request.
+4. Keep pull requests focused: one logical change per PR.
+5. Reference any related issues in the PR description.
+6. Do not commit secrets, credentials, or generated files to version control.
+
+---
+
+## API Reference
+
+See [`docs/api-reference.md`](docs/api-reference.md) for the full endpoint catalog, or visit `/docs` on a running server for the interactive Swagger UI.
+
+---
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release history.
+
+---
+
+## License
+
+Copyright (c) 2026 Matthew Busel. All rights reserved.
+
+Third-party dependency licenses are listed in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
 ---
 
 ## Disclaimer
 
-This project is for research and experimentation only. Nothing in this repository constitutes financial advice. ROT is a signal intelligence platform, not an execution engine.
-
----
-
-
-
-
-
-
-
-
-
-
+This project is for research and educational purposes only. Nothing in this repository constitutes financial advice. ROT is a signal intelligence platform, not a trading execution engine. Past signal quality does not guarantee future performance. Use at your own risk.

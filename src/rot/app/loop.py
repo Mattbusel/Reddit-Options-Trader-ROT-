@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from rot.core.config import Settings
+
+log = logging.getLogger(__name__)
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
 from rot.ingest.rss_ingestor import RSSIngestor, RSSFeedConfig
@@ -91,7 +94,7 @@ def loop() -> None:
     )
     nlp_engine = NLPEngine()
     event_builder = EventBuilder(nlp_engine=nlp_engine)
-    print("🧬 NLP Engine: ACTIVE (custom pipeline with sarcasm detection, conviction scoring)")
+    log.info("NLP Engine: ACTIVE (custom pipeline with sarcasm detection, conviction scoring)")
     cred = CredibilityScorer()
     reasoner = Reasoner(
         provider=cfg.llm.provider,
@@ -115,17 +118,18 @@ def loop() -> None:
     )
 
     if reasoner.llm_available:
-        print("🧠 LLM reasoning: ACTIVE")
+        log.info("LLM reasoning: ACTIVE")
     else:
-        print("⚠️  LLM reasoning: FALLBACK (set ROT_LLM_API_KEY to enable)")
+        log.warning("LLM reasoning: FALLBACK (set ROT_LLM_API_KEY to enable)")
 
     while True:
         summary = runner.run_once()
-        print(
-            f"✅ {summary['run_id']} | snapshots={summary['snapshots']} "
-            f"candidates={summary['candidates']} ticker_candidates={summary['ticker_candidates']} "
-            f"events={summary['events']} ideas={summary['trade_ideas']} "
-            f"top_all={summary['top_signals']} top_ticker={summary['top_ticker_signals']}"
+        log.info(
+            "run_id=%s snapshots=%s candidates=%s ticker_candidates=%s "
+            "events=%s ideas=%s top_all=%s top_ticker=%s",
+            summary["run_id"], summary["snapshots"], summary["candidates"],
+            summary["ticker_candidates"], summary["events"], summary["trade_ideas"],
+            summary["top_signals"], summary["top_ticker_signals"],
         )
         time.sleep(cfg.reddit.poll_interval_s)
 
