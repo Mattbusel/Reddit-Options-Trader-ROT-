@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 import time
 from typing import Any, Callable, Dict, Optional
+
+log = logging.getLogger(__name__)
 
 from rot.core.logging import JsonlLogger
 from rot.ingest.reddit_ingestor import RedditIngestor
@@ -168,12 +171,12 @@ class PipelineRunner:
             extracted_by_key[c.key] = ents
 
         if top_all:
-            print("🔥 Top signals:")
+            log.info("Top signals (%d):", len(top_all))
             for i, c in enumerate(top_all, start=1):
                 p = c.snapshot.post
                 ents = extracted_by_key.get(c.key, [])
                 ents_s = ",".join(ents[:5]) if ents else "-"
-                print(f"  {i}. {p.subreddit} | {p.title[:80]} [{ents_s}] (score={c.trend_score:.3f})")
+                log.info("  %d. %s | %s [%s] (score=%.3f)", i, p.subreddit, p.title[:80], ents_s, c.trend_score)
 
         # 2b) Build events once, reuse downstream
         events = []
