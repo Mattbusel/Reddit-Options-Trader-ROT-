@@ -14,6 +14,31 @@
 
 ---
 
+## Round 7 Features
+
+### Options Paper Trader (`src/rot/paper/options_paper.py`)
+
+Simulates options trades with full position tracking, BSM mark-to-market, and portfolio metrics — no real capital required.
+
+| Class / Type | Role |
+|---|---|
+| `OptionPosition` | Open position: `contract_id`, `ticker`, `strategy`, `strikes`, `expiry`, `quantity`, `entry_premium`, `current_value`, `delta`, `pnl` |
+| `ClosedTrade` | Closed trade record with `realised_pnl` and `is_winner` |
+| `PortfolioSummary` | Snapshot: `total_pnl`, `open_positions`, `closed_trades`, `win_rate`, `max_drawdown`, `cash` |
+| `OptionsPaperTrader` | `open_trade()`, `close_trade()`, `mark_to_market()`, `get_summary()` |
+
+### Signal Strength Ranker (`src/rot/ranking.py`)
+
+Ranks tickers by composite signal strength across five dimensions with tiered labels and ASCII leaderboard output.
+
+| Class / Type | Role |
+|---|---|
+| `RankingDimension` | `SENTIMENT`, `IV_RANK`, `VOLUME_SURGE`, `MOMENTUM`, `OPTIONS_FLOW` |
+| `TierRanking` | `ticker`, `score`, `tier` (S/A/B/C/D), `breakdown` |
+| `SignalRanker` | `rank(tickers, dimension_scores)`, `leaderboard(top_n=10)`, configurable weights |
+
+---
+
 ## Round 6 Features
 
 ### Options Chain Analyzer (`src/rot/analytics/chain_analyzer.py`)
