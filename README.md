@@ -136,15 +136,15 @@ src/rot/
   trend/         Trend detection and ranking
   nlp/           10-module NLP pipeline (500+ lexicon terms)
   extract/       Event builder (dual-path NLP/regex)
-  market/        Trade builder, enrichment, validation
+  market/        Trade builder, enrichment, validation, microstructure, vol surface
   credibility/   ML scorer + 12 heuristics
   reasoner/      LLM reasoning with circuit breaker
   storage/       33+ tables, 16 DB mixins, migrations
   web/           FastAPI routes, auth, middleware, Jinja2 templates
-  strategy/      ML, genetic, regime detection, marketplace
+  strategy/      ML, genetic, regime detection, marketplace, position sizing
   social/        Manipulation detection, propagation, network analysis
   flow/          Options flow intelligence, Greek calculations
-  backtest/      Monte Carlo, walk-forward, 12 modules
+  backtest/      Monte Carlo, walk-forward, strategy backtester, 13 modules
   macro/         FOMC, earnings, seasonal patterns, insider activity
   alerts/        Discord, email, Twitter, webhook dispatch
   agents/        Autonomous trading agents (safety rails)
@@ -158,7 +158,7 @@ src/rot/
   sports/        Sports event correlation
   analysis/      Sector and correlation analysis
 
-tests/           201 files, 92,000+ lines, 6,900+ test functions
+tests/           205 files, 95,000+ lines, 7,060+ test functions
 ```
 
 ---
@@ -196,6 +196,61 @@ trustworthy the underlying Reddit/RSS signal is as a genuine market-moving event
 
 The ML scorer supplements these heuristics with learned feature interactions and
 is retrained periodically on labelled signal outcomes.
+
+---
+
+## Round 2 Feature Additions
+
+### Market Microstructure Analysis (`rot.market.microstructure`)
+
+Five components that quantify execution quality and market structure:
+
+| Class | Description |
+|---|---|
+| `BidAskSpreadAnalyzer` | Estimates effective spread (Roll 1984 / Glosten-Milgrom) from trade data or options chain |
+| `OrderImbalanceDetector` | Computes net buy/sell imbalance ratio; flags when threshold is breached |
+| `PriceDiscoveryMetric` | Cross-correlates Reddit sentiment vs returns across ±N lags to detect lead/lag |
+| `MarketImpactEstimator` | OLS regression of price changes on signed order flow (Kyle 1985 lambda) |
+| `LiquidityScore` | Composite 0-1 score from weighted spread + OI depth + daily turnover |
+
+### Volatility Surface Modelling (`rot.market.vol_surface`)
+
+Full IV surface pipeline for options strategy selection:
+
+| Class | Description |
+|---|---|
+| `VolatilitySmile` | Fits smile (IV vs strike) for a single expiry; extracts skew and wing spread |
+| `ImpliedVolatilitySurface` | Builds full strike × expiry IV matrix from raw options chain data |
+| `IVRank` | IV rank: `(current - 52w_low) / (52w_high - 52w_low)` in [0, 1] |
+| `IVPercentile` | Fraction of historical days with IV below current (uses full distribution) |
+| `TermStructure` | ATM IV by expiry; classifies contango vs backwardation with linear slope |
+| `VolatilityRegime` | High / normal / low regime with `sell_premium` / `buy_premium` / `neutral` bias |
+
+### Position Sizing Engine (`rot.strategy.position_sizing`)
+
+Multiple sizing methods composable into a single recommendation:
+
+| Class | Description |
+|---|---|
+| `KellyCriterion` | Full Kelly: `f* = (p*b - q) / b` with configurable max-fraction cap |
+| `FractionalKelly` | Half-Kelly, quarter-Kelly, or any fraction of the full Kelly bet |
+| `VolatilityScaledSizing` | Target-volatility sizing: position scales inversely to realized vol |
+| `MaxLossSizing` | Sizes so the worst-case loss stays within a portfolio-risk-pct budget |
+| `PositionSizingEngine` | Blends all methods via `min` / `mean` / `weighted`; applies confidence scaling |
+
+### Strategy Backtester (`rot.backtest.strategy_backtest`)
+
+High-level backtesting layer on top of the core `BacktestEngine`:
+
+| Class | Description |
+|---|---|
+| `SignalHistoryLoader` | Loads signals from in-memory list or SQLite DB with chainable `filter()` |
+| `BacktestMetrics` | Sharpe, Sortino, Calmar, max drawdown, win rate, avg P&L, best/worst trade |
+| `WalkForwardTester` | Configurable N-fold IS/OOS testing; returns stability score |
+| `MonteCarloSimulator` | Bootstraps signal order (500+ runs); computes p-value and ruin probability |
+| `StrategyBacktester` | Orchestrator: loads → backtests → walk-forward → Monte Carlo → HTML report |
+
+The HTML report includes an inline SVG equity curve, walk-forward fold table, Monte Carlo percentile grid, and a full trade log.
 
 ---
 
