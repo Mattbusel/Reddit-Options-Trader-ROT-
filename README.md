@@ -742,6 +742,86 @@ The live public deployment runs at:
 
 ---
 
+## Round 2 Features
+
+### Options Greeks Dashboard (`GET /options/greeks`)
+
+A live, dark-themed web page showing Black-Scholes Greeks (Delta, Gamma, Theta, Vega)
+for the top tracked tickers, updated every 30 seconds via AJAX.
+
+- **Delta**: green (bullish / positive), red (bearish / negative)
+- **Gamma**: yellow warning badge when `|gamma| > 0.05` (elevated pin risk)
+- **Theta / Vega**: always displayed for premium decay and volatility exposure awareness
+- **Greeks Summary card** per ticker: spot price, IV estimate, DTE
+- JSON API also available at `GET /api/v1/options/greeks`
+
+```bash
+# Navigate to:
+http://localhost:8000/options/greeks
+
+# JSON API:
+curl "http://localhost:8000/api/v1/options/greeks?tickers=SPY,AAPL,NVDA&dte=7"
+```
+
+Source: `src/rot/web/routes/greeks_dashboard.py`
+
+---
+
+### Automated Trade Journal (`GET /journal`)
+
+End-to-end trade idea tracking from signal generation to outcome resolution,
+backed by a SQLite table.
+
+```
+Signal generated → JournalEntry inserted → expiry date passes → price fetched
+→ outcome computed (win/loss/neutral) → JournalReport updated
+```
+
+**Endpoints**:
+- `GET /journal` — HTML page with dark theme showing all entries and statistics
+- `GET /api/journal/report` — JSON `JournalReport` with win rate, avg PnL, best/worst trade, accuracy by strategy
+
+**`JournalEntry` fields**:
+
+| Field | Type | Description |
+|---|---|---|
+| `signal_id` | str | FK to signals table |
+| `ticker` | str | Underlying symbol |
+| `strategy_type` | str | `"long_call"`, `"bull_put_spread"`, etc. |
+| `entry_date` | str | ISO-8601 date |
+| `expiry_date` | str | ISO-8601 option expiry |
+| `predicted_direction` | str | `"bullish"` / `"bearish"` / `"neutral"` |
+| `confidence_score` | float | Model confidence in [0, 1] |
+| `actual_outcome` | str | `"win"` / `"loss"` / `"neutral"` / `null` |
+| `pnl_estimate` | float | Fraction-of-premium PnL estimate |
+
+**Auto-resolution**: `TradeJournal.auto_resolve_expired()` runs nightly, fetches
+the current price via `yfinance`, and computes the outcome heuristically.
+
+```python
+from rot.journal import TradeJournal, JournalEntry
+
+journal = TradeJournal(db)
+await journal.init_schema()
+
+entry_id = await journal.insert(JournalEntry(
+    signal_id="sig_001",
+    ticker="AAPL",
+    strategy_type="long_call",
+    entry_date="2026-03-10",
+    expiry_date="2026-03-21",
+    predicted_direction="bullish",
+    confidence_score=0.78,
+))
+
+report = await journal.get_report()
+print(f"Win rate: {report.win_rate:.1%}  Avg PnL: {report.avg_pnl:+.1%}")
+```
+
+Source: `src/rot/journal.py`
+
+---
+
 ## Changelog
 
 See [`CHANGELOG.md`](CHANGELOG.md) for release history.

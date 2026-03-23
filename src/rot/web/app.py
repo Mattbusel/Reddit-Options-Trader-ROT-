@@ -398,6 +398,14 @@ def register_routes(app: FastAPI):
     app.include_router(paper_leaderboard.router, tags=["integrations"])
     app.include_router(api_status.router, tags=["integrations"])
 
+    # ── Options Greeks Dashboard ───────────────────────────────────────
+    from rot.web.routes import greeks_dashboard
+    app.include_router(greeks_dashboard.router, tags=["options"])
+
+    # ── Trade Journal ─────────────────────────────────────────────────
+    from rot.journal import router as journal_router
+    app.include_router(journal_router, tags=["journal"])
+
     # ── MCP (API + landing page + Streamable HTTP protocol endpoint) ─
     from rot.web.routes import mcp_api, mcp_landing
     app.include_router(mcp_api.router, tags=["mcp"])
