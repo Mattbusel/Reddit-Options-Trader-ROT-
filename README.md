@@ -14,6 +14,60 @@
 
 ---
 
+## Round 5 Features
+
+### Reddit Signal Backtester (`src/rot/backtest/options_backtest.py` — Round 5 additions)
+
+Replays historical Reddit-generated signals against price data and evaluates ATM options profitability.
+
+| Class / Type | Role |
+|---|---|
+| `HistoricalSignal` | One Reddit signal: `ticker`, `signal_type`, `date`, `predicted_direction`, `confidence` |
+| `BacktestTrade` | Simulated trade: `entry_price`, `exit_price`, `strategy_pnl`, `holding_days`, `outcome` |
+| `BacktestResult` | Aggregate stats: `win_rate`, `avg_pnl`, `total_pnl`, `sharpe`, `max_drawdown`, `best_trade`, `worst_trade` |
+| `BacktestEngine` | `run(signals, price_data)` — simulates ATM call/put entry, walks forward, exits on stop-loss (20%), take-profit (50%), or expiry (30 days) |
+
+```python
+from rot.backtest.options_backtest import BacktestEngine, HistoricalSignal
+import datetime
+
+signals = [
+    HistoricalSignal(ticker="AAPL", signal_type="bull_call",
+                     date=datetime.date(2024, 1, 2),
+                     predicted_direction="bullish", confidence=0.75),
+]
+price_data = {"AAPL": {datetime.date(2024, 1, 2): 185.0, ...}}
+result = BacktestEngine().run(signals, price_data)
+print(result.win_rate, result.sharpe)
+```
+
+### Sentiment Aggregator (`src/rot/sentiment/aggregator.py`)
+
+Combines Reddit, news, options flow, and technical indicator sentiment into a single composite signal with confidence weighting and recency decay.
+
+| Class / Type | Role |
+|---|---|
+| `SentimentSource` | Enum: `REDDIT`, `NEWS`, `OPTIONS_FLOW`, `TECHNICAL_INDICATOR` |
+| `SentimentScore` | One source score: `source`, `ticker`, `score [-1,1]`, `confidence`, `timestamp` |
+| `AggregatedSentiment` | Output: `composite_score`, `source_breakdown`, `signal_strength`, `n_sources` |
+| `SentimentAggregator` | `aggregate(scores)` — weighted average with per-source weights and exponential recency decay |
+
+Signal strength thresholds: `STRONG_BULL` (>0.6), `BULL` (>0.2), `NEUTRAL`, `BEAR` (<-0.2), `STRONG_BEAR` (<-0.6).
+
+```python
+from rot.sentiment.aggregator import SentimentAggregator, SentimentScore, SentimentSource
+import datetime
+
+scores = [
+    SentimentScore(SentimentSource.REDDIT, "AAPL", 0.65, 0.8, datetime.datetime.utcnow()),
+    SentimentScore(SentimentSource.OPTIONS_FLOW, "AAPL", 0.80, 0.9, datetime.datetime.utcnow()),
+]
+result = SentimentAggregator().aggregate(scores)
+print(result.composite_score, result.signal_strength)  # e.g. 0.74  STRONG_BULL
+```
+
+---
+
 ## Round 4 Features
 
 ### Options Position Tracker (`src/rot/portfolio/positions.py`)

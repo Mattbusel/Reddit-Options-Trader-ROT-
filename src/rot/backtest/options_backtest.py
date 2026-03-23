@@ -518,3 +518,327 @@ class OptionsBacktester:
             total_pnl_pct=sum(pnls),
             results=results,
         )
+
+
+# ===========================================================================
+# Round 5 — Reddit Signal Backtest API
+# ===========================================================================
+#
+# Replays historical Reddit-sourced signals against price data and evaluates
+# the profitability of an ATM options strategy driven by those signals.
+#
+# Classes
+# -------
+# HistoricalSignal  — one Reddit signal with ticker, direction, confidence
+# BacktestTrade     — simulated trade: entry/exit price, P&L, outcome
+# BacktestResult    — aggregate stats: win_rate, avg_pnl, sharpe, drawdown
+# BacktestEngine    — orchestrates replay and simulation
+# ===========================================================================
+
+
+@dataclass
+class HistoricalSignal:
+    """A single historical Reddit signal to be backtested.
+
+    Attributes:
+        ticker:              Underlying equity ticker (e.g. "AAPL").
+        signal_type:         Human-readable signal category (e.g. "bull_call").
+        date:                Date the signal was generated.
+        predicted_direction: ``"bullish"`` or ``"bearish"``.
+        confidence:          Confidence score in [0, 1].
+    """
+
+    ticker: str
+    signal_type: str
+    date: datetime.date
+    predicted_direction: str  # "bullish" | "bearish"
+    confidence: float = 0.5
+
+    def __post_init__(self) -> None:
+        if self.predicted_direction not in ("bullish", "bearish"):
+            raise ValueError(
+                f"predicted_direction must be 'bullish' or 'bearish', "
+                f"got '{self.predicted_direction}'"
+            )
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(f"confidence must be in [0, 1], got {self.confidence}")
+
+
+@dataclass
+class BacktestTrade:
+    """A single simulated options trade driven by a Reddit signal.
+
+    Attributes:
+        signal:        The originating signal.
+        entry_price:   ATM option premium at entry (Black-Scholes estimate).
+        exit_price:    Option value at exit.
+        strategy_pnl:  Profit/loss as a fraction of entry_price.
+        holding_days:  Actual number of days held before exit trigger.
+        outcome:       ``"win"``, ``"loss"``, ``"stop_loss"``, ``"take_profit"``,
+                       or ``"expiry"``.
+    """
+
+    signal: HistoricalSignal
+    entry_price: float
+    exit_price: float
+    strategy_pnl: float
+    holding_days: int
+    outcome: str
+
+    def is_win(self) -> bool:
+        return self.strategy_pnl > 0.0
+
+    def pnl_pct(self) -> float:
+        """Return P&L as a percentage of entry price."""
+        if self.entry_price == 0.0:
+            return 0.0
+        return (self.exit_price - self.entry_price) / self.entry_price
+
+
+@dataclass
+class BacktestResult:
+    """Aggregate result from running BacktestEngine.run().
+
+    Attributes:
+        trades:       All individual BacktestTrade objects.
+        win_rate:     Fraction of winning trades.
+        avg_pnl:      Mean P&L per trade (fractional).
+        total_pnl:    Sum of all P&L values.
+        sharpe:       Sharpe ratio (mean/std of P&Ls; 0 if std is zero).
+        max_drawdown: Maximum peak-to-trough cumulative P&L decline.
+        best_trade:   BacktestTrade with highest strategy_pnl.
+        worst_trade:  BacktestTrade with lowest strategy_pnl.
+    """
+
+    trades: List[BacktestTrade]
+    win_rate: float
+    avg_pnl: float
+    total_pnl: float
+    sharpe: float
+    max_drawdown: float
+    best_trade: Optional[BacktestTrade]
+    worst_trade: Optional[BacktestTrade]
+
+    def n_trades(self) -> int:
+        return len(self.trades)
+
+    def n_wins(self) -> int:
+        return sum(1 for t in self.trades if t.is_win())
+
+    def n_losses(self) -> int:
+        return self.n_trades() - self.n_wins()
+
+
+def _compute_sharpe(pnls: List[float]) -> float:
+    """Annualised Sharpe ratio (252 trading days, rf=0)."""
+    if len(pnls) < 2:
+        return 0.0
+    n = len(pnls)
+    mean = sum(pnls) / n
+    variance = sum((x - mean) ** 2 for x in pnls) / (n - 1)
+    std = math.sqrt(variance) if variance > 0 else 0.0
+    if std == 0.0:
+        return 0.0
+    return (mean / std) * math.sqrt(252)
+
+
+def _compute_max_drawdown(pnls: List[float]) -> float:
+    """Compute maximum peak-to-trough drawdown of the cumulative P&L curve."""
+    if not pnls:
+        return 0.0
+    peak = 0.0
+    cumulative = 0.0
+    max_dd = 0.0
+    for p in pnls:
+        cumulative += p
+        if cumulative > peak:
+            peak = cumulative
+        dd = peak - cumulative
+        if dd > max_dd:
+            max_dd = dd
+    return max_dd
+
+
+class BacktestEngine:
+    """Replay historical Reddit signals and evaluate ATM options profitability.
+
+    The simulation:
+    1. For each signal, look up the underlying price on the signal date from
+       ``price_data`` (dict: ticker -> {date -> price}).
+    2. Compute an ATM call (bullish) or put (bearish) premium using Black-Scholes
+       with assumed IV=35% and 30-day expiry.
+    3. Walk forward day-by-day using price_data, revaluing the option.
+    4. Exit at:
+       - Stop-loss: option loses ``stop_loss_pct`` (default 20%) of entry premium.
+       - Take-profit: option gains ``take_profit_pct`` (default 50%) of entry premium.
+       - Expiry: 30 calendar days after entry.
+
+    Args:
+        stop_loss_pct:    Fraction of entry premium triggering stop-loss exit. Default 0.20.
+        take_profit_pct:  Fraction gain triggering take-profit exit. Default 0.50.
+        holding_days:     Maximum days to hold before expiry exit. Default 30.
+        assumed_iv:       Implied volatility assumption. Default 0.35.
+        risk_free_rate:   Risk-free rate for Black-Scholes. Default 0.05.
+    """
+
+    def __init__(
+        self,
+        stop_loss_pct: float = 0.20,
+        take_profit_pct: float = 0.50,
+        holding_days: int = 30,
+        assumed_iv: float = 0.35,
+        risk_free_rate: float = 0.05,
+    ) -> None:
+        self.stop_loss_pct = stop_loss_pct
+        self.take_profit_pct = take_profit_pct
+        self.holding_days = holding_days
+        self.assumed_iv = assumed_iv
+        self.risk_free_rate = risk_free_rate
+
+    def run(
+        self,
+        signals: List[HistoricalSignal],
+        price_data: Dict[str, Dict[datetime.date, float]],
+    ) -> BacktestResult:
+        """Replay signals against price_data and return aggregate results.
+
+        Args:
+            signals:    Historical Reddit signals to replay.
+            price_data: Dict mapping ticker symbol to {date: closing_price}.
+                        Dates without entries are skipped (weekends/holidays).
+
+        Returns:
+            BacktestResult with all trades and aggregate statistics.
+        """
+        trades: List[BacktestTrade] = []
+
+        for signal in signals:
+            trade = self._simulate_trade(signal, price_data)
+            if trade is not None:
+                trades.append(trade)
+
+        if not trades:
+            return BacktestResult(
+                trades=[],
+                win_rate=0.0,
+                avg_pnl=0.0,
+                total_pnl=0.0,
+                sharpe=0.0,
+                max_drawdown=0.0,
+                best_trade=None,
+                worst_trade=None,
+            )
+
+        pnls = [t.strategy_pnl for t in trades]
+        wins = [t for t in trades if t.is_win()]
+        win_rate = len(wins) / len(trades)
+        avg_pnl = sum(pnls) / len(pnls)
+        total_pnl = sum(pnls)
+        sharpe = _compute_sharpe(pnls)
+        max_dd = _compute_max_drawdown(pnls)
+        best = max(trades, key=lambda t: t.strategy_pnl)
+        worst = min(trades, key=lambda t: t.strategy_pnl)
+
+        return BacktestResult(
+            trades=trades,
+            win_rate=win_rate,
+            avg_pnl=avg_pnl,
+            total_pnl=total_pnl,
+            sharpe=sharpe,
+            max_drawdown=max_dd,
+            best_trade=best,
+            worst_trade=worst,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _simulate_trade(
+        self,
+        signal: HistoricalSignal,
+        price_data: Dict[str, Dict[datetime.date, float]],
+    ) -> Optional[BacktestTrade]:
+        """Simulate a single options trade for the given signal."""
+        ticker_prices = price_data.get(signal.ticker)
+        if not ticker_prices:
+            log.warning("No price data for ticker %s — skipping signal", signal.ticker)
+            return None
+
+        entry_spot = ticker_prices.get(signal.date)
+        if entry_spot is None:
+            # Try the nearest date >= signal.date
+            future_dates = sorted(d for d in ticker_prices if d >= signal.date)
+            if not future_dates:
+                log.warning(
+                    "No price on or after %s for %s — skipping", signal.date, signal.ticker
+                )
+                return None
+            entry_spot = ticker_prices[future_dates[0]]
+
+        strike = entry_spot  # ATM
+        t_entry = self.holding_days / 365.0
+
+        if signal.predicted_direction == "bullish":
+            entry_premium = bs_call_price(
+                entry_spot, strike, t_entry, self.risk_free_rate, self.assumed_iv
+            )
+        else:
+            entry_premium = bs_put_price(
+                entry_spot, strike, t_entry, self.risk_free_rate, self.assumed_iv
+            )
+
+        if entry_premium <= 0.0:
+            entry_premium = max(0.01, entry_spot * 0.01)
+
+        stop_loss_threshold = entry_premium * (1.0 - self.stop_loss_pct)
+        take_profit_threshold = entry_premium * (1.0 + self.take_profit_pct)
+
+        # Walk forward
+        exit_premium = entry_premium
+        outcome = "expiry"
+        days_held = self.holding_days
+
+        for day_offset in range(1, self.holding_days + 1):
+            current_date = signal.date + datetime.timedelta(days=day_offset)
+            spot = ticker_prices.get(current_date)
+            if spot is None:
+                continue  # non-trading day
+
+            t_remaining = max(0.0, (self.holding_days - day_offset) / 365.0)
+            if signal.predicted_direction == "bullish":
+                current_premium = bs_call_price(
+                    spot, strike, t_remaining, self.risk_free_rate, self.assumed_iv
+                )
+            else:
+                current_premium = bs_put_price(
+                    spot, strike, t_remaining, self.risk_free_rate, self.assumed_iv
+                )
+
+            if current_premium <= stop_loss_threshold:
+                exit_premium = current_premium
+                outcome = "stop_loss"
+                days_held = day_offset
+                break
+
+            if current_premium >= take_profit_threshold:
+                exit_premium = current_premium
+                outcome = "take_profit"
+                days_held = day_offset
+                break
+
+            exit_premium = current_premium
+
+        pnl = (exit_premium - entry_premium) / entry_premium if entry_premium > 0 else 0.0
+        outcome_label = "win" if pnl > 0 else "loss"
+        if outcome in ("stop_loss", "take_profit"):
+            outcome_label = outcome
+
+        return BacktestTrade(
+            signal=signal,
+            entry_price=entry_premium,
+            exit_price=exit_premium,
+            strategy_pnl=pnl,
+            holding_days=days_held,
+            outcome=outcome_label,
+        )
