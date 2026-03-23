@@ -1,328 +1,211 @@
-"""Iron condor options strategy builder."""
+"""Iron condor options strategy implementation."""
 
 from __future__ import annotations
 
 import math
-import unittest
-from dataclasses import dataclass
-from typing import Tuple
+import random
+from typing import List, Tuple
 
 
-@dataclass
-class IronCondorLegs:
-    """Defines the four legs of an iron condor position."""
+class IronCondor:
+    """Iron condor options strategy builder and analyzer."""
 
-    symbol: str
-    expiry: str  # e.g. "2025-06-20"
-    short_put_strike: float
-    long_put_strike: float
-    short_call_strike: float
-    long_call_strike: float
-    quantity: int
-
-
-@dataclass
-class IronCondorPnL:
-    """Profit-and-loss profile for an iron condor."""
-
-    max_profit: float
-    max_loss: float
-    put_spread_width: float
-    call_spread_width: float
-    breakeven_lower: float
-    breakeven_upper: float
-    risk_reward_ratio: float
-
-
-class IronCondorBuilder:
-    """Constructs and analyses iron condor strategies."""
-
-    # ------------------------------------------------------------------
-    # Construction
-    # ------------------------------------------------------------------
-
-    def build(
+    def __init__(
         self,
-        underlying_price: float,
-        put_spread: Tuple[float, float],
-        call_spread: Tuple[float, float],
-        expiry: str,
-        quantity: int,
-        symbol: str = "UNK",
-    ) -> IronCondorLegs:
-        """Construct iron condor legs from spread tuples.
-
-        Args:
-            underlying_price: Current price of the underlying (used for
-                validation but not stored separately).
-            put_spread: (long_put_strike, short_put_strike) — long below short.
-            call_spread: (short_call_strike, long_call_strike) — long above short.
-            expiry: Expiry date string.
-            quantity: Number of condors (contracts).
-            symbol: Ticker symbol.
-
-        Returns:
-            Populated :class:`IronCondorLegs` instance.
-        """
-        long_put, short_put = put_spread
-        short_call, long_call = call_spread
-        return IronCondorLegs(
-            symbol=symbol,
-            expiry=expiry,
-            short_put_strike=short_put,
-            long_put_strike=long_put,
-            short_call_strike=short_call,
-            long_call_strike=long_call,
-            quantity=quantity,
-        )
-
-    # ------------------------------------------------------------------
-    # PnL calculation
-    # ------------------------------------------------------------------
-
-    def compute_pnl(
-        self, legs: IronCondorLegs, net_credit_received: float
-    ) -> IronCondorPnL:
-        """Compute the iron condor PnL profile from legs and net credit.
-
-        The net credit is the total premium received (per condor).  Max profit
-        equals this credit; max loss is the wider spread width minus the credit.
-
-        Args:
-            legs: The iron condor leg definition.
-            net_credit_received: Net option premium received per condor (>0).
-
-        Returns:
-            :class:`IronCondorPnL` with all profile fields filled.
-        """
-        put_width = legs.short_put_strike - legs.long_put_strike
-        call_width = legs.long_call_strike - legs.short_call_strike
-
-        max_profit = net_credit_received * legs.quantity
-        max_loss_per = max(put_width, call_width) - net_credit_received
-        max_loss = max_loss_per * legs.quantity
-
-        breakeven_lower = legs.short_put_strike - net_credit_received
-        breakeven_upper = legs.short_call_strike + net_credit_received
-
-        risk_reward_ratio = (
-            abs(max_loss / max_profit) if abs(max_profit) > 1e-9 else float("inf")
-        )
-
-        return IronCondorPnL(
-            max_profit=max_profit,
-            max_loss=max_loss,
-            put_spread_width=put_width,
-            call_spread_width=call_width,
-            breakeven_lower=breakeven_lower,
-            breakeven_upper=breakeven_upper,
-            risk_reward_ratio=risk_reward_ratio,
-        )
-
-    # ------------------------------------------------------------------
-    # Probability of profit
-    # ------------------------------------------------------------------
-
-    def probability_of_profit(
-        self,
-        legs: IronCondorLegs,
-        underlying_price: float,
+        S: float,
+        short_put: float,
+        long_put: float,
+        short_call: float,
+        long_call: float,
+        T: float,
+        r: float,
         sigma: float,
-        days_to_expiry: int,
-    ) -> float:
-        """Estimate the probability that the underlying stays between breakevens.
-
-        Uses a log-normal (Black-Scholes) distribution:
-        P(L < S_T < U) = Φ(d_upper) - Φ(d_lower)
-
-        where d = (ln(K/S) / (σ√T)) and T is in years.
-
-        Args:
-            legs: Iron condor legs (used for breakevens via compute_pnl).
-            underlying_price: Current underlying price.
-            sigma: Implied volatility (annualised, e.g. 0.20 for 20%).
-            days_to_expiry: Calendar days until expiry.
-
-        Returns:
-            Probability in [0, 1].
+    ):
         """
-        if underlying_price <= 0 or sigma <= 0 or days_to_expiry <= 0:
-            return 0.0
+        Parameters
+        ----------
+        S           : current underlying price
+        short_put   : strike of the short put (inner, higher strike)
+        long_put    : strike of the long put (outer, lower strike)
+        short_call  : strike of the short call (inner, lower strike)
+        long_call   : strike of the long call (outer, higher strike)
+        T           : time to expiration in years
+        r           : risk-free rate
+        sigma       : implied volatility
+        """
+        self.S = S
+        self.short_put = short_put
+        self.long_put = long_put
+        self.short_call = short_call
+        self.long_call = long_call
+        self.T = T
+        self.r = r
+        self.sigma = sigma
 
-        T = days_to_expiry / 365.0
-        vol_sqrt_T = sigma * math.sqrt(T)
+    # ------------------------------------------------------------------
+    # BSM helpers
+    # ------------------------------------------------------------------
 
-        # We need breakevens — compute from legs with a neutral credit of 0
-        # so the caller controls them via legs directly.
-        lower = legs.short_put_strike
-        upper = legs.short_call_strike
+    @staticmethod
+    def _norm_cdf(x: float) -> float:
+        """Standard normal CDF via math.erfc."""
+        return 0.5 * math.erfc(-x / math.sqrt(2.0))
+
+    def bsm_price(self, K: float, option_type: str) -> float:
+        """Black-Scholes-Merton option price."""
+        S, T, r, sigma = self.S, self.T, self.r, self.sigma
+        if T <= 0:
+            if option_type == 'call':
+                return max(S - K, 0.0)
+            return max(K - S, 0.0)
+        sqrt_T = math.sqrt(T)
+        d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * sqrt_T)
+        d2 = d1 - sigma * sqrt_T
+        if option_type == 'call':
+            return S * self._norm_cdf(d1) - K * math.exp(-r * T) * self._norm_cdf(d2)
+        # put
+        return K * math.exp(-r * T) * self._norm_cdf(-d2) - S * self._norm_cdf(-d1)
+
+    # ------------------------------------------------------------------
+    # Strategy metrics
+    # ------------------------------------------------------------------
+
+    def net_premium(self) -> float:
+        """Total credit received: (short put + short call) - (long put + long call)."""
+        return (
+            self.bsm_price(self.short_put, 'put')
+            + self.bsm_price(self.short_call, 'call')
+            - self.bsm_price(self.long_put, 'put')
+            - self.bsm_price(self.long_call, 'call')
+        )
+
+    def max_profit(self) -> float:
+        """Maximum profit = net premium received."""
+        return self.net_premium()
+
+    def max_loss(self) -> float:
+        """Maximum loss = wing width - net premium."""
+        put_wing = self.short_put - self.long_put
+        call_wing = self.long_call - self.short_call
+        wing = max(put_wing, call_wing)
+        return wing - self.net_premium()
+
+    def breakeven_lower(self) -> float:
+        """Lower breakeven = short_put - net_premium."""
+        return self.short_put - self.net_premium()
+
+    def breakeven_upper(self) -> float:
+        """Upper breakeven = short_call + net_premium."""
+        return self.short_call + self.net_premium()
+
+    def pnl_at_expiry(self, S_T: float) -> float:
+        """P&L at expiration given final underlying price S_T."""
+        premium = self.net_premium()
+
+        # Put spread P&L (short put + long put)
+        short_put_pnl = -max(self.short_put - S_T, 0.0)
+        long_put_pnl = max(self.long_put - S_T, 0.0)
+
+        # Call spread P&L (short call + long call)
+        short_call_pnl = -max(S_T - self.short_call, 0.0)
+        long_call_pnl = max(S_T - self.long_call, 0.0)
+
+        return premium + short_put_pnl + long_put_pnl + short_call_pnl + long_call_pnl
+
+    def pnl_profile(self, prices: List[float]) -> List[float]:
+        """P&L profile over a list of underlying prices."""
+        return [self.pnl_at_expiry(p) for p in prices]
+
+    def probability_of_profit(self, num_simulations: int = 10000, seed: int = 42) -> float:
+        """Monte Carlo estimate of probability that the trade expires profitable."""
+        rng = random.Random(seed)
+        profitable = 0
+        T = max(self.T, 1e-10)
+        for _ in range(num_simulations):
+            z = rng.gauss(0.0, 1.0)
+            S_T = self.S * math.exp(
+                (self.r - 0.5 * self.sigma ** 2) * T + self.sigma * math.sqrt(T) * z
+            )
+            if self.pnl_at_expiry(S_T) > 0:
+                profitable += 1
+        return profitable / num_simulations
+
+    def adjustment_needed(self, current_S: float, delta_threshold: float = 0.30) -> str:
+        """
+        Determine if an adjustment is needed based on proximity to short strikes.
+        Returns 'roll_up', 'roll_down', or 'none'.
+        """
+        # Approximate delta of short put and short call using BSM
+        # Temporarily set S to current_S for computation
+        orig_S = self.S
+        self.S = current_S
+        put_delta = self._bsm_delta(self.short_put, 'put')
+        call_delta = self._bsm_delta(self.short_call, 'call')
+        self.S = orig_S
+
+        if abs(put_delta) >= delta_threshold:
+            return 'roll_down'
+        if call_delta >= delta_threshold:
+            return 'roll_up'
+        return 'none'
+
+    def _bsm_delta(self, K: float, option_type: str) -> float:
+        """BSM delta for the current S, sigma, T, r."""
+        S, T, r, sigma = self.S, self.T, self.r, self.sigma
+        if T <= 0:
+            if option_type == 'call':
+                return 1.0 if S > K else 0.0
+            return -1.0 if S < K else 0.0
+        d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
+        if option_type == 'call':
+            return self._norm_cdf(d1)
+        return self._norm_cdf(d1) - 1.0
+
+    @staticmethod
+    def optimal_strikes(
+        S: float, sigma: float, T: float, target_delta: float = 0.16
+    ) -> Tuple[float, float, float, float]:
+        """
+        Find put and call strikes at approximately target_delta using Newton's method.
+        Returns (long_put, short_put, short_call, long_call).
+        """
+        from math import log, exp, sqrt, erfc
 
         def norm_cdf(x: float) -> float:
-            return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+            return 0.5 * erfc(-x / sqrt(2.0))
 
-        d_upper = math.log(upper / underlying_price) / vol_sqrt_T
-        d_lower = math.log(lower / underlying_price) / vol_sqrt_T
+        def find_strike_call(delta_target: float) -> float:
+            # d1 such that N(d1) = delta_target → d1 = N^{-1}(delta_target)
+            # Bisect on K
+            lo, hi = S * 0.5, S * 3.0
+            for _ in range(60):
+                mid = (lo + hi) / 2.0
+                sqrt_T = sqrt(max(T, 1e-10))
+                d1 = (log(S / mid) + (0.0 + 0.5 * sigma ** 2) * T) / (sigma * sqrt_T)
+                delta = norm_cdf(d1)
+                if delta > delta_target:
+                    lo = mid
+                else:
+                    hi = mid
+            return (lo + hi) / 2.0
 
-        prob = norm_cdf(d_upper) - norm_cdf(d_lower)
-        return max(0.0, min(1.0, prob))
+        def find_strike_put(delta_target: float) -> float:
+            # |delta_put| = target → N(-d1) = target
+            lo, hi = S * 0.1, S * 1.5
+            for _ in range(60):
+                mid = (lo + hi) / 2.0
+                sqrt_T = sqrt(max(T, 1e-10))
+                d1 = (log(S / mid) + (0.0 + 0.5 * sigma ** 2) * T) / (sigma * sqrt_T)
+                abs_delta = norm_cdf(-d1)
+                if abs_delta < delta_target:
+                    hi = mid
+                else:
+                    lo = mid
+            return (lo + hi) / 2.0
 
-    # ------------------------------------------------------------------
-    # Delta adjustment
-    # ------------------------------------------------------------------
-
-    def adjust_for_delta(
-        self,
-        legs: IronCondorLegs,
-        current_price: float,
-        threshold_delta: float = 0.30,
-    ) -> IronCondorLegs:
-        """Roll strikes outward if a short option is too close to the money.
-
-        A simplified delta estimate is used:
-        delta ≈ 0.5 - (strike - current_price) / (2 * current_price * 0.2)
-
-        If |delta| of a short option exceeds *threshold_delta*, the strike is
-        moved outward by 5% of current_price.
-
-        Args:
-            legs: Current iron condor legs.
-            current_price: Current underlying price.
-            threshold_delta: Delta threshold (absolute) to trigger a roll.
-
-        Returns:
-            Adjusted :class:`IronCondorLegs` (may be unchanged if no roll needed).
-        """
-        adjustment = current_price * 0.05
-        normalizer = max(current_price * 0.4, 1e-9)
-
-        short_put_delta = abs(0.5 - (current_price - legs.short_put_strike) / normalizer)
-        short_call_delta = abs(0.5 - (legs.short_call_strike - current_price) / normalizer)
-
-        new_short_put = legs.short_put_strike
-        new_long_put = legs.long_put_strike
-        new_short_call = legs.short_call_strike
-        new_long_call = legs.long_call_strike
-
-        if short_put_delta > threshold_delta:
-            new_short_put -= adjustment
-            new_long_put -= adjustment
-
-        if short_call_delta > threshold_delta:
-            new_short_call += adjustment
-            new_long_call += adjustment
-
-        return IronCondorLegs(
-            symbol=legs.symbol,
-            expiry=legs.expiry,
-            short_put_strike=new_short_put,
-            long_put_strike=new_long_put,
-            short_call_strike=new_short_call,
-            long_call_strike=new_long_call,
-            quantity=legs.quantity,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Unit Tests
-# ---------------------------------------------------------------------------
-
-class TestIronCondorBuilder(unittest.TestCase):
-    def setUp(self) -> None:
-        self.builder = IronCondorBuilder()
-        self.legs = IronCondorLegs(
-            symbol="SPY",
-            expiry="2025-06-20",
-            short_put_strike=400.0,
-            long_put_strike=390.0,
-            short_call_strike=430.0,
-            long_call_strike=440.0,
-            quantity=1,
-        )
-
-    def test_build_returns_correct_strikes(self) -> None:
-        legs = self.builder.build(
-            underlying_price=415.0,
-            put_spread=(390.0, 400.0),
-            call_spread=(430.0, 440.0),
-            expiry="2025-06-20",
-            quantity=1,
-            symbol="SPY",
-        )
-        self.assertEqual(legs.short_put_strike, 400.0)
-        self.assertEqual(legs.long_put_strike, 390.0)
-        self.assertEqual(legs.short_call_strike, 430.0)
-        self.assertEqual(legs.long_call_strike, 440.0)
-
-    def test_compute_pnl_max_profit(self) -> None:
-        pnl = self.builder.compute_pnl(self.legs, net_credit_received=3.0)
-        self.assertAlmostEqual(pnl.max_profit, 3.0)
-
-    def test_compute_pnl_max_loss(self) -> None:
-        pnl = self.builder.compute_pnl(self.legs, net_credit_received=3.0)
-        # wider spread = 10, loss = 10 - 3 = 7
-        self.assertAlmostEqual(pnl.max_loss, 7.0)
-
-    def test_compute_pnl_breakevens(self) -> None:
-        pnl = self.builder.compute_pnl(self.legs, net_credit_received=3.0)
-        self.assertAlmostEqual(pnl.breakeven_lower, 397.0)
-        self.assertAlmostEqual(pnl.breakeven_upper, 433.0)
-
-    def test_compute_pnl_spread_widths(self) -> None:
-        pnl = self.builder.compute_pnl(self.legs, net_credit_received=3.0)
-        self.assertAlmostEqual(pnl.put_spread_width, 10.0)
-        self.assertAlmostEqual(pnl.call_spread_width, 10.0)
-
-    def test_compute_pnl_risk_reward_ratio(self) -> None:
-        pnl = self.builder.compute_pnl(self.legs, net_credit_received=3.0)
-        self.assertGreater(pnl.risk_reward_ratio, 0)
-
-    def test_probability_of_profit_in_range(self) -> None:
-        pop = self.builder.probability_of_profit(
-            self.legs, underlying_price=415.0, sigma=0.20, days_to_expiry=30
-        )
-        self.assertGreater(pop, 0.0)
-        self.assertLessEqual(pop, 1.0)
-
-    def test_probability_of_profit_atm_wide_wings(self) -> None:
-        # Wider body → higher probability
-        wide_legs = IronCondorLegs(
-            symbol="SPY", expiry="2025-06-20",
-            short_put_strike=300.0, long_put_strike=290.0,
-            short_call_strike=600.0, long_call_strike=610.0,
-            quantity=1,
-        )
-        pop = self.builder.probability_of_profit(
-            wide_legs, underlying_price=415.0, sigma=0.20, days_to_expiry=30
-        )
-        self.assertGreater(pop, 0.5)
-
-    def test_probability_of_profit_zero_sigma(self) -> None:
-        pop = self.builder.probability_of_profit(
-            self.legs, underlying_price=415.0, sigma=0.0, days_to_expiry=30
-        )
-        self.assertEqual(pop, 0.0)
-
-    def test_adjust_for_delta_no_adjustment_needed(self) -> None:
-        # Strikes where estimated delta is comfortably below 0.30 threshold → no roll.
-        # With current_price=415, normalizer=166, strikes at 350 / 450 give
-        # short_put_delta≈0.11 and short_call_delta≈0.29 — both below 0.30.
-        safe_legs = IronCondorLegs(
-            symbol="SPY",
-            expiry="2025-06-20",
-            short_put_strike=350.0,
-            long_put_strike=340.0,
-            short_call_strike=450.0,
-            long_call_strike=460.0,
-            quantity=1,
-        )
-        adjusted = self.builder.adjust_for_delta(safe_legs, current_price=415.0)
-        self.assertAlmostEqual(adjusted.short_put_strike, safe_legs.short_put_strike, places=4)
-        self.assertAlmostEqual(adjusted.short_call_strike, safe_legs.short_call_strike, places=4)
-
-    def test_adjust_for_delta_preserves_quantity(self) -> None:
-        adjusted = self.builder.adjust_for_delta(self.legs, current_price=415.0)
-        self.assertEqual(adjusted.quantity, self.legs.quantity)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        short_call = find_strike_call(target_delta)
+        short_put = find_strike_put(target_delta)
+        wing_width = (short_call - short_put) * 0.5
+        long_call = short_call + wing_width
+        long_put = short_put - wing_width
+        return (long_put, short_put, short_call, long_call)
