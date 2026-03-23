@@ -519,8 +519,9 @@ class MarketImpactEstimator:
         if ssxx < 1e-15:
             return 0.0, 0.0
         slope = ssxy / ssxx
+        intercept = my - slope * mx
         # R²
-        y_hat = [mx + slope * (xi - mx) for xi in x]
+        y_hat = [intercept + slope * xi for xi in x]
         ss_res = sum((yi - yhi) ** 2 for yi, yhi in zip(y, y_hat))
         ss_tot = sum((yi - my) ** 2 for yi in y)
         r2 = 1.0 - ss_res / ss_tot if ss_tot > 1e-15 else 0.0
@@ -722,11 +723,16 @@ class LiquidityScore:
         # Open interest from options chain or market info
         oi = None
         if isinstance(chain, dict):
-            oi = chain.get("avg_open_interest") or (
-                (market_data.get("call_oi", 0) or 0) + (market_data.get("put_oi", 0) or 0)
-            )
+            raw_oi = chain.get("avg_open_interest")
+            if raw_oi is None:
+                call_oi = market_data.get("call_oi")
+                put_oi = market_data.get("put_oi")
+                if call_oi is not None or put_oi is not None:
+                    raw_oi = (call_oi or 0) + (put_oi or 0)
+            oi = raw_oi if raw_oi else None  # treat 0 as "unknown"
 
         volume = market_data.get("volume") or market_data.get("avg_volume")
+        volume = volume if volume else None  # treat 0 as "unknown"
 
         return self.score(
             symbol=symbol,

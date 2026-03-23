@@ -221,9 +221,14 @@ class TestPriceDiscoveryMetric:
         assert isinstance(result.is_contemporaneous, bool)
 
     def test_perfect_correlation_at_zero_lag(self):
+        # Use a non-monotone oscillating series so the max correlation
+        # genuinely peaks at lag=0 (shifted copies are less correlated).
+        import math as _math
         n = 30
-        s = list(range(n))
+        s = [_math.sin(i * 0.7) + _math.cos(i * 1.3) for i in range(n)]
         result = self.metric.compute("SPY", s, s)
+        # At lag=0 the series is identical → correlation = 1.0;
+        # for any non-zero lag the series differ, so lag=0 should win.
         assert result.optimal_lag == 0
         assert abs(result.max_correlation - 1.0) < 0.01
 
@@ -247,13 +252,15 @@ class TestMarketImpactEstimator:
         assert result.r_squared == 0.0
 
     def test_perfect_linear_relationship(self):
-        # price_change = 0.05 * flow
-        flows = [100.0, 200.0, 300.0, 400.0, 500.0]
+        # price_change = 0.05 * flow  → lambda=0.05, R²=1.0
+        # Use 10+ points so OLS is well-determined
+        flows = [float(i * 100) for i in range(1, 11)]
         changes = [f * 0.05 for f in flows]
         result = self.estimator.estimate("AAPL", flows, changes)
         assert result.lambda_value == pytest.approx(0.05, rel=0.01)
         assert result.r_squared > 0.99
-        assert result.interpretation == "low"  # 0.05 is between low(0.01) and high(0.10)?
+        # 0.01 < 0.05 < 0.10 → "medium" illiquidity
+        assert result.interpretation == "medium"
 
     def test_high_lambda_interpretation(self):
         flows = [10.0, 20.0, 30.0, 40.0, 50.0]
