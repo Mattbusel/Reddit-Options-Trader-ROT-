@@ -9,6 +9,13 @@ from rot.flow.convergence import ConvergenceDetector
 from rot.flow.detector import FlowDetector
 from rot.flow.greeks import GreeksEngine
 from rot.flow.history import FlowHistory
+from rot.flow.intelligence import (
+    FlowAnalysis,
+    FlowSignalIntegrator,
+    FlowType,
+    OptionsFlowEvent,
+    Sentiment,
+)
 from rot.flow.patterns import FlowPatternRecognizer
 from rot.flow.types import (
     FlowEvent,
@@ -21,6 +28,7 @@ from rot.flow.types import (
 
 __all__ = [
     "ConvergenceDetector",
+    "FlowAnalysis",
     "FlowDetector",
     "FlowEvent",
     "FlowHistory",
@@ -28,7 +36,11 @@ __all__ = [
     "FlowPatternRecognizer",
     "FlowScore",
     "FlowSignalConvergence",
+    "FlowSignalIntegrator",
     "FlowSummary",
+    "FlowType",
     "GreeksEngine",
     "GreeksSnapshot",
+    "OptionsFlowEvent",
+    "Sentiment",
 ]
