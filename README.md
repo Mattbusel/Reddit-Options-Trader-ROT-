@@ -14,6 +14,56 @@
 
 ---
 
+## Round 6 Features
+
+### Options Chain Analyzer (`src/rot/analytics/chain_analyzer.py`)
+
+Fetches and analyses the full options chain for any ticker via yfinance.
+
+| Class / Type | Role |
+|---|---|
+| `OptionQuote` | Single contract: `strike`, `bid`, `ask`, `mid`, `iv`, `delta`, `gamma`, `theta`, `open_interest`, `volume` |
+| `ChainSnapshot` | Full chain for one expiry: `ticker`, `spot_price`, `expiry`, `calls`, `puts`, `timestamp` |
+| `ChainAnalyzer` | `fetch_chain(ticker, expiry_target_days=30)`, `max_pain(snapshot)`, `put_call_ratio(snapshot)`, `skew(snapshot)` |
+
+**API route:** `GET /api/v1/options/chain/{ticker}?expiry_days=30` — returns max-pain, PCR, IV skew, and the full call/put quote list.
+
+```python
+from rot.analytics.chain_analyzer import ChainAnalyzer
+
+analyzer = ChainAnalyzer()
+snapshot = analyzer.fetch_chain("AAPL", expiry_target_days=30)
+print(analyzer.max_pain(snapshot))       # e.g. 190.0
+print(analyzer.put_call_ratio(snapshot)) # e.g. 1.2
+print(analyzer.skew(snapshot))           # e.g. 0.05 (5 pp)
+```
+
+### Watchlist Manager (`src/rot/watchlist.py`)
+
+SQLite-backed persistent watchlist with async CRUD and price-alert detection.
+
+| Class / Type | Role |
+|---|---|
+| `WatchlistItem` | Item: `ticker`, `added_date`, `tags`, `notes`, `alert_price` |
+| `Watchlist` | `add(item)`, `remove(ticker)`, `list()`, `get(ticker)`, `tag_filter(tag)`, `check_alerts(prices)` |
+
+**API routes:**
+- `GET /watchlist` — HTML dashboard page
+- `GET /api/v1/watchlist` — JSON list of all items
+- `POST /api/v1/watchlist` — add an item
+- `DELETE /api/v1/watchlist/{ticker}` — remove an item
+
+```python
+from rot.watchlist import Watchlist, WatchlistItem
+
+wl = Watchlist("watchlist.db")
+await wl.init()
+await wl.add(WatchlistItem(ticker="AAPL", tags=["tech"], alert_price=180.0))
+alerts = await wl.check_alerts({"AAPL": 175.0})  # returns AAPL item
+```
+
+---
+
 ## Round 5 Features
 
 ### Reddit Signal Backtester (`src/rot/backtest/options_backtest.py` — Round 5 additions)
