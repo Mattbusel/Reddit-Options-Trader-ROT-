@@ -1,10 +1,26 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from rot.core.types import Event, OptionLeg, ReasoningPacket, Strategy, TradeIdea
 from rot.market.gates import check_trade_gates
+
+# ── Deduplication ────────────────────────────────────────
+
+# TTL for trade idea deduplication (seconds)
+_DEDUP_TTL_S = 15 * 60  # 15 minutes
+
+
+def _dedup_key(underlying: str, strategy: str, legs: List[OptionLeg]) -> str:
+    """Build a stable deduplication key from (ticker, strategy_type, strike).
+
+    Uses the primary leg's strike (first leg in the list) as the strike
+    component.  Returns a colon-separated string.
+    """
+    primary_strike = legs[0].strike if legs else "none"
+    return f"{underlying}:{strategy}:{primary_strike}"
 
 
 def _next_friday() -> str:
@@ -52,6 +68,8 @@ class TradeBuilder:
                 trade idea is generated.  Defaults to $100 million.
         """
         self.min_market_cap = min_market_cap
+        # Deduplication cache: key → expiry timestamp
+        self._dedup_cache: Dict[str, float] = {}
 
     # Minimum liquidity thresholds for options chain filtering
     MIN_OPTION_VOLUME = 10       # minimum daily volume
@@ -123,6 +141,13 @@ class TradeBuilder:
 
         if strategy == "none":
             return [self._no_trade(underlying, packet.thesis, ["no_matching_strategy"])]
+
+        # Deduplication: suppress duplicate (ticker, strategy, strike) within TTL
+        if self._is_duplicate(underlying, strategy, legs):
+            return [self._no_trade(underlying, packet.thesis, ["duplicate_trade_idea"])]
+
+        # Register in dedup cache
+        self._register_dedup(underlying, strategy, legs)
 
         # Calculate max loss
         max_loss = self._estimate_max_loss(strategy, legs, price)
@@ -331,6 +356,27 @@ class TradeBuilder:
             issues.append("wide_bid_ask_spread")
 
         return issues
+
+    # ── Deduplication helpers ────────────────────────────
+
+    def _is_duplicate(self, underlying: str, strategy: str, legs: List[OptionLeg]) -> bool:
+        """Return ``True`` if this (ticker, strategy, strike) was emitted within the TTL.
+
+        Stale entries are evicted before the check to bound cache growth.
+        """
+        now = time.time()
+        # Evict expired entries
+        expired = [k for k, exp in self._dedup_cache.items() if exp <= now]
+        for k in expired:
+            del self._dedup_cache[k]
+
+        key = _dedup_key(underlying, strategy, legs)
+        return key in self._dedup_cache
+
+    def _register_dedup(self, underlying: str, strategy: str, legs: List[OptionLeg]) -> None:
+        """Register a trade idea in the deduplication cache with a 15-minute TTL."""
+        key = _dedup_key(underlying, strategy, legs)
+        self._dedup_cache[key] = time.time() + _DEDUP_TTL_S
 
     def _no_trade(self, underlying: str, thesis: str, reasons: List[str]) -> TradeIdea:
         return TradeIdea(

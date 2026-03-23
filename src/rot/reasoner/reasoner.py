@@ -83,6 +83,19 @@ class Reasoner:
         """``True`` if the LLM client was initialised with a valid API key."""
         return self._llm is not None
 
+    def reset(self) -> None:
+        """Clear stale circuit-breaker failure state.
+
+        Call this on process startup (or after a deployment) to ensure that
+        failure counts accumulated in a previous process run are not inherited.
+        After calling ``reset()`` the reasoner will attempt live LLM calls
+        again (subject to ``_max_failures``).
+
+        This is a no-op when no LLM client is configured (stub-only mode).
+        """
+        self._consecutive_failures = 0
+        log.info("Reasoner circuit breaker reset: failure count cleared.")
+
     def reason(self, event: Event) -> ReasoningPacket:
         """Produce a reasoning packet for a market event.
 

@@ -85,6 +85,9 @@ def main() -> None:
         top_n=cfg.trend.top_n,
     )
 
+    # Clear any stale circuit-breaker state from previous runs
+    reasoner.reset()
+
     if reasoner.llm_available:
         log.info("LLM reasoning: ACTIVE")
     else:

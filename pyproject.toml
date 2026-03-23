@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rot"
-version = "1.0.0"
+version = "1.1.0"
 description = "Reddit Options Trader -- real-time Reddit signal intelligence platform for options trade ideas"
 readme = "README.md"
 license = { text = "MIT" }

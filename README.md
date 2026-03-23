@@ -183,6 +183,90 @@ src/rot/
 tests/           201 files, 92,000+ lines, 6,900+ test functions
 ```
 
+### Options Greeks Calculator
+
+`src/rot/flow/greeks.py` provides two complementary Greeks APIs:
+
+**`GreeksEngine`** (pure-Python, zero extra dependencies) — original implementation used internally throughout the pipeline.
+
+**`BlackScholesGreeks` / `OptionGreeks` / `GreeksCalculator` / `SpreadGreeks`** — higher-level API that uses `scipy.stats.norm` for N(d1)/N(d2) when scipy is installed, with a pure-Python fallback.
+
+```python
+from rot.flow.greeks import BlackScholesGreeks, GreeksCalculator, SpreadGreeks
+
+# Single option
+bsg = BlackScholesGreeks(risk_free_rate=0.05)
+og = bsg.all_greeks(S=150, K=155, T=0.25, sigma=0.30, option_type="call")
+
+# Strike/DTE-based calculator
+calc = GreeksCalculator(strike=155, dte_days=30, spot=150, volatility=0.28)
+og = calc.compute("call")
+
+# Spread aggregation
+spread = SpreadGreeks(spot=150)
+bull_spread = spread.bull_call_spread(long_strike=150, short_strike=160, dte_days=30, volatility=0.25)
+straddle = spread.straddle(strike=150, dte_days=30, volatility=0.30)
+```
+
+Supported spread types: `bull_call_spread`, `bear_put_spread`, `straddle`, and arbitrary multi-leg via `aggregate(legs)`.
+
+---
+
+### User Reputation System
+
+`src/rot/credibility/user_reputation.py` builds a per-user reputation score from Reddit metadata and integrates with the credibility pipeline.
+
+**Scoring components:**
+
+| Component | Weight | Notes |
+|---|---|---|
+| Karma (log-normalised) | 30% | `log1p(karma) / log1p(1_000_000)` |
+| Account age | 20% | < 30 days = 0.10 → >= 730 days = 1.0 |
+| Historical accuracy | 35% | Win-rate of past option calls (defaults to 0.5) |
+| Manipulation flag | 15% | Zeroed when flagged by `ManipulationDetector` |
+
+```python
+from rot.credibility.user_reputation import UserReputationScorer
+
+scorer = UserReputationScorer()
+rep = scorer.score("wsb_user", karma=45_000, account_age_days=730, accuracy_ratio=0.62)
+adjusted_confidence = scorer.apply_to_confidence(raw_confidence, "wsb_user")
+```
+
+The `ReputationStore` provides an in-process persistence layer with `upsert` / `get` / `all` operations suitable for wiring into the existing SQLite storage layer.
+
+---
+
+### Multi-Timeframe Signal Aggregation
+
+`src/rot/strategy/timeframe_aggregator.py` collects signals from six timeframes and produces an alignment-aware composite score.
+
+**Timeframe weight schema:**
+
+| Timeframe | Weight |
+|---|---|
+| 1m | 0.05 |
+| 5m | 0.10 |
+| 15m | 0.15 |
+| 1h | 0.25 |
+| 4h | 0.20 |
+| 1d | 0.25 |
+
+**Alignment multipliers:** `FULL_ALIGN` (+20%), `PARTIAL_ALIGN` (+5%), `DIVERGENT` (-20%).
+
+```python
+from rot.strategy.timeframe_aggregator import TimeframeAggregator, TimeframeSignal
+
+agg = TimeframeAggregator()
+agg.add(TimeframeSignal(ticker="AAPL", timeframe="1h", signal="bullish", confidence=0.75, timestamp=...))
+agg.add(TimeframeSignal(ticker="AAPL", timeframe="4h", signal="bullish", confidence=0.80, timestamp=...))
+result = agg.composite_score("AAPL")
+# result.alignment → TimeframeAlignment.FULL_ALIGN / PARTIAL_ALIGN / DIVERGENT
+# result.score → alignment-adjusted composite confidence
+```
+
+---
+
 ### Security
 
 | Control | Implementation |
