@@ -260,6 +260,152 @@ All environment variables are optional unless marked **required**.
 
 ---
 
+## Options Chain Integration
+
+ROT enriches every trade idea with live options chain data from Yahoo Finance
+(no API key required).  Two modules handle this:
+
+### `rot.options.chain` -- Core chain fetcher and enricher
+
+```python
+from rot.options.chain import OptionsChainFetcher, TradeIdeaEnricher
+
+# Fetch the best-liquidity chain for a ticker
+fetcher = OptionsChainFetcher(min_open_interest=100)
+chain = fetcher.fetch("NVDA", direction="bullish", dte_min=7, dte_max=60)
+
+if chain:
+    print(f"Expiry: {chain.expiry}")
+    print(f"Underlying: ${chain.underlying_price:.2f}")
+    best_call = chain.best_call(delta_target=0.40)
+    if best_call:
+        print(f"Best call: ${best_call.strike} @ ${best_call.ask:.2f} bid/ask "
+              f"IV={best_call.iv:.1%} OI={best_call.open_interest}")
+```
+
+### Enriching a trade idea dict
+
+```python
+enricher = TradeIdeaEnricher(fetcher)
+result = enricher.enrich_dict({
+    "underlying": "NVDA",
+    "strategy": "debit_spread",
+    "stance": "bullish",
+})
+enriched = result["enriched"]
+print(f"Long strike:  ${enriched['long_strike']}")
+print(f"Short strike: ${enriched['short_strike']}")
+print(f"Cost (debit): ${enriched['cost_estimate_usd']:.2f} per contract")
+print(f"Max loss:     ${enriched['max_loss_usd']:.2f}")
+print(f"Max profit:   ${enriched['max_profit_usd']:.2f}")
+print(f"IV rank:      {enriched['iv_rank']:.1f}")
+```
+
+### Example enriched output
+
+```json
+{
+  "underlying": "NVDA",
+  "strategy": "debit_spread",
+  "stance": "bullish",
+  "enriched": {
+    "selected_expiry": "2026-04-17",
+    "underlying_price": 875.50,
+    "long_strike": 875.0,
+    "short_strike": 920.0,
+    "long_premium": 18.40,
+    "short_premium": 7.20,
+    "cost_estimate_usd": 1120.00,
+    "max_loss_usd": 1120.00,
+    "max_profit_usd": 3380.00,
+    "long_iv": 0.4231,
+    "long_delta": 0.412,
+    "iv_rank": 68.4,
+    "chain_fetched_at": "2026-03-22T10:30:00+00:00",
+    "enrichment_status": "ok"
+  }
+}
+```
+
+### `rot.options.live_chain` -- Single-contract best-fit finder
+
+```python
+from rot.options.live_chain import LiveOptionsChain
+
+chain = LiveOptionsChain("AAPL")
+analysis = chain.best_contract(
+    direction="bearish",
+    dte_min=14,
+    dte_max=45,
+    delta_target=0.35,
+    min_open_interest=200,
+)
+print(analysis.to_dict())
+```
+
+---
+
+## Signal Quality Dashboard
+
+The Signal Quality Dashboard at `/signal-quality` (Pro+ tier) shows:
+
+- **Category Performance Heatmap** -- win rate by event type and stance
+- **Source Reliability** -- per-source win rate and average confidence
+- **ML Feature Importance** -- top 10 features driving the credibility score
+- **Quality Trend** -- rolling accuracy over time
+- **Suppression Candidates** -- sources consistently producing false signals
+- **Confidence Calibration** -- predicted confidence vs actual accuracy curves
+
+### Signal Quality API
+
+**Endpoint:** `GET /api/v1/signals/quality`
+
+**Tier gate:** Pro and above.
+
+```bash
+curl -H "Authorization: Bearer YOUR_JWT" \
+     https://rot.up.railway.app/api/v1/signals/quality
+```
+
+**Response (SignalQualityReport):**
+
+```json
+{
+  "total_signals": 412,
+  "decided_signals": 318,
+  "accuracy_pct": 61.3,
+  "avg_return_if_followed": 2.14,
+  "top_tickers": [
+    {"ticker": "NVDA", "win_rate": 0.78, "count": 23},
+    {"ticker": "MSFT", "win_rate": 0.71, "count": 17}
+  ],
+  "worst_tickers": [
+    {"ticker": "TSLA", "win_rate": 0.31, "count": 16},
+    {"ticker": "GME",  "win_rate": 0.28, "count": 11}
+  ],
+  "by_strategy": {
+    "debit_spread": {"win_rate": 0.60, "count": 89},
+    "straddle":     {"win_rate": 0.52, "count": 44}
+  },
+  "by_stance": {
+    "bullish": {"win_rate": 0.63, "count": 210},
+    "bearish": {"win_rate": 0.58, "count": 108}
+  },
+  "source_reliability": [
+    {"source": "sec_8k", "win_rate": 0.81, "count": 32, "avg_confidence": 0.87}
+  ],
+  "computed_at": "2026-03-22T10:30:00+00:00"
+}
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `min_sample` | integer | `3` | Minimum decided signals for a ticker to appear in rankings |
+
+---
+
 ## API Reference
 
 The full interactive API reference is at `/docs` (Swagger UI) or `/redoc` on a
@@ -267,8 +413,9 @@ running server. Key endpoint groups:
 
 | Group | Path prefix | Description |
 |---|---|---|
-| Health | `/api/health` | Service health, version, uptime |
-| Signals | `/api/signals` | Live and historical trade signal feed |
+| Health | `/api/v1/health` | Service health, version, uptime |
+| Signals | `/api/v1/signals` | Live and historical trade signal feed |
+| Signal Quality | `/api/v1/signals/quality` | Accuracy statistics and per-ticker performance (Pro+) |
 | Dashboard | `/dashboard` | Web UI -- real-time signal stream |
 | Backtesting | `/backtest` | Run and compare backtests |
 | Strategy | `/strategy` | Strategy builder, ML optimizer, marketplace |
@@ -511,7 +658,9 @@ pytest tests/ -n auto -q --tb=short
 
 ---
 
-## Running in Production (Docker)
+## Deployment Guide
+
+### Docker Compose (self-hosted)
 
 ```bash
 git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
@@ -521,6 +670,11 @@ docker compose up --build -d
 docker compose logs -f rot
 ```
 
+`docker-compose.yml` runs a single `rot` service that binds to port 8000.
+SQLite state is stored in a named volume (`rot_data`) for persistence across
+restarts.  To scale horizontally, point `ROT_STORAGE_ROOT` at a shared NFS
+mount or S3-compatible object store (not included in the base config).
+
 **Production checklist:**
 
 - Set `ROT_SECRET_KEY` to a randomly generated 32+ character string.
@@ -529,6 +683,33 @@ docker compose logs -f rot
 - Place the app behind a reverse proxy (nginx, Caddy, Railway).
 - Set `ROT_ENV=production` to enforce secret-key validation at startup.
 - Broker integration defaults to paper trading (`ALPACA_PAPER=true`). Do not change this unless you have fully validated the system.
+
+### Railway (one-click cloud deployment)
+
+ROT ships a `railway.toml` and `Procfile` for zero-config Railway deployment:
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway link          # link to your project or create a new one
+railway up            # build and deploy from the current directory
+```
+
+Railway environment variables to set in the dashboard:
+
+| Variable | Description |
+|---|---|
+| `ROT_REDDIT_CLIENT_ID` | Reddit API client ID |
+| `ROT_REDDIT_CLIENT_SECRET` | Reddit API client secret |
+| `ROT_LLM_API_KEY` | Optional LLM key (leave empty for stub mode) |
+| `ROT_SECRET_KEY` | 32+ char random secret |
+| `RAILWAY_VOLUME_MOUNT_PATH` | Set to `/data` and attach a Railway Volume |
+
+The live public deployment runs at:
+**[rot.up.railway.app](https://web-production-71423.up.railway.app/)**
 
 ---
 

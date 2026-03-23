@@ -349,13 +349,14 @@ def register_routes(app: FastAPI):
     # ── Analytics ─────────────────────────────────────────────────────
     from rot.web.routes import (
         performance, accuracy_breakdown, confidence_calibration,
-        signal_quality, correlations, unusual_activity, flow, social,
+        signal_quality, signal_quality_api, correlations, unusual_activity, flow, social,
         sector_rotation, sentiment,
     )
     app.include_router(performance.router, tags=["analytics"])
     app.include_router(accuracy_breakdown.router, tags=["analytics"])
     app.include_router(confidence_calibration.router, tags=["analytics"])
     app.include_router(signal_quality.router, tags=["analytics"])
+    app.include_router(signal_quality_api.router, prefix="/api/v1", tags=["analytics"])
     app.include_router(correlations.router, tags=["analytics"])
     app.include_router(unusual_activity.router, tags=["analytics"])
     app.include_router(flow.router, tags=["analytics"])
