@@ -75,6 +75,72 @@ python -m rot.app.main
 
 ---
 
+## Round 3 Features
+
+### IV Rank Calculator (`src/rot/analytics/iv_rank.py`)
+
+`IVRankCalculator` fetches the live options chain via yfinance and inverts ATM option prices to implied volatility using Newton-Raphson Black-Scholes-Merton inversion. It then computes IV rank and IV percentile from a rolling 252-day IV history derived from realized volatility.
+
+| Class / Type | Role |
+|---|---|
+| `IVRankCalculator` | Orchestrates fetch, inversion, and rank computation |
+| `IVData` | Output: symbol, current_iv, iv_52w_high/low, iv_rank, iv_percentile, iv_mean_30d, classification |
+| `IVRegime` | `IV_CRUSH_ZONE` (rank>80), `NORMAL` (20-80), `IV_EXPANSION_ZONE` (rank<20) |
+
+```python
+from rot.analytics.iv_rank import IVRankCalculator
+
+calc = IVRankCalculator(risk_free_rate=0.05)
+data = calc.analyze("AAPL")
+
+print(data.iv_rank)          # e.g. 63.4
+print(data.iv_percentile)    # e.g. 58.7
+print(data.classification)   # IVRegime.NORMAL
+
+# Batch mode
+results = calc.analyze_batch(["AAPL", "TSLA", "SPY"])
+```
+
+IV rank formula: `iv_rank = (current_iv - iv_52w_low) / (iv_52w_high - iv_52w_low) * 100`
+
+The Newton-Raphson BSM inversion converges in fewer than 10 iterations for typical market prices. ATM calls within 4 strikes of spot are used; the median IV is returned. Falls back to yfinance's own `impliedVolatility` field if inversion fails.
+
+---
+
+### Strategy Screener (`src/rot/screener.py`)
+
+`StrategyScreener` scans a watchlist for five options strategies, scores each candidate by a weighted combination of IV rank (40 %), volume (20 %), open interest (20 %), and edge estimate (20 %), and returns results sorted by score descending.
+
+| Class / Type | Role |
+|---|---|
+| `StrategyScreener` | Main scanner: `scan(watchlist, criteria)`, `scan_top(watchlist, criteria, top_n)` |
+| `ScreenCriteria` | Filter: min/max IV rank, min volume, min OI, min/max DTE |
+| `ScreenResult` | Output: symbol, strategy, score (0–100), details dict |
+| `Strategy` | `CoveredCall`, `CashSecuredPut`, `IronCondor`, `BullPutSpread`, `BearCallSpread` |
+
+```python
+from rot.screener import StrategyScreener, ScreenCriteria
+
+screener = StrategyScreener()
+criteria = ScreenCriteria(
+    min_iv_rank=40.0,       # only sell premium when IV rank >= 40
+    max_iv_rank=90.0,
+    min_volume=100,
+    min_open_interest=500,
+    min_days_to_expiry=14,
+    max_days_to_expiry=60,
+)
+
+results = screener.scan(["AAPL", "TSLA", "SPY", "QQQ"], criteria)
+for r in results[:5]:
+    print(f"{r.symbol:6} {r.strategy.value:20} score={r.score:.1f}  "
+          f"iv_rank={r.details['iv_rank']}")
+```
+
+`IronCondor` scoring penalises IV rank below 50 because the strategy needs rich premium on both wings. `BullPutSpread` and `BearCallSpread` apply a floor boost so they surface in moderate-IV environments too.
+
+---
+
 ## Architecture
 
 ### 9-Stage Signal Pipeline
