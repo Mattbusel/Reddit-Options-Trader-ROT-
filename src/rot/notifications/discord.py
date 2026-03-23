@@ -36,13 +36,77 @@ Typical usage::
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
-from typing import Any, Dict, Optional
+import time
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import httpx
 
+if TYPE_CHECKING:
+    from rot.portfolio.positions import OptionsPosition, PortfolioGreeks
+
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# AlertLevel — colour-coded severity tiers
+# ---------------------------------------------------------------------------
+
+class AlertLevel(str, Enum):
+    """Severity level for ROT Discord alerts."""
+    INFO = "info"           # blue  (#3498db)
+    WARNING = "warning"     # yellow (#f1c40f)
+    CRITICAL = "critical"   # red   (#e74c3c)
+
+    @property
+    def colour(self) -> int:
+        """Discord embed colour as a decimal integer."""
+        return {
+            AlertLevel.INFO: 0x3498DB,
+            AlertLevel.WARNING: 0xF1C40F,
+            AlertLevel.CRITICAL: 0xE74C3C,
+        }[self]
+
+    @property
+    def label(self) -> str:
+        return {
+            AlertLevel.INFO: "INFO",
+            AlertLevel.WARNING: "WARNING",
+            AlertLevel.CRITICAL: "CRITICAL",
+        }[self]
+
+
+# ---------------------------------------------------------------------------
+# Token-bucket rate limiter (max 5 messages per 5 seconds)
+# ---------------------------------------------------------------------------
+
+class _TokenBucket:
+    """Thread-safe token bucket for rate limiting."""
+
+    def __init__(self, capacity: int = 5, refill_period_s: float = 5.0) -> None:
+        self._capacity = capacity
+        self._tokens = float(capacity)
+        self._refill_period = refill_period_s
+        self._last_refill = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> bool:
+        """Try to consume one token.  Returns True if allowed, False if rate-limited."""
+        async with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_refill
+            # Refill tokens based on elapsed time
+            refill = elapsed / self._refill_period * self._capacity
+            self._tokens = min(self._capacity, self._tokens + refill)
+            self._last_refill = now
+
+            if self._tokens >= 1.0:
+                self._tokens -= 1.0
+                return True
+            return False
 
 # Stance -> Discord embed colour (decimal)
 _COLOUR = {
@@ -73,6 +137,8 @@ class DiscordNotifier:
         self,
         webhook_url: Optional[str] = None,
         timeout: float = 10.0,
+        rate_limit_capacity: int = 5,
+        rate_limit_period_s: float = 5.0,
     ) -> None:
         url = webhook_url or os.environ.get(_ENV_VAR, "")
         if not url:
@@ -82,6 +148,10 @@ class DiscordNotifier:
             )
         self._url = url
         self._timeout = timeout
+        self._rate_limiter = _TokenBucket(
+            capacity=rate_limit_capacity,
+            refill_period_s=rate_limit_period_s,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -198,6 +268,125 @@ class DiscordNotifier:
         return await self._post({"embeds": [embed]})
 
     # ------------------------------------------------------------------
+    # Round 4 alert API
+    # ------------------------------------------------------------------
+
+    async def send_signal_alert(
+        self,
+        signal: str,
+        ticker: str,
+        confidence: float,
+        level: AlertLevel = AlertLevel.INFO,
+        notes: str = "",
+    ) -> bool:
+        """Send a rich signal alert embed.
+
+        Args:
+            signal:     Signal label, e.g. ``"bull_call_spread detected"``.
+            ticker:     Underlying ticker symbol.
+            confidence: Signal confidence in [0.0, 1.0].
+            level:      :class:`AlertLevel` severity (default INFO).
+            notes:      Optional analyst notes (≤500 chars).
+
+        Returns:
+            ``True`` if the webhook accepted the message.
+        """
+        fields: List[Dict[str, Any]] = [
+            {"name": "Signal", "value": signal, "inline": True},
+            {"name": "Ticker", "value": ticker, "inline": True},
+            {"name": "Confidence", "value": f"{confidence:.1%}", "inline": True},
+            {"name": "Severity", "value": level.label, "inline": True},
+        ]
+        if notes:
+            fields.append({"name": "Notes", "value": notes[:500], "inline": False})
+
+        embed: Dict[str, Any] = {
+            "title": f"[{level.label}] ROT Signal — {ticker}",
+            "color": level.colour,
+            "fields": fields,
+            "footer": {"text": "ROT Signal Alert | Not financial advice"},
+        }
+        return await self._post({"embeds": [embed]})
+
+    async def send_position_alert(
+        self,
+        position: "OptionsPosition",
+        alert_type: str,
+        level: AlertLevel = AlertLevel.WARNING,
+    ) -> bool:
+        """Send a position lifecycle alert (expiry warning, loss alert, etc.).
+
+        Args:
+            position:   The :class:`~rot.portfolio.positions.OptionsPosition`.
+            alert_type: Free-text alert type, e.g. ``"expiry_warning"``.
+            level:      Severity level.
+
+        Returns:
+            ``True`` if the webhook accepted the message.
+        """
+        fields: List[Dict[str, Any]] = [
+            {"name": "Symbol", "value": position.symbol, "inline": True},
+            {"name": "Strategy", "value": position.strategy, "inline": True},
+            {"name": "Alert", "value": alert_type, "inline": True},
+            {"name": "Days to Expiry", "value": str(position.days_to_expiry), "inline": True},
+            {"name": "Entry Cost", "value": f"${position.entry_cost:,.2f}", "inline": True},
+            {"name": "Current Value", "value": f"${position.current_value:,.2f}", "inline": True},
+            {
+                "name": "Unrealised PnL",
+                "value": f"${position.unrealized_pnl:+,.2f}",
+                "inline": True,
+            },
+        ]
+
+        embed: Dict[str, Any] = {
+            "title": f"[{level.label}] Position Alert — {position.symbol}",
+            "color": level.colour,
+            "fields": fields,
+            "footer": {"text": "ROT Position Monitor | Not financial advice"},
+        }
+        return await self._post({"embeds": [embed]})
+
+    async def send_daily_summary(
+        self,
+        portfolio_greeks: "PortfolioGreeks",
+        daily_pnl: float,
+        open_positions: int = 0,
+        notes: str = "",
+    ) -> bool:
+        """Send an end-of-day portfolio recap embed.
+
+        Args:
+            portfolio_greeks: Aggregated Greeks from :class:`~rot.portfolio.positions.PositionTracker`.
+            daily_pnl:        Total portfolio PnL for the session (USD).
+            open_positions:   Number of open positions.
+            notes:            Optional commentary (≤500 chars).
+
+        Returns:
+            ``True`` if the webhook accepted the message.
+        """
+        pnl_label = f"${daily_pnl:+,.2f}"
+        level = AlertLevel.INFO if daily_pnl >= 0 else AlertLevel.WARNING
+
+        fields: List[Dict[str, Any]] = [
+            {"name": "Daily PnL", "value": pnl_label, "inline": True},
+            {"name": "Open Positions", "value": str(open_positions), "inline": True},
+            {"name": "Net Delta", "value": f"{portfolio_greeks.total_delta:+.4f}", "inline": True},
+            {"name": "Net Gamma", "value": f"{portfolio_greeks.total_gamma:+.4f}", "inline": True},
+            {"name": "Net Theta", "value": f"{portfolio_greeks.total_theta:+.4f}", "inline": True},
+            {"name": "Net Vega", "value": f"{portfolio_greeks.total_vega:+.4f}", "inline": True},
+        ]
+        if notes:
+            fields.append({"name": "Commentary", "value": notes[:500], "inline": False})
+
+        embed: Dict[str, Any] = {
+            "title": "ROT Daily Portfolio Summary",
+            "color": level.colour,
+            "fields": fields,
+            "footer": {"text": "ROT End-of-Day Recap | Not financial advice"},
+        }
+        return await self._post({"embeds": [embed]})
+
+    # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 
@@ -210,6 +399,12 @@ class DiscordNotifier:
         Returns:
             ``True`` if the server responded with 200 or 204.
         """
+        # Rate limiting: max 5 messages per 5 seconds
+        allowed = await self._rate_limiter.acquire()
+        if not allowed:
+            log.warning("discord.rate_limited — message dropped")
+            return False
+
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.post(

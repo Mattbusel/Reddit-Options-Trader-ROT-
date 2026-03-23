@@ -14,6 +14,50 @@
 
 ---
 
+## Round 4 Features
+
+### Options Position Tracker (`src/rot/portfolio/positions.py`)
+
+Provides an in-memory ledger for multi-leg options positions with mark-to-market updates, portfolio Greeks aggregation, and expiry-risk detection.
+
+| Class / Type | Role |
+|---|---|
+| `OptionLeg` | One contract leg: `contract`, `side` (Long/Short), `strike`, `expiry`, `premium`, `quantity`, Greeks |
+| `OptionsPosition` | Full position: `symbol`, `strategy`, `legs`, `entry_cost`, `current_value`, `theta_decay` |
+| `PositionTracker` | Ledger: `add_position`, `close_position`, `mark_to_market`, `positions_at_risk`, `portfolio_greeks` |
+| `PortfolioGreeks` | Aggregated `total_delta`, `total_gamma`, `total_theta`, `total_vega` |
+| `render_positions_page` | Renders `GET /portfolio/positions` as a dark-themed HTML page with position cards |
+
+Delta-adjusted PnL: `realized_pnl + unrealized_pnl + theta_decay_collected`.
+
+### Discord Webhook Notifier (`src/rot/notifications/discord.py`)
+
+Extends the existing `DiscordNotifier` with alert levels, three new send methods, and a token-bucket rate limiter (max 5 msg/5 s).
+
+| Feature | Detail |
+|---|---|
+| `AlertLevel` | `INFO` (blue), `WARNING` (yellow), `CRITICAL` (red) — colour-coded embeds |
+| `send_signal_alert(signal, ticker, confidence)` | Rich embed with signal name, ticker, confidence, and severity |
+| `send_position_alert(position, alert_type)` | Expiry warnings, loss alerts with position Greeks and PnL |
+| `send_daily_summary(portfolio_greeks, daily_pnl)` | End-of-day recap with full Greek snapshot |
+| Rate limiting | Token bucket: 5 messages per 5 seconds; excess messages dropped gracefully |
+| Graceful no-op | Raises `ValueError` at construction if no webhook URL is configured |
+
+```python
+import asyncio
+from rot.notifications.discord import DiscordNotifier, AlertLevel
+
+notifier = DiscordNotifier(webhook_url="https://discord.com/api/webhooks/...")
+asyncio.run(notifier.send_signal_alert(
+    signal="bull_call_spread",
+    ticker="AAPL",
+    confidence=0.82,
+    level=AlertLevel.INFO,
+))
+```
+
+---
+
 ## What is ROT?
 
 ROT is a full-stack financial intelligence platform that watches Reddit discussions and institutional RSS feeds in real time, passes every post through a 9-stage ML/NLP pipeline, scores its credibility with a gradient-boosting model, optionally augments reasoning with an LLM, and surfaces the result as a structured options trade idea -- complete with strike selection, expiry heuristics, max-loss calculation, and a full provenance audit trail. The web dashboard streams signals live via WebSocket, while the broker integration layer lets you route approved ideas directly to an Alpaca paper-trading account with one configuration change. ROT tells you what the crowd is reacting to before price fully reacts; what you do with that information is entirely your responsibility.
