@@ -1146,3 +1146,8 @@ ROT is a **research and educational tool only**. It is a signal intelligence pla
 - The authors and contributors accept no liability for financial losses arising from use of this software.
 
 Use at your own risk.
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/mattbusel-reddit-options-trader-rot).
+
