@@ -52,7 +52,7 @@ dependencies = [
     "scikit-learn>=1.3",
     "numpy>=1.24",
     # -- Defense-in-depth (new) --
-    "nh3>=0.2.14",
+    "nh3>=0.3.4",
 ]
 
 [project.optional-dependencies]
