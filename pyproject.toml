@@ -45,7 +45,7 @@ dependencies = [
     "praw==7.8.1",
     "yfinance",
     "feedparser>=6.0",
-    "openai>=1.0",
+    "openai>=2.31.0",
     "anthropic>=0.20",
     "python-multipart>=0.0.6",
     "stripe==7.13.0",
