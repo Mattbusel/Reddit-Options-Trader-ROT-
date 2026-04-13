@@ -46,7 +46,7 @@ dependencies = [
     "yfinance",
     "feedparser>=6.0",
     "openai>=1.0",
-    "anthropic>=0.20",
+    "anthropic>=0.94.0",
     "python-multipart>=0.0.6",
     "stripe==7.13.0",
     "scikit-learn>=1.3",
