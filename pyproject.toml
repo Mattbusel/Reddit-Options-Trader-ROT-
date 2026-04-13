@@ -63,7 +63,7 @@ dev = [
     "pytest-xdist>=3.5",
     "ruff>=0.2",
     "mypy>=1.8",
-    "bandit[toml]>=1.7",
+    "bandit[toml]>=1.9.4",
     "pip-audit>=2.7",
 ]
 
