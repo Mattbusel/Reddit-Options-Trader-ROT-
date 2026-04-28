@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/mattbusel-reddit-options-trader-rot-badge.png)](https://mseep.ai/app/mattbusel-reddit-options-trader-rot)
+
 # Reddit Options Trader (ROT)
 
 [![CI](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml)
