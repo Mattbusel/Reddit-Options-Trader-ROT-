@@ -1,0 +1,41 @@
+{
+  "about": "Sample Reddit posts written for the ROT demo, in the shape RedditIngestor produces. They are not real posts. Two polls ten minutes apart: the change in upvotes and comments between them is what the trend engine measures. Timestamps are relative to the moment the demo runs.",
+  "poll_gap_s": 600,
+  "posts": [
+    {
+      "id": "demo01", "subreddit": "options", "flair": "DD", "author": "sample_user_1",
+      "age_s": 5400, "upvote_ratio": 0.94, "is_crosspost": false,
+      "title": "NVDA DD: data center demand still outrunning supply into next quarter",
+      "selftext": "Deep dive on $NVDA. Hyperscaler capex guidance went up again and lead times on the new accelerators are still long. I think the next earnings report beats on data center revenue. Bullish, looking at calls a few weeks out.",
+      "polls": [{"score": 420, "num_comments": 88}, {"score": 610, "num_comments": 131}]
+    },
+    {
+      "id": "demo02", "subreddit": "wallstreetbets", "flair": "YOLO", "author": "sample_user_2",
+      "age_s": 3000, "upvote_ratio": 0.81, "is_crosspost": false,
+      "title": "TSLA puts printing? Deliveries miss rumor going around",
+      "selftext": "Hearing chatter that $TSLA deliveries come in light this quarter. Bearish into the number. Not financial advice.",
+      "polls": [{"score": 150, "num_comments": 60}, {"score": 390, "num_comments": 142}]
+    },
+    {
+      "id": "demo03", "subreddit": "pennystocks", "flair": null, "author": "sample_user_3",
+      "age_s": 1800, "upvote_ratio": 0.62, "is_crosspost": true,
+      "title": "This ticker is going to the moon 1000% guaranteed, get in before it explodes",
+      "selftext": "Guaranteed 10x, load up now before everyone finds out. Trust me, easy money, to the moon!!!",
+      "polls": [{"score": 12, "num_comments": 9}, {"score": 40, "num_comments": 30}]
+    },
+    {
+      "id": "demo04", "subreddit": "stocks", "flair": "Discussion", "author": "sample_user_4",
+      "age_s": 7200, "upvote_ratio": 0.9, "is_crosspost": false,
+      "title": "AMD earnings next week: what is priced in?",
+      "selftext": "$AMD reports next week. Options imply a big move. Could go either way given the guidance last time. Curious what people expect.",
+      "polls": [{"score": 230, "num_comments": 75}, {"score": 300, "num_comments": 110}]
+    },
+    {
+      "id": "demo05", "subreddit": "investing", "flair": null, "author": "sample_user_5",
+      "age_s": 9000, "upvote_ratio": 0.88, "is_crosspost": false,
+      "title": "How do you all think about rebalancing in a high-rate world?",
+      "selftext": "No specific stock here, just asking how people handle bonds versus cash right now.",
+      "polls": [{"score": 80, "num_comments": 40}, {"score": 81, "num_comments": 41}]
+    }
+  ]
+}

@@ -8,6 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `EventBuilder` NLP path read `ResolvedEntity.sentiment` / `.text`, which do not exist, so every post fell back to the legacy regex path. It now uses `sentiment_toward` / `symbol` (tests/test_event_builder_nlp_path.py).
+
+### Added
+- `examples/demo.py`: runs the real pipeline offline on bundled sample posts and a saved Yahoo Finance snapshot (tests/test_examples_demo.py).
+- Pipeline diagram (`docs/img/pipeline-*.svg`, `scripts/make_pipeline_svg.py`) and a GitHub Pages site (`site/`, `.github/workflows/pages.yml`).
+
+### Changed
+- README shortened; the full text moved to `docs/REFERENCE.md`. Links to the offline Railway deployment removed.
+
 ---
 
 ## [1.0.0] - 2026-03-18

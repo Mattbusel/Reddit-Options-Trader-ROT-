@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 724" width="900" height="724" role="img" aria-labelledby="t d">
+<title id="t">How ROT turns a Reddit post into an options trade idea</title>
+<desc id="d">Nine stages run by PipelineRunner: ingest, trend, tickers, event, validate and enrich, credibility, suppress, reason, trade idea. Each box shows how many of the demo's 5 sample posts reached it on the second pass.</desc>
+<rect width="900" height="724" rx="14" fill="#0F1115"/>
+<text x="44.0" y="56.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="27" fill="#ECEDEF" text-anchor="start" font-weight="700">From a Reddit post to an options trade idea</text>
+<path d="M172.0,179.0 L454.0,179.0 L736.0,179.0 L736.0,337.0 L454.0,337.0 L172.0,337.0 L172.0,495.0 L454.0,495.0 L736.0,495.0" fill="none" stroke="#2C313B" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round"/>
+<text x="44.0" y="88.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" fill="#B8BBC2" text-anchor="start" font-weight="400">The nine stages in PipelineRunner.run_once(). Numbers: the demo&#x27;s 5 sample posts.</text>
+<rect x="44" y="120" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="70" cy="148" r="14" fill="#4FB3C8"/>
+<text x="70.0" y="153.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">1</text>
+<text x="94.0" y="154.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Ingest</text>
+<text x="60.0" y="184.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">Reddit (PRAW) + RSS feeds</text>
+<text x="60.0" y="220.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">5</text>
+<text x="84.0" y="219.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">posts</text>
+<rect x="326" y="120" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="352" cy="148" r="14" fill="#4FB3C8"/>
+<text x="352.0" y="153.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">2</text>
+<text x="376.0" y="154.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Trend</text>
+<text x="342.0" y="184.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">upvotes/s + 2 x comments/s &gt;= 0.01</text>
+<text x="342.0" y="220.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">4</text>
+<text x="366.0" y="219.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">trending</text>
+<rect x="608" y="120" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="634" cy="148" r="14" fill="#4FB3C8"/>
+<text x="634.0" y="153.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">3</text>
+<text x="658.0" y="154.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Tickers (NLP)</text>
+<text x="624.0" y="184.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">$cashtags, bare tickers, aliases</text>
+<text x="624.0" y="220.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="648.0" y="219.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">with a ticker</text>
+<rect x="608" y="278" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="634" cy="306" r="14" fill="#4FB3C8"/>
+<text x="634.0" y="311.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">4</text>
+<text x="658.0" y="312.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Event</text>
+<text x="624.0" y="342.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">type, stance, horizon</text>
+<text x="624.0" y="378.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="648.0" y="377.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">events</text>
+<rect x="326" y="278" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="352" cy="306" r="14" fill="#4FB3C8"/>
+<text x="352.0" y="311.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">5</text>
+<text x="376.0" y="312.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Validate + enrich</text>
+<text x="342.0" y="342.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">real ticker? price, market cap</text>
+<text x="342.0" y="378.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="366.0" y="377.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">priced</text>
+<rect x="44" y="278" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="70" cy="306" r="14" fill="#4FB3C8"/>
+<text x="70.0" y="311.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">6</text>
+<text x="94.0" y="312.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Credibility</text>
+<text x="60.0" y="342.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">flair, subreddit, votes, pump words</text>
+<text x="60.0" y="378.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="84.0" y="377.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">scored 0 to 1</text>
+<rect x="44" y="436" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="70" cy="464" r="14" fill="#4FB3C8"/>
+<text x="70.0" y="469.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">7</text>
+<text x="94.0" y="470.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Suppress</text>
+<text x="60.0" y="500.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">categories with a poor track record</text>
+<text x="60.0" y="536.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="84.0" y="535.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">kept</text>
+<rect x="326" y="436" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="352" cy="464" r="14" fill="#4FB3C8"/>
+<text x="352.0" y="469.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">8</text>
+<text x="376.0" y="470.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Reason (LLM)</text>
+<text x="342.0" y="500.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">OpenAI / Anthropic / DeepSeek, or stub</text>
+<text x="342.0" y="536.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="366.0" y="535.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">reasoned</text>
+<rect x="608" y="436" width="256" height="118" rx="10" fill="#171A21" stroke="#2C313B"/>
+<circle cx="634" cy="464" r="14" fill="#4FB3C8"/>
+<text x="634.0" y="469.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#171A21" text-anchor="middle" font-weight="700">9</text>
+<text x="658.0" y="470.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#ECEDEF" text-anchor="start" font-weight="700">Trade idea</text>
+<text x="624.0" y="500.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#B8BBC2" text-anchor="start" font-weight="400">spread / straddle, or a reason not to</text>
+<text x="624.0" y="536.0" font-family="ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#FF7A4D" text-anchor="start" font-weight="700">3</text>
+<text x="648.0" y="535.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8C9099" text-anchor="start" font-weight="400">records, 0 with legs</text>
+<circle r="7" fill="#FF7A4D"><animateMotion dur="9s" repeatCount="indefinite" path="M172.0,179.0 L454.0,179.0 L736.0,179.0 L736.0,337.0 L454.0,337.0 L172.0,337.0 L172.0,495.0 L454.0,495.0 L736.0,495.0"/></circle>
+<text x="44.0" y="594.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" fill="#ECEDEF" text-anchor="start" font-weight="700">Why the demo&#x27;s three events end with no trade:</text>
+<text x="44.0" y="622.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#B8BBC2" text-anchor="start" font-weight="400">Earnings rumours are clamped to confidence 0.25, below the 0.30 bar.</text>
+<text x="44.0" y="646.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#B8BBC2" text-anchor="start" font-weight="400">An unknown stance never trades, and weekends block every trade.</text>
+<text x="44.0" y="670.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#B8BBC2" text-anchor="start" font-weight="400">Stub reasoning (no LLM key) keeps the heuristic confidence.</text>
+<text x="44.0" y="702.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#8C9099" text-anchor="start" font-weight="400">Rules from market/trade_builder.py and market/gates.py. Research only, not financial advice.</text>
+</svg>

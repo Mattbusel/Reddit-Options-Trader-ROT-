@@ -1,0 +1,26 @@
+{
+ "about": "Yahoo Finance data for the tickers in posts.json, saved by `python examples/demo.py --refresh-market`.",
+ "fetched": "2026-09-28",
+ "symbols_valid": {
+  "AMD": true,
+  "NVDA": true,
+  "TSLA": true
+ },
+ "market": {
+  "AMD": {
+   "symbol": "AMD",
+   "last_close": 607.8699951171875,
+   "pct_1d": -0.036090908439813885
+  },
+  "NVDA": {
+   "symbol": "NVDA",
+   "last_close": 228.86000061035156,
+   "pct_1d": 0.0168391752023771
+  },
+  "TSLA": {
+   "symbol": "TSLA",
+   "last_close": 357.45001220703125,
+   "pct_1d": -0.03939688189415502
+  }
+ }
+}

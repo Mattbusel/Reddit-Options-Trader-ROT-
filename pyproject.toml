@@ -143,6 +143,6 @@ severity = "medium"
 confidence = "medium"
 
 [project.urls]
-Homepage = "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-"
+Homepage = "https://mattbusel.github.io/Reddit-Options-Trader-ROT-/"
 Repository = "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-"
 "Bug Tracker" = "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/issues"

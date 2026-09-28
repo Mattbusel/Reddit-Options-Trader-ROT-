@@ -237,8 +237,8 @@ class EventBuilder:
         # Per-ticker sentiment
         ticker_sentiments = {}
         for ent in nlp_result.entities:
-            if ent.sentiment:
-                ticker_sentiments[ent.text] = ent.sentiment
+            if ent.sentiment_toward:
+                ticker_sentiments[ent.symbol] = ent.sentiment_toward
         if ticker_sentiments:
             nlp_meta["ticker_sentiments"] = ticker_sentiments
 
