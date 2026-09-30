@@ -5,14 +5,14 @@
 For developers and retail options traders who want to study Reddit sentiment as a signal, and for anyone curious how a social-media NLP pipeline is built end to end.
 
 <p align="center">
-  <a href="https://mattbusel.github.io/Reddit-Options-Trader-ROT-/"><b>Project site</b></a> &middot;
+  <a href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"><b>Project site</b></a> &middot;
   <a href="#try-it-in-one-command">Try it</a> &middot;
   <a href="#how-it-works">How it works</a> &middot;
   <a href="#examples">Examples</a> &middot;
   <a href="docs/REFERENCE.md">Full reference</a>
 </p>
 
-[![CI](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/actions/workflows/ci.yml)
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -28,7 +28,7 @@ For developers and retail options traders who want to study Reddit sentiment as 
 No Reddit account, no API keys. The demo runs the real pipeline on five bundled sample posts:
 
 ```bash
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git && cd Reddit-Options-Trader-ROT-
+git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git && cd Reddit-Options-Trader-ROT-
 pip install -e . && python examples/demo.py
 ```
 

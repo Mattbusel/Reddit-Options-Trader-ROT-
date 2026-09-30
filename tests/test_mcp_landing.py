@@ -391,7 +391,7 @@ class TestMcpLandingValueProp:
     async def test_contains_github_link(self, client):
         """Page links to GitHub."""
         response = client.get("/mcp-server")
-        assert "github.com/Mattbusel/Reddit-Options-Trader-ROT-" in response.text
+        assert "gitlab.com/mattbusel/Reddit-Options-Trader-ROT" in response.text
 
 
 # ============================================================================

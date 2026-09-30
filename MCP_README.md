@@ -87,4 +87,4 @@ No API key required — all tools are free at launch. An optional `ROT_API_KEY` 
 
 - **Landing Page**: [web-production-71423.up.railway.app/mcp-server](https://web-production-71423.up.railway.app/mcp-server)
 - **Dashboard**: [web-production-71423.up.railway.app](https://web-production-71423.up.railway.app)
-- **GitHub**: [github.com/Mattbusel/Reddit-Options-Trader-ROT-](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-)
+- **GitHub**: [gitlab.com/mattbusel/Reddit-Options-Trader-ROT](https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT)

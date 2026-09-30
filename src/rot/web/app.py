@@ -101,13 +101,13 @@ Get your API key at [/account](/account) after registration.
 ## Support
 
 - Documentation: [/docs](/docs)
-- Issues: [GitHub](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-)
+- Issues: [GitHub](https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT)
 - Email: support@rot.example.com
         """,
         version="0.1.0",
         contact={
             "name": "ROT Support",
-            "url": "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-",
+            "url": "https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT",
             "email": "support@rot.example.com"
         },
         license_info={

@@ -35,7 +35,7 @@ ROT is a full-stack financial intelligence platform that watches Reddit discussi
 ### Option A -- Docker (recommended)
 
 ```bash
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git
 cd Reddit-Options-Trader-ROT-
 
 # 1. Copy the environment template
@@ -60,7 +60,7 @@ and still generates trade ideas.
 ### Option B -- Manual (virtualenv)
 
 ```bash
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git
 cd Reddit-Options-Trader-ROT-
 
 python -m venv .venv
@@ -640,7 +640,7 @@ pytest tests/ -n auto -q --tb=short
 ### Docker Compose (self-hosted)
 
 ```bash
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git
 cd Reddit-Options-Trader-ROT-
 cp .env.example .env
 docker compose up --build -d

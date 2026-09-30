@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reddit Options Trader: Reddit Sentiment Options Signals</title>
 <meta name="description" content="Open-source Python app that turns trending Reddit stock posts into credibility-scored options trade ideas, with an NLP pipeline, dashboard and API. Free demo.">
-<link rel="canonical" href="https://mattbusel.github.io/Reddit-Options-Trader-ROT-/">
+<link rel="canonical" href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/">
 <meta name="author" content="Matthew Busel">
 <meta name="robots" content="index,follow">
 <meta name="color-scheme" content="light dark">
@@ -13,15 +13,15 @@
 <meta property="og:site_name" content="Reddit Options Trader (ROT)">
 <meta property="og:title" content="Reddit Options Trader: Reddit Sentiment Options Signals">
 <meta property="og:description" content="Trending Reddit stock posts in, credibility-scored options trade ideas out, or a logged reason not to trade. Open-source Python, one-command demo.">
-<meta property="og:url" content="https://mattbusel.github.io/Reddit-Options-Trader-ROT-/">
-<meta property="og:image" content="https://mattbusel.github.io/Reddit-Options-Trader-ROT-/og.png">
+<meta property="og:url" content="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/">
+<meta property="og:image" content="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Reddit Options Trader: title and a screenshot of the signal dashboard">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Reddit Options Trader: Reddit Sentiment Options Signals">
 <meta name="twitter:description" content="Trending Reddit stock posts in, credibility-scored options trade ideas out. Open-source Python, one-command demo.">
-<meta name="twitter:image" content="https://mattbusel.github.io/Reddit-Options-Trader-ROT-/og.png">
+<meta name="twitter:image" content="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230F1115'/%3E%3Cpath d='M16 5c3 5 7 8 7 14a7 7 0 0 1-14 0c0-4 2-6 3-8 1 3 2 4 4 4-1-4-1-7 0-10z' fill='%23FF7A4D'/%3E%3C/svg%3E">
 <script type="application/ld+json">
 {
@@ -29,14 +29,14 @@
   "@type": "SoftwareSourceCode",
   "name": "Reddit Options Trader (ROT)",
   "description": "Open-source Python app that turns trending Reddit stock posts into credibility-scored options trade ideas: Reddit and RSS ingestion, trend detection, a custom NLP engine, credibility scoring, optional LLM reasoning (OpenAI, Anthropic, DeepSeek), a FastAPI dashboard and API.",
-  "codeRepository": "https://github.com/Mattbusel/Reddit-Options-Trader-ROT-",
-  "url": "https://mattbusel.github.io/Reddit-Options-Trader-ROT-/",
+  "codeRepository": "https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT",
+  "url": "https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/",
   "programmingLanguage": "Python",
   "runtimePlatform": "Python 3.10+",
   "license": "https://opensource.org/licenses/MIT",
   "keywords": "reddit sentiment analysis, options trading, wallstreetbets, stock sentiment, trading signals, NLP, FastAPI, LLM",
-  "image": "https://mattbusel.github.io/Reddit-Options-Trader-ROT-/og.png",
-  "author": {"@type": "Person", "name": "Matthew Busel", "url": "https://github.com/Mattbusel"}
+  "image": "https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/og.png",
+  "author": {"@type": "Person", "name": "Matthew Busel", "url": "https://gitlab.com/mattbusel"}
 }
 </script>
 <style>
@@ -72,16 +72,16 @@ footer{border-top:1px solid var(--rule);margin-top:56px;padding:20px 0 40px;font
 <div class="wrap">
 <header class="top">
   <a class="brand" href="#top">ROT &middot; Reddit Options Trader</a>
-  <nav><a href="#demo">Demo</a><a class="hide" href="#how">How it works</a><a href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-">GitHub</a></nav>
+  <nav><a href="#demo">Demo</a><a class="hide" href="#how">How it works</a><a href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT">GitHub</a></nav>
 </header>
 
 <main id="top">
 <h1>Reddit Options Trader: from a trending Reddit post to an options trade idea</h1>
 <p class="lede">An open-source Python app that reads Reddit and market news, spots the stock tickers people are suddenly excited about, scores how trustworthy each post looks, and turns it into an options trade idea, or a clear reason not to trade. Web dashboard, REST and WebSocket API, optional LLM reasoning.</p>
 <div class="cta">
-  <a class="btn pri" href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/archive/refs/heads/master.zip">Download the code (.zip)</a>
+  <a class="btn pri" href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/-/archive/master/Reddit-Options-Trader-ROT-master.zip">Download the code (.zip)</a>
   <a class="btn" href="#demo">Run the demo</a>
-  <a class="btn" href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-">View on GitHub</a>
+  <a class="btn" href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT">View on GitHub</a>
 </div>
 <p class="warn"><b>Research and educational tool only. Not financial advice.</b> ROT produces signals and trade ideas, not a tested strategy. Options can lose 100% of the premium paid, and Reddit sentiment is noisy and often manipulated.</p>
 
@@ -92,7 +92,7 @@ footer{border-top:1px solid var(--rule);margin-top:56px;padding:20px 0 40px;font
 
 <h2 id="demo">Try it in one command</h2>
 <p>No Reddit account and no API keys: the demo runs the real pipeline on five bundled sample posts (written for the demo, not real posts) with a saved Yahoo Finance snapshot, so it works offline. Python 3.10+.</p>
-<pre>git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git && cd Reddit-Options-Trader-ROT-
+<pre>git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git && cd Reddit-Options-Trader-ROT-
 pip install -e . && python examples/demo.py</pre>
 <p>Part of the real output (2026-09-28):</p>
 <pre>pass 2: snapshots 5, candidates 4, events 3, trade_ideas 3
@@ -118,10 +118,10 @@ r/pennystocks  "This ticker is going to the moon 1000% guaranteed, get in before
   <li><b>Score trust.</b> A 0 to 1 credibility score rewards DD posts, good subreddits and engagement, and penalises cross-posts, new accounts and pump-and-dump language.</li>
   <li><b>Reason and decide.</b> An LLM (or a built-in stub without a key) writes a thesis, and the trade builder proposes a spread or straddle, or logs why it will not trade.</li>
 </ol>
-<p>Full documentation: <a href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/master/docs/REFERENCE.md">reference</a>, <a href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/master/docs/config.md">configuration</a>, <a href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/blob/master/docs/api-reference.md">API</a>.</p>
+<p>Full documentation: <a href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/-/blob/master/docs/REFERENCE.md">reference</a>, <a href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/-/blob/master/docs/config.md">configuration</a>, <a href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/-/blob/master/docs/api-reference.md">API</a>.</p>
 </main>
 
-<footer>MIT licensed &middot; by Matthew Busel &middot; <a href="https://github.com/Mattbusel/Reddit-Options-Trader-ROT-">github.com/Mattbusel/Reddit-Options-Trader-ROT-</a> &middot; Research and education only, not financial advice.</footer>
+<footer>MIT licensed &middot; by Matthew Busel &middot; <a href="https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT">gitlab.com/mattbusel/Reddit-Options-Trader-ROT</a> &middot; Research and education only, not financial advice.</footer>
 </div>
 </body>
 </html>

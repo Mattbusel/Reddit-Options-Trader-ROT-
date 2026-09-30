@@ -39,7 +39,7 @@ Key variables:
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/Mattbusel/Reddit-Options-Trader-ROT-.git
+git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git
 cd Reddit-Options-Trader-ROT-
 
 # 2. Create a virtual environment
@@ -125,5 +125,5 @@ before pushing — the CI gate will fail on type errors.
 
 ## Questions?
 
-Open a [GitHub Discussion](https://github.com/Mattbusel/Reddit-Options-Trader-ROT-/discussions)
+Open a [GitHub Discussion](https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/discussions)
 or file an issue if something is unclear. We welcome contributions of all sizes.
