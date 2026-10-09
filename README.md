@@ -1,5 +1,7 @@
 # Reddit Options Trader (ROT)
 
+English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
 **A Python app that reads Reddit and market news, spots which stock tickers people are suddenly excited about, scores how trustworthy each post looks, and turns it into an options trade idea, or a clear reason not to trade.** It is a Reddit sentiment and options signal pipeline with a web dashboard, a REST/WebSocket API and optional LLM reasoning (OpenAI, Anthropic or DeepSeek).
 
 For developers and retail options traders who want to study Reddit sentiment as a signal, and for anyone curious how a social-media NLP pipeline is built end to end.
