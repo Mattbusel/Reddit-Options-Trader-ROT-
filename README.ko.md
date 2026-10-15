@@ -7,7 +7,7 @@
 Reddit 감성을 매매 신호로 연구해 보고 싶은 개발자와 개인 옵션 트레이더, 그리고 소셜 미디어 NLP 파이프라인이 처음부터 끝까지 어떻게 만들어지는지 궁금한 분들을 위한 프로젝트입니다.
 
 <p align="center">
-  <a href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"><b>프로젝트 사이트</b></a> &middot;
+  <a href="https://tensorust.com/Reddit-Options-Trader-ROT-/"><b>프로젝트 사이트</b></a> &middot;
   <a href="#try-it-in-one-command">실행해 보기</a> &middot;
   <a href="#how-it-works">작동 원리</a> &middot;
   <a href="#examples">예제</a> &middot;

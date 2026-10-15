@@ -7,7 +7,7 @@
 面向想把 Reddit 情绪当作交易信号来研究的开发者和散户期权交易者，也适合想了解一条社交媒体 NLP 流水线如何从头到尾搭建起来的人。
 
 <p align="center">
-  <a href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"><b>项目网站</b></a> &middot;
+  <a href="https://tensorust.com/Reddit-Options-Trader-ROT-/"><b>项目网站</b></a> &middot;
   <a href="#try-it-in-one-command">试用</a> &middot;
   <a href="#how-it-works">工作原理</a> &middot;
   <a href="#examples">示例</a> &middot;

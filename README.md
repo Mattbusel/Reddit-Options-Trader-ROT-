@@ -7,7 +7,7 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국�
 For developers and retail options traders who want to study Reddit sentiment as a signal, and for anyone curious how a social-media NLP pipeline is built end to end.
 
 <p align="center">
-  <a href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"><b>Project site</b></a> &middot;
+  <a href="https://tensorust.com/Reddit-Options-Trader-ROT-/"><b>Project site</b></a> &middot;
   <a href="#try-it-in-one-command">Try it</a> &middot;
   <a href="#how-it-works">How it works</a> &middot;
   <a href="#examples">Examples</a> &middot;

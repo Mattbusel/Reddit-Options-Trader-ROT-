@@ -7,7 +7,7 @@
 Reddit のセンチメントをシグナルとして研究したい開発者や個人のオプショントレーダー、そして SNS の自然言語処理（NLP）パイプラインがどのように端から端まで組み立てられているのかに興味がある方に向けたプロジェクトです。
 
 <p align="center">
-  <a href="https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"><b>プロジェクトサイト</b></a> &middot;
+  <a href="https://tensorust.com/Reddit-Options-Trader-ROT-/"><b>プロジェクトサイト</b></a> &middot;
   <a href="#try-it-in-one-command">試してみる</a> &middot;
   <a href="#how-it-works">仕組み</a> &middot;
   <a href="#examples">実行例</a> &middot;

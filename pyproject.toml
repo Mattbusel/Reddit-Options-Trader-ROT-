@@ -143,6 +143,6 @@ severity = "medium"
 confidence = "medium"
 
 [project.urls]
-Homepage = "https://mattbusel.vercel.app/Reddit-Options-Trader-ROT-/"
+Homepage = "https://tensorust.com/Reddit-Options-Trader-ROT-/"
 Repository = "https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT"
 "Bug Tracker" = "https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT/-/issues"
