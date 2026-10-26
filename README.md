@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/mattbusel-reddit-options-trader-rot-badge.png)](https://mseep.ai/app/mattbusel-reddit-options-trader-rot)
+
 # Reddit Options Trader (ROT)
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
