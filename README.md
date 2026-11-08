@@ -2,9 +2,7 @@
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**A Python app that reads Reddit and market news, spots which stock tickers people are suddenly excited about, scores how trustworthy each post looks, and turns it into an options trade idea, or a clear reason not to trade.** It is a Reddit sentiment and options signal pipeline with a web dashboard, a REST/WebSocket API and optional LLM reasoning (OpenAI, Anthropic or DeepSeek).
-
-For developers and retail options traders who want to study Reddit sentiment as a signal, and for anyone curious how a social-media NLP pipeline is built end to end.
+**A Python app that reads Reddit and market news and finds the tickers people suddenly care about.** It scores how trustworthy each post looks. Then it gives an options trade idea, or a clear reason not to trade. Comes with a web dashboard, a REST/WebSocket API and optional LLM reasoning (OpenAI, Anthropic or DeepSeek).
 
 <p align="center">
   <a href="https://tensorust.com/Reddit-Options-Trader-ROT-/"><b>Project site</b></a> &middot;
@@ -19,7 +17,7 @@ For developers and retail options traders who want to study Reddit sentiment as 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > [!WARNING]
-> **Research and educational tool only. Not financial advice.** ROT produces signals and trade ideas, not a tested strategy. Options can lose 100% of the premium paid, Reddit sentiment is noisy and often manipulated, and LLM reasoning can be confidently wrong. Broker integration defaults to paper trading.
+> **Research and learning only. Not financial advice.** ROT gives signals and trade ideas, not a tested strategy. Options can lose 100% of what you pay. Reddit sentiment is noisy and often faked. LLMs can be confidently wrong. Broker hookup defaults to paper trading.
 
 <img alt="The ROT web dashboard: signal counts, average confidence, a bullish/bearish/mixed split, a list of the latest signals with ticker, stance, confidence and an LLM-written summary, and trending tickers" src="docs/img/dashboard.png" width="100%">
 
@@ -34,9 +32,9 @@ git clone https://gitlab.com/mattbusel/Reddit-Options-Trader-ROT.git && cd Reddi
 pip install -e . && python examples/demo.py
 ```
 
-Python 3.10+. The sample posts in [`examples/sample/posts.json`](examples/sample/posts.json) were written for the demo (they are not real Reddit posts); ticker checks and prices come from a Yahoo Finance snapshot saved on 2026-09-28, so it runs offline. Add `--live` for fresh prices.
+Python 3.10+. The posts in [`examples/sample/posts.json`](examples/sample/posts.json) were written for the demo, not taken from Reddit. Prices come from a Yahoo Finance snapshot saved 2026-09-28, so it runs offline. Add `--live` for fresh prices.
 
-To run the full app with live Reddit data and the dashboard, copy `.env.example` to `.env`, add your Reddit API keys, and run `docker compose up --build` (then open http://localhost:8000/dashboard). There is no hosted instance: the old Railway deployment is offline.
+For the full app with live Reddit data: copy `.env.example` to `.env`, add your Reddit API keys, run `docker compose up --build`, open http://localhost:8000/dashboard. There is no hosted version. The old Railway deploy is offline.
 
 ## How it works
 
@@ -45,12 +43,12 @@ To run the full app with live Reddit data and the dashboard, copy `.env.example`
   <img alt="The nine pipeline stages as a snake of cards: ingest (5 posts), trend (4 trending, upvotes per second plus 2 times comments per second at least 0.01), tickers (3 with a ticker), event (3), validate and enrich (3 priced), credibility (3 scored 0 to 1), suppress (3 kept), reason with an LLM or stub (3), trade idea (3 records, 0 with legs). Below: earnings rumours are clamped to confidence 0.25, below the 0.30 bar; an unknown stance never trades; weekends block every trade." src="docs/img/pipeline-light.svg" width="100%">
 </picture>
 
-In plain words, on every poll (Reddit is polled every 20 seconds by default):
+On every poll (every 20 seconds by default):
 
-1. **Ingest and trend.** Posts come in from Reddit and RSS news feeds. A post "trends" when its upvotes and comments grow fast between two polls.
-2. **Find the ticker and the story.** A custom NLP engine pulls out `$TSLA`-style tickers, the kind of event (earnings rumour, product news, squeeze chatter...), the stance (bullish, bearish, mixed) and the time horizon. Tickers are checked against real market data.
-3. **Score trust.** A credibility score from 0 to 1 rewards DD posts, good subreddits and engagement, and penalises cross-posts, new accounts and pump-and-dump language.
-4. **Reason and decide.** An LLM (or a built-in stub when there is no key) writes a thesis, and the trade builder either proposes a structure (debit/credit spread, straddle...) or records why it will not trade.
+1. **Pull in and trend.** Posts come from Reddit and RSS news feeds. A post "trends" when its upvotes and comments grow fast between two polls.
+2. **Find the ticker and the story.** A custom NLP engine pulls out `$TSLA`-style tickers, the event type (earnings rumour, product news, squeeze chatter...), the stance (bullish, bearish, mixed) and the time horizon. Tickers are checked against real market data.
+3. **Score trust.** A 0 to 1 score. DD posts, good subreddits and engagement push it up. Cross-posts, new accounts and pump-and-dump language push it down.
+4. **Reason and decide.** An LLM (or a built-in stub with no key) writes a thesis. The trade builder suggests a structure (debit/credit spread, straddle...) or logs why it won't trade.
 
 Code: [`src/rot/app/runner.py`](src/rot/app/runner.py) (`PipelineRunner.run_once`). Diagram source: [`scripts/make_pipeline_svg.py`](scripts/make_pipeline_svg.py).
 
@@ -97,7 +95,7 @@ r/investing  "How do you all think about rebalancing in a high-rate world?"
   -> no signal (no valid ticker, or not trending)
 ```
 
-What it shows: the DD post on r/options scores highest (0.70) and the r/wallstreetbets rumour lowest (0.45); the hype post has no ticker and the calm question never trends, so both stop early; and ROT refuses to trade all three events, for the reasons it logs. Every stage also writes a JSONL audit trail. `python examples/demo.py --keep` leaves it on disk, for example:
+What it shows: the r/options DD post scores highest (0.70). The r/wallstreetbets rumour scores lowest (0.45). The hype post has no ticker and the calm question never trends, so both stop early. ROT refuses to trade all three events and logs why. Every stage writes a JSONL audit trail. `python examples/demo.py --keep` leaves it on disk, for example:
 
 ```json
 {"run_id": "run_1790631982", "trade_idea": {"underlying": "AMD", "strategy": "none", "legs": [], "max_loss": 0.0, "thesis": "Reddit chatter mentions AMD; treat as unverified signal.", "time_stop": "N/A", "quality_score": 0.0, "do_not_trade_reasons": ["unknown_stance"], "meta": {}}, "ts": 1790631982}
@@ -113,7 +111,7 @@ What it shows: the DD post on r/options scores highest (0.70) and the r/wallstre
 
 | Document | What is in it |
 |---|---|
-| [docs/REFERENCE.md](docs/REFERENCE.md) | Everything from the old long README: quickstart options, architecture, signal quality factors, configuration, options chain, API, lineage, brokers, risk monitor, tests, deployment, security, per-round feature notes |
+| [docs/REFERENCE.md](docs/REFERENCE.md) | Everything else: quickstart options, architecture, signal quality factors, config, options chain, API, lineage, brokers, risk monitor, tests, deployment, security, feature notes |
 | [docs/architecture.md](docs/architecture.md) | Pipeline stages and design decisions |
 | [docs/config.md](docs/config.md) | Every `ROT_*` environment variable |
 | [docs/api-reference.md](docs/api-reference.md) | REST and WebSocket endpoints |
@@ -123,4 +121,4 @@ What it shows: the DD post on r/options scores highest (0.70) and the r/wallstre
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Third-party licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Research and education only; the authors accept no liability for financial losses. Never risk capital you cannot afford to lose.
+MIT, see [LICENSE](LICENSE). Third-party licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Research and learning only. The authors accept no liability for losses. Never risk money you can't afford to lose.
