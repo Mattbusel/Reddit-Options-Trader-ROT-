@@ -25,7 +25,7 @@ jobs:
           cp -r site/. _site/
           cp docs/img/dashboard.png docs/img/pipeline-light.svg docs/img/pipeline-dark.svg _site/img/
           touch _site/.nojekyll
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
