@@ -1,5 +1,5 @@
 # ── Stage 1: Build dependencies ──
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends gcc \
     && rm -rf /var/lib/apt/lists/*
@@ -39,7 +39,7 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir --no-deps .
 
 # ── Stage 2: Lean runtime image (no gcc, no build tools) ──
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
